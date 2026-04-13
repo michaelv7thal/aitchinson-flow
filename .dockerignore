@@ -1,0 +1,31 @@
+# Version control
+.git/
+.github/
+.gitlab-ci.yml
+
+# Local Python env (container builds its own)
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.python-version
+
+# Data and results — mount these as volumes at runtime:
+#   docker run -v $(pwd)/data:/workspace/data -v $(pwd)/results:/workspace/results
+data/
+results/
+
+# Dev / editor artefacts
+.DS_Store
+.aider*
+*.zip
+HSGembedding/
+PythonHSGembedding.zip
+
+# Generated report artifacts
+report.qmd
+report.html
+report_files/
+
+# Claude Code session files
+.claude/

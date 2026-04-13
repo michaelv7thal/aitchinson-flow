@@ -1,0 +1,70 @@
+"""Random token corruption for benchmark invalid-sample generation."""
+
+from __future__ import annotations
+
+import torch
+from torch import Tensor
+
+from aitchinson_flow.data.transforms.discrete import token_ids_to_log_x
+
+
+def corrupt_token_ids(
+    token_ids: Tensor,
+    *,
+    vocab_size: int,
+    corrupt_rate: float = 0.15,
+    seed: int | None = None,
+) -> Tensor:
+    """Replace a random subset of tokens with uniform random vocab ids.
+
+    Parameters
+    ----------
+    token_ids : Tensor, shape (B, L), dtype long
+    vocab_size : int
+    corrupt_rate : float in (0, 1]
+    seed : optional RNG seed for reproducibility
+
+    Returns
+    -------
+    Tensor, shape (B, L), dtype long — corrupted copy
+    """
+    gen = torch.Generator()
+    if seed is not None:
+        gen.manual_seed(seed)
+
+    mask = torch.rand(token_ids.shape, generator=gen) < corrupt_rate
+    replacements = torch.randint(0, vocab_size, token_ids.shape, generator=gen)
+    # Avoid replacing with the same token (best-effort: re-draw once)
+    same = replacements == token_ids
+    replacements[same] = (replacements[same] + 1) % vocab_size
+    return torch.where(mask, replacements, token_ids)
+
+
+def build_invalid_batch(
+    batch: dict[str, Tensor],
+    *,
+    K: int,
+    corrupt_rate: float = 0.15,
+    eps: float = 1e-8,
+    seed: int | None = None,
+) -> dict[str, Tensor]:
+    """Augment a benchmark batch with corrupted invalid samples.
+
+    Expects ``batch["token_ids"]`` (B, L) and ``batch["logits"]`` (B, L, vocab).
+    Adds ``batch["log_x_invalid"]``, ``batch["token_ids_invalid"]``, and
+    ``batch["logits_invalid"]`` (logits unchanged — still original LM scores).
+    """
+    token_ids = batch["token_ids"]
+    vocab_size = batch["logits"].shape[-1]
+
+    bad_ids = corrupt_token_ids(
+        token_ids, vocab_size=vocab_size, corrupt_rate=corrupt_rate, seed=seed,
+    )
+
+    rows = [token_ids_to_log_x(row, K=K, eps=eps) for row in bad_ids]
+    log_x_invalid = torch.stack(rows, dim=0)
+
+    batch["token_ids_invalid"] = bad_ids
+    batch["log_x_invalid"] = log_x_invalid
+    batch["logits_invalid"] = batch["logits"].clone()
+    return batch

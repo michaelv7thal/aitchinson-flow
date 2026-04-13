@@ -1,0 +1,97 @@
+{
+    "name": "aitchison-flow",
+  
+    // Use the NVIDIA CUDA base image so the container has the CUDA runtime.
+    // When running on a CPU-only machine (laptop / CI), Docker falls back to
+    // the standard Linux runtime — the container still starts, just without GPU.
+    "image": "mcr.microsoft.com/devcontainers/python:3.11-bookworm",
+  
+    // Override with the CUDA variant when a GPU host is available:
+    //   "image": "nvcr.io/nvidia/pytorch:24.05-py3",
+    // or build from the included Dockerfile:
+    //   "build": { "dockerfile": "Dockerfile" },
+  
+    // -----------------------------------------------------------------------
+    // Container runtime options
+    // -----------------------------------------------------------------------
+    "runArgs": [
+      // Expose all GPUs to the container. Safe to include even on CPU hosts —
+      // Docker ignores this flag when no NVIDIA runtime is present.
+      "--gpus=all",
+      // Shared memory: PyTorch DataLoader workers use /dev/shm; 8 GB is safe
+      // for most training workloads.
+      "--shm-size=8g",
+
+      "--dns=1.1.1.1", 
+      
+      "--dns=8.8.8.8"
+    ],
+  
+    // -----------------------------------------------------------------------
+    // Environment variables
+    // -----------------------------------------------------------------------
+    "containerEnv": {
+      // Tell PyTorch to prefer the math SDP backend, required for second-order
+      // autograd through transformer attention (used by BayesianGenerator).
+      "TORCH_ATTENTION_BACKEND": "math",
+      // Suppress tokeniser parallelism warnings from HuggingFace.
+      "TOKENIZERS_PARALLELISM": "false",
+      // Point uv to the project-local virtual environment.
+      "UV_PROJECT_ENVIRONMENT": "/workspace/.venv"
+    },
+  
+    // -----------------------------------------------------------------------
+    // Source tree mount + SSH key mount
+    // -----------------------------------------------------------------------
+    "workspaceFolder": "/workspace",
+    "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
+    "mounts": [
+      // Mount host ~/.ssh read-only so setup.sh can copy keys into the container.
+      // The directory is optional — Docker skips the mount if it doesn't exist.
+      "source=${localEnv:HOME}/.ssh,target=/host-ssh-keys,type=bind,readonly"
+    ],
+  
+    // -----------------------------------------------------------------------
+    // Port forwarding
+    // -----------------------------------------------------------------------
+    // -----------------------------------------------------------------------
+    // Setup — runs once after the container is created
+    // -----------------------------------------------------------------------
+    "postCreateCommand": "bash .devcontainer/setup.sh",
+  
+    // -----------------------------------------------------------------------
+    // VS Code extensions
+    // -----------------------------------------------------------------------
+    // -----------------------------------------------------------------------
+    // Dev container features
+    // -----------------------------------------------------------------------
+    "features": {
+      // Installs Docker CLI + daemon inside the container (Docker-in-Docker).
+      // Required to build and push images from within the devcontainer.
+      "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+    },
+  
+    "customizations": {
+      "vscode": {
+        "extensions": [
+          "ms-python.python",
+          "ms-python.vscode-pylance",
+          "anthropic.claude-code",
+          "charliermarsh.ruff",
+  "eamodio.gitlens",
+          "ms-azuretools.vscode-docker",
+          "tamasfe.even-better-toml"
+        ],
+        "settings": {
+          "python.defaultInterpreterPath": "/workspace/.venv/bin/python",
+          "python.terminal.activateEnvironment": true,
+          "[python]": {
+            "editor.defaultFormatter": "charliermarsh.ruff",
+            "editor.formatOnSave": true
+          },
+          "ruff.nativeServer": "on",
+        }
+      }
+    }
+  }
+  
