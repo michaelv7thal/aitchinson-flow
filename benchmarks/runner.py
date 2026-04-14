@@ -14,6 +14,7 @@ from aitchinson_flow.config import Config
 from aitchinson_flow.data.teachers.causal_lm import CausalLMTeacher, CausalLMTeacherDataModule
 from aitchinson_flow.llms.registry import build_lm
 from aitchinson_flow.models.factory import build_model
+from aitchinson_flow.training.runner import fit
 from benchmarks.tasks.registry import build_task
 
 
@@ -77,7 +78,10 @@ def run_benchmark(cfg: Config) -> dict[str, dict[str, float]]:
     grid: list[dict[str, int]] = cfg.benchmark.scale_grid or [{}]
     results: dict[str, dict[str, float]] = {}
 
-    for scale in grid:
+    from tqdm.auto import tqdm  # noqa: PLC0415
+
+    scale_iter = tqdm(grid, desc="benchmark scales", disable=not cfg.benchmark.use_tqdm)
+    for scale in scale_iter:
         if scale:
             scfg = apply_transformer_scale(
                 cfg,
@@ -89,9 +93,16 @@ def run_benchmark(cfg: Config) -> dict[str, dict[str, float]]:
         else:
             scfg = deepcopy(cfg)
 
+        if cfg.benchmark.train_epochs is not None:
+            scfg.training = replace(scfg.training, epochs=cfg.benchmark.train_epochs)
+
         model = build_model(scfg)
+        if cfg.benchmark.train_before_eval:
+            model = fit(scfg, datamodule, model=model)
         tag = _scale_tag(scale) if scale else "baseline"
         results[tag] = task.run(model, datamodule, scfg)
+        if cfg.benchmark.use_tqdm:
+            scale_iter.set_postfix(scale=tag)
 
     return results
 

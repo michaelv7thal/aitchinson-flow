@@ -86,6 +86,8 @@ class TrainingConfig:
 
     velocity_loss: str = "soft_hilbert"
     soft_hilbert_alpha: float = 1.0
+    use_tqdm: bool = True
+    """Show tqdm progress bars for training/validation loops."""
 
 
 @dataclass
@@ -193,6 +195,14 @@ class BenchmarkConfig:
     """Compute training-free spilled-energy anomaly scores alongside auditor metrics."""
     spilled_hard_neg_top_k: int = 5
     """Top-k for optional hard-negative ablation (not used in default random corruption)."""
+    use_tqdm: bool = True
+    """Show tqdm progress bars for benchmark scale sweeps."""
+
+    # --- training inside the benchmark sweep ---
+    train_before_eval: bool = True
+    """If True, train each scale's model via ``fit`` before running the audit task."""
+    train_epochs: int | None = 20
+    """Override ``training.epochs`` during the benchmark sweep; None keeps the global value."""
 
 
 @dataclass

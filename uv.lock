@@ -162,12 +162,14 @@ name = "aitchison-flow"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "accelerate", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
     { name = "datasets", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
     { name = "gpytorch", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
     { name = "matplotlib", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
     { name = "numpy", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
     { name = "torch", version = "2.11.0", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform == 'darwin'" },
     { name = "torch", version = "2.11.0+cu130", source = { registry = "https://download.pytorch.org/whl/cu130" }, marker = "sys_platform == 'linux'" },
+    { name = "tqdm", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
     { name = "transformers", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
 ]
 
@@ -200,6 +202,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "accelerate", specifier = ">=1.13.0" },
     { name = "accelerate", marker = "extra == 'benchmarks'", specifier = ">=0.30" },
     { name = "accelerate", marker = "extra == 'lm'", specifier = ">=0.30" },
     { name = "aitchison-flow", extras = ["lm"], marker = "extra == 'benchmarks'" },
@@ -216,6 +219,7 @@ requires-dist = [
     { name = "scikit-learn", marker = "extra == 'benchmarks'", specifier = ">=1.4" },
     { name = "torch", marker = "sys_platform != 'linux'", specifier = ">=2.2" },
     { name = "torch", marker = "sys_platform == 'linux'", specifier = ">=2.2", index = "https://download.pytorch.org/whl/cu130" },
+    { name = "tqdm", specifier = ">=4.67.3" },
     { name = "tqdm", marker = "extra == 'benchmarks'", specifier = ">=4.66" },
     { name = "transformers", specifier = ">=5.2.0" },
     { name = "transformers", marker = "extra == 'lm'", specifier = ">=4.40" },

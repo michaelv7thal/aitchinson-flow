@@ -48,7 +48,7 @@ class HFCausalLMInference:
             cfg.model_id,
             revision=cfg.revision,
             trust_remote_code=cfg.trust_remote_code,
-            torch_dtype=dtype,
+            dtype=dtype,
             device_map={"": self._device},
         )
 

@@ -26,12 +26,27 @@ def load_text8_prompts(
     """
     import datasets  # noqa: PLC0415
 
-    ds = datasets.load_dataset("afm-intelligence/text8", split="train")
+    dataset_candidates = ("afmck/text8", "afm-intelligence/text8")
+    last_error: Exception | None = None
+    ds = None
+    for ds_name in dataset_candidates:
+        try:
+            ds = datasets.load_dataset(ds_name, split="train")
+            break
+        except Exception as e:  # pragma: no cover - depends on remote Hub state
+            last_error = e
+    if ds is None:
+        raise RuntimeError(
+            f"Unable to load any text8 dataset from candidates={dataset_candidates!r}"
+        ) from last_error
     full_text = " ".join(ds["text"])
 
     ids_1d, mask_1d = lm.encode_text(full_text, max_length=n_prompts * prompt_length + prompt_length)
     ids_1d = ids_1d.squeeze(0)  # (total_tokens,)
-    mask_1d = mask_1d.squeeze(0)
+    if mask_1d is None:
+        mask_1d = torch.ones_like(ids_1d)
+    else:
+        mask_1d = mask_1d.squeeze(0)
 
     gen = torch.Generator().manual_seed(seed)
     max_start = ids_1d.shape[0] - prompt_length
