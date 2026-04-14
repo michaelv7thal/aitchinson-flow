@@ -21,8 +21,12 @@ def fit(
     *,
     model: nn.Module | None = None,
     resume_from: str | Path | None = None,
+    history_out: list[dict[str, float]] | None = None,
 ) -> nn.Module:
-    """Train ``model`` (built from ``cfg`` if not supplied) and return it."""
+    """Train ``model`` (built from ``cfg`` if not supplied) and return it.
+
+    If ``history_out`` is provided, per-epoch aggregated train metrics are appended to it.
+    """
     seed_all(cfg.training.seed)
 
     if model is None:
@@ -71,6 +75,9 @@ def fit(
             grad_clip_norm=cfg.training.grad_clip_norm,
             use_tqdm=cfg.training.use_tqdm,
         )
+
+        if history_out is not None:
+            history_out.append({k: float(v) for k, v in metrics.items()})
 
         train_loss = metrics.get(TRAINING_LOSS_KEY)
         postfix: dict[str, str] = {}

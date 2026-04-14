@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 
 @dataclass
 class DatasetConfig:
-    dataset: str = "dna"  # "dna", "text8", "wiki"
+    dataset: str = "text8"  # "dna", "text8", "wiki"
     K: int = 27  # Vocabulary size (4=DNA, 27=text8, 64=wiki top-k)
     L: int = 20  # Sequence length
 
@@ -50,7 +50,7 @@ class TrainingConfig:
     num_workers: int = 0
     weight_decay: float = 0.0
     # Step once per epoch in ``runner.fit`` (see ``build_scheduler``).
-    lr_scheduler: str | None = None
+    lr_scheduler: str | None = "cosine"
     """One of: None, ``constant``, ``cosine``, ``cosine_restarts``, ``onecycle``, ``linear``,
     ``polynomial``, ``exponential``, ``multistep``."""
 
@@ -143,6 +143,21 @@ class HFDatasetConfig:
 
 
 @dataclass
+class Text8DatasetConfig:
+    """Char-level text8 corpus: download, chunk, split, corrupt."""
+
+    enabled: bool = False
+    cache_dir: str | None = None
+    split_ratios: tuple[float, float, float] = (0.9, 0.05, 0.05)
+    split_seed: int = 0
+    train_corrupt_rate: float = 0.15
+    eval_corrupt_rate: float = 0.30
+    max_train_windows: int | None = None
+    max_eval_windows: int | None = 2000
+    corruption_seed: int = 1234
+
+
+@dataclass
 class TeacherConfig:
     enabled: bool = False
     model_id: str = "gpt2"
@@ -163,6 +178,9 @@ class BenchmarkConfig:
 
     task_name: str = "text_audit"
     lm_key: str = "hf_causal"
+
+    # Which datamodule to use: "lm_teacher" (GPT-2 synthetic) or "text8" (char-level).
+    data_source: str = "lm_teacher"
 
     # How much synthetic data to generate per benchmark run.
     n_batches: int = 50
@@ -204,6 +222,10 @@ class BenchmarkConfig:
     train_epochs: int | None = 20
     """Override ``training.epochs`` during the benchmark sweep; None keeps the global value."""
 
+    # --- plotting ---
+    save_plots: bool = True
+    """If True, save per-scale ROC, score-histogram, loss-curve, and per-sequence PNGs."""
+
 
 @dataclass
 class PerTokenAuditorConfig:
@@ -220,6 +242,7 @@ class PerTokenAuditorConfig:
 class Config:
     dataset: DatasetConfig = field(default_factory=DatasetConfig)
     hf_dataset: HFDatasetConfig = field(default_factory=HFDatasetConfig)
+    text8_dataset: Text8DatasetConfig = field(default_factory=Text8DatasetConfig)
     transformer: TransformerConfig = field(default_factory=TransformerConfig)
     gp: GPConfig = field(default_factory=GPConfig)
     training: TrainingConfig = field(default_factory=TrainingConfig)

@@ -225,6 +225,14 @@ class PerTokenBayesianAuditor(BayesianAuditor):
         return dist.mean.view(b, seq_len), dist.variance.view(b, seq_len)
 
     @torch.no_grad()
+    def score_per_sample(
+        self, log_x: torch.Tensor, ctx: torch.Tensor | None = None
+    ) -> torch.Tensor:
+        """Per-sample OOD score: mean epistemic variance over positions, shape ``(B,)``."""
+        _, var = self.per_token_ood(log_x, ctx=ctx)
+        return var.mean(dim=1)
+
+    @torch.no_grad()
     def per_token_uq(
         self,
         log_x: torch.Tensor,

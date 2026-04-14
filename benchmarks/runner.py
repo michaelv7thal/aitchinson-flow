@@ -7,6 +7,7 @@ import json
 from copy import deepcopy
 from dataclasses import replace
 from pathlib import Path
+from typing import Any
 
 import aitchinson_flow.models  # noqa: F401 — populate model REGISTRY
 
@@ -14,6 +15,7 @@ from aitchinson_flow.config import Config
 from aitchinson_flow.data.teachers.causal_lm import CausalLMTeacher, CausalLMTeacherDataModule
 from aitchinson_flow.llms.registry import build_lm
 from aitchinson_flow.models.factory import build_model
+from aitchinson_flow.training.datamodule import DataModule
 from aitchinson_flow.training.runner import fit
 from benchmarks.tasks.registry import build_task
 
@@ -47,9 +49,11 @@ def _scale_tag(scale: dict[str, int]) -> str:
     return "_".join(parts) if parts else "baseline"
 
 
-def run_benchmark(cfg: Config) -> dict[str, dict[str, float]]:
-    """Build LM teacher data, then for each scale entry build model and run the benchmark task."""
-    import benchmarks.tasks  # noqa: F401 — register tasks (text_audit)
+def _build_datamodule(cfg: Config) -> DataModule:
+    if cfg.benchmark.data_source == "text8":
+        from aitchinson_flow.data.text8_datamodule import Text8DataModule  # noqa: PLC0415
+
+        return Text8DataModule(cfg)
 
     lm = build_lm(cfg.benchmark.lm_key, cfg.teacher)
     teacher = CausalLMTeacher(lm, cfg)
@@ -66,17 +70,32 @@ def run_benchmark(cfg: Config) -> dict[str, dict[str, float]]:
             prompt_length=cfg.benchmark.text8_prompt_length,
         )
 
-    datamodule = CausalLMTeacherDataModule(
+    return CausalLMTeacherDataModule(
         teacher,
         cfg,
         emit_logits=cfg.benchmark.compute_spilled_energy,
         prompt_ids=prompt_ids,
         prompt_attention_mask=prompt_mask,
     )
+
+
+def _strip_scores(result: dict[str, Any]) -> tuple[dict[str, float], dict[str, Any] | None]:
+    scores = result.pop("_scores", None)
+    return result, scores
+
+
+def run_benchmark(cfg: Config) -> dict[str, dict[str, float]]:
+    """Build LM teacher data, then for each scale entry build model and run the benchmark task."""
+    import benchmarks.tasks  # noqa: F401 — register tasks (text_audit)
+
+    datamodule = _build_datamodule(cfg)
     task = build_task(cfg.benchmark.task_name)
 
     grid: list[dict[str, int]] = cfg.benchmark.scale_grid or [{}]
     results: dict[str, dict[str, float]] = {}
+
+    out_root = Path(cfg.benchmark.results_dir)
+    out_root.mkdir(parents=True, exist_ok=True)
 
     from tqdm.auto import tqdm  # noqa: PLC0415
 
@@ -97,10 +116,20 @@ def run_benchmark(cfg: Config) -> dict[str, dict[str, float]]:
             scfg.training = replace(scfg.training, epochs=cfg.benchmark.train_epochs)
 
         model = build_model(scfg)
+        history: list[dict[str, float]] = []
         if cfg.benchmark.train_before_eval:
-            model = fit(scfg, datamodule, model=model)
+            model = fit(scfg, datamodule, model=model, history_out=history)
+
         tag = _scale_tag(scale) if scale else "baseline"
-        results[tag] = task.run(model, datamodule, scfg)
+        raw = task.run(model, datamodule, scfg)
+        clean, scores = _strip_scores(raw)
+        results[tag] = clean
+
+        if cfg.benchmark.save_plots and scores is not None:
+            from benchmarks.plots import save_all_plots  # noqa: PLC0415
+
+            save_all_plots(out_root / tag, scores=scores, loss_history=history)
+
         if cfg.benchmark.use_tqdm:
             scale_iter.set_postfix(scale=tag)
 
@@ -119,16 +148,16 @@ def main(argv: list[str] | None = None) -> None:
 
     cfg = Config()
     if args.config_out:
-        # lightweight repr: not full JSON of torch.device; skip or str(device)
         Path(args.config_out).write_text(
             json.dumps(
                 {
-                    "benchmark": cfg.benchmark.__dict__,
+                    "benchmark": {k: v for k, v in cfg.benchmark.__dict__.items() if not callable(v)},
                     "training_model": cfg.training.model_name,
                     "dataset_K": cfg.dataset.K,
                     "dataset_L": cfg.dataset.L,
                 },
                 indent=2,
+                default=str,
             ),
             encoding="utf-8",
         )

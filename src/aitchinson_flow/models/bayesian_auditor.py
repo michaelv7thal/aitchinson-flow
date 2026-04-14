@@ -121,6 +121,11 @@ class BayesianAuditor(BayesianGenerator):
         return dist.variance
 
     @torch.no_grad()
+    def score_per_sample(self, log_x: torch.Tensor) -> torch.Tensor:
+        """Per-sample OOD score (shape ``(B,)``) — higher = more anomalous."""
+        return self.ood_score(log_x)
+
+    @torch.no_grad()
     def audit(self, batch: Any) -> LossDict:
         # If benchmark batch lacks invalid samples, still provide useful score.
         if "log_x_invalid" in batch:

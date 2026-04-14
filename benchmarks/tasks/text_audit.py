@@ -2,14 +2,12 @@ from __future__ import annotations
 
 from typing import Any, cast
 
+import numpy as np
 import torch
 import torch.nn as nn
 
 from aitchinson_flow.config import Config
-from aitchinson_flow.metrics.spilled_energy import (
-    compute_spilled_energy_batch,
-    sequence_anomaly_score,
-)
+from aitchinson_flow.metrics.spilled_energy import compute_spilled_energy_batch
 from aitchinson_flow.models.base import AuditorModel
 from aitchinson_flow.training.datamodule import DataModule
 from aitchinson_flow.training.metrics import finalize_averages, running_average
@@ -30,17 +28,16 @@ def _spilled_metrics(
     token_ids: torch.Tensor,
     logits_invalid: torch.Tensor,
     token_ids_invalid: torch.Tensor,
-) -> dict[str, torch.Tensor]:
-    """Compute spilled-energy metrics for valid and invalid sequences."""
-    sp_valid = compute_spilled_energy_batch(logits, token_ids)  # (B, L-1)
-    sp_invalid = compute_spilled_energy_batch(logits_invalid, token_ids_invalid)  # (B, L-1)
+) -> tuple[dict[str, torch.Tensor], torch.Tensor, torch.Tensor]:
+    sp_valid = compute_spilled_energy_batch(logits, token_ids)
+    sp_invalid = compute_spilled_energy_batch(logits_invalid, token_ids_invalid)
 
     valid_mean = sp_valid.mean()
     invalid_mean = sp_invalid.mean()
     anomaly_valid = -valid_mean
     anomaly_invalid = -invalid_mean
 
-    return {
+    metrics = {
         "spilled_mean_valid": valid_mean,
         "spilled_mean_invalid": invalid_mean,
         "spilled_anomaly_valid": anomaly_valid,
@@ -49,22 +46,59 @@ def _spilled_metrics(
         "spilled_token_mean": sp_valid.mean(dim=0).mean(),
         "spilled_token_std": sp_valid.std(dim=0).mean(),
     }
+    return metrics, sp_valid, sp_invalid
+
+
+def _safe_auroc(valid: np.ndarray, invalid: np.ndarray) -> float:
+    """AUROC with valid=0, invalid=1; returns NaN if a class is empty."""
+    if valid.size == 0 or invalid.size == 0:
+        return float("nan")
+    from sklearn.metrics import roc_auc_score  # noqa: PLC0415
+
+    labels = np.concatenate([np.zeros(valid.size), np.ones(invalid.size)])
+    scores = np.concatenate([valid, invalid])
+    if not np.isfinite(scores).all():
+        scores = np.nan_to_num(scores, nan=0.0, posinf=0.0, neginf=0.0)
+    return float(roc_auc_score(labels, scores))
+
+
+def _auditor_score(model: nn.Module, log_x: torch.Tensor) -> torch.Tensor | None:
+    fn = getattr(model, "score_per_sample", None)
+    if fn is None:
+        return None
+    return fn(log_x).detach().cpu()
 
 
 @register("text_audit")
 class TextAuditTask:
-    """Average ``audit(batch)`` metrics + spilled-energy baseline over the datamodule."""
+    """Audit metrics + spilled-energy baseline + AUROC over a dataloader."""
 
-    def run(self, model: nn.Module, datamodule: DataModule, cfg: Config) -> dict[str, float]:
+    def _choose_loader(self, datamodule: DataModule) -> Any:
+        test = datamodule.test_dataloader()
+        if test is not None:
+            return test
+        val = datamodule.val_dataloader()
+        if val is not None:
+            return val
+        return datamodule.train_dataloader()
+
+    def run(self, model: nn.Module, datamodule: DataModule, cfg: Config) -> dict[str, Any]:
         device = cfg.training.device
         model = model.to(device)
         model.eval()
-        loader = datamodule.train_dataloader()
+        loader = self._choose_loader(datamodule)
         auditor = cast(AuditorModel, model)
         bcfg = cfg.benchmark
 
         agg: dict[str, float] = {}
         counts: dict[str, int] = {}
+
+        audit_valid: list[torch.Tensor] = []
+        audit_invalid: list[torch.Tensor] = []
+        spilled_valid: list[torch.Tensor] = []
+        spilled_invalid: list[torch.Tensor] = []
+        sp_valid_seqs: list[torch.Tensor] = []
+        sp_invalid_seqs: list[torch.Tensor] = []
 
         for batch_idx, batch in enumerate(loader):
             has_logits = "logits" in batch and "token_ids" in batch
@@ -82,13 +116,53 @@ class TextAuditTask:
             out = auditor.audit(batch_dev)
             running_average(agg, counts, out)
 
+            v_score = _auditor_score(model, batch_dev["log_x"])
+            i_score = (
+                _auditor_score(model, batch_dev["log_x_invalid"])
+                if "log_x_invalid" in batch_dev
+                else None
+            )
+            if v_score is not None:
+                audit_valid.append(v_score)
+            if i_score is not None:
+                audit_invalid.append(i_score)
+
             if has_logits and bcfg.compute_spilled_energy:
-                sp = _spilled_metrics(
+                sp_metrics, sp_v_seq, sp_i_seq = _spilled_metrics(
                     logits=batch["logits"],
                     token_ids=batch["token_ids"],
                     logits_invalid=batch["logits_invalid"],
                     token_ids_invalid=batch["token_ids_invalid"],
                 )
-                running_average(agg, counts, sp)
+                running_average(agg, counts, sp_metrics)
+                spilled_valid.append(-sp_v_seq.mean(dim=1).detach().cpu())
+                spilled_invalid.append(-sp_i_seq.mean(dim=1).detach().cpu())
+                sp_valid_seqs.append(sp_v_seq.detach().cpu())
+                sp_invalid_seqs.append(sp_i_seq.detach().cpu())
 
-        return finalize_averages(agg, counts)
+        result: dict[str, Any] = finalize_averages(agg, counts)
+
+        def _cat(xs: list[torch.Tensor]) -> np.ndarray:
+            return torch.cat(xs, dim=0).numpy() if xs else np.empty(0, dtype=np.float32)
+
+        v_audit = _cat(audit_valid)
+        i_audit = _cat(audit_invalid)
+        v_spill = _cat(spilled_valid)
+        i_spill = _cat(spilled_invalid)
+
+        result["auroc_auditor"] = _safe_auroc(v_audit, i_audit)
+        result["auroc_spilled"] = _safe_auroc(v_spill, i_spill)
+
+        result["_scores"] = {
+            "auditor_valid": v_audit,
+            "auditor_invalid": i_audit,
+            "spilled_valid": v_spill,
+            "spilled_invalid": i_spill,
+            "spilled_seq_valid": (
+                torch.cat(sp_valid_seqs, dim=0).numpy() if sp_valid_seqs else None
+            ),
+            "spilled_seq_invalid": (
+                torch.cat(sp_invalid_seqs, dim=0).numpy() if sp_invalid_seqs else None
+            ),
+        }
+        return result
