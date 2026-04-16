@@ -11,6 +11,34 @@ from aitchinson_flow.models.base import TRAINING_LOSS_KEY, GenerativeTrainingMod
 from aitchinson_flow.training.metrics import detach_means, finalize_averages, running_average
 
 
+def _to_float_scalar(value: Any) -> float | None:
+    if torch.is_tensor(value):
+        vt = value.detach()
+        if vt.numel() == 0:
+            return None
+        return float(vt.mean().cpu())
+    if isinstance(value, (int, float)):
+        return float(value)
+    return None
+
+
+def _loss_postfix(out: LossDict) -> dict[str, str]:
+    postfix: dict[str, str] = {}
+
+    total = _to_float_scalar(out.get(TRAINING_LOSS_KEY))
+    if total is not None:
+        postfix["loss"] = f"{total:.4f}"
+
+    for key in sorted(out):
+        if key == TRAINING_LOSS_KEY:
+            continue
+        v = _to_float_scalar(out[key])
+        if v is not None:
+            postfix[key] = f"{v:.4f}"
+
+    return postfix
+
+
 def train_epoch(
     model: nn.Module,
     loader: DataLoader[Any],
@@ -28,9 +56,6 @@ def train_epoch(
     agg: dict[str, float] = {}
     counts: dict[str, int] = {}
     step = global_step
-    running_loss_sum = 0.0
-    running_n = 0
-
     from tqdm.auto import tqdm  # noqa: PLC0415
 
     pbar = tqdm(
@@ -51,11 +76,9 @@ def train_epoch(
 
         running_average(agg, counts, out)
         if use_tqdm:
-            loss_f = float(loss.detach().cpu())
-            running_loss_sum += loss_f
-            running_n += 1
-            avg_f = running_loss_sum / running_n
-            pbar.set_postfix(last=f"{loss_f:.4f}", avg=f"{avg_f:.4f}")
+            postfix = _loss_postfix(out)
+            if postfix:
+                pbar.set_postfix(postfix)
         step += 1
 
     return finalize_averages(agg, counts), step
@@ -81,10 +104,10 @@ def evaluate(
         batch = _to_device(batch, device)
         out = m.eval_step(batch)
         running_average(agg, counts, out)
-        if use_tqdm and TRAINING_LOSS_KEY in out:
-            lt = out[TRAINING_LOSS_KEY].detach()
-            lv = float(lt.mean().cpu() if lt.ndim > 0 else lt.cpu())
-            pbar.set_postfix(loss=f"{lv:.4f}")
+        if use_tqdm:
+            postfix = _loss_postfix(out)
+            if postfix:
+                pbar.set_postfix(postfix)
 
     return finalize_averages(agg, counts)
 

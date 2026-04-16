@@ -99,8 +99,8 @@ def plot_loss_curve(
 
 
 def plot_sequence_spilled(
-    sp_valid: np.ndarray,
-    sp_invalid: np.ndarray,
+    sp_valid: np.ndarray | None,
+    sp_invalid: np.ndarray | None,
     out_path: Path | str,
     *,
     title: str = "spilled energy per position",
@@ -122,6 +122,41 @@ def plot_sequence_spilled(
     ax.fill_between(positions, i_mu - i_sd, i_mu + i_sd, color="C3", alpha=0.2)
     ax.set_xlabel("position")
     ax.set_ylabel("spilled energy  (lower = more anomalous)")
+    ax.set_title(title)
+    ax.legend()
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=120)
+    plt.close(fig)
+
+
+def plot_sequence_series(
+    valid: np.ndarray | None,
+    invalid: np.ndarray | None,
+    out_path: Path | str,
+    *,
+    title: str,
+    ylabel: str,
+) -> None:
+    """Plot per-position mean ± std for valid/invalid arrays shaped ``(B, L)``."""
+    if valid is None or invalid is None:
+        return
+    valid = np.asarray(valid)
+    invalid = np.asarray(invalid)
+    if valid.size == 0 or invalid.size == 0:
+        return
+    if valid.ndim != 2 or invalid.ndim != 2:
+        return
+
+    positions = np.arange(valid.shape[1])
+    v_mu, v_sd = valid.mean(axis=0), valid.std(axis=0)
+    i_mu, i_sd = invalid.mean(axis=0), invalid.std(axis=0)
+    fig, ax = plt.subplots(figsize=(6.5, 4))
+    ax.plot(positions, v_mu, color="C0", label="valid mean")
+    ax.fill_between(positions, v_mu - v_sd, v_mu + v_sd, color="C0", alpha=0.2)
+    ax.plot(positions, i_mu, color="C3", label="invalid mean")
+    ax.fill_between(positions, i_mu - i_sd, i_mu + i_sd, color="C3", alpha=0.2)
+    ax.set_xlabel("position")
+    ax.set_ylabel(ylabel)
     ax.set_title(title)
     ax.legend()
     fig.tight_layout()
@@ -167,6 +202,20 @@ def save_all_plots(
         scores.get("spilled_seq_valid"),
         scores.get("spilled_seq_invalid"),
         out / "sequence_spilled.png",
+    )
+    plot_sequence_series(
+        scores.get("auditor_energy_seq_valid"),
+        scores.get("auditor_energy_seq_invalid"),
+        out / "sequence_auditor_energy.png",
+        title="auditor energy per position",
+        ylabel="auditor energy",
+    )
+    plot_sequence_series(
+        scores.get("auditor_var_seq_valid"),
+        scores.get("auditor_var_seq_invalid"),
+        out / "sequence_auditor_variance.png",
+        title="auditor variance per position",
+        ylabel="auditor variance",
     )
     if loss_history:
         plot_loss_curve(loss_history, out / "loss_curve.png")

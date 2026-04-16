@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import math
 from typing import Any
 
 import torch
@@ -15,8 +14,8 @@ from aitchinson_flow.models.factory import register
 from aitchinson_flow.transformer_backbone import TransformerBackbone, VelocityHead
 
 
-def _uniform_log_x0(B: int, L: int, K: int, device: torch.device, dtype: torch.dtype) -> torch.Tensor:
-    return torch.full((B, L, K), math.log(1.0 / K), device=device, dtype=dtype)
+def _uniform_log_x0(B: int, L: int, D: int, device: torch.device, dtype: torch.dtype) -> torch.Tensor:
+    return torch.zeros((B, L, D), device=device, dtype=dtype)
 
 
 class EquilibriumAuditor(nn.Module):
@@ -54,9 +53,9 @@ class EquilibriumAuditor(nn.Module):
         return ct[:, None, None] * 4.0
 
     def _eqm_loss(self, log_x1: torch.Tensor, valid_mask: torch.Tensor | None) -> LossDict:
-        B, L, K = log_x1.shape
+        B, L, D = log_x1.shape
         device, dt = log_x1.device, log_x1.dtype
-        log_x0 = _uniform_log_x0(B, L, K, device, dt)
+        log_x0 = _uniform_log_x0(B, L, D, device, dt)
         t = torch.rand(B, device=device, dtype=dt)
         log_xt = (1.0 - t[:, None, None]) * log_x0 + t[:, None, None] * log_x1
         u_tgt = self._c_t(t) * (log_x0 - log_x1)
@@ -65,7 +64,7 @@ class EquilibriumAuditor(nn.Module):
         if valid_mask is not None:
             if valid_mask.shape != (B, L):
                 raise ValueError(f"valid_mask must be (B, L), got {tuple(valid_mask.shape)}")
-            m = valid_mask.unsqueeze(-1).expand(B, L, K).to(dtype=torch.bool)
+            m = valid_mask.unsqueeze(-1).expand(B, L, D).to(dtype=torch.bool)
             total = self._loss_fn(v_pred[m], u_tgt[m])
         else:
             total = self._loss_fn(v_pred, u_tgt)
@@ -98,16 +97,17 @@ class EquilibriumAuditor(nn.Module):
         steps = steps if steps is not None else eq.generate_steps
         stepsize = stepsize if stepsize is not None else eq.generate_stepsize
         device = self.cfg.training.device
-        L, K = self.cfg.dataset.L, self.cfg.dataset.K
+        L = self.cfg.dataset.L
+        D = max(1, self.cfg.dataset.K - 1)
         dtype = torch.float32
 
         self.eval()
-        x = _uniform_log_x0(n, L, K, device, dtype)
+        x = _uniform_log_x0(n, L, D, device, dtype)
         x = x + eq.generate_init_noise * torch.randn_like(x)
         for _ in range(steps):
             x = x - self.forward(x) * stepsize
         self.train()
-        return x.softmax(dim=-1).argmax(dim=-1)
+        return x.detach()
 
 
 @register("equilibrium")

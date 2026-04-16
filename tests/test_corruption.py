@@ -5,8 +5,7 @@ from __future__ import annotations
 import torch
 import pytest
 
-from benchmarks.corruption import corrupt_token_ids, build_invalid_batch
-from aitchinson_flow.data.transforms.discrete import token_ids_to_log_x
+from benchmarks.corruption import build_invalid_batch, corrupt_token_ids, partially_shuffle_token_ids
 
 
 class TestCorruptTokenIds:
@@ -59,7 +58,7 @@ class TestBuildInvalidBatch:
         assert "log_x_invalid" in out
         assert "token_ids_invalid" in out
         assert "logits_invalid" in out
-        assert out["log_x_invalid"].shape == (B, L, K)
+        assert out["log_x_invalid"].shape == (B, L, K - 1)
         assert out["token_ids_invalid"].shape == (B, L)
         assert out["logits_invalid"].shape == (B, L, V)
 
@@ -72,3 +71,15 @@ class TestBuildInvalidBatch:
         }
         build_invalid_batch(batch, K=K, corrupt_rate=0.5, seed=0)
         assert not torch.equal(batch["token_ids"], batch["token_ids_invalid"])
+
+
+class TestPartialShuffle:
+    def test_shape_preserved(self) -> None:
+        ids = torch.randint(0, 10, (3, 12))
+        out = partially_shuffle_token_ids(ids, shuffle_rate=0.5, seed=123)
+        assert out.shape == ids.shape
+
+    def test_zero_rate_no_change(self) -> None:
+        ids = torch.randint(0, 10, (3, 12))
+        out = partially_shuffle_token_ids(ids, shuffle_rate=0.0, seed=123)
+        torch.testing.assert_close(out, ids)

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import math
 from typing import Any
 
 import torch
@@ -15,8 +14,8 @@ from aitchinson_flow.models.factory import register
 from aitchinson_flow.transformer_backbone import TransformerBackbone, VelocityHead
 
 
-def _uniform_log_x0(B: int, L: int, K: int, device: torch.device, dtype: torch.dtype) -> torch.Tensor:
-    return torch.full((B, L, K), math.log(1.0 / K), device=device, dtype=dtype)
+def _uniform_log_x0(B: int, L: int, D: int, device: torch.device, dtype: torch.dtype) -> torch.Tensor:
+    return torch.zeros((B, L, D), device=device, dtype=dtype)
 
 
 class FlowMatchingAuditor(nn.Module):
@@ -38,9 +37,9 @@ class FlowMatchingAuditor(nn.Module):
     def training_step(self, batch: Any, step: int) -> LossDict:
         del step
         log_x1 = batch["log_x"]
-        B, L, K = log_x1.shape
+        B, L, D = log_x1.shape
         device, dt = log_x1.device, log_x1.dtype
-        log_x0 = _uniform_log_x0(B, L, K, device, dt)
+        log_x0 = _uniform_log_x0(B, L, D, device, dt)
         t = torch.rand(B, device=device, dtype=dt)
         log_xt = (1.0 - t[:, None, None]) * log_x0 + t[:, None, None] * log_x1
         u_tgt = log_x1 - log_x0
@@ -51,9 +50,9 @@ class FlowMatchingAuditor(nn.Module):
     @torch.no_grad()
     def eval_step(self, batch: Any) -> LossDict:
         log_x1 = batch["log_x"]
-        B, L, K = log_x1.shape
+        B, L, D = log_x1.shape
         device, dt = log_x1.device, log_x1.dtype
-        log_x0 = _uniform_log_x0(B, L, K, device, dt)
+        log_x0 = _uniform_log_x0(B, L, D, device, dt)
         t = torch.rand(B, device=device, dtype=dt)
         log_xt = (1.0 - t[:, None, None]) * log_x0 + t[:, None, None] * log_x1
         u_tgt = log_x1 - log_x0

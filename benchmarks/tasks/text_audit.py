@@ -62,11 +62,36 @@ def _safe_auroc(valid: np.ndarray, invalid: np.ndarray) -> float:
     return float(roc_auc_score(labels, scores))
 
 
-def _auditor_score(model: nn.Module, log_x: torch.Tensor) -> torch.Tensor | None:
+def _auditor_score(
+    model: nn.Module, log_x: torch.Tensor, *, ctx: torch.Tensor | None = None
+) -> torch.Tensor | None:
     fn = getattr(model, "score_per_sample", None)
     if fn is None:
         return None
-    return fn(log_x).detach().cpu()
+    try:
+        out = fn(log_x, ctx=ctx) if ctx is not None else fn(log_x)
+    except TypeError:
+        out = fn(log_x)
+    return out.detach().cpu()
+
+
+def _auditor_sequence_uq(
+    model: nn.Module, log_x: torch.Tensor, *, ctx: torch.Tensor | None = None
+) -> tuple[torch.Tensor, torch.Tensor] | None:
+    fn = getattr(model, "per_token_uq", None)
+    if fn is None:
+        return None
+
+    if ctx is None:
+        out = fn(log_x)
+    else:
+        out = fn(log_x, ctx=ctx)
+    if not isinstance(out, tuple) or len(out) < 2:
+        return None
+    energy, variance = out[0], out[1]
+    if not (torch.is_tensor(energy) and torch.is_tensor(variance)):
+        return None
+    return energy.detach().cpu(), variance.detach().cpu()
 
 
 @register("text_audit")
@@ -99,6 +124,10 @@ class TextAuditTask:
         spilled_invalid: list[torch.Tensor] = []
         sp_valid_seqs: list[torch.Tensor] = []
         sp_invalid_seqs: list[torch.Tensor] = []
+        audit_energy_valid_seqs: list[torch.Tensor] = []
+        audit_energy_invalid_seqs: list[torch.Tensor] = []
+        audit_var_valid_seqs: list[torch.Tensor] = []
+        audit_var_invalid_seqs: list[torch.Tensor] = []
 
         for batch_idx, batch in enumerate(loader):
             has_logits = "logits" in batch and "token_ids" in batch
@@ -108,6 +137,8 @@ class TextAuditTask:
                     batch,
                     K=cfg.dataset.K,
                     corrupt_rate=bcfg.corrupt_rate,
+                    order_mix_rate=bcfg.order_mix_rate,
+                    order_mix_prob=bcfg.order_mix_prob,
                     eps=cfg.hf_dataset.log_simplex_eps,
                     seed=bcfg.corruption_seed + batch_idx,
                 )
@@ -116,9 +147,11 @@ class TextAuditTask:
             out = auditor.audit(batch_dev)
             running_average(agg, counts, out)
 
-            v_score = _auditor_score(model, batch_dev["log_x"])
+            v_score = _auditor_score(model, batch_dev["log_x"], ctx=batch_dev.get("ctx_1"))
             i_score = (
-                _auditor_score(model, batch_dev["log_x_invalid"])
+                _auditor_score(
+                    model, batch_dev["log_x_invalid"], ctx=batch_dev.get("ctx_1_invalid")
+                )
                 if "log_x_invalid" in batch_dev
                 else None
             )
@@ -126,6 +159,23 @@ class TextAuditTask:
                 audit_valid.append(v_score)
             if i_score is not None:
                 audit_invalid.append(i_score)
+
+            v_seq = _auditor_sequence_uq(model, batch_dev["log_x"], ctx=batch_dev.get("ctx_1"))
+            i_seq = (
+                _auditor_sequence_uq(
+                    model, batch_dev["log_x_invalid"], ctx=batch_dev.get("ctx_1_invalid")
+                )
+                if "log_x_invalid" in batch_dev
+                else None
+            )
+            if v_seq is not None:
+                e_v, var_v = v_seq
+                audit_energy_valid_seqs.append(e_v)
+                audit_var_valid_seqs.append(var_v)
+            if i_seq is not None:
+                e_i, var_i = i_seq
+                audit_energy_invalid_seqs.append(e_i)
+                audit_var_invalid_seqs.append(var_i)
 
             if has_logits and bcfg.compute_spilled_energy:
                 sp_metrics, sp_v_seq, sp_i_seq = _spilled_metrics(
@@ -163,6 +213,20 @@ class TextAuditTask:
             ),
             "spilled_seq_invalid": (
                 torch.cat(sp_invalid_seqs, dim=0).numpy() if sp_invalid_seqs else None
+            ),
+            "auditor_energy_seq_valid": (
+                torch.cat(audit_energy_valid_seqs, dim=0).numpy() if audit_energy_valid_seqs else None
+            ),
+            "auditor_energy_seq_invalid": (
+                torch.cat(audit_energy_invalid_seqs, dim=0).numpy()
+                if audit_energy_invalid_seqs
+                else None
+            ),
+            "auditor_var_seq_valid": (
+                torch.cat(audit_var_valid_seqs, dim=0).numpy() if audit_var_valid_seqs else None
+            ),
+            "auditor_var_seq_invalid": (
+                torch.cat(audit_var_invalid_seqs, dim=0).numpy() if audit_var_invalid_seqs else None
             ),
         }
         return result

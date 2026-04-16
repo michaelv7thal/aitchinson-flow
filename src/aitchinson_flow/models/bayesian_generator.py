@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 
-import math
 from typing import Any
 import torch
 import torch.nn as nn
@@ -17,8 +16,8 @@ from aitchinson_flow.transformer_backbone import LatentHead, TransformerBackbone
 from aitchinson_flow.loss import build_velocity_loss
 
 
-def _uniform_log_x0(B: int, L: int, K: int, device: torch.device) -> torch.Tensor:
-    return torch.full((B, L, K), math.log(1.0 / K), device=device, dtype=torch.float32)
+def _uniform_log_x0(B: int, L: int, D: int, device: torch.device) -> torch.Tensor:
+    return torch.zeros((B, L, D), device=device, dtype=torch.float32)
 
 
 def _sdpa_math_ctx():
@@ -26,14 +25,10 @@ def _sdpa_math_ctx():
 
 
 def _corrupt_log_x0(log_x1: torch.Tensor, mode: str) -> torch.Tensor:
-    B, L, K = log_x1.shape
+    B, L, D = log_x1.shape
     if mode == "missing":
-        return torch.full_like(log_x1, math.log(1.0 / K))
-    idx = torch.randint(K, (B, L), device=log_x1.device)
-    one_hot = torch.zeros(B, L, K, device=log_x1.device, dtype=log_x1.dtype)
-    one_hot.scatter_(-1, idx.unsqueeze(-1), 1.0)
-    oh = one_hot + 1e-8
-    return oh.log() - oh.log().logsumexp(-1, keepdim=True)
+        return torch.zeros_like(log_x1)
+    return torch.randn(B, L, D, device=log_x1.device, dtype=log_x1.dtype)
 
 
 class BayesianGenerator(nn.Module):
@@ -83,13 +78,13 @@ class BayesianGenerator(nn.Module):
         *,
         create_graph: bool,
     ) -> LossDict:
-        B, L, K = log_x1.shape
+        B, L, D = log_x1.shape
         bg = self.cfg.bayesian_generator
 
         if bg.corrupt_source_prob > 0.0 and torch.rand(1) < bg.corrupt_source_prob:
             log_x0 = _corrupt_log_x0(log_x1, bg.corrupt_mode)
         else:
-            log_x0 = _uniform_log_x0(B, L, K, log_x1.device).to(dtype=log_x1.dtype)
+            log_x0 = _uniform_log_x0(B, L, D, log_x1.device).to(dtype=log_x1.dtype)
 
         t = torch.rand(B, device=log_x1.device, dtype=log_x1.dtype)
         log_xt = (
@@ -136,9 +131,10 @@ class BayesianGenerator(nn.Module):
     def generate(self, n: int, steps: int | None = None) -> torch.Tensor:
         steps = steps if steps is not None else self.cfg.bayesian_generator.ode_steps
         device = self.cfg.training.device
-        L, K = self.cfg.dataset.L, self.cfg.dataset.K
+        L = self.cfg.dataset.L
+        D = max(1, self.cfg.dataset.K - 1)
         self.eval()
-        x = _uniform_log_x0(n, L, K, device).to(dtype=torch.float32)
+        x = _uniform_log_x0(n, L, D, device).to(dtype=torch.float32)
         x = (x + self.cfg.bayesian_generator.ode_init_noise * torch.randn_like(x)).requires_grad_(
             True
         )
@@ -149,7 +145,7 @@ class BayesianGenerator(nn.Module):
                 v = self._velocity(x, create_graph=False)
                 x = (x + v * dt).detach().requires_grad_(True)
         self.train()
-        return x.detach().softmax(dim=-1).argmax(dim=-1)
+        return x.detach()
 
     @torch.no_grad()
     def generate_with_uq(
@@ -157,9 +153,10 @@ class BayesianGenerator(nn.Module):
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         steps = steps if steps is not None else self.cfg.bayesian_generator.ode_steps
         device = self.cfg.training.device
-        L, K = self.cfg.dataset.L, self.cfg.dataset.K
+        L = self.cfg.dataset.L
+        D = max(1, self.cfg.dataset.K - 1)
         self.eval()
-        x = _uniform_log_x0(n, L, K, device)
+        x = _uniform_log_x0(n, L, D, device)
         x = x + self.cfg.bayesian_generator.ode_init_noise * torch.randn_like(x)
         dt = 1.0 / steps
         energy_traj: list[torch.Tensor] = []
@@ -187,8 +184,7 @@ class BayesianGenerator(nn.Module):
             x = (x_g + v * dt).detach()
             snapshot(x)
         self.train()
-        tokens = x.softmax(dim=-1).argmax(dim=-1)
-        return tokens, torch.stack(energy_traj), torch.stack(var_traj)
+        return x.detach(), torch.stack(energy_traj), torch.stack(var_traj)
 
 
 @register("bayesian_generator")

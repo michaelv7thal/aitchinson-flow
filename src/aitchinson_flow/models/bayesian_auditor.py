@@ -16,8 +16,8 @@ class BayesianAuditor(BayesianGenerator):
     BayesianGenerator + contrastive energy/variance hinge losses.
 
     Expects batches with:
-      - batch["log_x"]: valid samples, shape (B, L, K)
-      - batch["log_x_invalid"]: invalid/OOD samples, shape (B, L, K)
+      - batch["log_x"]: valid samples, shape (B, L, D)
+      - batch["log_x_invalid"]: invalid/OOD samples, shape (B, L, D)
     """
 
     def _auditor_loss(
@@ -61,12 +61,13 @@ class BayesianAuditor(BayesianGenerator):
         valid_dist = self.gp(self._extract(log_x1))
         invalid_dist = self.gp(self._extract(log_x1_invalid))
 
-        mean_loss = (
-            valid_dist.mean.pow(2).mean() + F.relu(self.cfg.gp.margin_E - invalid_dist.mean).mean()
-        )
-        var_loss = (
-            valid_dist.variance.mean() + F.relu(self.cfg.gp.margin_V - invalid_dist.variance).mean()
-        )
+        energy_gap = self.cfg.gp.margin_E - (invalid_dist.mean - valid_dist.mean)
+        mean_loss = F.relu(energy_gap).mean()
+
+        # mean_loss = mean_loss + self.cfg.gp.lambda_anchor * valid_dist.mean.pow(2).mean()
+
+        var_gap = self.cfg.gp.margin_V - (invalid_dist.variance - valid_dist.variance)
+        var_loss = F.relu(var_gap).mean()
 
         kl = self.gp.kl_divergence()
 
@@ -124,6 +125,29 @@ class BayesianAuditor(BayesianGenerator):
     def score_per_sample(self, log_x: torch.Tensor) -> torch.Tensor:
         """Per-sample OOD score (shape ``(B,)``) — higher = more anomalous."""
         return self.ood_score(log_x)
+
+    @torch.no_grad()
+    def per_token_uq(self, log_x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, float]:
+        """Per-token GP energy and epistemic variance, plus scalar aleatoric noise variance.
+
+        Returns:
+            energy: (B, L)
+            variance: (B, L)
+            noise_var: scalar float
+        """
+        was_training = self.training
+        self.eval()
+        b, seq_len, _k = log_x.shape
+        h = self.backbone(log_x)
+        z_tokens = self.latent_head.proj(h).reshape(b * seq_len, -1)
+        dist = self.gp(z_tokens)
+        if was_training:
+            self.train()
+        return (
+            dist.mean.view(b, seq_len),
+            dist.variance.view(b, seq_len),
+            float(self.gp.noise_var.detach().cpu()),
+        )
 
     @torch.no_grad()
     def audit(self, batch: Any) -> LossDict:

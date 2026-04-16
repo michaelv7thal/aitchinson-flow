@@ -13,9 +13,9 @@ from .config import Config
 class TransformerBackbone(nn.Module):
     """Transformer encoder backbone.
 
-    log_x (B, L, K) [+ optional t (B,)] → hidden (B, L, d_model)
+    log_x (B, L, D) [+ optional t (B,)] → hidden (B, L, d_model)
 
-    Input: softmax(log_x) — probabilities, linearly projected into d_model.
+    Input: feature coordinates (e.g., full ILR), linearly projected into d_model.
     Positional encoding: learned.
     Time conditioning: sinusoidal time embedding added when time_conditioned=True.
 
@@ -31,7 +31,8 @@ class TransformerBackbone(nn.Module):
         self.time_conditioned = time_conditioned
         self._sdp_math = sdp_math_for_autograd
 
-        self.input_proj = nn.Linear(cfg.dataset.K, cfg.transformer.d_model)
+        feature_dim = max(1, cfg.dataset.K - 1)
+        self.input_proj = nn.Linear(feature_dim, cfg.transformer.d_model)
         self.pos_emb = nn.Embedding(cfg.dataset.L, cfg.transformer.d_model)
 
         if time_conditioned:
@@ -70,14 +71,13 @@ class TransformerBackbone(nn.Module):
     def forward(self, log_x: torch.Tensor, t: torch.Tensor | None = None) -> torch.Tensor:
         """
         Args:
-            log_x: (B, L, K)
+            log_x: (B, L, D)
             t:     (B,)  — required when time_conditioned=True, ignored otherwise
         Returns:
             hidden: (B, L, d_model)
         """
-        B, L, K = log_x.shape
-        probs = log_x.softmax(dim=-1)
-        h = self.input_proj(probs)
+        _b, L, _d = log_x.shape
+        h = self.input_proj(log_x)
         pos = torch.arange(L, device=log_x.device)
         h = h + self.pos_emb(pos).unsqueeze(0)
         if self.time_conditioned:
@@ -94,11 +94,12 @@ class TransformerBackbone(nn.Module):
 
 
 class VelocityHead(nn.Module):
-    """(B, L, d_model) → (B, L, K) — direct velocity output."""
+    """(B, L, d_model) → (B, L, D) — direct velocity output."""
 
     def __init__(self, cfg: Config) -> None:
         super().__init__()
-        self.proj = nn.Linear(cfg.transformer.d_model, cfg.dataset.K)
+        feature_dim = max(1, cfg.dataset.K - 1)
+        self.proj = nn.Linear(cfg.transformer.d_model, feature_dim)
 
     def forward(self, h: torch.Tensor) -> torch.Tensor:
         return self.proj(h)

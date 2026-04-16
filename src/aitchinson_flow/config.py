@@ -24,7 +24,7 @@ class TransformerConfig:
 
 @dataclass
 class GPConfig:
-    num_inducing: int = 100  # Number of inducing points
+    num_inducing: int = 500  # Number of inducing points
     lambda_kl: float = 1e-4  # KL regularization parameter
     lambda_var: float = 2.0  # Variance regularization parameter
     margin_E: float = 2.0  # Hinge margin for L_energy score
@@ -144,14 +144,20 @@ class HFDatasetConfig:
 
 @dataclass
 class Text8DatasetConfig:
-    """Char-level text8 corpus: download, chunk, split, corrupt."""
+    """Char-level text8 corpus: download, chunk, corrupt.
+
+    Uses the dataset's native ``train``, ``validation``, and ``test`` splits from
+    ``afmck/text8`` (or the fallback ``afm-intelligence/text8``) and applies
+    corruption independently per split.
+    """
 
     enabled: bool = False
     cache_dir: str | None = None
-    split_ratios: tuple[float, float, float] = (0.9, 0.05, 0.05)
-    split_seed: int = 0
     train_corrupt_rate: float = 0.15
     eval_corrupt_rate: float = 0.30
+    train_order_mix_rate: float = 0.15
+    eval_order_mix_rate: float = 0.30
+    order_mix_prob: float = 0.5
     max_train_windows: int | None = None
     max_eval_windows: int | None = 2000
     corruption_seed: int = 1234
@@ -180,7 +186,7 @@ class BenchmarkConfig:
     lm_key: str = "hf_causal"
 
     # Which datamodule to use: "lm_teacher" (GPT-2 synthetic) or "text8" (char-level).
-    data_source: str = "lm_teacher"
+    data_source: str = "text8"
 
     # How much synthetic data to generate per benchmark run.
     n_batches: int = 50
@@ -206,6 +212,10 @@ class BenchmarkConfig:
     # --- invalid sample corruption ---
     corrupt_rate: float = 0.15
     """Fraction of positions replaced with random vocab ids for invalid samples."""
+    order_mix_rate: float = 0.15
+    """Fraction of positions partially shuffled for invalid samples."""
+    order_mix_prob: float = 0.5
+    """Probability of applying partial order mixing for a batch."""
     corruption_seed: int = 42
 
     # --- spilled energy baseline ---

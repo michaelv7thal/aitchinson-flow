@@ -87,6 +87,11 @@ def fit(
                 postfix["Δtrain"] = f"{train_loss - prev_train_loss:+.4f}"
             prev_train_loss = train_loss
 
+        for k in sorted(metrics):
+            if k == TRAINING_LOSS_KEY:
+                continue
+            postfix[k] = f"{metrics[k]:.4f}"
+
         if optimizer.param_groups:
             postfix["lr"] = f"{optimizer.param_groups[0]['lr']:.2e}"
 
@@ -100,6 +105,10 @@ def fit(
             vl = val_metrics.get(TRAINING_LOSS_KEY)
             if vl is not None:
                 postfix["val"] = f"{vl:.4f}"
+            for k in sorted(val_metrics):
+                if k == TRAINING_LOSS_KEY:
+                    continue
+                postfix[f"v_{k}"] = f"{val_metrics[k]:.4f}"
 
         if cfg.training.use_tqdm and postfix:
             epoch_pbar.set_postfix(postfix, refresh=True)

@@ -8,16 +8,16 @@ from copy import deepcopy
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
+from tqdm.auto import tqdm
 
 import aitchinson_flow.models  # noqa: F401 — populate model REGISTRY
 
 from aitchinson_flow.config import Config
-from aitchinson_flow.data.teachers.causal_lm import CausalLMTeacher, CausalLMTeacherDataModule
-from aitchinson_flow.llms.registry import build_lm
 from aitchinson_flow.models.factory import build_model
 from aitchinson_flow.training.datamodule import DataModule
 from aitchinson_flow.training.runner import fit
 from benchmarks.tasks.registry import build_task
+from aitchinson_flow.data.text8_datamodule import Text8DataModule
 
 
 def apply_transformer_scale(
@@ -45,41 +45,18 @@ def apply_transformer_scale(
 
 
 def _scale_tag(scale: dict[str, int]) -> str:
+    """Generate a unique tag for the scale."""
     parts = [f"{k}{scale[k]}" for k in sorted(scale)]
     return "_".join(parts) if parts else "baseline"
 
 
 def _build_datamodule(cfg: Config) -> DataModule:
-    if cfg.benchmark.data_source == "text8":
-        from aitchinson_flow.data.text8_datamodule import Text8DataModule  # noqa: PLC0415
-
-        return Text8DataModule(cfg)
-
-    lm = build_lm(cfg.benchmark.lm_key, cfg.teacher)
-    teacher = CausalLMTeacher(lm, cfg)
-
-    prompt_ids = None
-    prompt_mask = None
-    if cfg.benchmark.use_text8_prompts:
-        from benchmarks.text8_prompts import load_text8_prompts  # noqa: PLC0415
-
-        total_prompts = cfg.benchmark.n_batches * cfg.training.B
-        prompt_ids, prompt_mask = load_text8_prompts(
-            lm,
-            n_prompts=total_prompts,
-            prompt_length=cfg.benchmark.text8_prompt_length,
-        )
-
-    return CausalLMTeacherDataModule(
-        teacher,
-        cfg,
-        emit_logits=cfg.benchmark.compute_spilled_energy,
-        prompt_ids=prompt_ids,
-        prompt_attention_mask=prompt_mask,
-    )
+    """Build the dataset for the benchmark. May be extended to support other datasets."""
+    return Text8DataModule(cfg)
 
 
 def _strip_scores(result: dict[str, Any]) -> tuple[dict[str, float], dict[str, Any] | None]:
+    """Strip the scores from the result."""
     scores = result.pop("_scores", None)
     return result, scores
 
@@ -96,8 +73,6 @@ def run_benchmark(cfg: Config) -> dict[str, dict[str, float]]:
 
     out_root = Path(cfg.benchmark.results_dir)
     out_root.mkdir(parents=True, exist_ok=True)
-
-    from tqdm.auto import tqdm  # noqa: PLC0415
 
     scale_iter = tqdm(grid, desc="benchmark scales", disable=not cfg.benchmark.use_tqdm)
     for scale in scale_iter:
@@ -137,7 +112,9 @@ def run_benchmark(cfg: Config) -> dict[str, dict[str, float]]:
 
 
 def main(argv: list[str] | None = None) -> None:
-    parser = argparse.ArgumentParser(description="LLM-generated text auditing benchmark (scale sweep).")
+    parser = argparse.ArgumentParser(
+        description="LLM-generated text auditing benchmark (scale sweep)."
+    )
     parser.add_argument(
         "--config-out",
         type=str,
@@ -151,7 +128,9 @@ def main(argv: list[str] | None = None) -> None:
         Path(args.config_out).write_text(
             json.dumps(
                 {
-                    "benchmark": {k: v for k, v in cfg.benchmark.__dict__.items() if not callable(v)},
+                    "benchmark": {
+                        k: v for k, v in cfg.benchmark.__dict__.items() if not callable(v)
+                    },
                     "training_model": cfg.training.model_name,
                     "dataset_K": cfg.dataset.K,
                     "dataset_L": cfg.dataset.L,

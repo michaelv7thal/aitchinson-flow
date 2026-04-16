@@ -75,7 +75,7 @@ class TestTeacherEmitsLogits:
         assert "log_x" in out
         assert "token_ids" in out
         assert "logits" in out
-        assert out["log_x"].shape == (4, cfg.dataset.L, cfg.dataset.K)
+        assert out["log_x"].shape == (4, cfg.dataset.L, cfg.dataset.K - 1)
         assert out["token_ids"].shape == (4, cfg.dataset.L)
         assert out["logits"].shape[0] == 4
         assert out["logits"].shape[1] == cfg.dataset.L

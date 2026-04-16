@@ -152,7 +152,8 @@ class PerTokenBayesianAuditor(BayesianAuditor):
             d_v = self.gp(z_v)
             d_i = self.gp(z_i)
         mean_loss = d_v.mean.pow(2).mean() + F.relu(self.cfg.gp.margin_E - d_i.mean).mean()
-        var_loss = d_v.variance.mean() + F.relu(self.cfg.gp.margin_V - d_i.variance).mean()
+        var_gap = self.cfg.gp.margin_V + d_v.variance - d_i.variance
+        var_loss = F.relu(var_gap).mean()
         kl = self.gp.kl_divergence()
         total = (
             flow_loss
