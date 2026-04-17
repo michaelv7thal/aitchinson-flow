@@ -13,7 +13,7 @@ cfg.text8_dataset.max_eval_windows = 2_000
 # --- model ---
 cfg.training.model_name = "bayesian_auditor"  # or "per_token_bayesian_auditor"
 cfg.dataset.K = 27  # text8 alphabet (26 letters + space)
-cfg.dataset.L = 64  # window length
+cfg.dataset.L = 30  # window length
 
 # --- sweep + training ---
 cfg.benchmark.scale_grid = [

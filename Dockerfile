@@ -63,4 +63,3 @@ COPY . .
 #   scripts/run_wiki.sh    — WikiText-2 hallucination auditor (GPT-2 logits)
 VOLUME ["/workspace/data", "/workspace/results"]
 
-CMD ["bash"]

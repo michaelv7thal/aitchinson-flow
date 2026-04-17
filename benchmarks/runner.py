@@ -23,13 +23,23 @@ from aitchinson_flow.data.text8_datamodule import Text8DataModule
 def apply_transformer_scale(
     cfg: Config,
     *,
-    d_model: int,
-    num_layers: int,
-    nhead: int,
+    d_model: int | None = None,
+    num_layers: int | None = None,
+    nhead: int | None = None,
     d_latent: int | None = None,
+    pretrained_backbone: str | None = None,
 ) -> Config:
-    """Return a deep-copied config with scaled transformer (and matching latent dim)."""
+    """Return a deep-copied config with scaled transformer (and matching latent dim).
+
+    When ``pretrained_backbone`` is set (e.g. ``"gpt2-medium"``), the custom
+    transformer dims are left unchanged and only the backbone ID is updated.
+    """
     out = deepcopy(cfg)
+    if pretrained_backbone is not None:
+        out.transformer = replace(out.transformer, pretrained_backbone=pretrained_backbone)
+        return out
+    # Custom backbone scaling
+    assert d_model is not None and num_layers is not None and nhead is not None
     dl = d_latent if d_latent is not None else d_model
     out.transformer = replace(
         out.transformer,
@@ -44,14 +54,26 @@ def apply_transformer_scale(
     return out
 
 
-def _scale_tag(scale: dict[str, int]) -> str:
+def _scale_tag(scale: dict[str, Any]) -> str:
     """Generate a unique tag for the scale."""
     parts = [f"{k}{scale[k]}" for k in sorted(scale)]
     return "_".join(parts) if parts else "baseline"
 
 
+def _count_params(model: Any) -> int:
+    """Total trainable parameter count."""
+    import torch.nn as nn  # noqa: PLC0415
+    if isinstance(model, nn.Module):
+        return sum(p.numel() for p in model.parameters() if p.requires_grad)
+    return 0
+
+
 def _build_datamodule(cfg: Config) -> DataModule:
-    """Build the dataset for the benchmark. May be extended to support other datasets."""
+    """Build the datamodule selected by ``cfg.benchmark.data_source``."""
+    source = cfg.benchmark.data_source
+    if source == "trivia":
+        from aitchinson_flow.data.trivia_datamodule import TriviaDataModule  # noqa: PLC0415
+        return TriviaDataModule(cfg)
     return Text8DataModule(cfg)
 
 
@@ -77,13 +99,16 @@ def run_benchmark(cfg: Config) -> dict[str, dict[str, float]]:
     scale_iter = tqdm(grid, desc="benchmark scales", disable=not cfg.benchmark.use_tqdm)
     for scale in scale_iter:
         if scale:
-            scfg = apply_transformer_scale(
-                cfg,
-                d_model=scale["d_model"],
-                num_layers=scale["num_layers"],
-                nhead=scale["nhead"],
-                d_latent=scale.get("d_latent"),
-            )
+            if "pretrained_backbone" in scale:
+                scfg = apply_transformer_scale(cfg, pretrained_backbone=scale["pretrained_backbone"])
+            else:
+                scfg = apply_transformer_scale(
+                    cfg,
+                    d_model=scale["d_model"],
+                    num_layers=scale["num_layers"],
+                    nhead=scale["nhead"],
+                    d_latent=scale.get("d_latent"),
+                )
         else:
             scfg = deepcopy(cfg)
 
@@ -98,6 +123,7 @@ def run_benchmark(cfg: Config) -> dict[str, dict[str, float]]:
         tag = _scale_tag(scale) if scale else "baseline"
         raw = task.run(model, datamodule, scfg)
         clean, scores = _strip_scores(raw)
+        clean["num_params"] = _count_params(model)
         results[tag] = clean
 
         if cfg.benchmark.save_plots and scores is not None:

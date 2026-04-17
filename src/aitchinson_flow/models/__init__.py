@@ -17,6 +17,7 @@ from aitchinson_flow.models.per_token_bayesian_auditor import PerTokenBayesianAu
 # Populate REGISTRY (side-effect imports)
 from aitchinson_flow.models import equilibrium  # noqa: F401
 from aitchinson_flow.models import flow_matching  # noqa: F401
+from aitchinson_flow.models import frozen_backbone  # noqa: F401
 __all__ = [
     "GenerativeTrainingModel",
     "LossDict",

@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -n \"def audit\" /workspace/src/aitchinson_flow/models/*.py)"
+    ]
+  }
+}

@@ -71,7 +71,8 @@ EOF
 
 # ── Non-root user for Renku session runtime ───────────────────────────────────
 RUN useradd -m -u 1000 -s /bin/bash ${SESSION_USER} \
-    && chown -R ${SESSION_USER}:${SESSION_USER} /opt/venv
+    && chown -R ${SESSION_USER}:${SESSION_USER} /opt/venv \
+    && chown -R ${SESSION_USER}:${SESSION_USER} /codium-server
 
 COPY .devcontainer/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh

@@ -86,6 +86,26 @@ class EquilibriumAuditor(nn.Module):
         return self.eval_step(batch)
 
     @torch.no_grad()
+    def integrate(
+        self,
+        log_x: torch.Tensor,
+        steps: int | None = None,
+        dt: float | None = None,
+    ) -> torch.Tensor:
+        """Project ``log_x`` toward the valid manifold via ``steps`` Euler steps.
+
+        Each step: ``x ← x - v(x) * dt``, same as ``generate()`` but starting
+        from an existing sequence instead of noise. Used by ``HealingPipeline``.
+        """
+        eq = self.cfg.equilibrium
+        steps = steps if steps is not None else eq.generate_steps
+        dt = dt if dt is not None else eq.generate_stepsize
+        x = log_x.clone()
+        for _ in range(steps):
+            x = x - self.forward(x) * dt
+        return x
+
+    @torch.no_grad()
     def generate(
         self,
         n: int,

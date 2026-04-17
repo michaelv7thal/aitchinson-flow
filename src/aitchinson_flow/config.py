@@ -20,6 +20,7 @@ class TransformerConfig:
     d_latent: int = 128  # Dimension of the latent space
     dropout: float = 0.0  # Dropout rate
     time_conditioned: bool = False  # Whether to condition on time
+    pretrained_backbone: str | None = None  # e.g. "gpt2", "gpt2-medium", "gpt2-large"
 
 
 @dataclass
@@ -235,6 +236,18 @@ class BenchmarkConfig:
     # --- plotting ---
     save_plots: bool = True
     """If True, save per-scale ROC, score-histogram, loss-curve, and per-sequence PNGs."""
+
+    # --- corrupt_rate sweep (Experiment 3) ---
+    corrupt_rate_sweep: list[float] | None = None
+    """If set, TextAuditTask loops over these rates and emits per-rate AUROC metrics."""
+
+    # --- self-healing (Experiment 4) ---
+    healer_ckpt: str | None = None
+    """Path to a trained EquilibriumAuditor checkpoint used by HealingAuditTask."""
+    healing_var_threshold: float = 0.5
+    """Variance threshold above which a sequence is flagged for healing."""
+    healing_steps: int = 20
+    """Number of Euler integration steps used during healing."""
 
 
 @dataclass

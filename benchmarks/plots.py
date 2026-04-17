@@ -164,6 +164,145 @@ def plot_sequence_series(
     plt.close(fig)
 
 
+def plot_scaling_auroc(
+    results: dict[str, dict],
+    out_path: Path | str,
+    *,
+    auroc_key: str = "auroc_auditor",
+    title: str = "GP UQ quality vs backbone parameter count",
+) -> None:
+    """Scatter/line of AUROC vs trainable parameter count across scale entries."""
+    param_counts: list[int] = []
+    aurocs: list[float] = []
+    labels: list[str] = []
+
+    for tag, metrics in results.items():
+        n = metrics.get("num_params")
+        a = metrics.get(auroc_key)
+        if n is None or a is None or not np.isfinite(a):
+            continue
+        param_counts.append(int(n))
+        aurocs.append(float(a))
+        labels.append(tag)
+
+    if not param_counts:
+        return
+
+    fig, ax = plt.subplots(figsize=(6, 4))
+    ax.scatter(param_counts, aurocs, zorder=3)
+    for x, y, lbl in zip(param_counts, aurocs, labels):
+        ax.annotate(lbl, (x, y), textcoords="offset points", xytext=(4, 4), fontsize=8)
+    ax.plot(param_counts, aurocs, "--", alpha=0.5, color="grey")
+    ax.set_xlabel("trainable parameters")
+    ax.set_ylabel("AUROC")
+    ax.set_title(title)
+    ax.set_ylim(0, 1)
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=120)
+    plt.close(fig)
+
+
+def plot_gp_vs_spilled_auroc(
+    sweep_results: dict[str, dict],
+    out_path: Path | str,
+    *,
+    title: str = "AUROC vs corruption rate: GP auditor vs spilled energy",
+) -> None:
+    """Dual line chart of auditor/spilled AUROC across corruption rates."""
+    rates = sorted(float(k) for k in sweep_results)
+    auditor_aurocs = [sweep_results[str(r)].get("auroc_auditor", float("nan")) for r in rates]
+    spilled_aurocs = [sweep_results[str(r)].get("auroc_spilled", float("nan")) for r in rates]
+
+    fig, ax = plt.subplots(figsize=(6, 4))
+    ax.plot(rates, auditor_aurocs, marker="o", label="GP auditor")
+    ax.plot(rates, spilled_aurocs, marker="s", label="spilled energy")
+    ax.set_xlabel("corruption rate")
+    ax.set_ylabel("AUROC")
+    ax.set_title(title)
+    ax.set_ylim(0, 1)
+    ax.legend()
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=120)
+    plt.close(fig)
+
+
+def plot_gp_vs_spilled_scatter(
+    gp_scores: np.ndarray,
+    spilled_scores: np.ndarray,
+    out_path: Path | str,
+    *,
+    title: str | None = None,
+) -> None:
+    """Scatter of GP variance vs spilled energy per sequence, with Pearson r."""
+    gp_scores = _finite(np.asarray(gp_scores).ravel())
+    spilled_scores = _finite(np.asarray(spilled_scores).ravel())
+    n = min(len(gp_scores), len(spilled_scores))
+    if n == 0:
+        return
+    gp_scores = gp_scores[:n]
+    spilled_scores = spilled_scores[:n]
+
+    r = float(np.corrcoef(gp_scores, spilled_scores)[0, 1])
+    plot_title = title or f"GP var vs spilled energy  (r={r:.3f})"
+
+    fig, ax = plt.subplots(figsize=(5, 5))
+    ax.scatter(gp_scores, spilled_scores, alpha=0.4, s=12, rasterized=True)
+    ax.set_xlabel("GP variance")
+    ax.set_ylabel("spilled energy score")
+    ax.set_title(plot_title)
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=120)
+    plt.close(fig)
+
+
+def plot_healing_trajectory(
+    pre_var: np.ndarray,
+    post_var: np.ndarray,
+    out_path: Path | str,
+    *,
+    title: str = "GP variance before vs after healing",
+) -> None:
+    """Violin/box comparison of pre and post healing variance."""
+    pre_var = _finite(np.asarray(pre_var).ravel())
+    post_var = _finite(np.asarray(post_var).ravel())
+    if pre_var.size == 0:
+        return
+
+    fig, ax = plt.subplots(figsize=(5, 4))
+    ax.violinplot([pre_var, post_var], positions=[0, 1], showmedians=True)
+    ax.set_xticks([0, 1])
+    ax.set_xticklabels(["before healing", "after healing"])
+    ax.set_ylabel("GP variance")
+    ax.set_title(title)
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=120)
+    plt.close(fig)
+
+
+def plot_healing_success_by_corruption(
+    results_by_rate: dict[str, dict],
+    out_path: Path | str,
+    *,
+    title: str = "Healing success rate vs corruption level",
+) -> None:
+    """Line plot of healing success rate across corruption rates."""
+    rates = sorted(float(k) for k in results_by_rate)
+    success = [results_by_rate[str(r)].get("healing_success_rate", float("nan")) for r in rates]
+    post_auroc = [results_by_rate[str(r)].get("post_auroc", float("nan")) for r in rates]
+
+    fig, ax = plt.subplots(figsize=(6, 4))
+    ax.plot(rates, success, marker="o", label="success rate")
+    ax.plot(rates, post_auroc, marker="s", linestyle="--", label="post-healing AUROC")
+    ax.set_xlabel("corruption rate")
+    ax.set_ylabel("metric value")
+    ax.set_title(title)
+    ax.set_ylim(0, 1)
+    ax.legend()
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=120)
+    plt.close(fig)
+
+
 def save_all_plots(
     out_dir: Path | str,
     *,
@@ -217,5 +356,22 @@ def save_all_plots(
         title="auditor variance per position",
         ylabel="auditor variance",
     )
+
+    # GP vs spilled energy scatter (all valid sequences)
+    gp_v = scores.get("auditor_valid")
+    sp_v = scores.get("spilled_valid")
+    if gp_v is not None and sp_v is not None and gp_v.size and sp_v.size:
+        plot_gp_vs_spilled_scatter(gp_v, sp_v, out / "gp_vs_spilled_valid.png")
+    gp_i = scores.get("auditor_invalid")
+    sp_i = scores.get("spilled_invalid")
+    if gp_i is not None and sp_i is not None and gp_i.size and sp_i.size:
+        plot_gp_vs_spilled_scatter(gp_i, sp_i, out / "gp_vs_spilled_invalid.png")
+
+    # Healing trajectory (if scores include pre/post variance)
+    pre_inv = scores.get("pre_invalid")
+    post_inv = scores.get("post_invalid")
+    if pre_inv is not None and post_inv is not None:
+        plot_healing_trajectory(pre_inv, post_inv, out / "healing_trajectory.png")
+
     if loss_history:
         plot_loss_curve(loss_history, out / "loss_curve.png")

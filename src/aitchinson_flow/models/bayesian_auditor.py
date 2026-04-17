@@ -61,20 +61,27 @@ class BayesianAuditor(BayesianGenerator):
         valid_dist = self.gp(self._extract(log_x1))
         invalid_dist = self.gp(self._extract(log_x1_invalid))
 
+        # 1. Anchor valid energy near zero — prevents joint drift
+        anchor_loss = valid_dist.mean.pow(2).mean()
+
+        # Contrastive energy margin
         energy_gap = self.cfg.gp.margin_E - (invalid_dist.mean - valid_dist.mean)
         mean_loss = F.relu(energy_gap).mean()
 
-        # mean_loss = mean_loss + self.cfg.gp.lambda_anchor * valid_dist.mean.pow(2).mean()
-
-        var_gap = self.cfg.gp.margin_V - (invalid_dist.variance - valid_dist.variance)
-        var_loss = F.relu(var_gap).mean()
+        # 3. Replace variance hinge with a soft log-ratio penalty
+        # Encourages invalid_var > valid_var without hard margin instability
+        # Add small epsilon for numerical safety
+        # eps = 1e-6
+        # log_var_ratio = torch.log((valid_dist.variance + eps) / (invalid_dist.variance + eps))
+        # Penalise when valid_var >= invalid_var (ratio >= 1, log >= 0)
+        # var_loss = F.relu(log_var_ratio + self.cfg.gp.margin_V).mean()
 
         kl = self.gp.kl_divergence()
 
         total = (
             flow_loss
             + mean_loss
-            + self.cfg.gp.lambda_var * var_loss
+            + self.cfg.gp.lambda_var * anchor_loss
             + self.cfg.gp.lambda_kl * kl / B
         )
 
@@ -82,7 +89,7 @@ class BayesianAuditor(BayesianGenerator):
             TRAINING_LOSS_KEY: total,
             "flow_loss": flow_loss,
             "mean_loss": mean_loss,
-            "var_loss": var_loss,
+            # "var_loss": var_loss,
             "kl": kl,
             "noise_var": noise_var.detach(),
         }

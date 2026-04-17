@@ -203,6 +203,12 @@ class TextAuditTask:
         result["auroc_auditor"] = _safe_auroc(v_audit, i_audit)
         result["auroc_spilled"] = _safe_auroc(v_spill, i_spill)
 
+        # Pearson r between GP variance and spilled energy scores
+        if v_spill.size and v_audit.size and len(v_spill) == len(v_audit):
+            result["pearson_r_valid"] = float(np.corrcoef(v_audit, v_spill)[0, 1])
+        if i_spill.size and i_audit.size and len(i_spill) == len(i_audit):
+            result["pearson_r_invalid"] = float(np.corrcoef(i_audit, i_spill)[0, 1])
+
         result["_scores"] = {
             "auditor_valid": v_audit,
             "auditor_invalid": i_audit,
@@ -229,4 +235,101 @@ class TextAuditTask:
                 torch.cat(audit_var_invalid_seqs, dim=0).numpy() if audit_var_invalid_seqs else None
             ),
         }
+
+        # Corrupt-rate sweep (Experiment 3): re-run at multiple corruption levels
+        sweep = cfg.benchmark.corrupt_rate_sweep
+        if sweep:
+            result["corrupt_rate_sweep"] = _run_corrupt_sweep(
+                model=model,  # type: ignore[arg-type]
+                datamodule=datamodule,
+                cfg=cfg,
+                rates=sweep,
+            )
+
         return result
+
+
+def _run_corrupt_sweep(
+    model: nn.Module,
+    datamodule: Any,
+    cfg: Config,
+    rates: list[float],
+) -> dict[str, Any]:
+    """Re-run the audit at multiple corruption rates; returns per-rate AUROC + Pearson r."""
+    from copy import deepcopy  # noqa: PLC0415
+    from dataclasses import replace  # noqa: PLC0415
+
+    sweep_results: dict[str, Any] = {}
+
+    loader_fn = (
+        lambda: datamodule.test_dataloader()
+        or datamodule.val_dataloader()
+        or datamodule.train_dataloader()
+    )
+
+    device = cfg.training.device
+
+    for rate in rates:
+        rate_agg: dict[str, float] = {}
+        rate_counts: dict[str, int] = {}
+        av: list[torch.Tensor] = []
+        ai: list[torch.Tensor] = []
+        sv: list[torch.Tensor] = []
+        si: list[torch.Tensor] = []
+
+        sweep_bcfg = replace(cfg.benchmark, corrupt_rate=rate)
+        sweep_cfg = deepcopy(cfg)
+        sweep_cfg.benchmark = sweep_bcfg
+
+        loader = loader_fn()
+        for batch_idx, batch in enumerate(loader):
+            has_logits = "logits" in batch and "token_ids" in batch
+            if has_logits and "log_x_invalid" not in batch:
+                build_invalid_batch(
+                    batch,
+                    K=cfg.dataset.K,
+                    corrupt_rate=rate,
+                    order_mix_rate=sweep_bcfg.order_mix_rate,
+                    order_mix_prob=sweep_bcfg.order_mix_prob,
+                    eps=cfg.hf_dataset.log_simplex_eps,
+                    seed=sweep_bcfg.corruption_seed + batch_idx,
+                )
+            batch_dev = _to_device(batch, device)
+            if "log_x_invalid" not in batch_dev:
+                continue
+
+            v_score = _auditor_score(model, batch_dev["log_x"])
+            i_score = _auditor_score(model, batch_dev["log_x_invalid"])
+            if v_score is not None:
+                av.append(v_score)
+            if i_score is not None:
+                ai.append(i_score)
+
+            if has_logits and sweep_bcfg.compute_spilled_energy:
+                _, sp_v, sp_i = _spilled_metrics(
+                    batch["logits"], batch["token_ids"],
+                    batch["logits_invalid"], batch["token_ids_invalid"],
+                )
+                sv.append(-sp_v.mean(dim=1).detach().cpu())
+                si.append(-sp_i.mean(dim=1).detach().cpu())
+
+        def _cat(xs: list[torch.Tensor]) -> np.ndarray:
+            return torch.cat(xs, dim=0).numpy() if xs else np.empty(0, dtype=np.float32)
+
+        v_a = _cat(av)
+        i_a = _cat(ai)
+        v_s = _cat(sv)
+        i_s = _cat(si)
+
+        entry: dict[str, Any] = {
+            "auroc_auditor": _safe_auroc(v_a, i_a),
+            "auroc_spilled": _safe_auroc(v_s, i_s),
+        }
+        if v_s.size and v_a.size and len(v_s) == len(v_a):
+            entry["pearson_r_valid"] = float(np.corrcoef(v_a, v_s)[0, 1])
+        if i_s.size and i_a.size and len(i_s) == len(i_a):
+            entry["pearson_r_invalid"] = float(np.corrcoef(i_a, i_s)[0, 1])
+
+        sweep_results[str(rate)] = entry
+
+    return sweep_results
