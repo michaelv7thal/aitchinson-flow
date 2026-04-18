@@ -15,6 +15,42 @@ def _finite(arr: np.ndarray) -> np.ndarray:
     return arr[np.isfinite(arr)]
 
 
+_METHOD_SPECS: tuple[dict[str, str], ...] = (
+    {
+        "name": "auditor",
+        "valid_key": "auditor_valid",
+        "invalid_key": "auditor_invalid",
+        "display": "auditor score",
+        "hist_file": "hist_auditor.png",
+        "xlabel": "auditor score",
+    },
+    {
+        "name": "residual",
+        "valid_key": "residual_valid",
+        "invalid_key": "residual_invalid",
+        "display": "flow residual score",
+        "hist_file": "hist_residual.png",
+        "xlabel": "residual anomaly score",
+    },
+    {
+        "name": "energy",
+        "valid_key": "energy_valid",
+        "invalid_key": "energy_invalid",
+        "display": "stage1 geometric score",
+        "hist_file": "hist_energy.png",
+        "xlabel": "geometric anomaly score (d_H)",
+    },
+    {
+        "name": "spilled",
+        "valid_key": "spilled_valid",
+        "invalid_key": "spilled_invalid",
+        "display": "spilled energy",
+        "hist_file": "hist_spilled.png",
+        "xlabel": "-mean ΔE",
+    },
+)
+
+
 def plot_score_histograms(
     valid: np.ndarray,
     invalid: np.ndarray,
@@ -46,7 +82,7 @@ def plot_roc(
     methods: dict[str, tuple[np.ndarray, np.ndarray]],
     out_path: Path | str,
     *,
-    title: str = "ROC: auditor vs spilled energy",
+    title: str = "ROC: available OOD signals",
 ) -> None:
     """``methods[name] = (valid_scores, invalid_scores)`` — label valid=0, invalid=1."""
     from sklearn.metrics import roc_auc_score, roc_curve  # noqa: PLC0415
@@ -227,28 +263,30 @@ def plot_gp_vs_spilled_auroc(
 
 
 def plot_gp_vs_spilled_scatter(
-    gp_scores: np.ndarray,
+    x_scores: np.ndarray,
     spilled_scores: np.ndarray,
     out_path: Path | str,
     *,
     title: str | None = None,
+    xlabel: str = "auditor score",
+    ylabel: str = "spilled energy score",
 ) -> None:
-    """Scatter of GP variance vs spilled energy per sequence, with Pearson r."""
-    gp_scores = _finite(np.asarray(gp_scores).ravel())
+    """Scatter of one score against spilled energy per sequence, with Pearson r."""
+    x_scores = _finite(np.asarray(x_scores).ravel())
     spilled_scores = _finite(np.asarray(spilled_scores).ravel())
-    n = min(len(gp_scores), len(spilled_scores))
+    n = min(len(x_scores), len(spilled_scores))
     if n == 0:
         return
-    gp_scores = gp_scores[:n]
+    x_scores = x_scores[:n]
     spilled_scores = spilled_scores[:n]
 
-    r = float(np.corrcoef(gp_scores, spilled_scores)[0, 1])
-    plot_title = title or f"GP var vs spilled energy  (r={r:.3f})"
+    r = float(np.corrcoef(x_scores, spilled_scores)[0, 1])
+    plot_title = title or f"{xlabel} vs spilled energy  (r={r:.3f})"
 
     fig, ax = plt.subplots(figsize=(5, 5))
-    ax.scatter(gp_scores, spilled_scores, alpha=0.4, s=12, rasterized=True)
-    ax.set_xlabel("GP variance")
-    ax.set_ylabel("spilled energy score")
+    ax.scatter(x_scores, spilled_scores, alpha=0.4, s=12, rasterized=True)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
     ax.set_title(plot_title)
     fig.tight_layout()
     fig.savefig(out_path, dpi=120)
@@ -313,29 +351,22 @@ def save_all_plots(
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
 
-    v_a = scores.get("auditor_valid")
-    i_a = scores.get("auditor_invalid")
-    v_s = scores.get("spilled_valid")
-    i_s = scores.get("spilled_invalid")
-
     methods: dict[str, tuple[np.ndarray, np.ndarray]] = {}
-    if v_a is not None and i_a is not None and v_a.size and i_a.size:
-        methods["auditor"] = (v_a, i_a)
-    if v_s is not None and i_s is not None and v_s.size and i_s.size:
-        methods["spilled energy"] = (v_s, i_s)
+    for spec in _METHOD_SPECS:
+        v = scores.get(spec["valid_key"])
+        i = scores.get(spec["invalid_key"])
+        if v is None or i is None or not v.size or not i.size:
+            continue
+        methods[spec["display"]] = (v, i)
+        plot_score_histograms(
+            v,
+            i,
+            out / spec["hist_file"],
+            title=f"{spec['display']}: valid vs invalid",
+            xlabel=spec["xlabel"],
+        )
     if methods:
         plot_roc(methods, out / "roc.png")
-
-    if v_a is not None and i_a is not None and v_a.size and i_a.size:
-        plot_score_histograms(
-            v_a, i_a, out / "hist_auditor.png",
-            title="auditor: valid vs invalid", xlabel="GP variance",
-        )
-    if v_s is not None and i_s is not None and v_s.size and i_s.size:
-        plot_score_histograms(
-            v_s, i_s, out / "hist_spilled.png",
-            title="spilled energy: valid vs invalid", xlabel="-mean ΔE",
-        )
 
     plot_sequence_spilled(
         scores.get("spilled_seq_valid"),
@@ -357,15 +388,25 @@ def save_all_plots(
         ylabel="auditor variance",
     )
 
-    # GP vs spilled energy scatter (all valid sequences)
-    gp_v = scores.get("auditor_valid")
+    # Auditor-vs-spilled scatter (all valid/invalid sequences)
+    score_v = scores.get("auditor_valid")
     sp_v = scores.get("spilled_valid")
-    if gp_v is not None and sp_v is not None and gp_v.size and sp_v.size:
-        plot_gp_vs_spilled_scatter(gp_v, sp_v, out / "gp_vs_spilled_valid.png")
-    gp_i = scores.get("auditor_invalid")
+    if score_v is not None and sp_v is not None and score_v.size and sp_v.size:
+        plot_gp_vs_spilled_scatter(
+            score_v,
+            sp_v,
+            out / "gp_vs_spilled_valid.png",
+            xlabel="auditor score",
+        )
+    score_i = scores.get("auditor_invalid")
     sp_i = scores.get("spilled_invalid")
-    if gp_i is not None and sp_i is not None and gp_i.size and sp_i.size:
-        plot_gp_vs_spilled_scatter(gp_i, sp_i, out / "gp_vs_spilled_invalid.png")
+    if score_i is not None and sp_i is not None and score_i.size and sp_i.size:
+        plot_gp_vs_spilled_scatter(
+            score_i,
+            sp_i,
+            out / "gp_vs_spilled_invalid.png",
+            xlabel="auditor score",
+        )
 
     # Healing trajectory (if scores include pre/post variance)
     pre_inv = scores.get("pre_invalid")

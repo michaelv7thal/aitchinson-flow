@@ -163,9 +163,14 @@ class HealingAuditTask:
 def _corrupt_text8_batch(
     batch: dict, cfg: Config, bcfg: Any, batch_idx: int
 ) -> dict:
-    """Corrupt a text8 batch to produce log_x_invalid in-place."""
+    """Corrupt a text8 batch to produce log_x_invalid in-place.
+
+    Honors ``cfg.hf_dataset.label_smoothing`` and
+    ``cfg.hf_dataset.transform_mode`` so the healing path matches whatever
+    discrete→continuous pipeline the model was trained with.
+    """
     from benchmarks.corruption import corrupt_token_ids  # noqa: PLC0415
-    from aitchinson_flow.data.transforms.discrete import token_ids_to_ilr_x  # noqa: PLC0415
+    from aitchinson_flow.data.transforms.discrete import token_ids_to_features  # noqa: PLC0415
 
     token_ids = batch["token_ids"]  # (B, L)
     seed = bcfg.corruption_seed + batch_idx
@@ -176,7 +181,13 @@ def _corrupt_text8_batch(
         seed=seed,
     )
     log_x_invalid = torch.stack([
-        token_ids_to_ilr_x(corrupted[i], cfg.dataset.K)
+        token_ids_to_features(
+            corrupted[i],
+            cfg.dataset.K,
+            eps=cfg.hf_dataset.log_simplex_eps,
+            label_smoothing=cfg.hf_dataset.label_smoothing,
+            transform_mode=cfg.hf_dataset.transform_mode,
+        )
         for i in range(corrupted.shape[0])
     ])
     batch = dict(batch)

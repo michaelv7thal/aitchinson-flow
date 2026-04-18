@@ -7,6 +7,7 @@ import torch
 import torch.nn as nn
 
 from aitchinson_flow.config import Config
+from aitchinson_flow.data.feature_dim import feature_dim as _feature_dim_for
 from aitchinson_flow.metrics.spilled_energy import compute_spilled_energy_batch
 from aitchinson_flow.models.base import AuditorModel
 from aitchinson_flow.training.datamodule import DataModule
@@ -75,6 +76,46 @@ def _auditor_score(
     return out.detach().cpu()
 
 
+def _auditor_residual_score(model: nn.Module, log_x: torch.Tensor) -> torch.Tensor | None:
+    """Return the flow-residual UQ score (`residual_score`) if the model exposes one.
+
+    Available on `BayesianAuditorStage1` (direct velocity head) and on composed
+    `BayesianAuditor` (GP-gradient velocity norm). Used to compare flow-based
+    UQ against GP-variance UQ side-by-side in the benchmark.
+    """
+    fn = getattr(model, "residual_score", None)
+    if fn is None:
+        return None
+    try:
+        out = fn(log_x)
+    except TypeError:
+        return None
+    return out.detach().cpu()
+
+
+def _auditor_energy_score(model: nn.Module, log_x: torch.Tensor) -> torch.Tensor | None:
+    """Return the Stage-1-style geometric energy score if the model exposes one.
+
+    Computed from the explicit `energy_score(log_x)` API as
+    ``g(x) = -d_H(f(x), x)`` (per-sequence, averaged over tokens).
+    Sign-flipped to anomaly convention (higher = more OOD) for direct AUROC
+    comparison against the GP-variance score, mirroring Plan point 5
+    (Stage 1 geometric energy vs Stage 2 GP variance).
+
+    Returns ``None`` if the model has no `energy_score` (e.g. Stage 2 only or
+    plain `BayesianAuditor` without a Stage 1 backbone surface).
+    """
+    fn = getattr(model, "energy_score", None)
+    if fn is None:
+        return None
+    try:
+        out = fn(log_x)
+    except TypeError:
+        return None
+    # Anomaly convention: AUROC labels invalid=1, so higher score = more OOD.
+    return (-out).detach().cpu()
+
+
 def _auditor_sequence_uq(
     model: nn.Module, log_x: torch.Tensor, *, ctx: torch.Tensor | None = None
 ) -> tuple[torch.Tensor, torch.Tensor] | None:
@@ -92,6 +133,38 @@ def _auditor_sequence_uq(
     if not (torch.is_tensor(energy) and torch.is_tensor(variance)):
         return None
     return energy.detach().cpu(), variance.detach().cpu()
+
+
+def _auditor_token_latents(model: nn.Module, log_x: torch.Tensor) -> torch.Tensor | None:
+    """Per-token latent representation ``(B, L, d)`` when the model exposes one.
+
+    Used by the stage-aware density plot. Stage 1 returns backbone hidden
+    states, Stage 2 / fused return GP-input latents.
+    """
+    fn = getattr(model, "token_latents", None)
+    if fn is None:
+        return None
+    try:
+        out = fn(log_x)
+    except TypeError:
+        return None
+    if not torch.is_tensor(out):
+        return None
+    return out.detach().cpu()
+
+
+def _auditor_inducing_points(model: nn.Module) -> torch.Tensor | None:
+    """GP inducing locations ``(M, d)`` when available (Stage 2 / fused)."""
+    fn = getattr(model, "inducing_points", None)
+    if fn is None:
+        return None
+    try:
+        out = fn()
+    except TypeError:
+        return None
+    if out is None or not torch.is_tensor(out):
+        return None
+    return out.detach().cpu()
 
 
 @register("text_audit")
@@ -120,6 +193,10 @@ class TextAuditTask:
 
         audit_valid: list[torch.Tensor] = []
         audit_invalid: list[torch.Tensor] = []
+        residual_valid: list[torch.Tensor] = []
+        residual_invalid: list[torch.Tensor] = []
+        energy_valid: list[torch.Tensor] = []
+        energy_invalid: list[torch.Tensor] = []
         spilled_valid: list[torch.Tensor] = []
         spilled_invalid: list[torch.Tensor] = []
         sp_valid_seqs: list[torch.Tensor] = []
@@ -128,6 +205,11 @@ class TextAuditTask:
         audit_energy_invalid_seqs: list[torch.Tensor] = []
         audit_var_valid_seqs: list[torch.Tensor] = []
         audit_var_invalid_seqs: list[torch.Tensor] = []
+        latent_valid_seqs: list[torch.Tensor] = []
+        latent_invalid_seqs: list[torch.Tensor] = []
+        # Latents can be large; cap the number of sequences retained for plots.
+        latent_cap = int(getattr(bcfg, "plot_latent_cap", 256))
+        inducing_points: torch.Tensor | None = None
 
         for batch_idx, batch in enumerate(loader):
             has_logits = "logits" in batch and "token_ids" in batch
@@ -140,6 +222,8 @@ class TextAuditTask:
                     order_mix_rate=bcfg.order_mix_rate,
                     order_mix_prob=bcfg.order_mix_prob,
                     eps=cfg.hf_dataset.log_simplex_eps,
+                    label_smoothing=cfg.hf_dataset.label_smoothing,
+                    transform_mode=cfg.hf_dataset.transform_mode,
                     seed=bcfg.corruption_seed + batch_idx,
                 )
 
@@ -160,6 +244,28 @@ class TextAuditTask:
             if i_score is not None:
                 audit_invalid.append(i_score)
 
+            v_res = _auditor_residual_score(model, batch_dev["log_x"])
+            i_res = (
+                _auditor_residual_score(model, batch_dev["log_x_invalid"])
+                if "log_x_invalid" in batch_dev
+                else None
+            )
+            if v_res is not None:
+                residual_valid.append(v_res)
+            if i_res is not None:
+                residual_invalid.append(i_res)
+
+            v_eng = _auditor_energy_score(model, batch_dev["log_x"])
+            i_eng = (
+                _auditor_energy_score(model, batch_dev["log_x_invalid"])
+                if "log_x_invalid" in batch_dev
+                else None
+            )
+            if v_eng is not None:
+                energy_valid.append(v_eng)
+            if i_eng is not None:
+                energy_invalid.append(i_eng)
+
             v_seq = _auditor_sequence_uq(model, batch_dev["log_x"], ctx=batch_dev.get("ctx_1"))
             i_seq = (
                 _auditor_sequence_uq(
@@ -176,6 +282,22 @@ class TextAuditTask:
                 e_i, var_i = i_seq
                 audit_energy_invalid_seqs.append(e_i)
                 audit_var_invalid_seqs.append(var_i)
+
+            current_latent_count = sum(t.shape[0] for t in latent_valid_seqs)
+            if current_latent_count < latent_cap:
+                take_v = _auditor_token_latents(model, batch_dev["log_x"])
+                if take_v is not None:
+                    room = max(0, latent_cap - current_latent_count)
+                    latent_valid_seqs.append(take_v[:room])
+                if "log_x_invalid" in batch_dev:
+                    take_i = _auditor_token_latents(model, batch_dev["log_x_invalid"])
+                    if take_i is not None:
+                        current_inv = sum(t.shape[0] for t in latent_invalid_seqs)
+                        room = max(0, latent_cap - current_inv)
+                        latent_invalid_seqs.append(take_i[:room])
+
+            if inducing_points is None:
+                inducing_points = _auditor_inducing_points(model)
 
             if has_logits and bcfg.compute_spilled_energy:
                 sp_metrics, sp_v_seq, sp_i_seq = _spilled_metrics(
@@ -197,11 +319,20 @@ class TextAuditTask:
 
         v_audit = _cat(audit_valid)
         i_audit = _cat(audit_invalid)
+        v_resid = _cat(residual_valid)
+        i_resid = _cat(residual_invalid)
+        v_eng = _cat(energy_valid)
+        i_eng = _cat(energy_invalid)
         v_spill = _cat(spilled_valid)
         i_spill = _cat(spilled_invalid)
 
         result["auroc_auditor"] = _safe_auroc(v_audit, i_audit)
         result["auroc_spilled"] = _safe_auroc(v_spill, i_spill)
+        if v_resid.size and i_resid.size:
+            result["auroc_residual"] = _safe_auroc(v_resid, i_resid)
+        if v_eng.size and i_eng.size:
+            # Stage 1 geometric energy AUROC (Plan point 5: energy vs variance).
+            result["auroc_energy"] = _safe_auroc(v_eng, i_eng)
 
         # Pearson r between GP variance and spilled energy scores
         if v_spill.size and v_audit.size and len(v_spill) == len(v_audit):
@@ -209,9 +340,30 @@ class TextAuditTask:
         if i_spill.size and i_audit.size and len(i_spill) == len(i_audit):
             result["pearson_r_invalid"] = float(np.corrcoef(i_audit, i_spill)[0, 1])
 
+        # Ablation tags: surface the configuration switches that produced this
+        # row so a sweep CSV/JSON can be sliced cleanly along the
+        # Hilbert-vs-MSE / ILR-vs-CLR / model / scale axes (Plan point 5).
+        result["ablation_tags"] = {
+            "model_name": cfg.training.model_name,
+            "velocity_loss": cfg.training.velocity_loss,
+            "transform_mode": cfg.hf_dataset.transform_mode,
+            "label_smoothing": float(cfg.hf_dataset.label_smoothing),
+            "feature_dim": int(_feature_dim_for(cfg)),
+            "K": int(cfg.dataset.K),
+            "L": int(cfg.dataset.L),
+            "d_model": int(cfg.transformer.d_model),
+            "num_layers": int(cfg.transformer.num_layers),
+            "nhead": int(cfg.transformer.nhead),
+            "corrupt_rate": float(bcfg.corrupt_rate),
+        }
+
         result["_scores"] = {
             "auditor_valid": v_audit,
             "auditor_invalid": i_audit,
+            "residual_valid": v_resid,
+            "residual_invalid": i_resid,
+            "energy_valid": v_eng,
+            "energy_invalid": i_eng,
             "spilled_valid": v_spill,
             "spilled_invalid": i_spill,
             "spilled_seq_valid": (
@@ -233,6 +385,15 @@ class TextAuditTask:
             ),
             "auditor_var_seq_invalid": (
                 torch.cat(audit_var_invalid_seqs, dim=0).numpy() if audit_var_invalid_seqs else None
+            ),
+            "latent_tokens_valid": (
+                torch.cat(latent_valid_seqs, dim=0).numpy() if latent_valid_seqs else None
+            ),
+            "latent_tokens_invalid": (
+                torch.cat(latent_invalid_seqs, dim=0).numpy() if latent_invalid_seqs else None
+            ),
+            "inducing_points": (
+                inducing_points.numpy() if inducing_points is not None else None
             ),
         }
 
@@ -292,6 +453,8 @@ def _run_corrupt_sweep(
                     order_mix_rate=sweep_bcfg.order_mix_rate,
                     order_mix_prob=sweep_bcfg.order_mix_prob,
                     eps=cfg.hf_dataset.log_simplex_eps,
+                    label_smoothing=cfg.hf_dataset.label_smoothing,
+                    transform_mode=cfg.hf_dataset.transform_mode,
                     seed=sweep_bcfg.corruption_seed + batch_idx,
                 )
             batch_dev = _to_device(batch, device)

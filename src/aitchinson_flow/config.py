@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import torch
 
 from dataclasses import dataclass, field
@@ -9,32 +10,122 @@ from dataclasses import dataclass, field
 class DatasetConfig:
     dataset: str = "text8"  # "dna", "text8", "wiki"
     K: int = 27  # Vocabulary size (4=DNA, 27=text8, 64=wiki top-k)
-    L: int = 20  # Sequence length
+    L: int = 30  # Sequence length
 
 
 @dataclass
 class TransformerConfig:
-    d_model: int = 128  # Dimension of the model
+    d_model: int = 1648  # Dimension of the model
     nhead: int = 8  # Number of attention heads
-    num_layers: int = 6  # Number of layers
-    d_latent: int = 128  # Dimension of the latent space
+    num_layers: int = 8  # Number of layers
+    d_latent: int = 1648  # Dimension of the latent space
     dropout: float = 0.0  # Dropout rate
     time_conditioned: bool = False  # Whether to condition on time
     pretrained_backbone: str | None = None  # e.g. "gpt2", "gpt2-medium", "gpt2-large"
 
+    def __post_init__(self) -> None:
+        if self.d_model % self.nhead != 0:
+            raise ValueError(
+                f"TransformerConfig.d_model ({self.d_model}) must be divisible by "
+                f"nhead ({self.nhead})"
+            )
+
 
 @dataclass
 class GPConfig:
-    num_inducing: int = 500  # Number of inducing points
+    num_inducing: int = 2000  # Number of inducing points
     lambda_kl: float = 1e-4  # KL regularization parameter
-    lambda_var: float = 2.0  # Variance regularization parameter
+    lambda_contrastive: float = 1.0  # Stage 2 random-negative energy hinge weight
+    lambda_var: float = 2.0
+    """Anchor weight on valid GP mean in the composed ``BayesianAuditor`` loss.
+
+    Keeps ``E[valid]`` near zero so the contrastive hinge does not pull the
+    whole energy surface upward. The historical name is retained for
+    checkpoint compatibility; see also ``lambda_anchor`` for the Stage 2
+    analogue.
+    """
+    lambda_anchor: float = 0.0
+    """Stage 2 anchor weight on ``E[valid]^2`` (defaults to off).
+
+    Mirrors ``lambda_var`` in the composed auditor. Enable when relaxing the
+    contrastive hinge (C2 fix removes the ``.detach()``) causes valid energy
+    to drift.
+    """
     margin_E: float = 2.0  # Hinge margin for L_energy score
-    margin_V: float = 1.0  # Hinge margin for L_variance score
+    margin_V: float = 1.0
+    """Hinge margin for variance separation.
+
+    Used only by ``per_token_bayesian_auditor`` in the single-stage codepath;
+    has no effect in the two-stage pipeline (Stage 2 has no variance hinge).
+    """
+    init_log_noise_var: float = math.log(0.1)
+    """Initial value for the GP's ``log_noise_var`` parameter (log-space).
+
+    Defaults to ``log(0.1)`` → noise variance of ``softplus(log(0.1)) ≈ 0.1``.
+    Increase (e.g. ``log(1.0)``) for noisier data or when the NLL saturates
+    early in training.
+    """
+    min_log_noise_var: float = math.log(1e-6)
+    """Lower clamp applied to ``log_noise_var`` before ``softplus``.
+
+    Prevents the learned aleatoric noise from underflowing to zero, which
+    would make the NLL numerically unstable.  Defaults to ``log(1e-6)``
+    so the minimum representable noise variance is ≈ 1e-6.
+    """
+
+    def __post_init__(self) -> None:
+        if self.num_inducing < 1:
+            raise ValueError(f"GPConfig.num_inducing must be >= 1, got {self.num_inducing}")
+        if self.margin_E <= 0.0:
+            raise ValueError(
+                f"GPConfig.margin_E must be > 0 (a non-positive margin makes the "
+                f"contrastive hinge vacuous), got {self.margin_E}"
+            )
+        if self.margin_V <= 0.0:
+            raise ValueError(
+                f"GPConfig.margin_V must be > 0 (a non-positive margin makes the "
+                f"variance hinge vacuous), got {self.margin_V}"
+            )
+        for name in ("lambda_kl", "lambda_contrastive", "lambda_var", "lambda_anchor"):
+            v = getattr(self, name)
+            if v < 0.0:
+                raise ValueError(
+                    f"GPConfig.{name} must be >= 0 (negative values invert the "
+                    f"loss direction), got {v}"
+                )
 
 
 @dataclass
 class TrainingConfig:
     model_name: str = "flow_matching"
+    """Registered model key (see ``aitchinson_flow.models.factory``). Known values:
+
+    - ``"flow_matching"``: time-conditioned CFM-style auditor (velocity head).
+    - ``"equilibrium"``: standalone Equilibrium Matching auditor (velocity head).
+    - ``"bayesian_generator"``: joint flow + GP generator (no contrastive terms).
+    - ``"bayesian_auditor"``: joint flow + GP + contrastive (single-stage).
+    - ``"bayesian_auditor_stage1"``: **Stage 1** of the two-stage auditor —
+      EqM + Hilbert backbone training. Requires ``velocity_loss`` set to a
+      Hilbert-family loss (``soft_hilbert``/``hard_hilbert``/``clr_mse``/
+      ``ilr_mse``). Batches only need ``log_x``.
+    - ``"bayesian_auditor_stage2"``: **Stage 2** of the two-stage auditor —
+      mandatory-frozen backbone + contrastive GP head. Batches need
+      ``log_x`` and ``log_x_invalid``.
+    - ``"per_token_bayesian_auditor"``, ``"frozen_backbone_auditor"``: see
+      their respective modules.
+
+    Two-stage workflow:
+        1. Train ``bayesian_auditor_stage1`` on valid sequences (EqM + Hilbert).
+        2. Independently train ``bayesian_auditor_stage2`` with valid/invalid
+           contrastive pairs (optionally starting from a random backbone if
+           no Stage 1 checkpoint is used — representation freezing is still
+           enforced, matching the ablation setting documented in the plan).
+        3. Fuse checkpoints for inference via
+           ``aitchinson_flow.models.load_auditor_from_stage_checkpoints`` or
+           ``compose_auditor_from_stages``; the resulting ``BayesianAuditor``
+           supports the full inference API (``forward``/``_velocity``,
+           ``ood_score``, ``per_token_uq``, ``audit``).
+    """
     B: int = 128  # Batch size
     epochs: int = 10_000  # Number of epochs
     lr: float = 5e-4  # Learning rate
@@ -90,6 +181,28 @@ class TrainingConfig:
     use_tqdm: bool = True
     """Show tqdm progress bars for training/validation loops."""
 
+    # --- Weights & Biases ---
+    wandb_enabled: bool = True
+    """Enable Weights & Biases experiment tracking."""
+    wandb_mode: str = "online"
+    """W&B mode: ``online`` / ``offline`` / ``disabled``."""
+    wandb_project: str = "aitchinson-flow"
+    wandb_entity: str | None = None
+    wandb_group: str | None = None
+    wandb_run_name: str | None = "two-stage-train"
+    wandb_job_type: str | None = None
+    wandb_notes: str | None = None
+    wandb_tags: list[str] = field(default_factory=list)
+    wandb_log_model: bool = False
+    """If True, upload model artifacts/checkpoints."""
+    wandb_watch_model: bool = False
+    """If True, call ``wandb.watch`` for gradient/parameter stats."""
+    wandb_watch_log: str = "gradients"
+    """Watch mode passed to ``wandb.watch`` (``gradients``/``parameters``/``all``)."""
+    wandb_watch_log_freq: int = 100
+    wandb_log_steps: bool = False
+    """If True, emit ``step/train/*`` W&B metrics every ``log_every`` updates."""
+
 
 @dataclass
 class EquilibriumFlowConfig:
@@ -99,6 +212,22 @@ class EquilibriumFlowConfig:
     eqm_interp: float = 0.99
     # Cap on the c_t schedule (legacy EqM).
     eqm_start: float = 0.2
+    # Decay strategy for c(gamma) in EqM target u_tgt = c(gamma) * (log_x0 - log_x1).
+    # The target velocity points from data toward noise; inference integrators
+    # subtract v (x ← x - v(x) * dt) to flow noise → data.
+    # - "legacy": min(eqm_start, scale * (1-gamma)) * 4 (original behavior)
+    # - "linear": 1 - gamma
+    # - "truncated": 1 when gamma <= a, else (1-gamma)/(1-a)
+    # - "piecewise": b - ((b-1)/a)*gamma when gamma <= a, else (1-gamma)/(1-a)
+    eqm_decay_strategy: str = "linear"
+    # 'a' breakpoint for truncated/piecewise schedules; must satisfy 0 < a < 1 for piecewise,
+    # and 0 <= a < 1 for truncated.
+    eqm_decay_a: float = 0.2
+    # 'b' intercept for piecewise schedule (typically >= 1).
+    eqm_decay_b: float = 2.0
+    # Optional gradient multiplier (any schedule): c(gamma) <- c(gamma) / eqm_gradient_lambda
+    # (set to 1.0 for no scaling).
+    eqm_gradient_lambda: float = 1.0
     # Sampling / fixed-point generation from uniform noise in log-space.
     generate_steps: int = 250
     generate_stepsize: float = 0.004
@@ -110,7 +239,7 @@ class BayesianGeneratorConfig:
     """Hyperparameters specific to GP + flow-matching energy model."""
 
     corrupt_source_prob: float = 0.0
-    corrupt_mode: str = "missing"  # "missing" | "faulty"
+    corrupt_mode: str = "faulty"  # "missing" | "faulty"
     use_gp_variance_weighting: bool = False
     ode_steps: int = 50
     ode_init_noise: float = 0.01
@@ -141,6 +270,34 @@ class HFDatasetConfig:
     row_input_key: str = "input_ids"
     pad_token_id: int = 0
     log_simplex_eps: float = 1e-8
+    label_smoothing: float = 0.01
+    """Explicit label smoothing strength α used by the discrete→simplex transform.
+
+    When ``α > 0`` the one-hot row is replaced by ``(1 - α) · one_hot + α / K``
+    (a true label smoothing mix with the uniform distribution on the K-vocab).
+    The smoothed row sums to 1 exactly, lives in the open simplex interior, and
+    the additive ``log_simplex_eps`` is **not** applied on top — label
+    smoothing alone moves probabilities off the simplex boundary in a
+    geometrically meaningful way (matching the design described in the
+    two-stage auditor plan).
+
+    Set to ``0.0`` (default) to keep the legacy ``one_hot + log_simplex_eps``
+    path. Both paths produce ILR or CLR coordinates depending on
+    ``transform_mode``.
+    """
+
+    transform_mode: str = "ilr"
+    """Discrete→continuous transform applied per token.
+
+    * ``"ilr"`` (default): isometric log-ratio, output shape ``(L, K-1)``.
+      Removes the sum-to-zero constraint so distances and kernels are
+      Euclidean. This is the geometrically correct chart for the open
+      simplex and is what the two-stage auditor was designed for.
+    * ``"clr"``: centered log-ratio, output shape ``(L, K)``. Constrained
+      (rows sum to zero) — used for the **without-ILR** ablation in the
+      benchmarks (Plan point 5: effect of proper simplex geometry on the
+      GP kernel distances).
+    """
 
 
 @dataclass
@@ -159,8 +316,8 @@ class Text8DatasetConfig:
     train_order_mix_rate: float = 0.15
     eval_order_mix_rate: float = 0.30
     order_mix_prob: float = 0.5
-    max_train_windows: int | None = None
-    max_eval_windows: int | None = 2000
+    max_train_windows: int | None = 10_000
+    max_eval_windows: int | None = 5_000
     corruption_seed: int = 1234
 
 

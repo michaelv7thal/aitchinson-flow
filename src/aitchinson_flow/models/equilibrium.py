@@ -8,6 +8,7 @@ import torch
 import torch.nn as nn
 
 from aitchinson_flow.config import Config
+from aitchinson_flow.data.feature_dim import feature_dim
 from aitchinson_flow.loss import build_velocity_loss
 from aitchinson_flow.models.base import TRAINING_LOSS_KEY, LossDict
 from aitchinson_flow.models.factory import register
@@ -118,7 +119,7 @@ class EquilibriumAuditor(nn.Module):
         stepsize = stepsize if stepsize is not None else eq.generate_stepsize
         device = self.cfg.training.device
         L = self.cfg.dataset.L
-        D = max(1, self.cfg.dataset.K - 1)
+        D = feature_dim(self.cfg)
         dtype = torch.float32
 
         self.eval()

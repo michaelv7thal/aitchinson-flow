@@ -8,11 +8,12 @@ import torch
 import torch.nn as nn
 from torch.nn.attention import SDPBackend, sdpa_kernel
 from aitchinson_flow.config import Config
+from aitchinson_flow.data.feature_dim import feature_dim
 from aitchinson_flow.geometry import volume_penalty
 from aitchinson_flow.gp.gp import SparseGP
-from aitchinson_flow.models.base import TRAINING_LOSS_KEY, LossDict
+from aitchinson_flow.models.base import TRAINING_LOSS_KEY, LossDict, kl_normalizer
 from aitchinson_flow.models.factory import register
-from aitchinson_flow.transformer_backbone import LatentHead, TransformerBackbone
+from aitchinson_flow.transformer_backbone import PooledLatentHead, TransformerBackbone
 from aitchinson_flow.loss import build_velocity_loss
 
 
@@ -44,7 +45,7 @@ class BayesianGenerator(nn.Module):
         self.backbone = TransformerBackbone(
             cfg=cfg, time_conditioned=False, sdp_math_for_autograd=True
         )
-        self.latent_head = LatentHead(cfg=cfg)
+        self.latent_head = PooledLatentHead(cfg=cfg)
         self.gp = SparseGP(cfg=cfg)
 
     def _extract(self, log_x: torch.Tensor) -> torch.Tensor:
@@ -110,7 +111,7 @@ class BayesianGenerator(nn.Module):
             weighted_mse = self._velocity_loss_fn(v_pred, u_tgt)
 
         flow_loss = 0.5 * weighted_mse / noise_var + 0.5 * noise_var.log()
-        total = flow_loss + self.cfg.gp.lambda_kl * kl / B
+        total = flow_loss + self.cfg.gp.lambda_kl * kl / kl_normalizer(self, B)
 
         return {
             TRAINING_LOSS_KEY: total,
@@ -132,7 +133,7 @@ class BayesianGenerator(nn.Module):
         steps = steps if steps is not None else self.cfg.bayesian_generator.ode_steps
         device = self.cfg.training.device
         L = self.cfg.dataset.L
-        D = max(1, self.cfg.dataset.K - 1)
+        D = feature_dim(self.cfg)
         self.eval()
         x = _uniform_log_x0(n, L, D, device).to(dtype=torch.float32)
         x = (x + self.cfg.bayesian_generator.ode_init_noise * torch.randn_like(x)).requires_grad_(
@@ -154,7 +155,7 @@ class BayesianGenerator(nn.Module):
         steps = steps if steps is not None else self.cfg.bayesian_generator.ode_steps
         device = self.cfg.training.device
         L = self.cfg.dataset.L
-        D = max(1, self.cfg.dataset.K - 1)
+        D = feature_dim(self.cfg)
         self.eval()
         x = _uniform_log_x0(n, L, D, device)
         x = x + self.cfg.bayesian_generator.ode_init_noise * torch.randn_like(x)

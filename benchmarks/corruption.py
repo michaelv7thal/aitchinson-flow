@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import torch
 
-from aitchinson_flow.data.transforms.discrete import token_ids_to_ilr_x
+from aitchinson_flow.data.transforms.discrete import token_ids_to_features
 
 
 def corrupt_token_ids(
@@ -73,6 +73,8 @@ def build_invalid_batch(
     order_mix_rate: float = 0.15,
     order_mix_prob: float = 0.5,
     eps: float = 1e-8,
+    label_smoothing: float = 0.0,
+    transform_mode: str = "ilr",
     seed: int | None = None,
 ) -> dict[str, torch.Tensor]:
     """Augment a benchmark batch with corrupted invalid samples.
@@ -80,6 +82,11 @@ def build_invalid_batch(
     Expects ``batch["token_ids"]`` (B, L) and ``batch["logits"]`` (B, L, vocab).
     Adds ``batch["log_x_invalid"]``, ``batch["token_ids_invalid"]``, and
     ``batch["logits_invalid"]`` (logits unchanged — still original LM scores).
+
+    The continuous representation honors ``label_smoothing`` and
+    ``transform_mode`` so the ablation switches set on the valid path also
+    apply to invalid samples (otherwise distances and AUROC would be biased
+    by mismatched feature pipelines).
     """
     token_ids = batch["token_ids"]
     vocab_size = batch["logits"].shape[-1]
@@ -105,7 +112,16 @@ def build_invalid_batch(
                 seed=None if seed is None else seed + 2,
             )
 
-    rows = [token_ids_to_ilr_x(row, K=K, eps=eps) for row in bad_ids]
+    rows = [
+        token_ids_to_features(
+            row,
+            K=K,
+            eps=eps,
+            label_smoothing=label_smoothing,
+            transform_mode=transform_mode,
+        )
+        for row in bad_ids
+    ]
     log_x_invalid = torch.stack(rows, dim=0)
 
     batch["token_ids_invalid"] = bad_ids

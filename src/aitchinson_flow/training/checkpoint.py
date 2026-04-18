@@ -24,19 +24,20 @@ def save_checkpoint(
     optimizer: torch.optim.Optimizer | None,
     epoch: int,
     global_step: int,
+    extra_metadata: dict[str, Any] | None = None,
 ) -> None:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    torch.save(
-        {
-            "model_state_dict": model.state_dict(),
-            "cfg": config_checkpoint_dict(cfg),
-            "epoch": epoch,
-            "global_step": global_step,
-            "optimizer_state_dict": optimizer.state_dict() if optimizer is not None else None,
-        },
-        path,
-    )
+    payload: dict[str, Any] = {
+        "model_state_dict": model.state_dict(),
+        "cfg": config_checkpoint_dict(cfg),
+        "epoch": epoch,
+        "global_step": global_step,
+        "optimizer_state_dict": optimizer.state_dict() if optimizer is not None else None,
+    }
+    if extra_metadata:
+        payload["extra_metadata"] = dict(extra_metadata)
+    torch.save(payload, path)
 
 
 def load_checkpoint(

@@ -54,8 +54,11 @@ def _helmert_matrix(K: int, device: torch.device, dtype: torch.dtype) -> torch.T
     """
     psi = torch.zeros(K, K - 1, device=device, dtype=dtype)
 
+    # Orthonormal Helmert contrasts (Egozcue 2003, Eq. 1):
+    #   column i (0-indexed) has entries +scale in rows 0..i and -(i+1)*scale
+    #   in row i+1, with scale = 1 / sqrt((i+1)(i+2)). This makes Ψ^T Ψ = I.
     for i in range(K - 1):
-        scale = 1.0 / math.sqrt(i + 1) * (i + 2)
+        scale = 1.0 / math.sqrt((i + 1) * (i + 2))
         psi[: i + 1, i] = scale
         psi[i + 1, i] = -(i + 1) * scale
 

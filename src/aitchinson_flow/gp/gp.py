@@ -67,13 +67,15 @@ class SparseGP(nn.Module):
         nn.init.zeros_(self.mean_linear.weight)
         nn.init.zeros_(self.mean_linear.bias)
 
-        # Homoscedastic aleatoric noise σ²_noise = softplus(log_noise_var)
-        self.log_noise_var = nn.Parameter(torch.tensor(math.log(0.1)))
+        # Homoscedastic aleatoric noise σ²_noise = softplus(log_noise_var).
+        # init and floor values come from cfg so callers can tune per task.
+        self._min_log_noise_var: float = cfg.gp.min_log_noise_var
+        self.log_noise_var = nn.Parameter(torch.tensor(cfg.gp.init_log_noise_var))
 
     @property
     def noise_var(self) -> torch.Tensor:
-        """Scalar aleatoric variance (softplus of ``log_noise_var``)."""
-        return F.softplus(self.log_noise_var)
+        """Scalar aleatoric variance (softplus of clamped ``log_noise_var``)."""
+        return F.softplus(self.log_noise_var.clamp(min=self._min_log_noise_var))
 
     def _var_L(self) -> torch.Tensor:
         """Lower Cholesky factor of the variational covariance over inducing values."""
@@ -180,11 +182,12 @@ class ProductSparseGP(nn.Module):
 
         # Homoscedastic aleatoric noise σ²_noise = softplus(log_noise_var)
         self.log_noise_var = nn.Parameter(torch.tensor(math.log(0.1)))
+        self._min_log_noise_var: float = math.log(1e-6)
 
     @property
     def noise_var(self) -> torch.Tensor:
-        """Scalar aleatoric variance (softplus of ``log_noise_var``)."""
-        return F.softplus(self.log_noise_var)
+        """Scalar aleatoric variance (softplus of clamped ``log_noise_var``)."""
+        return F.softplus(self.log_noise_var.clamp(min=self._min_log_noise_var))
 
     def _var_L(self) -> torch.Tensor:
         """Lower Cholesky factor of the variational covariance over inducing values."""

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any, cast
 
 import torch
@@ -49,6 +50,7 @@ def train_epoch(
     global_step: int,
     grad_clip_norm: float | None = None,
     use_tqdm: bool = True,
+    step_callback: Callable[[int, dict[str, float]], None] | None = None,
 ) -> tuple[dict[str, float], int]:
     """Returns (epoch_metrics, next_global_step)."""
     m = cast(GenerativeTrainingModel, model)
@@ -68,6 +70,12 @@ def train_epoch(
         batch = _to_device(batch, device)
         optimizer.zero_grad(set_to_none=True)
         out: LossDict = m.training_step(batch, step)
+        if TRAINING_LOSS_KEY not in out:
+            raise KeyError(
+                f"training_step() for {type(model).__name__} must return a dict "
+                f"containing the {TRAINING_LOSS_KEY!r} key (a scalar loss tensor); "
+                f"got keys {sorted(out.keys())}."
+            )
         loss = out[TRAINING_LOSS_KEY]
         loss.backward()
         if grad_clip_norm is not None:
@@ -75,6 +83,8 @@ def train_epoch(
         optimizer.step()
 
         running_average(agg, counts, out)
+        if step_callback is not None:
+            step_callback(step, detach_means(out))
         if use_tqdm:
             postfix = _loss_postfix(out)
             if postfix:
@@ -103,6 +113,11 @@ def evaluate(
     for batch in pbar:
         batch = _to_device(batch, device)
         out = m.eval_step(batch)
+        if TRAINING_LOSS_KEY not in out:
+            raise KeyError(
+                f"eval_step() for {type(model).__name__} must return a dict "
+                f"containing the {TRAINING_LOSS_KEY!r} key; got keys {sorted(out.keys())}."
+            )
         running_average(agg, counts, out)
         if use_tqdm:
             postfix = _loss_postfix(out)

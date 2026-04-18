@@ -8,6 +8,7 @@ import torch.nn as nn
 from torch.nn.attention import SDPBackend, sdpa_kernel
 
 from .config import Config
+from .data.feature_dim import feature_dim
 
 
 class TransformerBackbone(nn.Module):
@@ -31,8 +32,8 @@ class TransformerBackbone(nn.Module):
         self.time_conditioned = time_conditioned
         self._sdp_math = sdp_math_for_autograd
 
-        feature_dim = max(1, cfg.dataset.K - 1)
-        self.input_proj = nn.Linear(feature_dim, cfg.transformer.d_model)
+        in_dim = feature_dim(cfg)
+        self.input_proj = nn.Linear(in_dim, cfg.transformer.d_model)
         self.pos_emb = nn.Embedding(cfg.dataset.L, cfg.transformer.d_model)
 
         if time_conditioned:
@@ -46,7 +47,7 @@ class TransformerBackbone(nn.Module):
             d_model=cfg.transformer.d_model,
             nhead=cfg.transformer.nhead,
             dim_feedforward=cfg.transformer.d_model * 4,
-            dropout=0.0,
+            dropout=cfg.transformer.dropout,
             batch_first=True,
             norm_first=True,  ## Superior training dynamics vs Post-LN
         )
@@ -94,19 +95,58 @@ class TransformerBackbone(nn.Module):
 
 
 class VelocityHead(nn.Module):
-    """(B, L, d_model) → (B, L, D) — direct velocity output."""
+    """(B, L, d_model) → (B, L, D) — direct velocity output.
+
+    For CLR mode (K-dimensional, constrained): the output is projected onto
+    the Aitchison tangent space V_K = {v ∈ R^K : Σv_i = 0} by subtracting
+    the feature-dimension mean.
+
+    For ILR mode (K-1 dimensional, unconstrained): the ILR transform already
+    maps V_K → R^(K-1), removing the sum-to-zero constraint. Velocity vectors
+    in R^(K-1) require no further projection, so the mean subtraction is
+    skipped.
+
+    The output dimension matches the data feature dim (``K-1`` for ILR,
+    ``K`` for CLR; see ``aitchinson_flow.data.feature_dim``).
+    """
 
     def __init__(self, cfg: Config) -> None:
         super().__init__()
-        feature_dim = max(1, cfg.dataset.K - 1)
-        self.proj = nn.Linear(cfg.transformer.d_model, feature_dim)
+        out_dim = feature_dim(cfg)
+        self.proj = nn.Linear(cfg.transformer.d_model, out_dim)
+        self._clr_mode = cfg.hf_dataset.transform_mode.lower() == "clr"
+
+    def forward(self, h: torch.Tensor) -> torch.Tensor:
+        v = self.proj(h)
+        if self._clr_mode:
+            v = v - v.mean(dim=-1, keepdim=True)
+        return v
+
+
+class TokenLatentHead(nn.Module):
+    """(B, L, d_model) → (B, L, d_latent) — per-token linear projection.
+
+    Used when downstream consumers (Stage 2 token-level GP, composed
+    `BayesianAuditor` per-token queries) need one latent per position.
+    """
+
+    def __init__(self, cfg: Config) -> None:
+        super().__init__()
+        self.proj = nn.Linear(cfg.transformer.d_model, cfg.transformer.d_latent)
 
     def forward(self, h: torch.Tensor) -> torch.Tensor:
         return self.proj(h)
 
 
-class LatentHead(nn.Module):
-    """(B, L, d_model) → (B, d_latent) via global mean-pool + Linear."""
+class PooledLatentHead(nn.Module):
+    """(B, L, d_model) → (B, d_latent) — mean-pool across sequence + linear projection.
+
+    Used when downstream consumers need a single sequence-level latent. Because
+    ``nn.Linear`` is affine, this is numerically identical to
+    ``TokenLatentHead(h).mean(dim=1)``; the two classes share the same
+    ``self.proj`` parameter layout (``proj.weight``/``proj.bias``), so their
+    state dicts are interchangeable.
+    """
 
     def __init__(self, cfg: Config) -> None:
         super().__init__()
@@ -114,3 +154,8 @@ class LatentHead(nn.Module):
 
     def forward(self, h: torch.Tensor) -> torch.Tensor:
         return self.proj(h.mean(dim=1))
+
+
+# Backwards-compatible alias for external code that imported the old name.
+# New code should choose TokenLatentHead or PooledLatentHead explicitly.
+LatentHead = PooledLatentHead

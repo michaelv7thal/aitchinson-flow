@@ -36,3 +36,5 @@ wiki.qmd
 healer.qmd
 core/spilled_energy.py
 **.zip
+wandb/
+results/

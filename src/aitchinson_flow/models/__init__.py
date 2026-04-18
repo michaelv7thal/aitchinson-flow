@@ -10,7 +10,13 @@ from aitchinson_flow.models.factory import (
     register,
     registered_model_names,
 )
-from aitchinson_flow.models.bayesian_auditor import BayesianAuditor
+from aitchinson_flow.models.bayesian_auditor import (
+    BayesianAuditor,
+    compose_auditor_from_stages,
+    load_auditor_from_stage_checkpoints,
+)
+from aitchinson_flow.models.bayesian_auditor_stage1 import BayesianAuditorStage1
+from aitchinson_flow.models.bayesian_auditor_stage2 import BayesianAuditorStage2
 from aitchinson_flow.models.bayesian_generator import BayesianGenerator
 from aitchinson_flow.models.per_token_bayesian_auditor import PerTokenBayesianAuditor
 
@@ -28,6 +34,10 @@ __all__ = [
     "registered_model_names",
     "AuditorModel",
     "BayesianAuditor",
+    "BayesianAuditorStage1",
+    "BayesianAuditorStage2",
     "BayesianGenerator",
     "PerTokenBayesianAuditor",
+    "compose_auditor_from_stages",
+    "load_auditor_from_stage_checkpoints",
 ]
