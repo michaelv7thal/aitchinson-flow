@@ -158,10 +158,13 @@ class BayesianAuditorStage2(nn.Module):
         kl = self.gp.kl_divergence()
         noise_var = self.gp.noise_var
 
-        # Per-token normalisation: nll is already averaged over B*L; keep the
-        # KL term on the same per-token ELBO scale by dividing by N * L so the
-        # regularisation strength no longer implicitly depends on L or B.
-        n_norm = kl_normalizer(self, B) * max(1, L)
+        # Per-token normalisation: nll is already averaged over B*L; divide KL
+        # by the same B*L so both terms are on the same per-token ELBO scale.
+        # lambda_kl then has a direct interpretation as regularisation weight
+        # relative to the likelihood, independent of batch size or dataset size.
+        n_norm = float(B * max(1, L))
+
+        # n_norm = kl_normalizer(self, B) * max(1, L)
 
         total = (
             nll.mean()
@@ -215,9 +218,7 @@ class BayesianAuditorStage2(nn.Module):
         return self.ood_score(log_x)
 
     @torch.no_grad()
-    def per_token_uq(
-        self, log_x: torch.Tensor
-    ) -> tuple[torch.Tensor, torch.Tensor, float]:
+    def per_token_uq(self, log_x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, float]:
         """Per-token GP energy and epistemic variance, plus scalar aleatoric noise.
 
         The ``@torch.no_grad`` decorator is sufficient here — neither the

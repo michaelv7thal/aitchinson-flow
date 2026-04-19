@@ -29,3 +29,7 @@ report_files/
 
 # Claude Code session files
 .claude/
+wandb/
+checkpoints/
+.claude/
+.mypy_cache/

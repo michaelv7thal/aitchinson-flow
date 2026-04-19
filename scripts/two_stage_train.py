@@ -29,6 +29,12 @@ Usage:
         --out-dir checkpoints/two_stage/baseline \
         --stage1-epochs 10 --stage2-epochs 5
 
+Skip Stage 1 training and start from an existing Stage 1 checkpoint (frozen
+backbone for Stage 2)::
+
+    python scripts/two_stage_train.py --stage2-only \\
+        --stage1-backbone-ckpt checkpoints/two_stage_baseline_stage1_ckpts.epoch_25.pt
+
 Run with ``--smoke`` for a tiny end-to-end smoke run (used in tests).
 """
 
@@ -41,7 +47,7 @@ import sys
 from copy import deepcopy
 from dataclasses import replace
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Mapping, cast
 
 # Allow `python scripts/two_stage_train.py` without an editable install.
 _REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -117,6 +123,29 @@ def _filter_state_dict_by_prefix(
     return {k: v for k, v in state.items() if k.startswith(prefix)}
 
 
+def _load_stage1_checkpoint_state(
+    path: Path,
+    *,
+    map_location: str | torch.device | None = None,
+) -> tuple[dict[str, torch.Tensor], int | None, int | None]:
+    """Load ``model_state_dict`` and counters from a training checkpoint file."""
+    ckpt = torch.load(path, map_location=map_location, weights_only=False)
+    if not isinstance(ckpt, dict) or "model_state_dict" not in ckpt:
+        raise ValueError(
+            f"Checkpoint at {path} must be a dict with 'model_state_dict' (training format)."
+        )
+    state = ckpt["model_state_dict"]
+    if not isinstance(state, dict):
+        raise ValueError(f"model_state_dict at {path} is not a mapping.")
+    epoch = ckpt.get("epoch")
+    global_step = ckpt.get("global_step")
+    return (
+        dict(state),
+        int(epoch) if epoch is not None else None,
+        int(global_step) if global_step is not None else None,
+    )
+
+
 def _load_backbone_into_stage2(
     stage2_model: torch.nn.Module,
     stage1_state: dict[str, torch.Tensor],
@@ -148,6 +177,33 @@ def _load_backbone_into_stage2(
     return list(unexpected)
 
 
+def _init_inducing_from_data(
+    model: torch.nn.Module,
+    datamodule: DataModule,
+    cfg: Config,
+) -> None:
+    """Initialise GP inducing points from actual training token latents."""
+    model.eval()
+    z_samples: list[torch.Tensor] = []
+    with torch.no_grad():
+        for batch in datamodule.train_dataloader():
+            log_x = batch["log_x"]
+            z = model._extract_tokens(log_x)  # type: ignore[attr-defined]
+            z_samples.append(z.reshape(-1, z.shape[-1]))
+            if sum(t.shape[0] for t in z_samples) >= cfg.gp.num_inducing:
+                break
+    Z_all = torch.cat(z_samples)
+    M = cfg.gp.num_inducing
+    if len(Z_all) >= M:
+        idx = torch.randperm(len(Z_all))[:M]
+        Z_sel = Z_all[idx]
+    else:
+        idx = torch.randint(0, len(Z_all), (M,))
+        Z_sel = Z_all[idx]
+    model.gp.Z.data.copy_(Z_sel)  # type: ignore[attr-defined]
+    model.train()
+
+
 def run_two_stage(
     cfg: Config,
     *,
@@ -157,6 +213,8 @@ def run_two_stage(
     datamodule: DataModule | None = None,
     random_stage2_backbone: bool = False,
     save_plots: bool = True,
+    stage2_only: bool = False,
+    stage1_backbone_ckpt: Path | None = None,
 ) -> dict[str, Any]:
     """Execute the Stage 1 → Stage 2 → compose pipeline.
 
@@ -177,15 +235,28 @@ def run_two_stage(
             models separately and write stage-specific diagnostics under
             ``out_dir/plots/stage1`` and ``out_dir/plots/stage2`` via
             ``aitchinson_flow.plots.save_stage_plots``.
+        stage2_only: If True, skip Stage 1 training and load the frozen-backbone
+            weights from ``stage1_backbone_ckpt`` (unless
+            ``random_stage2_backbone`` is True).
+        stage1_backbone_ckpt: Checkpoint path whose ``backbone.*`` weights seed
+            Stage 2 and fuse into ``BayesianAuditor``. Required when
+            ``stage2_only`` and not ``random_stage2_backbone``.
 
     Returns:
         Manifest dictionary describing all produced artifacts.
     """
-    if stage1_epochs < 1:
+    if not stage2_only and stage1_epochs < 1:
         raise ValueError(
             f"stage1_epochs must be >= 1 (Stage 1 backbone training must run at "
             f"least one epoch to produce a meaningful checkpoint), got {stage1_epochs}"
         )
+    if stage2_only and not random_stage2_backbone and stage1_backbone_ckpt is None:
+        raise ValueError(
+            "stage2_only requires --stage1-backbone-ckpt (or pass stage1_backbone_ckpt=...) "
+            "unless --random-stage2-backbone is set."
+        )
+    if stage2_only and stage1_backbone_ckpt is not None and not stage1_backbone_ckpt.is_file():
+        raise FileNotFoundError(f"Stage 1 backbone checkpoint not found: {stage1_backbone_ckpt}")
     if stage2_epochs < 1:
         raise ValueError(
             f"stage2_epochs must be >= 1 (Stage 2 GP head training must run at "
@@ -196,43 +267,66 @@ def run_two_stage(
         datamodule = _build_default_datamodule(cfg)
     run_group = cfg.training.wandb_group or out_dir.name
 
-    # ---- Stage 1 ----
-    s1_cfg = _stage1_config(cfg, epochs=stage1_epochs, ckpt_dir=out_dir / "stage1_ckpts")
-    s1_model = build_model(s1_cfg)
     s1_history: list[dict[str, float]] = []
-    s1_model = fit(
-        s1_cfg,
-        datamodule,
-        model=s1_model,
-        history_out=s1_history,
-        wandb_run_name=f"{out_dir.name}-stage1",
-        wandb_group=run_group,
-        wandb_job_type="stage1_train",
-        wandb_tags=["two-stage", "stage1"],
-        wandb_extra_config={
-            "stage": "stage1",
-            "stage_epochs": stage1_epochs,
-            "random_stage2_backbone": random_stage2_backbone,
-            "out_dir": str(out_dir),
-        },
-    )
-    s1_path = out_dir / "stage1.pt"
-    save_checkpoint(
-        s1_path,
-        model=s1_model,
-        cfg=s1_cfg,
-        optimizer=None,
-        epoch=stage1_epochs,
-        global_step=0,
-    )
+    s1_model: torch.nn.Module | None = None
+    s1_cfg: Config
+    s1_path: Path | None
+    stage1_epochs_effective: int = stage1_epochs
+
+    if stage2_only:
+        if random_stage2_backbone:
+            stage1_epochs_effective = 0
+            s1_cfg = _stage1_config(cfg, epochs=1, ckpt_dir=out_dir / "stage1_ckpts")
+            s1_path = None
+        else:
+            assert stage1_backbone_ckpt is not None
+            s1_state_loaded, ep_loaded, _ = _load_stage1_checkpoint_state(
+                stage1_backbone_ckpt,
+                map_location=cfg.training.device,
+            )
+            stage1_epochs_effective = ep_loaded if ep_loaded is not None else stage1_epochs
+            s1_cfg = _stage1_config(
+                cfg, epochs=stage1_epochs_effective, ckpt_dir=out_dir / "stage1_ckpts"
+            )
+            s1_model = build_model(s1_cfg)
+            s1_model.load_state_dict(s1_state_loaded, strict=False)
+            s1_path = stage1_backbone_ckpt.resolve()
+    else:
+        # ---- Stage 1 ----
+        s1_cfg = _stage1_config(cfg, epochs=stage1_epochs, ckpt_dir=out_dir / "stage1_ckpts")
+        s1_model = build_model(s1_cfg)
+        s1_model = fit(
+            s1_cfg,
+            datamodule,
+            model=s1_model,
+            history_out=s1_history,
+            wandb_run_name=f"{out_dir.name}-stage1",
+            wandb_group=run_group,
+            wandb_job_type="stage1_train",
+            wandb_tags=["two-stage", "stage1"],
+            wandb_extra_config={
+                "stage": "stage1",
+                "stage_epochs": stage1_epochs,
+                "random_stage2_backbone": random_stage2_backbone,
+                "out_dir": str(out_dir),
+            },
+        )
+        s1_path = out_dir / "stage1.pt"
+        save_checkpoint(
+            s1_path,
+            model=s1_model,
+            cfg=s1_cfg,
+            optimizer=None,
+            epoch=stage1_epochs,
+            global_step=0,
+        )
 
     # ---- Stage 2 ----
     s2_cfg = _stage2_config(cfg, epochs=stage2_epochs, ckpt_dir=out_dir / "stage2_ckpts")
     s2_model = build_model(s2_cfg)
     if not random_stage2_backbone:
-        unexpected_backbone_keys = _load_backbone_into_stage2(
-            s2_model, dict(s1_model.state_dict())
-        )
+        assert s1_model is not None
+        unexpected_backbone_keys = _load_backbone_into_stage2(s2_model, dict(s1_model.state_dict()))
         if unexpected_backbone_keys:
             logging.getLogger(__name__).warning(
                 "Stage 2 backbone load ignored %d unexpected key(s) from Stage 1: %s. "
@@ -244,6 +338,9 @@ def run_two_stage(
             )
         # Re-pin the freeze policy now that we mutated backbone weights.
         s2_model._freeze_representations()  # type: ignore[attr-defined]
+
+    _init_inducing_from_data(s2_model, datamodule, s2_cfg)
+
     s2_history: list[dict[str, float]] = []
     s2_model = fit(
         s2_cfg,
@@ -258,6 +355,7 @@ def run_two_stage(
             "stage": "stage2",
             "stage_epochs": stage2_epochs,
             "random_stage2_backbone": random_stage2_backbone,
+            "stage2_only": stage2_only,
             "out_dir": str(out_dir),
         },
     )
@@ -272,9 +370,15 @@ def run_two_stage(
     )
 
     # ---- Compose ----
+    stage1_state_for_fuse: Mapping[str, torch.Tensor] | None
+    if stage2_only and random_stage2_backbone:
+        stage1_state_for_fuse = None
+    else:
+        assert s1_model is not None
+        stage1_state_for_fuse = dict(s1_model.state_dict())
     fused = compose_auditor_from_stages(
         cfg,
-        stage1_state=dict(s1_model.state_dict()),
+        stage1_state=stage1_state_for_fuse,
         stage2_state=dict(s2_model.state_dict()),
         strict=False,
     )
@@ -292,23 +396,34 @@ def run_two_stage(
         epoch=0,
         global_step=0,
         extra_metadata={
-            "composed_from": {"stage1": str(s1_path), "stage2": str(s2_path)},
-            "stage1_epochs": stage1_epochs,
+            "composed_from": {
+                "stage1": str(s1_path) if s1_path is not None else None,
+                "stage2": str(s2_path),
+            },
+            "stage1_epochs": stage1_epochs_effective,
             "stage2_epochs": stage2_epochs,
             "random_stage2_backbone": random_stage2_backbone,
+            "stage2_only": stage2_only,
             "trained": False,
         },
     )
 
     manifest: dict[str, Any] = {
-        "stage1_ckpt": str(s1_path),
+        "stage1_ckpt": str(s1_path) if s1_path is not None else None,
         "stage2_ckpt": str(s2_path),
         "fused_ckpt": str(fused_path),
-        "stage1_epochs": stage1_epochs,
+        "stage1_epochs": stage1_epochs_effective,
         "stage2_epochs": stage2_epochs,
         "random_stage2_backbone": random_stage2_backbone,
+        "stage2_only": stage2_only,
+        "stage1_backbone_ckpt": str(stage1_backbone_ckpt.resolve())
+        if stage2_only and stage1_backbone_ckpt is not None
+        else None,
         "fused_trained": False,
-        "fused_composed_from": {"stage1": str(s1_path), "stage2": str(s2_path)},
+        "fused_composed_from": {
+            "stage1": str(s1_path) if s1_path is not None else None,
+            "stage2": str(s2_path),
+        },
         "stage1_cfg": config_checkpoint_dict(s1_cfg),
         "stage2_cfg": config_checkpoint_dict(s2_cfg),
         "fused_cfg": config_checkpoint_dict(cfg),
@@ -346,19 +461,23 @@ def run_two_stage(
         task = build_task("text_audit")
 
         # Stage 1 audit (no GP; energy channel = Hilbert energy per token).
-        stage1_audit = task.run(s1_model, datamodule, s1_cfg)
-        stage1_scores = cast(dict[str, np.ndarray | None] | None, stage1_audit.pop("_scores", None))
+        stage1_audit: dict[str, Any] = {}
         stage1_written: dict[str, str] = {}
-        if stage1_scores is not None:
-            stage1_data = _stage_data_from_scores(
-                stage="stage1", scores=stage1_scores, history=s1_history or None
+        if s1_model is not None:
+            stage1_audit = task.run(s1_model, datamodule, s1_cfg)
+            stage1_scores = cast(
+                dict[str, np.ndarray | None] | None, stage1_audit.pop("_scores", None)
             )
-            # Stage 1 "variance" is a velocity-norm surrogate; the user plots
-            # requested only energy diagnostics for Stage 1, so drop it to
-            # avoid misleading variance histograms/heatmaps.
-            stage1_data.variance_token_valid = None
-            stage1_data.variance_token_invalid = None
-            stage1_written = save_stage_plots(plots_dir / "stage1", stage1_data)
+            if stage1_scores is not None:
+                stage1_data = _stage_data_from_scores(
+                    stage="stage1", scores=stage1_scores, history=s1_history or None
+                )
+                # Stage 1 "variance" is a velocity-norm surrogate; the user plots
+                # requested only energy diagnostics for Stage 1, so drop it to
+                # avoid misleading variance histograms/heatmaps.
+                stage1_data.variance_token_valid = None
+                stage1_data.variance_token_invalid = None
+                stage1_written = save_stage_plots(plots_dir / "stage1", stage1_data)
 
         # Stage 2 audit (GP mean + epistemic variance + inducing points).
         stage2_audit = task.run(s2_model, datamodule, s2_cfg)
@@ -390,19 +509,21 @@ def run_two_stage(
         job_type="two_stage_orchestration",
         tags=["two-stage", "orchestration"],
         extra_config={
-            "stage1_epochs": stage1_epochs,
+            "stage1_epochs": stage1_epochs_effective,
             "stage2_epochs": stage2_epochs,
             "random_stage2_backbone": random_stage2_backbone,
+            "stage2_only": stage2_only,
             "out_dir": str(out_dir),
         },
     )
     try:
         if orchestration_logger.active:
             orchestration_metrics: dict[str, float] = {
-                "stage1_epochs": float(stage1_epochs),
+                "stage1_epochs": float(stage1_epochs_effective),
                 "stage2_epochs": float(stage2_epochs),
-                "total_epochs": float(stage1_epochs + stage2_epochs),
+                "total_epochs": float(stage1_epochs_effective + stage2_epochs),
                 "random_stage2_backbone": float(random_stage2_backbone),
+                "stage2_only": float(stage2_only),
             }
             orchestration_metrics.update(
                 _numeric_stage_metrics(
@@ -417,7 +538,7 @@ def run_two_stage(
                 )
             )
             orchestration_logger.log_metrics(orchestration_metrics)
-            if cfg.training.wandb_log_model:
+            if cfg.training.wandb_log_model and s1_path is not None:
                 orchestration_logger.log_artifact(
                     s1_path,
                     name=f"{out_dir.name}-stage1-model",
@@ -481,9 +602,7 @@ def _positive_int(raw: str) -> int:
     except ValueError as e:
         raise argparse.ArgumentTypeError(f"expected integer, got {raw!r}") from e
     if value < 1:
-        raise argparse.ArgumentTypeError(
-            f"expected a positive integer (>= 1), got {value}"
-        )
+        raise argparse.ArgumentTypeError(f"expected a positive integer (>= 1), got {value}")
     return value
 
 
@@ -507,10 +626,30 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
         action="store_true",
         help="Skip per-stage text_audit + plotting outputs under out-dir/plots.",
     )
+    p.add_argument(
+        "--stage2-only",
+        action="store_true",
+        help="Skip Stage 1 training; load frozen backbone from --stage1-backbone-ckpt.",
+    )
+    p.add_argument(
+        "--stage1-backbone-ckpt",
+        type=str,
+        default=None,
+        help=(
+            "With --stage2-only: path to Stage 1 .pt (model_state_dict). "
+            f"Default: {_REPO_ROOT / 'checkpoints/two_stage_baseline_stage1_ckpts.epoch_25.pt'}"
+        ),
+    )
     args = p.parse_args(argv)
 
     cfg = _smoke_config() if args.smoke else Config()
     out_dir = Path(args.out_dir)
+    stage1_backbone_path: Path | None = None
+    if args.stage2_only and not args.random_stage2_backbone:
+        default_s1 = _REPO_ROOT / "checkpoints/two_stage/baseline/stage1_ckpts/epoch_25.pt"
+        stage1_backbone_path = (
+            Path(args.stage1_backbone_ckpt) if args.stage1_backbone_ckpt else default_s1
+        )
     manifest = run_two_stage(
         cfg,
         out_dir=out_dir,
@@ -518,6 +657,8 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
         stage2_epochs=args.stage2_epochs,
         random_stage2_backbone=args.random_stage2_backbone,
         save_plots=not args.no_plots,
+        stage2_only=args.stage2_only,
+        stage1_backbone_ckpt=stage1_backbone_path,
     )
     print(json.dumps({k: v for k, v in manifest.items() if not k.endswith("_cfg")}, indent=2))
     return manifest

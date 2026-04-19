@@ -31,6 +31,7 @@ import torch
 import torch.nn as nn
 
 from aitchinson_flow.config import Config
+from aitchinson_flow.data.transforms.discrete import token_ids_to_features
 from aitchinson_flow.data.feature_dim import feature_dim
 from aitchinson_flow.geometry import nielsen_soft_hilbert_distance
 from aitchinson_flow.loss import build_velocity_loss
@@ -48,6 +49,35 @@ def _uniform_log_x0(
 ) -> torch.Tensor:
     """Uniform log-simplex source: zeros in log-space (constant after centering)."""
     return torch.zeros((B, L, D), device=device, dtype=dtype)
+
+
+def _scrambled_log_x0(
+    cfg: Config,
+    *,
+    bsz: int,
+    seq_len: int,
+    device: torch.device,
+    dtype: torch.dtype,
+) -> torch.Tensor:
+    """Build a stochastic source from random vocabulary tokens (gibberish ``x_0``).
+
+    Source ids are sampled uniformly from ``[0, K)`` and converted with the same
+    discrete→feature transform used by the data pipeline (label smoothing +
+    ILR/CLR), so Stage 1 noise stays tied to the configured vocabulary.
+    """
+    k = cfg.dataset.K
+    token_ids = torch.randint(0, k, (bsz, seq_len), device=device)
+    rows = [
+        token_ids_to_features(
+            token_ids[i],
+            k,
+            eps=cfg.hf_dataset.log_simplex_eps,
+            label_smoothing=cfg.hf_dataset.label_smoothing,
+            transform_mode=cfg.hf_dataset.transform_mode,
+        )
+        for i in range(bsz)
+    ]
+    return torch.stack(rows, dim=0).to(device=device, dtype=dtype)
 
 
 class BayesianAuditorStage1(nn.Module):
@@ -95,7 +125,11 @@ class BayesianAuditorStage1(nn.Module):
                 "Set cfg.training.velocity_loss to 'soft_hilbert' (default) for EqM+Hilbert."
             )
 
-        self.backbone = TransformerBackbone(cfg=cfg, time_conditioned=False)
+        # Aligned with Stage 2 / BayesianAuditor: same ``time_conditioned`` flag so
+        # ``compose_auditor_from_stages`` loads ``backbone.*`` without shape/key skew.
+        self.backbone = TransformerBackbone(
+            cfg=cfg, time_conditioned=cfg.transformer.time_conditioned
+        )
         self.velocity_head = VelocityHead(cfg=cfg)
         self._velocity_loss_fn = build_velocity_loss(
             vname, soft_hilbert_alpha=cfg.training.soft_hilbert_alpha
@@ -183,7 +217,7 @@ class BayesianAuditorStage1(nn.Module):
     def _eqm_hilbert_loss(self, log_x1: torch.Tensor) -> LossDict:
         B, L, D = log_x1.shape
         device, dt = log_x1.device, log_x1.dtype
-        log_x0 = _uniform_log_x0(B, L, D, device, dt)
+        log_x0 = _scrambled_log_x0(self.cfg, bsz=B, seq_len=L, device=device, dtype=dt)
         gamma = torch.rand(B, device=device, dtype=dt)
         log_x_gamma = (1.0 - gamma[:, None, None]) * log_x0 + gamma[:, None, None] * log_x1
         # Sign convention: target velocity points data → noise (log_x0 - log_x1).

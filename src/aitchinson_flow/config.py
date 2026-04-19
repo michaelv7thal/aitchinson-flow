@@ -33,8 +33,8 @@ class TransformerConfig:
 
 @dataclass
 class GPConfig:
-    num_inducing: int = 2000  # Number of inducing points
-    lambda_kl: float = 1e-4  # KL regularization parameter
+    num_inducing: int = 500  # Number of inducing points
+    lambda_kl: float = 1e-1  # KL regularization parameter
     lambda_contrastive: float = 1.0  # Stage 2 random-negative energy hinge weight
     lambda_var: float = 2.0
     """Anchor weight on valid GP mean in the composed ``BayesianAuditor`` loss.
@@ -44,7 +44,7 @@ class GPConfig:
     checkpoint compatibility; see also ``lambda_anchor`` for the Stage 2
     analogue.
     """
-    lambda_anchor: float = 0.0
+    lambda_anchor: float = 0.01
     """Stage 2 anchor weight on ``E[valid]^2`` (defaults to off).
 
     Mirrors ``lambda_var`` in the composed auditor. Enable when relaxing the
@@ -65,7 +65,7 @@ class GPConfig:
     Increase (e.g. ``log(1.0)``) for noisier data or when the NLL saturates
     early in training.
     """
-    min_log_noise_var: float = math.log(1e-6)
+    min_log_noise_var: float = math.log(0.01)
     """Lower clamp applied to ``log_noise_var`` before ``softplus``.
 
     Prevents the learned aleatoric noise from underflowing to zero, which
@@ -128,7 +128,7 @@ class TrainingConfig:
     """
     B: int = 128  # Batch size
     epochs: int = 10_000  # Number of epochs
-    lr: float = 5e-4  # Learning rate
+    lr: float = 1e-3  # Learning rate
     loss: str = "hilbert"  # "hilbert" or "mse"
     device: torch.device = field(
         default_factory=lambda: torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -146,7 +146,7 @@ class TrainingConfig:
     """One of: None, ``constant``, ``cosine``, ``cosine_restarts``, ``onecycle``, ``linear``,
     ``polynomial``, ``exponential``, ``multistep``."""
 
-    scheduler_warmup_epochs: int = 0
+    scheduler_warmup_epochs: int = 2
     """Linear warmup before the main schedule (paired with ``cosine``)."""
 
     scheduler_warmup_start_factor: float = 0.01
@@ -314,8 +314,8 @@ class Text8DatasetConfig:
     train_corrupt_rate: float = 0.15
     eval_corrupt_rate: float = 0.30
     train_order_mix_rate: float = 0.15
-    eval_order_mix_rate: float = 0.30
-    order_mix_prob: float = 0.5
+    eval_order_mix_rate: float = 0.0
+    order_mix_prob: float = 0.0
     max_train_windows: int | None = 10_000
     max_eval_windows: int | None = 5_000
     corruption_seed: int = 1234

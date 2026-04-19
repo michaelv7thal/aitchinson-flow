@@ -369,6 +369,4 @@ def load_auditor_from_stage_checkpoints(
 
     s1 = _load_state(stage1_ckpt) if stage1_ckpt is not None else None
     s2 = _load_state(stage2_ckpt) if stage2_ckpt is not None else None
-    return compose_auditor_from_stages(
-        cfg, stage1_state=s1, stage2_state=s2, strict=strict
-    )
+    return compose_auditor_from_stages(cfg, stage1_state=s1, stage2_state=s2, strict=strict)

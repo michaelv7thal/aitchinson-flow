@@ -1,82 +1,65 @@
 #!/bin/bash
-set -e
+# entrypoint.sh — RenkuLab session startup script
+set -euo pipefail
 
 HOME="${HOME:-/home/user}"
 RENKU_MOUNT_DIR="${RENKU_MOUNT_DIR:-${HOME}/work}"
 REPO_DIR="${RENKU_MOUNT_DIR}/aitchinson-flow"
-MAX_WAIT_SECONDS="${MAX_WAIT_SECONDS:-300}"
+MAX_WAIT_SECONDS="${MAX_WAIT_SECONDS:-600}"
 
-resolve_repo_dir() {
-    # Prefer an explicitly provided path if it already looks like a checked-out repo.
-    if [ -f "${REPO_DIR}/pyproject.toml" ]; then
-        printf '%s\n' "${REPO_DIR}"
-        return 0
-    fi
+mkdir -p "${RENKU_MOUNT_DIR}/.vscode/extensions" || true
 
-    # Some Renku setups create an extra nesting layer (<repo>/<repo>).
-    if [ -f "${REPO_DIR}/aitchinson-flow/pyproject.toml" ]; then
-        printf '%s\n' "${REPO_DIR}/aitchinson-flow"
-        return 0
-    fi
-
-    # Fallback: discover the first pyproject.toml within the mounted work dir.
-    local discovered
-    discovered="$(find "${RENKU_MOUNT_DIR}" -maxdepth 3 -type f -name pyproject.toml 2>/dev/null | head -n 1 || true)"
-    if [ -n "${discovered}" ]; then
-        dirname "${discovered}"
-        return 0
-    fi
-
-    return 1
-}
-
-mkdir -p "${RENKU_MOUNT_DIR}/.vscode/extensions"
-
-# ── Wait for Renku's git-clone sidecar to finish ──────────────────────────────
-# Renku initialises the .git directory before checking out files, so we can't
-# rely on .git existing. Wait for pyproject.toml which only appears after the
-# full checkout completes.
-echo "==> Waiting for Renku to finish cloning the repository..."
+# ── Wait for the Renku git-clone sidecar to finish ───────────────────────────
+# The sidecar clones the repo as a different UID. We cannot rely on git
+# commands (ownership check blocks them) or directory listings (the dir is
+# created empty first, then populated). We simply poll for pyproject.toml.
+echo "==> Waiting for repository checkout in ${RENKU_MOUNT_DIR}..."
 elapsed=0
-until resolve_repo_dir >/dev/null 2>&1; do
+while [ ! -f "${REPO_DIR}/pyproject.toml" ]; do
     sleep 2
     elapsed=$((elapsed + 2))
+
+    if (( elapsed % 30 == 0 )); then
+        echo "--- Still waiting (${elapsed}s) — contents of ${RENKU_MOUNT_DIR}: ---"
+        ls -la "${RENKU_MOUNT_DIR}" 2>/dev/null || true
+        echo "--- contents of ${REPO_DIR}: ---"
+        ls -la "${REPO_DIR}" 2>/dev/null || echo "(unreadable or empty)"
+    fi
+
     if [ "${elapsed}" -ge "${MAX_WAIT_SECONDS}" ]; then
-        echo "ERROR: Timed out after ${MAX_WAIT_SECONDS}s waiting for repository checkout in ${RENKU_MOUNT_DIR}"
-        echo "Directory snapshot for debugging:"
+        echo "ERROR: Timed out after ${MAX_WAIT_SECONDS}s waiting for ${REPO_DIR}/pyproject.toml"
+        echo "Final state of ${RENKU_MOUNT_DIR}:"
         ls -la "${RENKU_MOUNT_DIR}" || true
+        echo "Final state of ${REPO_DIR}:"
+        ls -la "${REPO_DIR}" || true
         exit 1
     fi
 done
-REPO_DIR="$(resolve_repo_dir)"
-echo "==> Repository ready at ${REPO_DIR}"
 
-# ── Install the local package into the baked-in venv ─────────────────────────
-# /opt/venv already has all transitive deps (installed at image build time with
-# --no-install-project). This step only installs the editable aitchinson_flow
-# package itself, which takes seconds.
-echo "==> Running uv sync"
+echo "==> pyproject.toml found — repository ready at ${REPO_DIR}"
+
+# ── Register safe.directory now that the clone is complete ───────────────────
+git config --global --add safe.directory "${REPO_DIR}" 2>/dev/null || true
+
+# ── Sync dependencies ─────────────────────────────────────────────────────────
+echo "==> Running uv sync (frozen) in ${REPO_DIR}"
 cd "${REPO_DIR}"
-uv sync --group dev
+uv sync --frozen --group dev
 
-# ── Start VSCodium server ─────────────────────────────────────────────────────
+# ── Launch VSCodium ───────────────────────────────────────────────────────────
 RENKU_WORKING_DIR="${RENKU_WORKING_DIR:-${REPO_DIR}}"
-
 RENKU_BASE_URL_PATH="${RENKU_BASE_URL_PATH:-/}"
-if [[ "${RENKU_BASE_URL_PATH}" != */ ]]; then
-    RENKU_BASE_URL_PATH="${RENKU_BASE_URL_PATH}/"
-fi
-
+[[ "${RENKU_BASE_URL_PATH}" != */ ]] && RENKU_BASE_URL_PATH="${RENKU_BASE_URL_PATH}/"
 RENKU_SESSION_IP="${RENKU_SESSION_IP:-0.0.0.0}"
 RENKU_SESSION_PORT="${RENKU_SESSION_PORT:-8888}"
 
-exec /codium-server/bin/codium-server \
-    --server-base-path "${RENKU_BASE_URL_PATH}" \
-    --host "${RENKU_SESSION_IP}" \
-    --port "${RENKU_SESSION_PORT}" \
-    --extensions-dir "${RENKU_MOUNT_DIR}/.vscode/extensions" \
-    --server-data-dir "${RENKU_MOUNT_DIR}/.vscode" \
+echo "==> Starting VSCodium on ${RENKU_SESSION_IP}:${RENKU_SESSION_PORT}"
+exec /opt/vscodium/bin/codium-server \
+    --server-base-path    "${RENKU_BASE_URL_PATH}" \
+    --host                "${RENKU_SESSION_IP}" \
+    --port                "${RENKU_SESSION_PORT}" \
+    --extensions-dir      "${RENKU_MOUNT_DIR}/.vscode/extensions" \
+    --server-data-dir     "${RENKU_MOUNT_DIR}/.vscode" \
     --without-connection-token \
-    --accept-server-license-terms \
-    --telemetry-level off \
-    --default-folder "${RENKU_WORKING_DIR}"
+    --telemetry-level     off \
+    --default-folder      "${RENKU_WORKING_DIR}"

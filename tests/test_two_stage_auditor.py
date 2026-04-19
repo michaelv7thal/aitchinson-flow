@@ -220,10 +220,10 @@ class TestStage1:
     def test_eqm_target_uses_log_x0_minus_log_x1_sign(self) -> None:
         """``u_tgt = c(gamma) * (log_x0 - log_x1)`` (data → noise direction).
 
-        We seed `_uniform_log_x0` to a known constant, set ``c(gamma) = 1`` via
-        the linear schedule + gradient multiplier, and verify the loss matches
-        the Hilbert-family loss against ``log_x0 - log_x1`` (NOT
-        ``log_x1 - log_x0``).
+        We patch the stochastic source sampler to return a known constant
+        ``log_x0``, set ``c(gamma) = 1`` via the linear schedule + gradient
+        multiplier, and verify the loss matches the Hilbert-family loss against
+        ``log_x0 - log_x1`` (NOT ``log_x1 - log_x0``).
         """
         from aitchinson_flow.loss import build_velocity_loss
         from aitchinson_flow.models.bayesian_auditor_stage1 import _uniform_log_x0
@@ -244,6 +244,7 @@ class TestStage1:
 
         gamma_const = torch.zeros(cfg.training.B)
         original_uniform = _uniform_log_x0
+        original_scrambled = stage1_mod._scrambled_log_x0
         original_rand = torch.rand
 
         def _patched_rand(*args, **kwargs):  # type: ignore[no-untyped-def]
@@ -253,10 +254,14 @@ class TestStage1:
         log_x_gamma = log_x0
         v_pred = model.forward(log_x_gamma)
 
+        stage1_mod._scrambled_log_x0 = (
+            lambda cfg, *, bsz, seq_len, device, dtype: log_x0.to(device=device, dtype=dtype)
+        )
         torch.rand = _patched_rand
         try:
             loss = model._eqm_hilbert_loss(log_x1)[TRAINING_LOSS_KEY]
         finally:
+            stage1_mod._scrambled_log_x0 = original_scrambled
             torch.rand = original_rand
 
         loss_fn = build_velocity_loss(

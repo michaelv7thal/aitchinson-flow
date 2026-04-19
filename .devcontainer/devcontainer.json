@@ -1,5 +1,5 @@
 {
-    "name": "aitchison-flow",
+    "name": "aitchinson-flow",
   
     // Use the NVIDIA CUDA base image so the container has the CUDA runtime.
     // When running on a CPU-only machine (laptop / CI), Docker falls back to
