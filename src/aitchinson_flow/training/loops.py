@@ -28,14 +28,18 @@ def _loss_postfix(out: LossDict) -> dict[str, str]:
 
     total = _to_float_scalar(out.get(TRAINING_LOSS_KEY))
     if total is not None:
-        postfix["loss"] = f"{total:.4f}"
+        postfix["total_loss"] = f"{total:.4f}"
 
-    for key in sorted(out):
-        if key == TRAINING_LOSS_KEY:
-            continue
-        v = _to_float_scalar(out[key])
-        if v is not None:
-            postfix[key] = f"{v:.4f}"
+    velocity = _to_float_scalar(out.get("velocity_loss"))
+    if velocity is None:
+        # Legacy models may only expose flow_loss; keep tqdm stable for them.
+        velocity = _to_float_scalar(out.get("flow_loss"))
+    if velocity is not None:
+        postfix["velocity_loss"] = f"{velocity:.4f}"
+
+    mask = _to_float_scalar(out.get("mask_loss"))
+    if mask is not None:
+        postfix["mask_loss"] = f"{mask:.4f}"
 
     return postfix
 
