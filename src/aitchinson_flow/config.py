@@ -34,7 +34,7 @@ class TransformerConfig:
 @dataclass
 class GPConfig:
     num_inducing: int = 500  # Number of inducing points
-    lambda_kl: float = 1e-1  # KL regularization parameter
+    lambda_kl: float = 5e-2  # KL regularization parameter
     lambda_contrastive: float = 1.0  # Stage 2 random-negative energy hinge weight
     lambda_var: float = 2.0
     """Anchor weight on valid GP mean in the composed ``BayesianAuditor`` loss.
