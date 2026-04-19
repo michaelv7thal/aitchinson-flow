@@ -15,7 +15,6 @@ build/
 *.egg-info/
 
 # Data and Checkpoints (common conventions)
-data/
 checkpoints/
 logs/
 
