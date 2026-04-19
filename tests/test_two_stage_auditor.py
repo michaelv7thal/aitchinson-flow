@@ -139,7 +139,7 @@ class TestStage1:
         model = BayesianAuditorStage1(cfg)
         model.eval()
         log_x = _valid_batch(cfg)["log_x"]
-        f = model.forward(log_x)
+        f, _ = model.forward(log_x)
         f_c = f - f.mean(dim=-1, keepdim=True)
         x_c = log_x - log_x.mean(dim=-1, keepdim=True)
         d = nielsen_soft_hilbert_distance(
@@ -252,7 +252,7 @@ class TestStage1:
 
         log_x0 = original_uniform(*log_x1.shape, log_x1.device, log_x1.dtype)
         log_x_gamma = log_x0
-        v_pred = model.forward(log_x_gamma)
+        v_pred, _ = model.forward(log_x_gamma)
 
         stage1_mod._scrambled_log_x0 = (
             lambda cfg, *, bsz, seq_len, device, dtype: log_x0.to(device=device, dtype=dtype)
@@ -312,7 +312,7 @@ class TestStage1:
         # test's mean-drift cleanup inside ``integrate`` would make the strict
         # allclose deliberately fail).
         log_x = log_x - log_x.mean(dim=-1, keepdim=True)
-        v = model.forward(log_x)
+        v, _ = model.forward(log_x)
         out = model.integrate(log_x, steps=1, dt=0.1)
         expected = log_x - v * 0.1
         assert torch.allclose(out, expected, atol=1e-5), (
@@ -328,6 +328,91 @@ class TestStage1:
         got = model._c_gamma(gamma).squeeze(-1).squeeze(-1)
         want = (1.0 - gamma) / 2.0
         assert torch.allclose(got, want)
+
+    def test_forward_returns_velocity_and_hidden(self) -> None:
+        """Stage 1 ``forward`` returns ``(velocity, hidden)`` with matching shapes."""
+        cfg = _tiny_cfg()
+        model = BayesianAuditorStage1(cfg)
+        log_x = _valid_batch(cfg)["log_x"]
+        out = model.forward(log_x)
+        assert isinstance(out, tuple) and len(out) == 2
+        v, h = out
+        assert v.shape == log_x.shape
+        assert h.shape == (cfg.training.B, cfg.dataset.L, cfg.transformer.d_model)
+
+    def test_mask_recon_head_registered_in_state_dict(self) -> None:
+        """The masked-reconstruction head must live in the Stage 1 state dict."""
+        cfg = _tiny_cfg()
+        model = BayesianAuditorStage1(cfg)
+        keys = list(model.state_dict().keys())
+        assert any(k.startswith("mask_recon_head.") for k in keys), (
+            "expected mask_recon_head.* params in Stage 1 state dict, got "
+            f"{[k for k in keys if 'head' in k]}"
+        )
+
+    def test_training_step_without_lambda_mask_omits_mask_key(self) -> None:
+        """With ``lambda_mask == 0`` the mask loss is skipped for perf parity."""
+        cfg = _tiny_cfg()
+        assert cfg.training.lambda_mask == 0.0
+        model = BayesianAuditorStage1(cfg)
+        out = model.training_step(_valid_batch(cfg), step=0)
+        assert "mask_loss" not in out
+        assert torch.allclose(out[TRAINING_LOSS_KEY].detach(), out["flow_loss"])
+
+    def test_training_step_with_lambda_mask_adds_mask_loss(self) -> None:
+        """With ``lambda_mask > 0`` the total loss must equal flow + λ·mask."""
+        cfg = _tiny_cfg()
+        cfg.training.lambda_mask = 0.5
+        model = BayesianAuditorStage1(cfg)
+        torch.manual_seed(0)
+        out = model.training_step(_valid_batch(cfg), step=0)
+        assert "mask_loss" in out
+        assert "flow_loss" in out
+        assert out[TRAINING_LOSS_KEY].requires_grad
+        expected = out["flow_loss"] + cfg.training.lambda_mask * out["mask_loss"]
+        assert torch.allclose(out[TRAINING_LOSS_KEY].detach(), expected, atol=1e-6)
+        out[TRAINING_LOSS_KEY].backward()
+
+    def test_mask_loss_backward_updates_mask_recon_head(self) -> None:
+        """Backward through the masked objective must flow into ``mask_recon_head``."""
+        cfg = _tiny_cfg()
+        cfg.training.lambda_mask = 1.0
+        cfg.training.mask_rate = 0.5
+        model = BayesianAuditorStage1(cfg)
+        opt = torch.optim.AdamW(model.parameters(), lr=1e-3)
+        before = {k: v.detach().clone() for k, v in model.state_dict().items()}
+        torch.manual_seed(1)
+        out = model.training_step(_valid_batch(cfg), step=0)
+        out[TRAINING_LOSS_KEY].backward()
+        opt.step()
+        after = model.state_dict()
+        changed = [k for k in before if not torch.equal(before[k], after[k])]
+        assert any(k.startswith("mask_recon_head.") for k in changed), (
+            "expected mask_recon_head params to update when lambda_mask > 0"
+        )
+        assert any(k.startswith("backbone.") for k in changed)
+
+    def test_mask_rate_zero_gives_zero_mask_loss(self) -> None:
+        """A zero mask rate should yield a zero-valued mask loss (empty mask path)."""
+        cfg = _tiny_cfg()
+        cfg.training.lambda_mask = 1.0
+        cfg.training.mask_rate = 0.0
+        model = BayesianAuditorStage1(cfg)
+        out = model.training_step(_valid_batch(cfg), step=0)
+        assert out["mask_loss"].item() == 0.0
+        assert torch.allclose(out[TRAINING_LOSS_KEY].detach(), out["flow_loss"])
+
+    def test_invalid_lambda_mask_rejected(self) -> None:
+        cfg = _tiny_cfg()
+        cfg.training.lambda_mask = -0.1
+        with pytest.raises(ValueError, match="lambda_mask"):
+            BayesianAuditorStage1(cfg)
+
+    def test_invalid_mask_rate_rejected(self) -> None:
+        cfg = _tiny_cfg()
+        cfg.training.mask_rate = 1.5
+        with pytest.raises(ValueError, match="mask_rate"):
+            BayesianAuditorStage1(cfg)
 
 
 class TestStage2Freezing:

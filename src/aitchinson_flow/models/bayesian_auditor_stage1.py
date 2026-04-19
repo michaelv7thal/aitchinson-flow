@@ -37,7 +37,11 @@ from aitchinson_flow.geometry import nielsen_soft_hilbert_distance
 from aitchinson_flow.loss import build_velocity_loss
 from aitchinson_flow.models.base import TRAINING_LOSS_KEY, LossDict
 from aitchinson_flow.models.factory import register
-from aitchinson_flow.transformer_backbone import TransformerBackbone, VelocityHead
+from aitchinson_flow.transformer_backbone import (
+    MaskReconHead,
+    TransformerBackbone,
+    VelocityHead,
+)
 
 
 _HILBERT_FAMILY = {"soft_hilbert", "hard_hilbert", "clr_mse", "ilr_mse"}
@@ -125,20 +129,35 @@ class BayesianAuditorStage1(nn.Module):
                 "Set cfg.training.velocity_loss to 'soft_hilbert' (default) for EqM+Hilbert."
             )
 
+        if cfg.training.lambda_mask < 0.0:
+            raise ValueError(f"training.lambda_mask must be >= 0, got {cfg.training.lambda_mask}")
+        if not (0.0 <= cfg.training.mask_rate <= 1.0):
+            raise ValueError(f"training.mask_rate must be in [0, 1], got {cfg.training.mask_rate}")
+
         # Aligned with Stage 2 / BayesianAuditor: same ``time_conditioned`` flag so
         # ``compose_auditor_from_stages`` loads ``backbone.*`` without shape/key skew.
         self.backbone = TransformerBackbone(
             cfg=cfg, time_conditioned=cfg.transformer.time_conditioned
         )
         self.velocity_head = VelocityHead(cfg=cfg)
+        self.mask_recon_head = MaskReconHead(cfg=cfg)
         self._velocity_loss_fn = build_velocity_loss(
             vname, soft_hilbert_alpha=cfg.training.soft_hilbert_alpha
         )
 
-    def forward(self, log_x: torch.Tensor, t: torch.Tensor | None = None) -> torch.Tensor:
-        """``log_x`` (B, L, D) → velocity (B, L, D). ``t`` is ignored (time-independent field)."""
+    def forward(
+        self, log_x: torch.Tensor, t: torch.Tensor | None = None
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """``log_x`` (B, L, D) → (velocity (B, L, D), hidden (B, L, d_model)).
+
+        ``t`` is ignored (time-independent field). The hidden state is
+        returned so auxiliary objectives (e.g. masked reconstruction) can
+        reuse the shared backbone pass without a second forward.
+        """
         del t
-        return self.velocity_head(self.backbone(log_x))
+        h = self.backbone(log_x)
+        v = self.velocity_head(h)
+        return v, h
 
     def _c_gamma(self, gamma: torch.Tensor) -> torch.Tensor:
         """EqM schedule c(gamma), configurable via ``cfg.equilibrium``.
@@ -214,6 +233,25 @@ class BayesianAuditorStage1(nn.Module):
                     f"equilibrium.eqm_decay_b must be >= 1 for piecewise decay, got {eq.eqm_decay_b}"
                 )
 
+    def _masked_reconstruction_loss(self, log_x: torch.Tensor) -> torch.Tensor:
+        B, L, _ = log_x.shape
+        mask = torch.rand(B, L, device=log_x.device) < self.cfg.training.mask_rate
+
+        log_x_masked = log_x.clone()
+        log_x_masked[mask] = 0.0
+
+        h = self.backbone(log_x_masked)
+        pred = self.mask_recon_head(h)
+
+        if not mask.any():
+            return (pred.sum() * 0.0) + (log_x.sum() * 0.0)
+
+        # Hilbert reconstruction loss at masked positions
+        pred_masked = pred[mask]  # (N_masked, K-1)
+        target_masked = log_x[mask]  # (N_masked, K-1)
+
+        return nielsen_soft_hilbert_distance(pred_masked, target_masked).mean()
+
     def _eqm_hilbert_loss(self, log_x1: torch.Tensor) -> LossDict:
         B, L, D = log_x1.shape
         device, dt = log_x1.device, log_x1.dtype
@@ -223,12 +261,24 @@ class BayesianAuditorStage1(nn.Module):
         # Sign convention: target velocity points data → noise (log_x0 - log_x1).
         # The matching integrator subtracts v: x ← x - v(x) * dt (noise → data).
         u_tgt = self._c_gamma(gamma) * (log_x0 - log_x1)
-        v_pred = self.forward(log_x_gamma)
-        loss = self._velocity_loss_fn(v_pred, u_tgt)
+        v_pred, _ = self.forward(log_x_gamma)
+        flow_loss = self._velocity_loss_fn(v_pred, u_tgt)
+
+        lambda_mask = self.cfg.training.lambda_mask
+        if lambda_mask > 0.0:
+            mask_loss = self._masked_reconstruction_loss(log_x1)
+            total = flow_loss + lambda_mask * mask_loss
+            return {
+                TRAINING_LOSS_KEY: total,
+                "flow_loss": flow_loss.detach(),
+                "velocity_loss": flow_loss.detach(),
+                "mask_loss": mask_loss.detach(),
+            }
+
         return {
-            TRAINING_LOSS_KEY: loss,
-            "flow_loss": loss.detach(),
-            "velocity_loss": loss.detach(),
+            TRAINING_LOSS_KEY: flow_loss,
+            "flow_loss": flow_loss.detach(),
+            "velocity_loss": flow_loss.detach(),
         }
 
     def training_step(self, batch: Any, step: int) -> LossDict:
@@ -254,7 +304,7 @@ class BayesianAuditorStage1(nn.Module):
         ``log_x`` is centered to match ILR/CLR convention before computing the
         Nielsen LogSumExp soft Hilbert distance.
         """
-        f = self.forward(log_x)
+        f, _ = self.forward(log_x)
         x_c = log_x - log_x.mean(dim=-1, keepdim=True)
         return nielsen_soft_hilbert_distance(f, x_c, alpha=self.cfg.training.soft_hilbert_alpha)
 
@@ -313,7 +363,7 @@ class BayesianAuditorStage1(nn.Module):
         """
         was_training = self.training
         self.eval()
-        v = self.forward(log_x)
+        v, _ = self.forward(log_x)
         score = v.reshape(v.shape[0], -1).norm(dim=1)
         if was_training:
             self.train()
@@ -370,7 +420,7 @@ class BayesianAuditorStage1(nn.Module):
         """
         was_training = self.training
         self.eval()
-        v = self.forward(log_x)
+        v, _ = self.forward(log_x)
         per_tok_resid = v.norm(dim=-1)
         d_per_token = self._per_token_soft_hilbert(log_x)
         per_tok_energy = -d_per_token
@@ -397,7 +447,8 @@ class BayesianAuditorStage1(nn.Module):
         clr = self.cfg.hf_dataset.transform_mode.lower() == "clr"
         x = log_x.clone()
         for _ in range(steps):
-            x = x - self.forward(x) * dt
+            v, _ = self.forward(x)
+            x = x - v * dt
             if clr:
                 x = x - x.mean(dim=-1, keepdim=True)  # project to V_K (CLR only)
         return x
@@ -429,7 +480,8 @@ class BayesianAuditorStage1(nn.Module):
         if clr:
             x = x - x.mean(dim=-1, keepdim=True)  # ensure noise starts in V_K
         for _ in range(steps):
-            x = x - self.forward(x) * stepsize
+            v, _ = self.forward(x)
+            x = x - v * stepsize
             if clr:
                 x = x - x.mean(dim=-1, keepdim=True)  # project to V_K (CLR only)
         if was_training:

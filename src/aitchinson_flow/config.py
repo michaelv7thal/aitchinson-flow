@@ -15,10 +15,10 @@ class DatasetConfig:
 
 @dataclass
 class TransformerConfig:
-    d_model: int = 1648  # Dimension of the model
+    d_model: int = 1440  # Dimension of the model
     nhead: int = 8  # Number of attention heads
     num_layers: int = 8  # Number of layers
-    d_latent: int = 1648  # Dimension of the latent space
+    d_latent: int = 1440  # Dimension of the latent space
     dropout: float = 0.0  # Dropout rate
     time_conditioned: bool = False  # Whether to condition on time
     pretrained_backbone: str | None = None  # e.g. "gpt2", "gpt2-medium", "gpt2-large"
@@ -139,7 +139,7 @@ class TrainingConfig:
     eval_every: int = 1  # epochs between validation
     checkpoint_every: int = 1
     checkpoint_dir: str = "checkpoints"
-    num_workers: int = 0
+    num_workers: int = 8
     weight_decay: float = 0.0
     # Step once per epoch in ``runner.fit`` (see ``build_scheduler``).
     lr_scheduler: str | None = "cosine"
@@ -178,6 +178,21 @@ class TrainingConfig:
 
     velocity_loss: str = "soft_hilbert"
     soft_hilbert_alpha: float = 1.0
+
+    lambda_mask: float = 0.2
+    """Weight for the Stage 1 masked-reconstruction auxiliary loss.
+
+    When ``> 0`` ``BayesianAuditorStage1`` adds an MLM-style masking
+    objective on clean ``log_x`` via a separate ``MaskReconHead`` that
+    shares the backbone with the EqM velocity head. The default ``0.0``
+    keeps training behavior identical to the pre-masking Stage 1.
+    """
+
+    mask_rate: float = 0.15
+    """Fraction of sequence positions zeroed out when computing the Stage 1
+    masked-reconstruction loss. Only read when ``lambda_mask > 0``.
+    """
+
     use_tqdm: bool = True
     """Show tqdm progress bars for training/validation loops."""
 

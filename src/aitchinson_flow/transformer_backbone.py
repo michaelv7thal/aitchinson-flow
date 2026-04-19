@@ -123,6 +123,30 @@ class VelocityHead(nn.Module):
         return v
 
 
+class MaskReconHead(nn.Module):
+    """(B, L, d_model) → (B, L, D) — masked-reconstruction projection.
+
+    Structurally identical to ``VelocityHead`` (linear projection onto the
+    feature dimension + optional CLR zero-sum centering) but semantically
+    distinct: the outputs are clean log-simplex feature targets used by the
+    Stage 1 MLM-style auxiliary objective, not velocities. Keeping it as a
+    separate module makes the Stage 1 state dict unambiguous and allows
+    composition code to treat the two heads independently.
+    """
+
+    def __init__(self, cfg: Config) -> None:
+        super().__init__()
+        out_dim = feature_dim(cfg)
+        self.proj = nn.Linear(cfg.transformer.d_model, out_dim)
+        self._clr_mode = cfg.hf_dataset.transform_mode.lower() == "clr"
+
+    def forward(self, h: torch.Tensor) -> torch.Tensor:
+        v = self.proj(h)
+        if self._clr_mode:
+            v = v - v.mean(dim=-1, keepdim=True)
+        return v
+
+
 class TokenLatentHead(nn.Module):
     """(B, L, d_model) → (B, L, d_latent) — per-token linear projection.
 
