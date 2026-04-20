@@ -52,9 +52,12 @@ class TransformerBackbone(nn.Module):
             norm_first=True,  ## Superior training dynamics vs Post-LN
         )
 
+        final_norm = nn.LayerNorm(cfg.transformer.d_model)
+
         self.transformer = nn.TransformerEncoder(
             encoder_layer=encoder_layer,
             num_layers=cfg.transformer.num_layers,
+            norm=final_norm,
             enable_nested_tensor=False,
         )
 

@@ -34,7 +34,7 @@ class TransformerConfig:
 @dataclass
 class GPConfig:
     num_inducing: int = 500  # Number of inducing points
-    lambda_kl: float = 5e-2  # KL regularization parameter
+    lambda_kl: float = 1.0  # KL regularization parameter
     lambda_contrastive: float = 1.0  # Stage 2 random-negative energy hinge weight
     lambda_var: float = 2.0
     """Anchor weight on valid GP mean in the composed ``BayesianAuditor`` loss.
@@ -204,7 +204,7 @@ class TrainingConfig:
     wandb_project: str = "aitchinson-flow"
     wandb_entity: str | None = None
     wandb_group: str | None = None
-    wandb_run_name: str | None = "two-stage-train"
+    wandb_run_name: str | None = "new-plots"
     wandb_job_type: str | None = None
     wandb_notes: str | None = None
     wandb_tags: list[str] = field(default_factory=list)
