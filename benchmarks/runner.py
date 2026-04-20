@@ -185,9 +185,14 @@ def run_benchmark(cfg: Config) -> dict[str, dict[str, float]]:
         results[tag] = clean
 
         if cfg.benchmark.save_plots and scores is not None:
-            from benchmarks.plots import save_all_plots  # noqa: PLC0415
+            from aitchinson_flow.plots import save_benchmark_plots  # noqa: PLC0415
 
-            save_all_plots(out_root / tag, scores=scores, loss_history=history)
+            save_benchmark_plots(
+                out_root / tag,
+                scores=scores,
+                loss_history=history,
+                stage=tag or "benchmark",
+            )
 
         if cfg.benchmark.use_tqdm:
             scale_iter.set_postfix(scale=tag)

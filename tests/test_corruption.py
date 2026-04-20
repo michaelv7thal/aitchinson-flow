@@ -5,7 +5,11 @@ from __future__ import annotations
 import torch
 import pytest
 
-from benchmarks.corruption import build_invalid_batch, corrupt_token_ids, partially_shuffle_token_ids
+from aitchinson_flow.data.corruption import (
+    build_invalid_batch,
+    corrupt_token_ids,
+    partially_shuffle_token_ids,
+)
 
 
 class TestCorruptTokenIds:

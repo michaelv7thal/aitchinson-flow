@@ -9,6 +9,7 @@ from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 
 from aitchinson_flow.models.base import TRAINING_LOSS_KEY, GenerativeTrainingModel, LossDict
+from aitchinson_flow.training.batch import to_device
 from aitchinson_flow.training.metrics import detach_means, finalize_averages, running_average
 
 
@@ -71,7 +72,7 @@ def train_epoch(
         leave=False,
     )
     for batch in pbar:
-        batch = _to_device(batch, device)
+        batch = to_device(batch, device)
         optimizer.zero_grad(set_to_none=True)
         out: LossDict = m.training_step(batch, step)
         if TRAINING_LOSS_KEY not in out:
@@ -115,7 +116,7 @@ def evaluate(
 
     pbar = tqdm(loader, desc="validation", disable=not use_tqdm, leave=False)
     for batch in pbar:
-        batch = _to_device(batch, device)
+        batch = to_device(batch, device)
         out = m.eval_step(batch)
         if TRAINING_LOSS_KEY not in out:
             raise KeyError(
@@ -129,12 +130,3 @@ def evaluate(
                 pbar.set_postfix(postfix)
 
     return finalize_averages(agg, counts)
-
-
-def _to_device(batch: Any, device: torch.device) -> Any:
-    if isinstance(batch, dict):
-        return {k: v.to(device) if torch.is_tensor(v) else v for k, v in batch.items()}
-    if torch.is_tensor(batch):
-        return batch.to(device)
-
-    return batch

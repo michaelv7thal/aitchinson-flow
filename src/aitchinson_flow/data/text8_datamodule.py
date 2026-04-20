@@ -135,7 +135,7 @@ class _CorruptingCollate:
         return logits
 
     def __call__(self, samples: list[dict[str, Tensor]]) -> dict[str, Tensor]:
-        from benchmarks.corruption import build_invalid_batch  # noqa: PLC0415
+        from aitchinson_flow.data.corruption import build_invalid_batch  # noqa: PLC0415
 
         log_x = torch.stack([s["log_x"] for s in samples], dim=0)
         token_ids = torch.stack([s["token_ids"] for s in samples], dim=0)

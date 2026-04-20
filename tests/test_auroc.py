@@ -5,36 +5,36 @@ from __future__ import annotations
 import numpy as np
 import torch
 
-from benchmarks.tasks.text_audit import _safe_auroc
+from aitchinson_flow.metrics.auroc import safe_auroc
 
 
 class TestSafeAuroc:
     def test_perfectly_separable(self) -> None:
         v = np.zeros(100, dtype=np.float32)
         i = np.ones(100, dtype=np.float32)
-        assert _safe_auroc(v, i) == 1.0
+        assert safe_auroc(v, i) == 1.0
 
     def test_swapped_returns_zero(self) -> None:
         v = np.ones(100, dtype=np.float32)
         i = np.zeros(100, dtype=np.float32)
-        assert _safe_auroc(v, i) == 0.0
+        assert safe_auroc(v, i) == 0.0
 
     def test_random_overlap_around_half(self) -> None:
         rng = np.random.default_rng(0)
         v = rng.normal(0, 1, size=500).astype(np.float32)
         i = rng.normal(0, 1, size=500).astype(np.float32)
-        auc = _safe_auroc(v, i)
+        auc = safe_auroc(v, i)
         assert 0.4 < auc < 0.6
 
     def test_empty_returns_nan(self) -> None:
-        auc = _safe_auroc(np.empty(0, dtype=np.float32), np.ones(10, dtype=np.float32))
+        auc = safe_auroc(np.empty(0, dtype=np.float32), np.ones(10, dtype=np.float32))
         assert np.isnan(auc)
 
     def test_shifted_gaussians_above_half(self) -> None:
         rng = np.random.default_rng(0)
         v = rng.normal(0.0, 1.0, size=500).astype(np.float32)
         i = rng.normal(2.0, 1.0, size=500).astype(np.float32)
-        auc = _safe_auroc(v, i)
+        auc = safe_auroc(v, i)
         assert auc > 0.85
 
 

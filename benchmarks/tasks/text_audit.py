@@ -7,21 +7,15 @@ import torch
 import torch.nn as nn
 
 from aitchinson_flow.config import Config
+from aitchinson_flow.data.corruption import build_invalid_batch
 from aitchinson_flow.data.feature_dim import feature_dim as _feature_dim_for
+from aitchinson_flow.metrics.auroc import safe_auroc
 from aitchinson_flow.metrics.spilled_energy import compute_spilled_energy_batch
 from aitchinson_flow.models.base import AuditorModel
+from aitchinson_flow.training.batch import to_device
 from aitchinson_flow.training.datamodule import DataModule
 from aitchinson_flow.training.metrics import finalize_averages, running_average
-from benchmarks.corruption import build_invalid_batch
 from benchmarks.tasks.registry import register
-
-
-def _to_device(batch: Any, device: torch.device) -> Any:
-    if isinstance(batch, dict):
-        return {k: v.to(device) if torch.is_tensor(v) else v for k, v in batch.items()}
-    if torch.is_tensor(batch):
-        return batch.to(device)
-    return batch
 
 
 def _spilled_metrics(
@@ -48,19 +42,6 @@ def _spilled_metrics(
         "spilled_token_std": sp_valid.std(dim=0).mean(),
     }
     return metrics, sp_valid, sp_invalid
-
-
-def _safe_auroc(valid: np.ndarray, invalid: np.ndarray) -> float:
-    """AUROC with valid=0, invalid=1; returns NaN if a class is empty."""
-    if valid.size == 0 or invalid.size == 0:
-        return float("nan")
-    from sklearn.metrics import roc_auc_score  # noqa: PLC0415
-
-    labels = np.concatenate([np.zeros(valid.size), np.ones(invalid.size)])
-    scores = np.concatenate([valid, invalid])
-    if not np.isfinite(scores).all():
-        scores = np.nan_to_num(scores, nan=0.0, posinf=0.0, neginf=0.0)
-    return float(roc_auc_score(labels, scores))
 
 
 def _auditor_score(
@@ -229,7 +210,7 @@ class TextAuditTask:
                     seed=bcfg.corruption_seed + batch_idx,
                 )
 
-            batch_dev = _to_device(batch, device)
+            batch_dev = to_device(batch, device)
             out = auditor.audit(batch_dev)
             running_average(agg, counts, out)
 
@@ -332,13 +313,13 @@ class TextAuditTask:
         v_spill = _cat(spilled_valid)
         i_spill = _cat(spilled_invalid)
 
-        result["auroc_auditor"] = _safe_auroc(v_audit, i_audit)
-        result["auroc_spilled"] = _safe_auroc(v_spill, i_spill)
+        result["auroc_auditor"] = safe_auroc(v_audit, i_audit)
+        result["auroc_spilled"] = safe_auroc(v_spill, i_spill)
         if v_resid.size and i_resid.size:
-            result["auroc_residual"] = _safe_auroc(v_resid, i_resid)
+            result["auroc_residual"] = safe_auroc(v_resid, i_resid)
         if v_eng.size and i_eng.size:
             # Stage 1 geometric energy AUROC (Plan point 5: energy vs variance).
-            result["auroc_energy"] = _safe_auroc(v_eng, i_eng)
+            result["auroc_energy"] = safe_auroc(v_eng, i_eng)
 
         # Pearson r between GP variance and spilled energy scores
         if v_spill.size and v_audit.size and len(v_spill) == len(v_audit):
@@ -430,19 +411,19 @@ class TextAuditTask:
 
         # Token-level AUROC surfaced in the orchestration manifest.
         if audit_energy_seq_valid_np is not None and audit_energy_seq_invalid_np is not None:
-            result["auroc_auditor_token_all"] = _safe_auroc(
+            result["auroc_auditor_token_all"] = safe_auroc(
                 audit_energy_seq_valid_np.ravel(),
                 audit_energy_seq_invalid_np.ravel(),
             )
             if corrupt_mask_invalid_np is not None:
                 mask_bool = corrupt_mask_invalid_np.astype(bool)
                 if mask_bool.shape == audit_energy_seq_invalid_np.shape:
-                    result["auroc_auditor_token_corrupted"] = _safe_auroc(
+                    result["auroc_auditor_token_corrupted"] = safe_auroc(
                         audit_energy_seq_valid_np.ravel(),
                         audit_energy_seq_invalid_np[mask_bool],
                     )
         if spilled_token_valid_np is not None and spilled_token_invalid_np is not None:
-            result["auroc_spilled_token_all"] = _safe_auroc(
+            result["auroc_spilled_token_all"] = safe_auroc(
                 spilled_token_valid_np.ravel(),
                 spilled_token_invalid_np.ravel(),
             )
@@ -507,7 +488,7 @@ def _run_corrupt_sweep(
                     transform_mode=cfg.hf_dataset.transform_mode,
                     seed=sweep_bcfg.corruption_seed + batch_idx,
                 )
-            batch_dev = _to_device(batch, device)
+            batch_dev = to_device(batch, device)
             if "log_x_invalid" not in batch_dev:
                 continue
 
@@ -535,8 +516,8 @@ def _run_corrupt_sweep(
         i_s = _cat(si)
 
         entry: dict[str, Any] = {
-            "auroc_auditor": _safe_auroc(v_a, i_a),
-            "auroc_spilled": _safe_auroc(v_s, i_s),
+            "auroc_auditor": safe_auroc(v_a, i_a),
+            "auroc_spilled": safe_auroc(v_s, i_s),
         }
         if v_s.size and v_a.size and len(v_s) == len(v_a):
             entry["pearson_r_valid"] = float(np.corrcoef(v_a, v_s)[0, 1])

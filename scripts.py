@@ -5,7 +5,7 @@ from aitchinson_flow.data.text8_datamodule import (
     chunk_text8_to_ids,
     _load_text8_chars,
 )
-from benchmarks.corruption import build_invalid_batch
+from aitchinson_flow.data.corruption import build_invalid_batch
 
 data = _load_text8_chars(split="train")
 ids = chunk_text8_to_ids(data, L=40)

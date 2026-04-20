@@ -23,6 +23,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
+from aitchinson_flow.metrics.auroc import safe_auroc
+
 
 def _finite(arr: np.ndarray) -> np.ndarray:
     a = np.asarray(arr).ravel()
@@ -34,21 +36,6 @@ def _as_np(x: np.ndarray | None) -> np.ndarray | None:
         return None
     arr = np.asarray(x)
     return arr if arr.size else None
-
-
-def _auroc_or_nan(valid: np.ndarray | None, invalid: np.ndarray | None) -> float:
-    """AUROC with valid=0, invalid=1; NaN if either class is empty."""
-    v = _finite(valid) if valid is not None else np.empty(0)
-    i = _finite(invalid) if invalid is not None else np.empty(0)
-    if v.size == 0 or i.size == 0:
-        return float("nan")
-    from sklearn.metrics import roc_auc_score  # noqa: PLC0415
-
-    labels = np.concatenate([np.zeros(v.size), np.ones(i.size)])
-    scores = np.concatenate([v, i])
-    if not np.isfinite(scores).all():
-        scores = np.nan_to_num(scores, nan=0.0, posinf=0.0, neginf=0.0)
-    return float(roc_auc_score(labels, scores))
 
 
 @dataclass
@@ -472,7 +459,7 @@ def plot_corruption_comparison(
     if corrupted.size == 0 and clean.size == 0:
         return
 
-    auc = _auroc_or_nan(clean, corrupted)
+    auc = safe_auroc(clean, corrupted)
     mu_clean = float(clean.mean()) if clean.size else float("nan")
     mu_corr = float(corrupted.mean()) if corrupted.size else float("nan")
     annotation = (
@@ -525,7 +512,7 @@ def plot_roc_curves(
     title: str = "ROC: valid vs invalid",
 ) -> dict[str, float]:
     """Render one ROC per method on a shared axes; return ``{name: AUROC}``."""
-    from sklearn.metrics import roc_auc_score, roc_curve  # noqa: PLC0415
+    from sklearn.metrics import roc_curve  # noqa: PLC0415
 
     aurocs: dict[str, float] = {}
     fig, ax = plt.subplots(figsize=(5.5, 5))
@@ -537,11 +524,11 @@ def plot_roc_curves(
         if v.size == 0 or i.size == 0:
             print(f"plot_roc_curves: skipping {name!r} (empty class)")
             continue
+        auc = safe_auroc(v, i)
         labels = np.concatenate([np.zeros(v.size), np.ones(i.size)])
         scores = np.concatenate([v, i])
         if not np.isfinite(scores).all():
             scores = np.nan_to_num(scores, nan=0.0, posinf=0.0, neginf=0.0)
-        auc = float(roc_auc_score(labels, scores))
         fpr, tpr, _ = roc_curve(labels, scores)
         ax.plot(fpr, tpr, label=f"{name} (AUROC={auc:.3f})")
         aurocs[name] = auc
@@ -562,6 +549,61 @@ def plot_roc_curves(
     fig.savefig(out_path, dpi=120)
     plt.close(fig)
     return aurocs
+
+
+def stage_plot_data_from_scores(
+    scores: dict[str, np.ndarray | None],
+    *,
+    stage: str,
+    history: list[dict[str, float]] | None = None,
+) -> StagePlotData:
+    """Map a benchmark ``_scores`` dict onto a :class:`StagePlotData` payload.
+
+    Benchmark tasks (``text_audit``) and the two-stage orchestration script
+    both produce the same ``_scores`` dict. Centralizing the mapping here keeps
+    plotting consumers aligned and avoids duplicating the per-key wiring in
+    every entrypoint.
+    """
+    return StagePlotData(
+        stage=stage,
+        energy_token_valid=scores.get("auditor_energy_seq_valid"),
+        energy_token_invalid=scores.get("auditor_energy_seq_invalid"),
+        variance_token_valid=scores.get("auditor_var_seq_valid"),
+        variance_token_invalid=scores.get("auditor_var_seq_invalid"),
+        energy_seq_valid=scores.get("auditor_energy_scalar_valid"),
+        energy_seq_invalid=scores.get("auditor_energy_scalar_invalid"),
+        variance_seq_valid=scores.get("auditor_variance_scalar_valid"),
+        variance_seq_invalid=scores.get("auditor_variance_scalar_invalid"),
+        latent_tokens_valid=scores.get("latent_tokens_valid"),
+        latent_tokens_invalid=scores.get("latent_tokens_invalid"),
+        inducing_points=scores.get("inducing_points"),
+        corrupt_mask_invalid=scores.get("corrupt_mask_invalid"),
+        auditor_score_valid=scores.get("auditor_valid"),
+        auditor_score_invalid=scores.get("auditor_invalid"),
+        spilled_seq_scalar_valid=scores.get("spilled_valid"),
+        spilled_seq_scalar_invalid=scores.get("spilled_invalid"),
+        spilled_token_valid=scores.get("spilled_token_valid"),
+        spilled_token_invalid=scores.get("spilled_token_invalid"),
+        geometric_energy_valid=scores.get("energy_valid"),
+        geometric_energy_invalid=scores.get("energy_invalid"),
+        history=history,
+    )
+
+
+def save_benchmark_plots(
+    out_dir: Path | str,
+    *,
+    scores: dict[str, np.ndarray | None],
+    loss_history: list[dict[str, float]] | None = None,
+    stage: str = "benchmark",
+) -> dict[str, str]:
+    """Render :class:`StagePlotData` artifacts from a benchmark ``_scores`` dict.
+
+    Thin wrapper around :func:`save_stage_plots` that keeps benchmark runners
+    from having to construct :class:`StagePlotData` themselves.
+    """
+    data = stage_plot_data_from_scores(scores, stage=stage, history=loss_history)
+    return save_stage_plots(out_dir, data)
 
 
 def save_stage_plots(out_dir: Path | str, data: StagePlotData) -> dict[str, str]:
@@ -612,7 +654,7 @@ def save_stage_plots(out_dir: Path | str, data: StagePlotData) -> dict[str, str]
     esi = _as_np(data.energy_seq_invalid)
     if esv is not None or esi is not None:
         fname = f"{stage}_hist_sequence_energy.png"
-        auc = _auroc_or_nan(esv, esi)
+        auc = safe_auroc(esv, esi)
         sep = (
             float(np.asarray(esi).mean() - np.asarray(esv).mean())
             if esv is not None and esi is not None
@@ -647,7 +689,7 @@ def save_stage_plots(out_dir: Path | str, data: StagePlotData) -> dict[str, str]
     vsi = _as_np(data.variance_seq_invalid)
     if vsv is not None or vsi is not None:
         fname = f"{stage}_hist_sequence_variance.png"
-        auc = _auroc_or_nan(vsv, vsi)
+        auc = safe_auroc(vsv, vsi)
         sep = (
             float(np.asarray(vsi).mean() - np.asarray(vsv).mean())
             if vsv is not None and vsi is not None

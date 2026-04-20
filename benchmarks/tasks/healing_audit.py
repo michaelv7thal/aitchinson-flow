@@ -9,12 +9,13 @@ import torch
 import torch.nn as nn
 
 from aitchinson_flow.config import Config
+from aitchinson_flow.data.corruption import build_invalid_batch
+from aitchinson_flow.metrics.auroc import safe_auroc
 from aitchinson_flow.models.factory import build_model
+from aitchinson_flow.training.batch import to_device
 from aitchinson_flow.training.datamodule import DataModule
-from benchmarks.corruption import build_invalid_batch
 from benchmarks.healing import HealingPipeline
 from benchmarks.tasks.registry import register
-from benchmarks.tasks.text_audit import _safe_auroc, _to_device
 
 
 def _load_healer(cfg: Config) -> nn.Module:
@@ -103,10 +104,9 @@ class HealingAuditTask:
                 )
             elif "log_x_invalid" not in batch:
                 # text8 path: corrupt manually
-                from benchmarks.corruption import corrupt_token_ids, token_ids_to_ilr_x_batch  # noqa: PLC0415
                 batch = _corrupt_text8_batch(batch, cfg, bcfg, batch_idx)
 
-            batch_dev = _to_device(batch, device)
+            batch_dev = to_device(batch, device)
             log_x = batch_dev["log_x"]
             log_x_invalid = batch_dev["log_x_invalid"]
 
@@ -140,8 +140,8 @@ class HealingAuditTask:
         qv = _cat(post_valid)
         qi = _cat(post_invalid)
 
-        pre_auroc = _safe_auroc(pv, pi)
-        post_auroc = _safe_auroc(qv, qi)
+        pre_auroc = safe_auroc(pv, pi)
+        post_auroc = safe_auroc(qv, qi)
         mean_var_reduction = float(np.mean(var_reductions)) if var_reductions else float("nan")
         healing_success_rate = float(np.mean(success_rates)) if success_rates else 0.0
 
@@ -169,7 +169,7 @@ def _corrupt_text8_batch(
     ``cfg.hf_dataset.transform_mode`` so the healing path matches whatever
     discrete→continuous pipeline the model was trained with.
     """
-    from benchmarks.corruption import corrupt_token_ids  # noqa: PLC0415
+    from aitchinson_flow.data.corruption import corrupt_token_ids  # noqa: PLC0415
     from aitchinson_flow.data.transforms.discrete import token_ids_to_features  # noqa: PLC0415
 
     token_ids = batch["token_ids"]  # (B, L)

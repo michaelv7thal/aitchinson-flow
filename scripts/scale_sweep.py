@@ -1,13 +1,10 @@
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
-# Allow `python scripts/scale_sweep.py` without an editable install (package is under src/).
-_REPO_ROOT = Path(__file__).resolve().parents[1]
-_SRC = _REPO_ROOT / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
+from _shared.bootstrap import bootstrap_repo_paths
+
+bootstrap_repo_paths(Path(__file__))
 
 from copy import deepcopy  # noqa: E402
 from dataclasses import replace  # noqa: E402

@@ -4,6 +4,7 @@ import math
 import torch
 
 from dataclasses import dataclass, field
+from typing import ClassVar
 
 
 @dataclass
@@ -352,6 +353,82 @@ class TeacherConfig:
 
 
 @dataclass
+class TrainingDataConfig:
+    """Training-time data source selection and generation controls.
+
+    This is intentionally separate from ``benchmark.data_source`` because
+    training objectives may want different input pipelines than benchmark
+    sweeps.
+
+    Two first-class sources are supported (dispatched by
+    ``aitchinson_flow.training.data_sources.build_training_datamodule``):
+
+    * ``source="raw_text"`` — load a raw corpus (``text8`` or the HF-hub
+      datamodule) and feed it through the standard discrete→ILR transform.
+    * ``source="llm_generated"`` — ask a registered causal LM
+      (``aitchinson_flow.llms.registry``) to generate batches on the fly.
+      Generation is seeded per-batch via ``generation_seed`` for
+      reproducibility, and ``use_text8_prompts`` optionally seeds every
+      generation from a text8 prompt window.
+    """
+
+    source: str = "raw_text"
+    """One of: ``"raw_text"``, ``"llm_generated"``."""
+
+    raw_dataset: str = "text8"
+    """Raw-data backend when ``source='raw_text'``.
+
+    Supported: ``"text8"``, ``"hf"``.
+    """
+
+    lm_key: str = "hf_causal"
+    """LLM registry key used when ``source='llm_generated'``."""
+
+    n_batches: int = 200
+    """Number of generated batches per epoch-like pass for iterable teacher data."""
+
+    use_text8_prompts: bool = False
+    text8_prompt_length: int = 32
+    generation_seed: int = 0
+    generation_temperature: float = 1.0
+    generation_top_p: float = 1.0
+
+    _VALID_SOURCES: ClassVar[tuple[str, ...]] = ("raw_text", "llm_generated")
+    _VALID_RAW_DATASETS: ClassVar[tuple[str, ...]] = ("text8", "hf")
+
+    def __post_init__(self) -> None:
+        if self.source not in self._VALID_SOURCES:
+            raise ValueError(
+                f"TrainingDataConfig.source={self.source!r} must be one of {self._VALID_SOURCES}"
+            )
+        if self.raw_dataset not in self._VALID_RAW_DATASETS:
+            raise ValueError(
+                f"TrainingDataConfig.raw_dataset={self.raw_dataset!r} must be one of "
+                f"{self._VALID_RAW_DATASETS}"
+            )
+        if self.n_batches < 1:
+            raise ValueError(
+                f"TrainingDataConfig.n_batches must be >= 1, got {self.n_batches}"
+            )
+        if self.text8_prompt_length < 1:
+            raise ValueError(
+                f"TrainingDataConfig.text8_prompt_length must be >= 1, got "
+                f"{self.text8_prompt_length}"
+            )
+        if self.generation_temperature <= 0.0:
+            raise ValueError(
+                f"TrainingDataConfig.generation_temperature must be > 0 (temperature=0 "
+                f"is not sampling — use a greedy mode instead), got "
+                f"{self.generation_temperature}"
+            )
+        if not 0.0 < self.generation_top_p <= 1.0:
+            raise ValueError(
+                f"TrainingDataConfig.generation_top_p must be in (0, 1], got "
+                f"{self.generation_top_p}"
+            )
+
+
+@dataclass
 class BenchmarkConfig:
     """Benchmark runner settings for model/task/scale sweeps."""
 
@@ -443,6 +520,7 @@ class Config:
     training: TrainingConfig = field(default_factory=TrainingConfig)
     bayesian_generator: BayesianGeneratorConfig = field(default_factory=BayesianGeneratorConfig)
     teacher: TeacherConfig = field(default_factory=TeacherConfig)
+    training_data: TrainingDataConfig = field(default_factory=TrainingDataConfig)
     benchmark: BenchmarkConfig = field(default_factory=BenchmarkConfig)
     per_token_auditor: PerTokenAuditorConfig = field(default_factory=PerTokenAuditorConfig)
     equilibrium: EquilibriumFlowConfig = field(default_factory=EquilibriumFlowConfig)

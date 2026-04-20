@@ -6,7 +6,9 @@ from aitchinson_flow.plots.plots import (
     plot_latent_density,
     plot_loss_curves,
     plot_token_heatmap,
+    save_benchmark_plots,
     save_stage_plots,
+    stage_plot_data_from_scores,
 )
 
 __all__ = [
@@ -15,5 +17,7 @@ __all__ = [
     "plot_latent_density",
     "plot_loss_curves",
     "plot_token_heatmap",
+    "save_benchmark_plots",
     "save_stage_plots",
+    "stage_plot_data_from_scores",
 ]

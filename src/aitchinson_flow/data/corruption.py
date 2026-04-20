@@ -1,4 +1,11 @@
-"""Random token corruption for benchmark invalid-sample generation."""
+"""Random token corruption utilities shared by datamodules and benchmark tasks.
+
+Originally lived under ``benchmarks/corruption.py`` which created a reverse
+dependency: core datamodules in :mod:`aitchinson_flow.data` imported back into
+the benchmark package. The logic belongs in :mod:`aitchinson_flow.data` because
+the text8 datamodule and several other datamodules apply the same corruption
+during training; benchmarks just consume the same helpers.
+"""
 
 from __future__ import annotations
 
@@ -77,7 +84,7 @@ def build_invalid_batch(
     transform_mode: str = "ilr",
     seed: int | None = None,
 ) -> dict[str, torch.Tensor]:
-    """Augment a benchmark batch with corrupted invalid samples.
+    """Augment a batch with corrupted invalid samples (in-place + returned).
 
     Expects ``batch["token_ids"]`` (B, L) and ``batch["logits"]`` (B, L, vocab).
     Adds ``batch["log_x_invalid"]``, ``batch["token_ids_invalid"]``, and
@@ -128,3 +135,10 @@ def build_invalid_batch(
     batch["log_x_invalid"] = log_x_invalid
     batch["logits_invalid"] = batch["logits"].clone()
     return batch
+
+
+__all__ = [
+    "build_invalid_batch",
+    "corrupt_token_ids",
+    "partially_shuffle_token_ids",
+]

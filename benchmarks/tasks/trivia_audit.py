@@ -9,9 +9,10 @@ import torch
 import torch.nn as nn
 
 from aitchinson_flow.config import Config
+from aitchinson_flow.metrics.auroc import safe_auroc
+from aitchinson_flow.training.batch import to_device
 from aitchinson_flow.training.datamodule import DataModule
 from benchmarks.tasks.registry import register
-from benchmarks.tasks.text_audit import _safe_auroc, _to_device
 
 
 @register("trivia_audit")
@@ -48,7 +49,7 @@ class TriviaAuditTask:
         invalid_scores: list[torch.Tensor] = []
 
         for batch in loader:
-            batch = _to_device(batch, device)
+            batch = to_device(batch, device)
             labels: torch.Tensor = batch.get("label", torch.zeros(batch["log_x"].shape[0], dtype=torch.long))
 
             if use_token_ids and "token_ids" in batch:
@@ -65,7 +66,7 @@ class TriviaAuditTask:
 
         v = _cat(valid_scores)
         i = _cat(invalid_scores)
-        auroc = _safe_auroc(v, i)
+        auroc = safe_auroc(v, i)
 
         return {
             "auroc_trivia": auroc,

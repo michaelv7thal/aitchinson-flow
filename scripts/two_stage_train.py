@@ -43,30 +43,32 @@ from __future__ import annotations
 import argparse
 import json
 import logging
-import sys
 from copy import deepcopy
 from dataclasses import replace
 from pathlib import Path
 from typing import Any, Mapping, cast
 
-# Allow `python scripts/two_stage_train.py` without an editable install.
-_REPO_ROOT = Path(__file__).resolve().parents[1]
-_SRC = _REPO_ROOT / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-# Repo root so ``import benchmarks.*`` resolves (plots + text_audit task).
-if str(_REPO_ROOT) not in sys.path:
-    sys.path.append(str(_REPO_ROOT))
+from _shared.bootstrap import bootstrap_repo_paths
+
+# Allow direct script execution without editable install.
+_REPO_ROOT = bootstrap_repo_paths(Path(__file__))
 
 import torch  # noqa: E402
 
 import aitchinson_flow.models  # noqa: E402,F401  — populate model REGISTRY
 
+from _shared.cli import (  # noqa: E402
+    add_training_data_args,
+    apply_training_data_args,
+    positive_int,
+)
+from _shared.smoke import make_smoke_config  # noqa: E402
 from aitchinson_flow.config import Config  # noqa: E402
 from aitchinson_flow.models.bayesian_auditor import (  # noqa: E402
     compose_auditor_from_stages,
 )
 from aitchinson_flow.models.factory import build_model  # noqa: E402
+from aitchinson_flow.training.data_sources import build_training_datamodule  # noqa: E402
 from aitchinson_flow.training.checkpoint import (  # noqa: E402
     config_checkpoint_dict,
     save_checkpoint,
@@ -88,11 +90,9 @@ def _numeric_stage_metrics(stage: str, audit: dict[str, Any] | None) -> dict[str
     return out
 
 
-def _build_default_datamodule(cfg: Config) -> DataModule:
-    """Default to the text8 datamodule (matches benchmark + plan defaults)."""
-    from aitchinson_flow.data.text8_datamodule import Text8DataModule  # noqa: PLC0415
-
-    return Text8DataModule(cfg)
+def _build_default_datamodule(cfg: Config) -> tuple[DataModule, dict[str, Any]]:
+    """Build the configured training data source (raw text or LLM-generated)."""
+    return build_training_datamodule(cfg)
 
 
 def _stage1_config(base: Config, *, epochs: int, ckpt_dir: Path) -> Config:
@@ -263,8 +263,9 @@ def run_two_stage(
             f"least one epoch), got {stage2_epochs}"
         )
     out_dir.mkdir(parents=True, exist_ok=True)
+    data_source_meta: dict[str, Any] | None = None
     if datamodule is None:
-        datamodule = _build_default_datamodule(cfg)
+        datamodule, data_source_meta = _build_default_datamodule(cfg)
     run_group = cfg.training.wandb_group or out_dir.name
 
     s1_history: list[dict[str, float]] = []
@@ -427,6 +428,7 @@ def run_two_stage(
         "stage1_cfg": config_checkpoint_dict(s1_cfg),
         "stage2_cfg": config_checkpoint_dict(s2_cfg),
         "fused_cfg": config_checkpoint_dict(cfg),
+        "training_data_source": data_source_meta,
     }
 
     if save_plots:
@@ -434,42 +436,14 @@ def run_two_stage(
 
         import benchmarks.tasks  # noqa: F401 — register text_audit
 
-        from aitchinson_flow.plots import StagePlotData, save_stage_plots  # noqa: E402
+        from aitchinson_flow.plots import (  # noqa: E402
+            save_stage_plots,
+            stage_plot_data_from_scores,
+        )
         from benchmarks.tasks.registry import build_task  # noqa: E402
 
         plots_dir = out_dir / "plots"
         plots_dir.mkdir(parents=True, exist_ok=True)
-
-        def _stage_data_from_scores(
-            *,
-            stage: str,
-            scores: dict[str, np.ndarray | None],
-            history: list[dict[str, float]] | None,
-        ) -> StagePlotData:
-            return StagePlotData(
-                stage=stage,
-                energy_token_valid=scores.get("auditor_energy_seq_valid"),
-                energy_token_invalid=scores.get("auditor_energy_seq_invalid"),
-                variance_token_valid=scores.get("auditor_var_seq_valid"),
-                variance_token_invalid=scores.get("auditor_var_seq_invalid"),
-                energy_seq_valid=scores.get("auditor_energy_scalar_valid"),
-                energy_seq_invalid=scores.get("auditor_energy_scalar_invalid"),
-                variance_seq_valid=scores.get("auditor_variance_scalar_valid"),
-                variance_seq_invalid=scores.get("auditor_variance_scalar_invalid"),
-                latent_tokens_valid=scores.get("latent_tokens_valid"),
-                latent_tokens_invalid=scores.get("latent_tokens_invalid"),
-                inducing_points=scores.get("inducing_points"),
-                corrupt_mask_invalid=scores.get("corrupt_mask_invalid"),
-                auditor_score_valid=scores.get("auditor_valid"),
-                auditor_score_invalid=scores.get("auditor_invalid"),
-                spilled_seq_scalar_valid=scores.get("spilled_valid"),
-                spilled_seq_scalar_invalid=scores.get("spilled_invalid"),
-                spilled_token_valid=scores.get("spilled_token_valid"),
-                spilled_token_invalid=scores.get("spilled_token_invalid"),
-                geometric_energy_valid=scores.get("energy_valid"),
-                geometric_energy_invalid=scores.get("energy_invalid"),
-                history=history,
-            )
 
         task = build_task("text_audit")
 
@@ -482,8 +456,8 @@ def run_two_stage(
                 dict[str, np.ndarray | None] | None, stage1_audit.pop("_scores", None)
             )
             if stage1_scores is not None:
-                stage1_data = _stage_data_from_scores(
-                    stage="stage1", scores=stage1_scores, history=s1_history or None
+                stage1_data = stage_plot_data_from_scores(
+                    stage1_scores, stage="stage1", history=s1_history or None
                 )
                 # Stage 1 "variance" is a velocity-norm surrogate; the user plots
                 # requested only energy diagnostics for Stage 1, so drop it to
@@ -499,8 +473,8 @@ def run_two_stage(
         stage2_scores = cast(dict[str, np.ndarray | None] | None, stage2_audit.pop("_scores", None))
         stage2_written: dict[str, str] = {}
         if stage2_scores is not None:
-            stage2_data = _stage_data_from_scores(
-                stage="stage2", scores=stage2_scores, history=s2_history or None
+            stage2_data = stage_plot_data_from_scores(
+                stage2_scores, stage="stage2", history=s2_history or None
             )
             stage2_written = save_stage_plots(plots_dir / "stage2", stage2_data)
 
@@ -528,6 +502,7 @@ def run_two_stage(
             "stage2_epochs": stage2_epochs,
             "random_stage2_backbone": random_stage2_backbone,
             "stage2_only": stage2_only,
+            "training_data_source": (data_source_meta or {}).get("source", "external"),
             "out_dir": str(out_dir),
         },
     )
@@ -591,41 +566,15 @@ def run_two_stage(
 
 
 def _smoke_config() -> Config:
-    cfg = Config()
-    cfg.training.device = torch.device("cpu")
-    cfg.training.seed = 0
-    cfg.training.B = 4
-    cfg.training.lr = 1e-3
-    cfg.training.checkpoint_every = 1
-    cfg.training.lr_scheduler = None
-    cfg.training.use_tqdm = False
-    cfg.dataset.K = 27
-    cfg.dataset.L = 8
-    cfg.transformer.d_model = 16
-    cfg.transformer.nhead = 2
-    cfg.transformer.num_layers = 1
-    cfg.transformer.d_latent = 16
-    cfg.gp.num_inducing = 8
-    cfg.benchmark.use_tqdm = False
-    return cfg
+    """Return the shared smoke ``Config`` (re-exported for backwards compat)."""
+    return make_smoke_config()
 
 
-def _positive_int(raw: str) -> int:
-    """argparse type for flags that must be >= 1."""
-    try:
-        value = int(raw)
-    except ValueError as e:
-        raise argparse.ArgumentTypeError(f"expected integer, got {raw!r}") from e
-    if value < 1:
-        raise argparse.ArgumentTypeError(f"expected a positive integer (>= 1), got {value}")
-    return value
-
-
-def main(argv: list[str] | None = None) -> dict[str, Any]:
+def _build_argparser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--out-dir", type=str, default="checkpoints/two_stage/baseline")
-    p.add_argument("--stage1-epochs", type=_positive_int, default=25)
-    p.add_argument("--stage2-epochs", type=_positive_int, default=25)
+    p.add_argument("--stage1-epochs", type=positive_int, default=25)
+    p.add_argument("--stage2-epochs", type=positive_int, default=25)
     p.add_argument(
         "--random-stage2-backbone",
         action="store_true",
@@ -655,9 +604,16 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
             f"Default: {_REPO_ROOT / 'checkpoints/two_stage_baseline_stage1_ckpts.epoch_25.pt'}"
         ),
     )
-    args = p.parse_args(argv)
+    add_training_data_args(p)
+    return p
 
-    cfg = _smoke_config() if args.smoke else Config()
+
+def main(argv: list[str] | None = None) -> dict[str, Any]:
+    args = _build_argparser().parse_args(argv)
+
+    cfg = make_smoke_config() if args.smoke else Config()
+    apply_training_data_args(cfg, args)
+
     out_dir = Path(args.out_dir)
     stage1_backbone_path: Path | None = None
     if args.stage2_only and not args.random_stage2_backbone:
