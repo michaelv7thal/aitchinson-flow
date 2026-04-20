@@ -14,6 +14,8 @@ import torch
 from aitchinson_flow.config import Config
 from aitchinson_flow.data.feature_dim import feature_dim
 from aitchinson_flow.data.transforms.discrete import (
+    token_logits_to_features,
+    token_probs_to_features,
     token_ids_to_clr_x,
     token_ids_to_features,
     token_ids_to_ilr_x,
@@ -108,6 +110,17 @@ class TestTransformModeDispatch:
         assert out.shape == (ids.shape[0], K)
         sums = out.sum(dim=-1)
         assert torch.allclose(sums, torch.zeros_like(sums), atol=1e-5)
+
+    def test_token_probs_to_features_supports_batched_input(self) -> None:
+        probs = torch.full((2, 4, 6), 1.0 / 6.0)
+        out = token_probs_to_features(probs, K=6, transform_mode="ilr")
+        assert out.shape == (2, 4, 5)
+
+    def test_token_logits_to_features_projects_vocab_to_k(self) -> None:
+        logits = torch.randn(3, 5, 10)
+        out = token_logits_to_features(logits, K=6, transform_mode="clr")
+        assert out.shape == (3, 5, 6)
+        assert torch.allclose(out.sum(dim=-1), torch.zeros_like(out[..., 0]), atol=1e-5)
 
 
 class TestModelInputDimRespectsTransformMode:

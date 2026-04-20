@@ -11,6 +11,7 @@ from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
 
 from aitchinson_flow.config import Config
+from aitchinson_flow.data.hf_hub import TEXT8_DATASET_CANDIDATES, load_raw_text_column
 from aitchinson_flow.data.transforms.discrete import token_ids_to_features
 from aitchinson_flow.training.datamodule import DataModule
 
@@ -20,18 +21,21 @@ CHAR2ID: dict[str, int] = {c: i for i, c in enumerate(_ALPHABET)}
 VOCAB_SIZE: int = len(_ALPHABET)  # 27
 
 
-def _load_text8_chars(split: str, cache_dir: str | None = None) -> str:
-    import datasets  # noqa: PLC0415
-
-    candidates = ("afmck/text8", "afm-intelligence/text8")
-    last_err: Exception | None = None
-    for name in candidates:
-        try:
-            ds = datasets.load_dataset(name, split=split, cache_dir=cache_dir)
-            return " ".join(ds["text"])
-        except Exception as e:  # pragma: no cover - network-dependent
-            last_err = e
-    raise RuntimeError(f"could not load text8 from {candidates!r}") from last_err
+def _load_text8_chars(
+    split: str,
+    cache_dir: str | None = None,
+    cfg: Config | None = None,
+) -> str:
+    use_cfg = cfg if cfg is not None else Config()
+    fallback_paths: tuple[str, ...] = ()
+    if use_cfg.raw_text_dataset.source_ref == TEXT8_DATASET_CANDIDATES[0]:
+        fallback_paths = TEXT8_DATASET_CANDIDATES[1:]
+    return load_raw_text_column(
+        use_cfg.raw_text_dataset,
+        split=split,
+        cache_dir=cache_dir,
+        fallback_paths=fallback_paths,
+    )
 
 
 def chunk_text8_to_ids(text: str, L: int) -> Tensor:
@@ -44,11 +48,22 @@ def chunk_text8_to_ids(text: str, L: int) -> Tensor:
     return t.view(n, L)
 
 
-def _load_text8_splits(cache_dir: str | None, L: int) -> tuple[Tensor, Tensor, Tensor]:
+def _load_text8_splits(
+    cache_dir: str | None, L: int, cfg: Config | None = None
+) -> tuple[Tensor, Tensor, Tensor]:
     """Load native train/validation/test splits and chunk into windows."""
-    train_text = _load_text8_chars("train", cache_dir=cache_dir)
-    val_text = _load_text8_chars("validation", cache_dir=cache_dir)
-    test_text = _load_text8_chars("test", cache_dir=cache_dir)
+    use_cfg = cfg if cfg is not None else Config()
+    return _load_text8_splits_cfg(use_cfg, cache_dir, L)
+
+
+def _load_text8_splits_cfg(cfg: Config, cache_dir: str | None, L: int) -> tuple[Tensor, Tensor, Tensor]:
+    """Load native train/validation/test splits and chunk into windows."""
+    split_train = cfg.raw_text_dataset.split_train
+    split_val = cfg.raw_text_dataset.split_val or "validation"
+    split_test = cfg.raw_text_dataset.split_test or "test"
+    train_text = _load_text8_chars(split_train, cache_dir=cache_dir, cfg=cfg)
+    val_text = _load_text8_chars(split_val, cache_dir=cache_dir, cfg=cfg)
+    test_text = _load_text8_chars(split_test, cache_dir=cache_dir, cfg=cfg)
 
     train_windows = chunk_text8_to_ids(train_text, L)
     val_windows = chunk_text8_to_ids(val_text, L)
@@ -171,7 +186,7 @@ class Text8DataModule(DataModule):
         if K != VOCAB_SIZE:
             raise ValueError(f"Text8DataModule expects cfg.dataset.K == {VOCAB_SIZE}, got K={K}")
 
-        train, val, test = _load_text8_splits(tcfg.cache_dir, L)
+        train, val, test = _load_text8_splits_cfg(cfg, tcfg.cache_dir, L)
 
         if tcfg.max_train_windows is not None:
             train = train[: tcfg.max_train_windows]

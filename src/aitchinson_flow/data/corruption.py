@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import torch
 
-from aitchinson_flow.data.transforms.discrete import token_ids_to_features
+from aitchinson_flow.data.transforms.discrete import token_ids_to_features, token_logits_to_features
 
 
 def corrupt_token_ids(
@@ -82,6 +82,7 @@ def build_invalid_batch(
     eps: float = 1e-8,
     label_smoothing: float = 0.0,
     transform_mode: str = "ilr",
+    feature_mode: str = "token_ids",
     seed: int | None = None,
 ) -> dict[str, torch.Tensor]:
     """Augment a batch with corrupted invalid samples (in-place + returned).
@@ -119,21 +120,36 @@ def build_invalid_batch(
                 seed=None if seed is None else seed + 2,
             )
 
-    rows = [
-        token_ids_to_features(
-            row,
+    if feature_mode == "token_probs":
+        logits_invalid = torch.full(
+            (bad_ids.shape[0], bad_ids.shape[1], vocab_size),
+            fill_value=float(torch.log(torch.tensor(eps))),
+            dtype=torch.float32,
+        )
+        logits_invalid.scatter_(dim=-1, index=bad_ids.unsqueeze(-1), value=0.0)
+        log_x_invalid = token_logits_to_features(
+            logits_invalid,
             K=K,
             eps=eps,
-            label_smoothing=label_smoothing,
             transform_mode=transform_mode,
         )
-        for row in bad_ids
-    ]
-    log_x_invalid = torch.stack(rows, dim=0)
+    else:
+        rows = [
+            token_ids_to_features(
+                row,
+                K=K,
+                eps=eps,
+                label_smoothing=label_smoothing,
+                transform_mode=transform_mode,
+            )
+            for row in bad_ids
+        ]
+        log_x_invalid = torch.stack(rows, dim=0)
+        logits_invalid = batch["logits"].clone()
 
     batch["token_ids_invalid"] = bad_ids
     batch["log_x_invalid"] = log_x_invalid
-    batch["logits_invalid"] = batch["logits"].clone()
+    batch["logits_invalid"] = logits_invalid
     return batch
 
 

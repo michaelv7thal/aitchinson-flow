@@ -129,7 +129,7 @@ class TrainingConfig:
     """
     B: int = 128  # Batch size
     epochs: int = 10_000  # Number of epochs
-    lr: float = 1e-3  # Learning rate
+    lr: float = 5e-4  # Learning rate
     loss: str = "hilbert"  # "hilbert" or "mse"
     device: torch.device = field(
         default_factory=lambda: torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -267,7 +267,7 @@ class HFDatasetConfig:
     """Hugging Face Hub / local script loading (raw splits only — no transforms)."""
 
     enabled: bool = False
-    path: str = ""  # Hub repo id or local path
+    path: str = "afmck/text8"  # Hub repo id or local path
     name: str | None = None  # subset / config name for load_dataset
     revision: str | None = None  # reproducible Hub snapshot
     split_train: str = "train"
@@ -338,6 +338,41 @@ class Text8DatasetConfig:
 
 
 @dataclass
+class RawTextDatasetConfig:
+    """Unified source selector for raw text datasets.
+
+    ``provider`` controls how ``source_ref`` is interpreted:
+    - ``"huggingface"``: ``source_ref`` is a HF dataset id (or local load script path).
+    - ``"manual"``: ``source_ref`` is a relative/absolute local dataset path.
+    """
+
+    provider: str = "huggingface"
+    source_ref: str = "afmck/text8"
+    dataset_name: str | None = None
+    revision: str | None = None
+    split_train: str = "train"
+    split_val: str | None = "validation"
+    split_test: str | None = "test"
+    text_column: str = "text"
+    cache_dir: str | None = None
+    trust_remote_code: bool = False
+    streaming: bool = False
+
+    _VALID_PROVIDERS: ClassVar[tuple[str, ...]] = ("huggingface", "manual")
+
+    def __post_init__(self) -> None:
+        if self.provider not in self._VALID_PROVIDERS:
+            raise ValueError(
+                f"RawTextDatasetConfig.provider={self.provider!r} must be one of "
+                f"{self._VALID_PROVIDERS}"
+            )
+        if not self.source_ref:
+            raise ValueError("RawTextDatasetConfig.source_ref must be a non-empty string")
+        if not self.text_column:
+            raise ValueError("RawTextDatasetConfig.text_column must be non-empty")
+
+
+@dataclass
 class TeacherConfig:
     enabled: bool = False
     model_id: str = "gpt2"
@@ -393,8 +428,16 @@ class TrainingDataConfig:
     generation_temperature: float = 1.0
     generation_top_p: float = 1.0
 
+    llm_feature_mode: str = "token_ids"
+    """Feature path for ``source='llm_generated'``.
+
+    - ``"token_ids"``: generated ids -> discrete smoothing -> ILR/CLR.
+    - ``"token_probs"``: LM token distributions -> simplex projection -> ILR/CLR.
+    """
+
     _VALID_SOURCES: ClassVar[tuple[str, ...]] = ("raw_text", "llm_generated")
     _VALID_RAW_DATASETS: ClassVar[tuple[str, ...]] = ("text8", "hf")
+    _VALID_LLM_FEATURE_MODES: ClassVar[tuple[str, ...]] = ("token_ids", "token_probs")
 
     def __post_init__(self) -> None:
         if self.source not in self._VALID_SOURCES:
@@ -405,6 +448,11 @@ class TrainingDataConfig:
             raise ValueError(
                 f"TrainingDataConfig.raw_dataset={self.raw_dataset!r} must be one of "
                 f"{self._VALID_RAW_DATASETS}"
+            )
+        if self.llm_feature_mode not in self._VALID_LLM_FEATURE_MODES:
+            raise ValueError(
+                f"TrainingDataConfig.llm_feature_mode={self.llm_feature_mode!r} must be one of "
+                f"{self._VALID_LLM_FEATURE_MODES}"
             )
         if self.n_batches < 1:
             raise ValueError(
@@ -515,6 +563,7 @@ class Config:
     dataset: DatasetConfig = field(default_factory=DatasetConfig)
     hf_dataset: HFDatasetConfig = field(default_factory=HFDatasetConfig)
     text8_dataset: Text8DatasetConfig = field(default_factory=Text8DatasetConfig)
+    raw_text_dataset: RawTextDatasetConfig = field(default_factory=RawTextDatasetConfig)
     transformer: TransformerConfig = field(default_factory=TransformerConfig)
     gp: GPConfig = field(default_factory=GPConfig)
     training: TrainingConfig = field(default_factory=TrainingConfig)
@@ -524,3 +573,23 @@ class Config:
     benchmark: BenchmarkConfig = field(default_factory=BenchmarkConfig)
     per_token_auditor: PerTokenAuditorConfig = field(default_factory=PerTokenAuditorConfig)
     equilibrium: EquilibriumFlowConfig = field(default_factory=EquilibriumFlowConfig)
+
+    def __post_init__(self) -> None:
+        # Backward-compatible aliases: if the new unified selector stays at defaults,
+        # inherit legacy HF knobs for raw_dataset="hf".
+        if (
+            self.raw_text_dataset.source_ref == "afmck/text8"
+            and self.raw_text_dataset.provider == "huggingface"
+            and self.training_data.raw_dataset == "hf"
+            and self.hf_dataset.path
+        ):
+            self.raw_text_dataset.source_ref = self.hf_dataset.path
+            self.raw_text_dataset.dataset_name = self.hf_dataset.name
+            self.raw_text_dataset.revision = self.hf_dataset.revision
+            self.raw_text_dataset.split_train = self.hf_dataset.split_train
+            self.raw_text_dataset.split_val = self.hf_dataset.split_val
+            self.raw_text_dataset.split_test = self.hf_dataset.split_test
+            self.raw_text_dataset.streaming = self.hf_dataset.streaming
+            self.raw_text_dataset.trust_remote_code = self.hf_dataset.trust_remote_code
+            if self.hf_dataset.path.startswith(("/", "./", "../")):
+                self.raw_text_dataset.provider = "manual"

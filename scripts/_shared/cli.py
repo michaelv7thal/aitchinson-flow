@@ -66,7 +66,50 @@ def add_training_data_args(parser: argparse.ArgumentParser) -> None:
         type=str,
         choices=("text8", "hf"),
         default=None,
-        help="Raw dataset backend when --training-data-source=raw_text.",
+        help="Legacy raw backend selector when --training-data-source=raw_text.",
+    )
+    group.add_argument(
+        "--raw-provider",
+        type=str,
+        choices=("huggingface", "manual"),
+        default=None,
+        help="Unified raw dataset provider (preferred over --raw-dataset backend labels).",
+    )
+    group.add_argument(
+        "--raw-source-ref",
+        type=str,
+        default=None,
+        help="HF dataset id or relative local path for raw text source.",
+    )
+    group.add_argument(
+        "--raw-dataset-name",
+        type=str,
+        default=None,
+        help="Optional HF dataset config/subset name.",
+    )
+    group.add_argument(
+        "--raw-split-train",
+        type=str,
+        default=None,
+        help="Split name for training data within the selected raw dataset.",
+    )
+    group.add_argument(
+        "--raw-split-val",
+        type=str,
+        default=None,
+        help="Split name for validation data within the selected raw dataset.",
+    )
+    group.add_argument(
+        "--raw-split-test",
+        type=str,
+        default=None,
+        help="Split name for test data within the selected raw dataset.",
+    )
+    group.add_argument(
+        "--raw-text-column",
+        type=str,
+        default=None,
+        help="Text field/column name for text corpora loaded via datasets.load_dataset.",
     )
     group.add_argument(
         "--training-lm-key",
@@ -99,6 +142,13 @@ def add_training_data_args(parser: argparse.ArgumentParser) -> None:
         help="Top-p nucleus sampling value for LLM generation.",
     )
     group.add_argument(
+        "--llm-feature-mode",
+        type=str,
+        choices=("token_ids", "token_probs"),
+        default=None,
+        help="Feature path for generated LLM batches.",
+    )
+    group.add_argument(
         "--use-text8-prompts",
         action="store_true",
         help="Condition LLM-generated training batches on text8 prompt windows.",
@@ -121,6 +171,13 @@ def apply_training_data_args(cfg: Config, args: argparse.Namespace) -> None:
     """
     _maybe_set(cfg.training_data, "source", getattr(args, "training_data_source", None))
     _maybe_set(cfg.training_data, "raw_dataset", getattr(args, "raw_dataset", None))
+    _maybe_set(cfg.raw_text_dataset, "provider", getattr(args, "raw_provider", None))
+    _maybe_set(cfg.raw_text_dataset, "source_ref", getattr(args, "raw_source_ref", None))
+    _maybe_set(cfg.raw_text_dataset, "dataset_name", getattr(args, "raw_dataset_name", None))
+    _maybe_set(cfg.raw_text_dataset, "split_train", getattr(args, "raw_split_train", None))
+    _maybe_set(cfg.raw_text_dataset, "split_val", getattr(args, "raw_split_val", None))
+    _maybe_set(cfg.raw_text_dataset, "split_test", getattr(args, "raw_split_test", None))
+    _maybe_set(cfg.raw_text_dataset, "text_column", getattr(args, "raw_text_column", None))
     _maybe_set(cfg.training_data, "lm_key", getattr(args, "training_lm_key", None))
     _maybe_set(cfg.training_data, "n_batches", getattr(args, "generated_batches", None))
     _maybe_set(cfg.training_data, "generation_seed", getattr(args, "generation_seed", None))
@@ -130,6 +187,7 @@ def apply_training_data_args(cfg: Config, args: argparse.Namespace) -> None:
         getattr(args, "generation_temperature", None),
     )
     _maybe_set(cfg.training_data, "generation_top_p", getattr(args, "generation_top_p", None))
+    _maybe_set(cfg.training_data, "llm_feature_mode", getattr(args, "llm_feature_mode", None))
     _maybe_set(
         cfg.training_data,
         "text8_prompt_length",

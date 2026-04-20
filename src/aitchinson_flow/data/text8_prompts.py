@@ -6,6 +6,9 @@ from typing import TYPE_CHECKING
 
 import torch
 
+from aitchinson_flow.config import Config, RawTextDatasetConfig
+from aitchinson_flow.data.hf_hub import TEXT8_DATASET_CANDIDATES, load_raw_text_column
+
 if TYPE_CHECKING:
     from aitchinson_flow.llms.types import CausalLMForInference
 
@@ -16,24 +19,19 @@ def load_text8_prompts(
     n_prompts: int,
     prompt_length: int,
     seed: int = 0,
+    cfg: Config | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Load text8 and return ``(prompt_ids, prompt_mask)``."""
-    import datasets  # noqa: PLC0415
-
-    dataset_candidates = ("afmck/text8", "afm-intelligence/text8")
-    last_error: Exception | None = None
-    ds = None
-    for ds_name in dataset_candidates:
-        try:
-            ds = datasets.load_dataset(ds_name, split="train")
-            break
-        except Exception as e:  # pragma: no cover - depends on remote Hub state
-            last_error = e
-    if ds is None:
-        raise RuntimeError(
-            f"Unable to load any text8 dataset from candidates={dataset_candidates!r}"
-        ) from last_error
-    full_text = " ".join(ds["text"])
+    raw_cfg = cfg.raw_text_dataset if cfg is not None else RawTextDatasetConfig()
+    fallback_paths: tuple[str, ...] = ()
+    if raw_cfg.source_ref == TEXT8_DATASET_CANDIDATES[0]:
+        fallback_paths = TEXT8_DATASET_CANDIDATES[1:]
+    full_text = load_raw_text_column(
+        raw_cfg,
+        split=raw_cfg.split_train,
+        cache_dir=raw_cfg.cache_dir,
+        fallback_paths=fallback_paths,
+    )
 
     ids_1d, mask_1d = lm.encode_text(
         full_text,

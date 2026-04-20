@@ -92,6 +92,15 @@ class TestTeacherEmitsLogits:
             assert "logits" in b
             assert "token_ids" in b
 
+    def test_sample_with_logits_token_probs_mode(self) -> None:
+        cfg = _make_cfg()
+        cfg.training_data.llm_feature_mode = "token_probs"
+        cfg.hf_dataset.transform_mode = "clr"
+        lm = FakeLM(vocab_size=50)
+        teacher = CausalLMTeacher(lm, cfg)
+        out = teacher.sample_with_logits(batch_size=2)
+        assert out["log_x"].shape == (2, cfg.dataset.L, cfg.dataset.K)
+
 
 class TestTextAuditTaskSmoke:
     def test_produces_spilled_and_auditor_metrics(self) -> None:

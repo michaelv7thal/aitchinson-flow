@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader, IterableDataset
 
 from aitchinson_flow.config import Config
 from aitchinson_flow.data.teachers.base import TeacherBackend
-from aitchinson_flow.data.transforms.discrete import token_ids_to_ilr_x
+from aitchinson_flow.data.transforms.discrete import token_ids_to_features, token_logits_to_features
 from aitchinson_flow.llms.types import CausalLMForInference
 from aitchinson_flow.training.datamodule import DataModule
 
@@ -25,6 +25,26 @@ class CausalLMTeacher(TeacherBackend):
     def cfg(self) -> Config:
         return self._cfg
 
+    def _feature_mode(self) -> str:
+        return self._cfg.training_data.llm_feature_mode
+
+    def _materialize(self, t: torch.Tensor) -> torch.Tensor:
+        # Convert inference-mode tensors into ordinary tensors so downstream
+        # training/eval code can request gradients when needed.
+        with torch.inference_mode(False):
+            return t.detach().clone()
+
+    def _token_ids_to_features(self, ids: torch.Tensor) -> torch.Tensor:
+        K = self._cfg.dataset.K
+        eps = self._cfg.hf_dataset.log_simplex_eps
+        ls = self._cfg.hf_dataset.label_smoothing
+        tm = self._cfg.hf_dataset.transform_mode
+        rows = [
+            token_ids_to_features(row, K=K, eps=eps, label_smoothing=ls, transform_mode=tm)
+            for row in ids
+        ]
+        return torch.stack(rows, dim=0)
+
     @torch.inference_mode()
     def sample_log_x(
         self,
@@ -36,8 +56,6 @@ class CausalLMTeacher(TeacherBackend):
         top_p: float = 1.0,
     ) -> torch.Tensor:
         L = self._cfg.dataset.L
-        K = self._cfg.dataset.K
-
         ids = self._lm.generate_ids(
             batch_size=batch_size,
             max_new_tokens=L,
@@ -49,12 +67,17 @@ class CausalLMTeacher(TeacherBackend):
         ids = ids[:, -L:]  # Force exact sequence length
 
         ids_cpu = ids.cpu()
-        rows = [
-            token_ids_to_ilr_x(row, K=K, eps=self._cfg.hf_dataset.log_simplex_eps)
-            for row in ids_cpu
-        ]
-
-        return torch.stack(rows, dim=0)  # (B,L,K-1)
+        if self._feature_mode() == "token_probs":
+            logits = self._lm.forward_logits(input_ids=ids).cpu()
+            return self._materialize(
+                token_logits_to_features(
+                    logits,
+                    K=self._cfg.dataset.K,
+                    eps=self._cfg.hf_dataset.log_simplex_eps,
+                    transform_mode=self._cfg.hf_dataset.transform_mode,
+                )
+            )
+        return self._materialize(self._token_ids_to_features(ids_cpu))
 
     @torch.inference_mode()
     def sample_with_logits(
@@ -74,8 +97,6 @@ class CausalLMTeacher(TeacherBackend):
             logits       : (B, L, V)  — raw LM logits aligned to token_ids
         """
         L = self._cfg.dataset.L
-        K = self._cfg.dataset.K
-
         ids = self._lm.generate_ids(
             batch_size=batch_size,
             max_new_tokens=L,
@@ -89,16 +110,21 @@ class CausalLMTeacher(TeacherBackend):
         logits = self._lm.forward_logits(input_ids=ids)  # (B, L, vocab)
 
         ids_cpu = ids.cpu()
-        rows = [
-            token_ids_to_ilr_x(row, K=K, eps=self._cfg.hf_dataset.log_simplex_eps)
-            for row in ids_cpu
-        ]
-        log_x = torch.stack(rows, dim=0)
+        logits_cpu = logits.cpu()
+        if self._feature_mode() == "token_probs":
+            log_x = token_logits_to_features(
+                logits_cpu,
+                K=self._cfg.dataset.K,
+                eps=self._cfg.hf_dataset.log_simplex_eps,
+                transform_mode=self._cfg.hf_dataset.transform_mode,
+            )
+        else:
+            log_x = self._token_ids_to_features(ids_cpu)
 
         return {
-            "log_x": log_x,
-            "token_ids": ids_cpu,
-            "logits": logits.cpu(),
+            "log_x": self._materialize(log_x),
+            "token_ids": self._materialize(ids_cpu),
+            "logits": self._materialize(logits_cpu),
         }
 
     def __call__(
@@ -177,6 +203,7 @@ class CausalLMTeacherDataset(IterableDataset[dict[str, torch.Tensor]]):
                         eps=self._teacher.cfg.hf_dataset.log_simplex_eps,
                         label_smoothing=self._teacher.cfg.hf_dataset.label_smoothing,
                         transform_mode=self._teacher.cfg.hf_dataset.transform_mode,
+                        feature_mode=self._teacher.cfg.training_data.llm_feature_mode,
                         seed=seed,
                     )
                 yield batch

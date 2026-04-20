@@ -141,6 +141,44 @@ def token_ids_to_features(
     return _project(log_x, mode=transform_mode)
 
 
+def token_probs_to_features(
+    probs: torch.Tensor,
+    K: int,
+    *,
+    eps: float = 1e-8,
+    transform_mode: str = "ilr",
+) -> torch.Tensor:
+    """Simplex probabilities -> ILR/CLR features.
+
+    Accepts ``(L, V)`` or ``(B, L, V)`` and projects the first ``K`` channels.
+    """
+    if probs.ndim not in (2, 3):
+        raise ValueError(f"probs must be 2D or 3D, got shape {tuple(probs.shape)}")
+    if probs.shape[-1] < K:
+        raise ValueError(f"probs last dim must be >= K ({K}), got {probs.shape[-1]}")
+    p = probs[..., :K].to(dtype=torch.float32)
+    p = p.clamp_min(eps)
+    p = p / p.sum(dim=-1, keepdim=True)
+    log_p = p.log()
+    return _project(log_p, mode=transform_mode)
+
+
+def token_logits_to_features(
+    logits: torch.Tensor,
+    K: int,
+    *,
+    eps: float = 1e-8,
+    transform_mode: str = "ilr",
+) -> torch.Tensor:
+    """LM logits -> simplex probabilities -> ILR/CLR features."""
+    if logits.ndim not in (2, 3):
+        raise ValueError(f"logits must be 2D or 3D, got shape {tuple(logits.shape)}")
+    if logits.shape[-1] < K:
+        raise ValueError(f"logits last dim must be >= K ({K}), got {logits.shape[-1]}")
+    probs = torch.softmax(logits[..., :K].to(dtype=torch.float32), dim=-1)
+    return token_probs_to_features(probs, K=K, eps=eps, transform_mode=transform_mode)
+
+
 def token_ids_to_log_x(
     ids: torch.Tensor,
     K: int,

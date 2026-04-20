@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from aitchinson_flow.config import HFDatasetConfig
+from aitchinson_flow.config import HFDatasetConfig, RawTextDatasetConfig
 
 if TYPE_CHECKING:
     from datasets import Dataset, DatasetDict, IterableDataset
+
+
+TEXT8_DATASET_CANDIDATES: tuple[str, ...] = ("afmck/text8", "afm-intelligence/text8")
 
 
 def _require_datasets() -> Any:
@@ -43,6 +47,80 @@ def load_hf_dataset_dict(cfg: HFDatasetConfig) -> Dataset | DatasetDict | Iterab
     raw = datasets.load_dataset(**kwargs)
 
     return raw
+
+
+def infer_provider_from_source_ref(source_ref: str) -> str:
+    """Best-effort source provider inference for legacy aliasing."""
+    p = Path(source_ref)
+    if source_ref.startswith("/") or source_ref.startswith("./") or source_ref.startswith("../"):
+        return "manual"
+    if p.exists():
+        return "manual"
+    return "huggingface"
+
+
+def build_raw_text_load_kwargs(
+    cfg: RawTextDatasetConfig,
+    *,
+    split: str | None = None,
+    cache_dir: str | None = None,
+) -> dict[str, Any]:
+    kwargs: dict[str, Any] = {
+        "path": cfg.source_ref,
+        "name": cfg.dataset_name,
+        "streaming": cfg.streaming,
+        "trust_remote_code": cfg.trust_remote_code,
+    }
+    if cfg.revision is not None:
+        kwargs["revision"] = cfg.revision
+    if split is not None:
+        kwargs["split"] = split
+    resolved_cache_dir = cache_dir if cache_dir is not None else cfg.cache_dir
+    if resolved_cache_dir is not None:
+        kwargs["cache_dir"] = resolved_cache_dir
+    return kwargs
+
+
+def load_raw_text_column(
+    cfg: RawTextDatasetConfig,
+    *,
+    split: str,
+    cache_dir: str | None = None,
+    fallback_paths: tuple[str, ...] = (),
+) -> str:
+    """Load a split and concatenate a text column into a single corpus string."""
+    datasets = _require_datasets()
+    candidates = (cfg.source_ref, *fallback_paths)
+    last_err: Exception | None = None
+    for source_ref in candidates:
+        try:
+            local_cfg = RawTextDatasetConfig(
+                provider=cfg.provider,
+                source_ref=source_ref,
+                dataset_name=cfg.dataset_name,
+                revision=cfg.revision,
+                split_train=cfg.split_train,
+                split_val=cfg.split_val,
+                split_test=cfg.split_test,
+                text_column=cfg.text_column,
+                cache_dir=cfg.cache_dir,
+                trust_remote_code=cfg.trust_remote_code,
+                streaming=cfg.streaming,
+            )
+            ds = datasets.load_dataset(
+                **build_raw_text_load_kwargs(local_cfg, split=split, cache_dir=cache_dir)
+            )
+            if local_cfg.text_column not in ds.column_names:
+                raise KeyError(
+                    f"text column {local_cfg.text_column!r} missing in dataset columns "
+                    f"{list(ds.column_names)!r}"
+                )
+            return " ".join(ds[local_cfg.text_column])
+        except Exception as e:  # pragma: no cover - network/local IO dependent
+            last_err = e
+    raise RuntimeError(
+        f"Unable to load text split={split!r} from source_ref={cfg.source_ref!r}"
+    ) from last_err
 
 
 def _get_split(raw: Any, split: str) -> Any:

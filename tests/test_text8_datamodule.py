@@ -60,7 +60,7 @@ class TestText8DataModule:
 
         with patch(
             "aitchinson_flow.data.text8_datamodule._load_text8_chars",
-            side_effect=lambda split, cache_dir=None: {
+            side_effect=lambda split, cache_dir=None, cfg=None: {
                 "train": fake_train,
                 "validation": fake_val,
                 "test": fake_test,

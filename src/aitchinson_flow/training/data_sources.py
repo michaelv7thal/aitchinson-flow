@@ -26,9 +26,10 @@ prompt settings — to reproduce the dataset at a later date.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import Any
 
-from aitchinson_flow.config import Config
+from aitchinson_flow.config import Config, HFDatasetConfig
 from aitchinson_flow.training.datamodule import DataModule
 
 
@@ -53,12 +54,38 @@ def build_training_datamodule(cfg: Config) -> tuple[DataModule, dict[str, Any]]:
 
 def _build_raw_text_datamodule(cfg: Config) -> tuple[DataModule, dict[str, Any]]:
     dataset = cfg.training_data.raw_dataset
+    raw_cfg = cfg.raw_text_dataset
+    if (
+        dataset == "hf"
+        and raw_cfg.source_ref == "afmck/text8"
+        and cfg.hf_dataset.path
+    ):
+        raw_cfg = replace(
+            raw_cfg,
+            provider="manual"
+            if cfg.hf_dataset.path.startswith(("/", "./", "../"))
+            else "huggingface",
+            source_ref=cfg.hf_dataset.path,
+            dataset_name=cfg.hf_dataset.name,
+            revision=cfg.hf_dataset.revision,
+            split_train=cfg.hf_dataset.split_train,
+            split_val=cfg.hf_dataset.split_val,
+            split_test=cfg.hf_dataset.split_test,
+            trust_remote_code=cfg.hf_dataset.trust_remote_code,
+            streaming=cfg.hf_dataset.streaming,
+        )
     if dataset == "text8":
         from aitchinson_flow.data.text8_datamodule import Text8DataModule  # noqa: PLC0415
 
         return Text8DataModule(cfg), {
             "source": "raw_text",
             "raw_dataset": "text8",
+            "raw_provider": raw_cfg.provider,
+            "raw_source_ref": raw_cfg.source_ref,
+            "raw_dataset_name": raw_cfg.dataset_name,
+            "raw_split_train": raw_cfg.split_train,
+            "raw_split_val": raw_cfg.split_val,
+            "raw_split_test": raw_cfg.split_test,
             "seq_length": cfg.dataset.L,
             "vocab_size": cfg.dataset.K,
             "corrupt_rate": cfg.text8_dataset.train_corrupt_rate,
@@ -69,14 +96,33 @@ def _build_raw_text_datamodule(cfg: Config) -> tuple[DataModule, dict[str, Any]]
     if dataset == "hf":
         from aitchinson_flow.data.transforms.hf_datamodule import HFDataModule  # noqa: PLC0415
 
-        return HFDataModule(cfg), {
+        provider = raw_cfg.provider
+        hf_path = raw_cfg.source_ref
+        hf_cfg: HFDatasetConfig = replace(
+            cfg.hf_dataset,
+            enabled=True,
+            path=hf_path,
+            name=raw_cfg.dataset_name,
+            revision=raw_cfg.revision,
+            split_train=raw_cfg.split_train,
+            split_val=raw_cfg.split_val,
+            split_test=raw_cfg.split_test,
+            streaming=raw_cfg.streaming,
+            trust_remote_code=raw_cfg.trust_remote_code,
+            row_input_key=cfg.hf_dataset.row_input_key,
+        )
+        runtime_cfg = replace(cfg, hf_dataset=hf_cfg)
+        return HFDataModule(runtime_cfg), {
             "source": "raw_text",
             "raw_dataset": "hf",
-            "hf_path": cfg.hf_dataset.path,
-            "hf_name": cfg.hf_dataset.name,
-            "hf_revision": cfg.hf_dataset.revision,
-            "hf_split_train": cfg.hf_dataset.split_train,
-            "hf_split_val": cfg.hf_dataset.split_val,
+            "raw_provider": provider,
+            "raw_source_ref": raw_cfg.source_ref,
+            "raw_dataset_name": raw_cfg.dataset_name,
+            "hf_path": hf_cfg.path,
+            "hf_name": hf_cfg.name,
+            "hf_revision": hf_cfg.revision,
+            "hf_split_train": hf_cfg.split_train,
+            "hf_split_val": hf_cfg.split_val,
             "seq_length": cfg.dataset.L,
             "vocab_size": cfg.dataset.K,
         }
@@ -106,6 +152,7 @@ def _build_llm_generated_datamodule(cfg: Config) -> tuple[DataModule, dict[str, 
             n_prompts=n_prompts,
             prompt_length=cfg.training_data.text8_prompt_length,
             seed=cfg.training_data.generation_seed,
+            cfg=cfg,
         )
 
     dm = CausalLMTeacherDataModule(
@@ -141,6 +188,7 @@ def _build_llm_generated_datamodule(cfg: Config) -> tuple[DataModule, dict[str, 
         "generation_seed": cfg.training_data.generation_seed,
         "generation_temperature": cfg.training_data.generation_temperature,
         "generation_top_p": cfg.training_data.generation_top_p,
+        "llm_feature_mode": cfg.training_data.llm_feature_mode,
         "invalid_corrupt_rate": cfg.text8_dataset.train_corrupt_rate,
         "invalid_order_mix_rate": cfg.text8_dataset.train_order_mix_rate,
         "invalid_order_mix_prob": cfg.text8_dataset.order_mix_prob,
