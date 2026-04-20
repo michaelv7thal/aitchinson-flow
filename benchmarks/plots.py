@@ -369,8 +369,8 @@ def save_all_plots(
         plot_roc(methods, out / "roc.png")
 
     plot_sequence_spilled(
-        scores.get("spilled_seq_valid"),
-        scores.get("spilled_seq_invalid"),
+        scores.get("spilled_token_valid"),
+        scores.get("spilled_token_invalid"),
         out / "sequence_spilled.png",
     )
     plot_sequence_series(

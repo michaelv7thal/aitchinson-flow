@@ -207,6 +207,8 @@ class TextAuditTask:
         audit_var_invalid_seqs: list[torch.Tensor] = []
         latent_valid_seqs: list[torch.Tensor] = []
         latent_invalid_seqs: list[torch.Tensor] = []
+        token_ids_valid_seqs: list[torch.Tensor] = []
+        token_ids_invalid_seqs: list[torch.Tensor] = []
         # Latents can be large; cap the number of sequences retained for plots.
         latent_cap = int(getattr(bcfg, "plot_latent_cap", 256))
         inducing_points: torch.Tensor | None = None
@@ -230,6 +232,10 @@ class TextAuditTask:
             batch_dev = _to_device(batch, device)
             out = auditor.audit(batch_dev)
             running_average(agg, counts, out)
+
+            if "token_ids" in batch and "token_ids_invalid" in batch:
+                token_ids_valid_seqs.append(batch["token_ids"].detach().cpu())
+                token_ids_invalid_seqs.append(batch["token_ids_invalid"].detach().cpu())
 
             v_score = _auditor_score(model, batch_dev["log_x"], ctx=batch_dev.get("ctx_1"))
             i_score = (
@@ -357,6 +363,40 @@ class TextAuditTask:
             "corrupt_rate": float(bcfg.corrupt_rate),
         }
 
+        audit_energy_seq_valid_np = (
+            torch.cat(audit_energy_valid_seqs, dim=0).numpy() if audit_energy_valid_seqs else None
+        )
+        audit_energy_seq_invalid_np = (
+            torch.cat(audit_energy_invalid_seqs, dim=0).numpy()
+            if audit_energy_invalid_seqs
+            else None
+        )
+        audit_var_seq_valid_np = (
+            torch.cat(audit_var_valid_seqs, dim=0).numpy() if audit_var_valid_seqs else None
+        )
+        audit_var_seq_invalid_np = (
+            torch.cat(audit_var_invalid_seqs, dim=0).numpy() if audit_var_invalid_seqs else None
+        )
+        spilled_token_valid_np = (
+            torch.cat(sp_valid_seqs, dim=0).numpy() if sp_valid_seqs else None
+        )
+        spilled_token_invalid_np = (
+            torch.cat(sp_invalid_seqs, dim=0).numpy() if sp_invalid_seqs else None
+        )
+
+        # Corruption ground truth: derived from (token_ids_invalid != token_ids).
+        # Captures random-replace and partial-shuffle effects alike, at the cost
+        # of missing the rare case where a shuffle leaves a token in place.
+        corrupt_mask_invalid_np: np.ndarray | None = None
+        if token_ids_valid_seqs and token_ids_invalid_seqs:
+            tids_v = torch.cat(token_ids_valid_seqs, dim=0)
+            tids_i = torch.cat(token_ids_invalid_seqs, dim=0)
+            if tids_v.shape == tids_i.shape:
+                corrupt_mask_invalid_np = (tids_i != tids_v).to(torch.int8).numpy()
+
+        def _seq_mean(x: np.ndarray | None) -> np.ndarray | None:
+            return None if x is None else x.mean(axis=1)
+
         result["_scores"] = {
             "auditor_valid": v_audit,
             "auditor_invalid": i_audit,
@@ -366,26 +406,17 @@ class TextAuditTask:
             "energy_invalid": i_eng,
             "spilled_valid": v_spill,
             "spilled_invalid": i_spill,
-            "spilled_seq_valid": (
-                torch.cat(sp_valid_seqs, dim=0).numpy() if sp_valid_seqs else None
-            ),
-            "spilled_seq_invalid": (
-                torch.cat(sp_invalid_seqs, dim=0).numpy() if sp_invalid_seqs else None
-            ),
-            "auditor_energy_seq_valid": (
-                torch.cat(audit_energy_valid_seqs, dim=0).numpy() if audit_energy_valid_seqs else None
-            ),
-            "auditor_energy_seq_invalid": (
-                torch.cat(audit_energy_invalid_seqs, dim=0).numpy()
-                if audit_energy_invalid_seqs
-                else None
-            ),
-            "auditor_var_seq_valid": (
-                torch.cat(audit_var_valid_seqs, dim=0).numpy() if audit_var_valid_seqs else None
-            ),
-            "auditor_var_seq_invalid": (
-                torch.cat(audit_var_invalid_seqs, dim=0).numpy() if audit_var_invalid_seqs else None
-            ),
+            "spilled_token_valid": spilled_token_valid_np,
+            "spilled_token_invalid": spilled_token_invalid_np,
+            "auditor_energy_seq_valid": audit_energy_seq_valid_np,
+            "auditor_energy_seq_invalid": audit_energy_seq_invalid_np,
+            "auditor_var_seq_valid": audit_var_seq_valid_np,
+            "auditor_var_seq_invalid": audit_var_seq_invalid_np,
+            "auditor_energy_scalar_valid": _seq_mean(audit_energy_seq_valid_np),
+            "auditor_energy_scalar_invalid": _seq_mean(audit_energy_seq_invalid_np),
+            "auditor_variance_scalar_valid": _seq_mean(audit_var_seq_valid_np),
+            "auditor_variance_scalar_invalid": _seq_mean(audit_var_seq_invalid_np),
+            "corrupt_mask_invalid": corrupt_mask_invalid_np,
             "latent_tokens_valid": (
                 torch.cat(latent_valid_seqs, dim=0).numpy() if latent_valid_seqs else None
             ),
@@ -396,6 +427,25 @@ class TextAuditTask:
                 inducing_points.numpy() if inducing_points is not None else None
             ),
         }
+
+        # Token-level AUROC surfaced in the orchestration manifest.
+        if audit_energy_seq_valid_np is not None and audit_energy_seq_invalid_np is not None:
+            result["auroc_auditor_token_all"] = _safe_auroc(
+                audit_energy_seq_valid_np.ravel(),
+                audit_energy_seq_invalid_np.ravel(),
+            )
+            if corrupt_mask_invalid_np is not None:
+                mask_bool = corrupt_mask_invalid_np.astype(bool)
+                if mask_bool.shape == audit_energy_seq_invalid_np.shape:
+                    result["auroc_auditor_token_corrupted"] = _safe_auroc(
+                        audit_energy_seq_valid_np.ravel(),
+                        audit_energy_seq_invalid_np[mask_bool],
+                    )
+        if spilled_token_valid_np is not None and spilled_token_invalid_np is not None:
+            result["auroc_spilled_token_all"] = _safe_auroc(
+                spilled_token_valid_np.ravel(),
+                spilled_token_invalid_np.ravel(),
+            )
 
         # Corrupt-rate sweep (Experiment 3): re-run at multiple corruption levels
         sweep = cfg.benchmark.corrupt_rate_sweep

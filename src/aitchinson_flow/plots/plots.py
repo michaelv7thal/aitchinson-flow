@@ -12,6 +12,7 @@ bundle and writes every requested artifact for one stage into `out_dir`.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
@@ -35,6 +36,21 @@ def _as_np(x: np.ndarray | None) -> np.ndarray | None:
     return arr if arr.size else None
 
 
+def _auroc_or_nan(valid: np.ndarray | None, invalid: np.ndarray | None) -> float:
+    """AUROC with valid=0, invalid=1; NaN if either class is empty."""
+    v = _finite(valid) if valid is not None else np.empty(0)
+    i = _finite(invalid) if invalid is not None else np.empty(0)
+    if v.size == 0 or i.size == 0:
+        return float("nan")
+    from sklearn.metrics import roc_auc_score  # noqa: PLC0415
+
+    labels = np.concatenate([np.zeros(v.size), np.ones(i.size)])
+    scores = np.concatenate([v, i])
+    if not np.isfinite(scores).all():
+        scores = np.nan_to_num(scores, nan=0.0, posinf=0.0, neginf=0.0)
+    return float(roc_auc_score(labels, scores))
+
+
 @dataclass
 class StagePlotData:
     """Plot-ready payload emitted by `text_audit` for one stage.
@@ -46,19 +62,31 @@ class StagePlotData:
         energy_token_valid / energy_token_invalid: Per-token energies, shape
             ``(N, L)``. Stage 1: ``-d_H`` Hilbert energy. Stage 2: GP predictive
             mean.
-        energy_seq_valid / energy_seq_invalid: Per-sequence energies, shape
-            ``(N,)``. Typically the mean of ``energy_token_*`` over positions.
+        energy_seq_valid / energy_seq_invalid: Per-sequence scalar energies,
+            shape ``(N,)``. Populated explicitly by the audit task;
+            ``save_stage_plots`` does not derive from token-mean anymore.
         variance_token_valid / variance_token_invalid: Per-token variances,
             shape ``(N, L)``. Stage 2: GP epistemic variance. Stage 1:
             velocity-norm surrogate (optional; typically unused for Stage 1
             plots).
-        variance_seq_valid / variance_seq_invalid: Per-sequence variances,
-            shape ``(N,)``.
+        variance_seq_valid / variance_seq_invalid: Per-sequence scalar
+            variances, shape ``(N,)``. Explicit, not derived.
         latent_tokens_valid / latent_tokens_invalid: Token latents used by the
             GP head, shape ``(N, L, d_latent)``. Projected to 2D for the
             density plot.
         inducing_points: GP inducing locations, shape ``(M, d_latent)``
             (Stage 2 only; ``None`` for Stage 1).
+        corrupt_mask_invalid: Ground-truth corruption mask for invalid
+            sequences, shape ``(N, L)``, 0/1. True where the invalid token_id
+            differs from the clean token_id.
+        auditor_score_valid / auditor_score_invalid: Sequence-level auditor
+            anomaly scores, shape ``(N,)``. Used for the combined ROC.
+        spilled_seq_scalar_valid / spilled_seq_scalar_invalid: Sequence-level
+            spilled-energy anomaly scores, shape ``(N,)``.
+        spilled_token_valid / spilled_token_invalid: Per-position spilled
+            energy, shape ``(N, L-1)``.
+        geometric_energy_valid / geometric_energy_invalid: Sequence-level
+            Stage 1 geometric anomaly scores, shape ``(N,)`` (Stage 1 only).
         history: Optional per-epoch training history (list of dicts). May
             contain ``val_*`` keys for validation metrics.
     """
@@ -75,6 +103,15 @@ class StagePlotData:
     latent_tokens_valid: np.ndarray | None = None
     latent_tokens_invalid: np.ndarray | None = None
     inducing_points: np.ndarray | None = None
+    corrupt_mask_invalid: np.ndarray | None = None
+    auditor_score_valid: np.ndarray | None = None
+    auditor_score_invalid: np.ndarray | None = None
+    spilled_seq_scalar_valid: np.ndarray | None = None
+    spilled_seq_scalar_invalid: np.ndarray | None = None
+    spilled_token_valid: np.ndarray | None = None
+    spilled_token_invalid: np.ndarray | None = None
+    geometric_energy_valid: np.ndarray | None = None
+    geometric_energy_invalid: np.ndarray | None = None
     history: list[dict[str, float]] | None = None
 
 
@@ -86,6 +123,7 @@ def plot_histogram(
     title: str,
     xlabel: str,
     bins: int = 40,
+    annotation: str | None = None,
 ) -> None:
     """Overlay histogram of valid vs invalid scalar scores."""
     v = _finite(valid) if valid is not None else np.empty(0)
@@ -101,6 +139,16 @@ def plot_histogram(
     ax.set_ylabel("count")
     ax.set_title(title)
     ax.legend()
+    if annotation:
+        ax.text(
+            0.02,
+            0.97,
+            annotation,
+            transform=ax.transAxes,
+            va="top",
+            fontsize=8,
+            bbox={"facecolor": "white", "alpha": 0.7, "edgecolor": "none"},
+        )
     fig.tight_layout()
     fig.savefig(out_path, dpi=120)
     plt.close(fig)
@@ -113,11 +161,12 @@ def plot_loss_curves(
     title: str = "training losses per epoch",
     keys: Iterable[str] | None = None,
 ) -> None:
-    """Plot every numeric metric in ``history``, pairing ``val_*`` with base.
+    """Plot each numeric metric in ``history`` on its own subplot.
 
-    Training keys render as solid lines; matching ``val_<key>`` entries render
-    as dashed lines in the same colour so train/val pairs are visually
-    comparable on a shared axis.
+    Loss components can differ in scale by orders of magnitude (e.g. ``kl``
+    vs ``nll``); shared-axis plots collapse the smaller ones to zero. Each
+    base key gets its own row sharing only the x-axis so every component
+    stays legible. Matching ``val_<key>`` entries render as dashed lines.
     """
     if not history:
         return
@@ -137,13 +186,14 @@ def plot_loss_curves(
         return
 
     xs = np.arange(1, len(history) + 1)
-    fig, ax = plt.subplots(figsize=(6.5, 4.5))
-    for idx, k in enumerate(base_keys):
-        color = f"C{idx % 10}"
+    n = len(base_keys)
+    fig, axes = plt.subplots(nrows=n, ncols=1, figsize=(7.0, 2.2 * n), sharex=True)
+    axes = np.atleast_1d(axes)
+    for ax, k in zip(axes, base_keys):
         train_ys = [float(h[k]) for h in history if k in h]
         train_xs = [x for x, h in zip(xs, history) if k in h]
         if train_ys:
-            ax.plot(train_xs, train_ys, color=color, marker="o", markersize=3, label=f"train/{k}")
+            ax.plot(train_xs, train_ys, color="C0", marker="o", markersize=3, label=f"train/{k}")
 
         val_key = f"val_{k}"
         val_ys = [float(h[val_key]) for h in history if val_key in h]
@@ -152,16 +202,52 @@ def plot_loss_curves(
             ax.plot(
                 val_xs,
                 val_ys,
-                color=color,
+                color="C0",
                 marker="s",
                 markersize=3,
                 linestyle="--",
                 label=f"val/{k}",
             )
+        ax.set_title(k, fontsize=9)
+        ax.set_ylabel(k, fontsize=8)
+        ax.legend(fontsize=7, loc="best")
+    axes[-1].set_xlabel("epoch")
+    fig.suptitle(title)
+    fig.tight_layout(rect=(0, 0, 1, 0.97))
+    fig.savefig(out_path, dpi=120)
+    plt.close(fig)
+
+
+def plot_total_loss(
+    history: list[dict[str, float]] | None,
+    out_path: Path | str,
+    *,
+    title: str = "total loss per epoch",
+) -> None:
+    """Single-axes overview: ``loss`` and ``val_loss`` only.
+
+    Produced alongside ``plot_loss_curves`` so the quick-look is always one
+    figure while component diagnostics live in the multi-row file.
+    """
+    if not history:
+        return
+    train_ys = [float(h["loss"]) for h in history if "loss" in h]
+    train_xs = [i + 1 for i, h in enumerate(history) if "loss" in h]
+    val_ys = [float(h["val_loss"]) for h in history if "val_loss" in h]
+    val_xs = [i + 1 for i, h in enumerate(history) if "val_loss" in h]
+    if not train_ys and not val_ys:
+        return
+    fig, ax = plt.subplots(figsize=(6, 4))
+    if train_ys:
+        ax.plot(train_xs, train_ys, color="C0", marker="o", markersize=3, label="train/loss")
+    if val_ys:
+        ax.plot(
+            val_xs, val_ys, color="C0", marker="s", markersize=3, linestyle="--", label="val/loss"
+        )
     ax.set_xlabel("epoch")
-    ax.set_ylabel("metric value")
+    ax.set_ylabel("loss")
     ax.set_title(title)
-    ax.legend(fontsize=8, ncol=2)
+    ax.legend()
     fig.tight_layout()
     fig.savefig(out_path, dpi=120)
     plt.close(fig)
@@ -175,8 +261,15 @@ def plot_token_heatmap(
     cbar_label: str,
     n_samples: int = 32,
     cmap: str = "magma",
+    corrupt_mask: np.ndarray | None = None,
 ) -> None:
-    """Heatmap of up to ``n_samples`` sequences × L token-level values."""
+    """Heatmap of up to ``n_samples`` sequences × L token-level values.
+
+    When ``corrupt_mask`` is supplied with matching shape, cyan ``x`` markers
+    are overlaid on cells where the invalid token differs from the clean
+    token — giving a direct visual check on whether high energy/variance
+    co-locates with the actual corruption.
+    """
     if values is None:
         return
     arr = np.asarray(values)
@@ -188,7 +281,26 @@ def plot_token_heatmap(
     im = ax.imshow(mat, aspect="auto", cmap=cmap, interpolation="nearest")
     ax.set_xlabel("token position")
     ax.set_ylabel("sequence index")
-    ax.set_title(title)
+    full_title = title
+    if corrupt_mask is not None:
+        mask = np.asarray(corrupt_mask)
+        if mask.shape == arr.shape:
+            mask_slice = mask[:n].astype(bool)
+            rows, cols = np.where(mask_slice)
+            if rows.size:
+                ax.scatter(
+                    cols,
+                    rows,
+                    marker="x",
+                    s=18,
+                    color="cyan",
+                    linewidths=0.8,
+                    zorder=3,
+                    label="scrambled",
+                )
+                full_title = f"{title}  (x = scrambled token)"
+                ax.legend(loc="upper right", fontsize=7)
+    ax.set_title(full_title)
     cbar = fig.colorbar(im, ax=ax)
     cbar.set_label(cbar_label)
     fig.tight_layout()
@@ -331,6 +443,127 @@ def plot_latent_density(
     del mean, components  # unused beyond projection
 
 
+def plot_corruption_comparison(
+    values_invalid: np.ndarray | None,
+    corrupt_mask: np.ndarray | None,
+    out_path: Path | str,
+    *,
+    title: str,
+    xlabel: str,
+    bins: int = 40,
+    plot_kind: str = "violin",
+) -> None:
+    """Compare per-token scores at corrupted vs clean positions in invalid seqs.
+
+    This is the primary experimental check: within invalid sequences, tokens
+    that were actually scrambled should score higher than tokens that were
+    left alone. A violin plot surfaces the distributional shift; histogram
+    mode is kept as an alternative for distribution shape inspection.
+    """
+    if values_invalid is None or corrupt_mask is None:
+        return
+    vals = np.asarray(values_invalid)
+    mask = np.asarray(corrupt_mask)
+    if vals.shape != mask.shape or vals.size == 0:
+        return
+    mask_bool = mask.astype(bool)
+    corrupted = _finite(vals[mask_bool])
+    clean = _finite(vals[~mask_bool])
+    if corrupted.size == 0 and clean.size == 0:
+        return
+
+    auc = _auroc_or_nan(clean, corrupted)
+    mu_clean = float(clean.mean()) if clean.size else float("nan")
+    mu_corr = float(corrupted.mean()) if corrupted.size else float("nan")
+    annotation = (
+        f"μ_clean={mu_clean:+.3f}\nμ_scrambled={mu_corr:+.3f}\nAUROC={auc:.3f}"
+    )
+
+    fig, ax = plt.subplots(figsize=(6, 4))
+    if plot_kind == "hist":
+        if clean.size:
+            ax.hist(clean, bins=bins, alpha=0.6, color="C2", label=f"clean (n={clean.size})")
+        if corrupted.size:
+            ax.hist(
+                corrupted,
+                bins=bins,
+                alpha=0.6,
+                color="C3",
+                label=f"scrambled (n={corrupted.size})",
+            )
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel("count")
+        ax.legend()
+    else:
+        parts = [d for d in (clean, corrupted) if d.size]
+        positions = [p for p, d in zip([0, 1], (clean, corrupted)) if d.size]
+        ax.violinplot(parts, positions=positions, showmedians=True)
+        ax.set_xticks([0, 1])
+        ax.set_xticklabels(
+            [f"clean (n={clean.size})", f"scrambled (n={corrupted.size})"]
+        )
+        ax.set_ylabel(xlabel)
+    ax.set_title(title)
+    ax.text(
+        0.02,
+        0.97,
+        annotation,
+        transform=ax.transAxes,
+        va="top",
+        fontsize=8,
+        bbox={"facecolor": "white", "alpha": 0.7, "edgecolor": "none"},
+    )
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=120)
+    plt.close(fig)
+
+
+def plot_roc_curves(
+    methods: dict[str, tuple[np.ndarray | None, np.ndarray | None]],
+    out_path: Path | str,
+    *,
+    title: str = "ROC: valid vs invalid",
+) -> dict[str, float]:
+    """Render one ROC per method on a shared axes; return ``{name: AUROC}``."""
+    from sklearn.metrics import roc_auc_score, roc_curve  # noqa: PLC0415
+
+    aurocs: dict[str, float] = {}
+    fig, ax = plt.subplots(figsize=(5.5, 5))
+    any_plotted = False
+    for name, pair in methods.items():
+        v_raw, i_raw = pair
+        v = _finite(v_raw) if v_raw is not None else np.empty(0)
+        i = _finite(i_raw) if i_raw is not None else np.empty(0)
+        if v.size == 0 or i.size == 0:
+            print(f"plot_roc_curves: skipping {name!r} (empty class)")
+            continue
+        labels = np.concatenate([np.zeros(v.size), np.ones(i.size)])
+        scores = np.concatenate([v, i])
+        if not np.isfinite(scores).all():
+            scores = np.nan_to_num(scores, nan=0.0, posinf=0.0, neginf=0.0)
+        auc = float(roc_auc_score(labels, scores))
+        fpr, tpr, _ = roc_curve(labels, scores)
+        ax.plot(fpr, tpr, label=f"{name} (AUROC={auc:.3f})")
+        aurocs[name] = auc
+        any_plotted = True
+
+    if not any_plotted:
+        plt.close(fig)
+        return aurocs
+
+    ax.plot([0, 1], [0, 1], "--", color="grey", alpha=0.6, label="chance")
+    ax.set_xlabel("false positive rate")
+    ax.set_ylabel("true positive rate")
+    ax.set_title(title)
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    ax.legend(fontsize=8, loc="lower right")
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=120)
+    plt.close(fig)
+    return aurocs
+
+
 def save_stage_plots(out_dir: Path | str, data: StagePlotData) -> dict[str, str]:
     """Render every available plot for a single stage into ``out_dir``.
 
@@ -342,15 +575,23 @@ def save_stage_plots(out_dir: Path | str, data: StagePlotData) -> dict[str, str]
     stage = data.stage
     written: dict[str, str] = {}
 
-    # ---- Loss curves (train + val pairs) -----------------------------------
+    # ---- Loss curves: per-component subplots + total-loss overview ---------
     if data.history:
-        fname = f"{stage}_loss_curves.png"
+        components_name = f"{stage}_loss_components.png"
         plot_loss_curves(
             data.history,
-            out / fname,
-            title=f"{stage}: training/validation losses per epoch",
+            out / components_name,
+            title=f"{stage}: training/validation loss components per epoch",
         )
-        written["loss_curves"] = fname
+        written["loss_components"] = components_name
+
+        total_name = f"{stage}_loss_total.png"
+        plot_total_loss(
+            data.history,
+            out / total_name,
+            title=f"{stage}: total loss per epoch",
+        )
+        written["loss_total"] = total_name
 
     # ---- Token-level energy histogram --------------------------------------
     etv = _as_np(data.energy_token_valid)
@@ -366,21 +607,24 @@ def save_stage_plots(out_dir: Path | str, data: StagePlotData) -> dict[str, str]
         )
         written["hist_token_energy"] = fname
 
-    # ---- Sequence-level energy histogram -----------------------------------
+    # ---- Sequence-level energy histogram (explicit scalars from task) ------
     esv = _as_np(data.energy_seq_valid)
     esi = _as_np(data.energy_seq_invalid)
-    if esv is None and etv is not None:
-        esv = etv.mean(axis=1)
-    if esi is None and eti is not None:
-        esi = eti.mean(axis=1)
     if esv is not None or esi is not None:
         fname = f"{stage}_hist_sequence_energy.png"
+        auc = _auroc_or_nan(esv, esi)
+        sep = (
+            float(np.asarray(esi).mean() - np.asarray(esv).mean())
+            if esv is not None and esi is not None
+            else float("nan")
+        )
         plot_histogram(
             esv,
             esi,
             out / fname,
             title=f"{stage}: per-sequence energy (valid vs invalid)",
-            xlabel="sequence energy (mean over tokens)",
+            xlabel="sequence energy",
+            annotation=f"AUROC={auc:.3f}\nΔμ={sep:+.3f}",
         )
         written["hist_sequence_energy"] = fname
 
@@ -398,25 +642,29 @@ def save_stage_plots(out_dir: Path | str, data: StagePlotData) -> dict[str, str]
         )
         written["hist_token_variance"] = fname
 
-    # ---- Sequence-level variance histogram (Stage 2) -----------------------
+    # ---- Sequence-level variance histogram (explicit scalars from task) ----
     vsv = _as_np(data.variance_seq_valid)
     vsi = _as_np(data.variance_seq_invalid)
-    if vsv is None and vtv is not None:
-        vsv = vtv.mean(axis=1)
-    if vsi is None and vti is not None:
-        vsi = vti.mean(axis=1)
     if vsv is not None or vsi is not None:
         fname = f"{stage}_hist_sequence_variance.png"
+        auc = _auroc_or_nan(vsv, vsi)
+        sep = (
+            float(np.asarray(vsi).mean() - np.asarray(vsv).mean())
+            if vsv is not None and vsi is not None
+            else float("nan")
+        )
         plot_histogram(
             vsv,
             vsi,
             out / fname,
             title=f"{stage}: per-sequence variance (valid vs invalid)",
-            xlabel="sequence variance (mean over tokens)",
+            xlabel="sequence variance",
+            annotation=f"AUROC={auc:.3f}\nΔμ={sep:+.3f}",
         )
         written["hist_sequence_variance"] = fname
 
-    # ---- Heatmaps ----------------------------------------------------------
+    # ---- Heatmaps (invalid heatmaps overlay the corruption mask) -----------
+    cmask = _as_np(data.corrupt_mask_invalid)
     if etv is not None:
         fname = f"{stage}_heatmap_token_energy_valid.png"
         plot_token_heatmap(
@@ -433,6 +681,7 @@ def save_stage_plots(out_dir: Path | str, data: StagePlotData) -> dict[str, str]
             out / fname,
             title=f"{stage}: invalid sequences — energy per token",
             cbar_label="token energy",
+            corrupt_mask=cmask,
         )
         written["heatmap_token_energy_invalid"] = fname
 
@@ -454,6 +703,7 @@ def save_stage_plots(out_dir: Path | str, data: StagePlotData) -> dict[str, str]
             title=f"{stage}: invalid sequences — variance per token",
             cbar_label="token variance",
             cmap="viridis",
+            corrupt_mask=cmask,
         )
         written["heatmap_token_variance_invalid"] = fname
 
@@ -472,5 +722,64 @@ def save_stage_plots(out_dir: Path | str, data: StagePlotData) -> dict[str, str]
             inducing_points=ip,
         )
         written["latent_density"] = fname
+
+    # ---- Corruption diagnostics: scrambled-vs-clean tokens within invalid --
+    if cmask is not None and eti is not None:
+        fname = f"{stage}_corrupt_vs_clean_energy.png"
+        plot_corruption_comparison(
+            eti,
+            cmask,
+            out / fname,
+            title=f"{stage}: invalid sequences — energy at scrambled vs clean tokens",
+            xlabel="token energy",
+        )
+        written["corrupt_vs_clean_energy"] = fname
+    if cmask is not None and vti is not None:
+        fname = f"{stage}_corrupt_vs_clean_variance.png"
+        plot_corruption_comparison(
+            vti,
+            cmask,
+            out / fname,
+            title=f"{stage}: invalid sequences — variance at scrambled vs clean tokens",
+            xlabel="token variance",
+        )
+        written["corrupt_vs_clean_variance"] = fname
+
+    # ---- Combined ROC: sequence + token level, auditor + baselines ---------
+    methods: dict[str, tuple[np.ndarray | None, np.ndarray | None]] = {}
+    asv = _as_np(data.auditor_score_valid)
+    asi = _as_np(data.auditor_score_invalid)
+    if asv is not None and asi is not None:
+        methods["auditor (seq)"] = (asv, asi)
+    ssv = _as_np(data.spilled_seq_scalar_valid)
+    ssi = _as_np(data.spilled_seq_scalar_invalid)
+    if ssv is not None and ssi is not None:
+        methods["spilled (seq)"] = (ssv, ssi)
+    gev = _as_np(data.geometric_energy_valid)
+    gei = _as_np(data.geometric_energy_invalid)
+    if gev is not None and gei is not None:
+        methods["geometric energy (seq)"] = (gev, gei)
+    if etv is not None and eti is not None:
+        methods["auditor energy (token, all-invalid)"] = (etv.ravel(), eti.ravel())
+        if cmask is not None and cmask.shape == eti.shape:
+            corrupted_inv = eti[cmask.astype(bool)]
+            if corrupted_inv.size:
+                methods["auditor energy (token, scrambled-only)"] = (etv.ravel(), corrupted_inv)
+    stv = _as_np(data.spilled_token_valid)
+    sti = _as_np(data.spilled_token_invalid)
+    if stv is not None and sti is not None:
+        methods["spilled (token)"] = (stv.ravel(), sti.ravel())
+
+    if methods:
+        fname = f"{stage}_roc_combined.png"
+        aurocs = plot_roc_curves(
+            methods,
+            out / fname,
+            title=f"{stage}: ROC — valid vs invalid",
+        )
+        written["roc_combined"] = fname
+        summary_name = f"{stage}_auroc_summary.json"
+        (out / summary_name).write_text(json.dumps(aurocs, indent=2), encoding="utf-8")
+        written["auroc_summary"] = summary_name
 
     return written

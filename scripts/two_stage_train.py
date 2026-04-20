@@ -452,9 +452,22 @@ def run_two_stage(
                 energy_token_invalid=scores.get("auditor_energy_seq_invalid"),
                 variance_token_valid=scores.get("auditor_var_seq_valid"),
                 variance_token_invalid=scores.get("auditor_var_seq_invalid"),
+                energy_seq_valid=scores.get("auditor_energy_scalar_valid"),
+                energy_seq_invalid=scores.get("auditor_energy_scalar_invalid"),
+                variance_seq_valid=scores.get("auditor_variance_scalar_valid"),
+                variance_seq_invalid=scores.get("auditor_variance_scalar_invalid"),
                 latent_tokens_valid=scores.get("latent_tokens_valid"),
                 latent_tokens_invalid=scores.get("latent_tokens_invalid"),
                 inducing_points=scores.get("inducing_points"),
+                corrupt_mask_invalid=scores.get("corrupt_mask_invalid"),
+                auditor_score_valid=scores.get("auditor_valid"),
+                auditor_score_invalid=scores.get("auditor_invalid"),
+                spilled_seq_scalar_valid=scores.get("spilled_valid"),
+                spilled_seq_scalar_invalid=scores.get("spilled_invalid"),
+                spilled_token_valid=scores.get("spilled_token_valid"),
+                spilled_token_invalid=scores.get("spilled_token_invalid"),
+                geometric_energy_valid=scores.get("energy_valid"),
+                geometric_energy_invalid=scores.get("energy_invalid"),
                 history=history,
             )
 
@@ -477,6 +490,8 @@ def run_two_stage(
                 # avoid misleading variance histograms/heatmaps.
                 stage1_data.variance_token_valid = None
                 stage1_data.variance_token_invalid = None
+                stage1_data.variance_seq_valid = None
+                stage1_data.variance_seq_invalid = None
                 stage1_written = save_stage_plots(plots_dir / "stage1", stage1_data)
 
         # Stage 2 audit (GP mean + epistemic variance + inducing points).
