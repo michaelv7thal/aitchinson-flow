@@ -132,6 +132,18 @@ class HFCausalLMInference:
 
         return out
 
+    def decode(self, ids: torch.Tensor, *, skip_special_tokens: bool = True) -> list[str]:
+        if ids.ndim == 1:
+            ids = ids.unsqueeze(0)
+        if ids.ndim != 2:
+            raise ValueError(f"decode expects 1D or 2D token ids, got shape {tuple(ids.shape)}")
+        return list(
+            self._tokenizer.batch_decode(
+                ids.to("cpu"),
+                skip_special_tokens=skip_special_tokens,
+            )
+        )
+
 
 @register("hf_causal")
 def _build_hf_causal(cfg: TeacherConfig) -> HFCausalLMInference:

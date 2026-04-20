@@ -596,6 +596,88 @@ class TestStage2Freezing:
         assert isinstance(noise, float)
 
 
+class TestStage2PathBExtensions:
+    """Stage 2 must accept optional ``log_x_invalid`` and ``answer_mask`` for
+    the byte-level Q+A auditor (Path B) while keeping the text8 path (Path A)
+    unchanged when those keys are absent."""
+
+    def test_log_x_invalid_replaces_randn_negatives(self) -> None:
+        cfg = _tiny_cfg()
+        model = BayesianAuditorStage2(cfg)
+        batch = _valid_batch(cfg, with_invalid=True)
+        out = model.training_step(batch, step=0)
+        assert out["loss"].requires_grad
+        assert torch.isfinite(out["loss"])
+
+    def test_log_x_invalid_drives_backward_through_latent_head(self) -> None:
+        cfg = _tiny_cfg()
+        model = BayesianAuditorStage2(cfg)
+        out = model.training_step(_valid_batch(cfg, with_invalid=True), step=0)
+        out["loss"].backward()
+        for p in model.backbone.parameters():
+            assert p.grad is None or torch.all(p.grad == 0)
+        any_lh_grad = any(
+            p.requires_grad and p.grad is not None and torch.any(p.grad != 0)
+            for p in model.latent_head.parameters()
+        )
+        assert any_lh_grad
+
+    def test_log_x_invalid_shape_mismatch_raises(self) -> None:
+        cfg = _tiny_cfg()
+        model = BayesianAuditorStage2(cfg)
+        batch = _valid_batch(cfg)
+        B, L, D = cfg.training.B, cfg.dataset.L, max(1, cfg.dataset.K - 1)
+        batch["log_x_invalid"] = torch.randn(B, L + 1, D)
+        with pytest.raises(ValueError, match="log_x_invalid shape"):
+            model.training_step(batch, step=0)
+
+    def test_answer_mask_restricts_scoring_when_flag_true(self) -> None:
+        cfg = _tiny_cfg()
+        cfg.gp.score_answer_tokens_only = True
+        model = BayesianAuditorStage2(cfg)
+        batch = _valid_batch(cfg, with_invalid=True)
+        B, L = cfg.training.B, cfg.dataset.L
+        mask = torch.zeros(B, L, dtype=torch.bool)
+        mask[:, L // 2 :] = True
+        batch["answer_mask"] = mask
+        out = model.training_step(batch, step=0)
+        assert torch.isfinite(out["loss"])
+        out["loss"].backward()
+
+    def test_answer_mask_ignored_when_flag_false(self) -> None:
+        """Default ``score_answer_tokens_only=False`` must ignore the mask so
+        text8 (Path A) loaders that accidentally carry a mask still work."""
+        cfg = _tiny_cfg()
+        assert cfg.gp.score_answer_tokens_only is False
+        model = BayesianAuditorStage2(cfg)
+        batch = _valid_batch(cfg)
+        batch["answer_mask"] = torch.ones(
+            cfg.training.B, cfg.dataset.L, dtype=torch.bool
+        )
+        torch.manual_seed(0)
+        out_with_mask = model.training_step(batch, step=0)
+        # Same batch without the mask key should produce the same loss.
+        del batch["answer_mask"]
+        torch.manual_seed(0)
+        out_no_mask = model.training_step(batch, step=0)
+        assert torch.allclose(
+            out_with_mask["loss"].detach(),
+            out_no_mask["loss"].detach(),
+            atol=1e-6,
+        )
+
+    def test_empty_answer_mask_raises(self) -> None:
+        cfg = _tiny_cfg()
+        cfg.gp.score_answer_tokens_only = True
+        model = BayesianAuditorStage2(cfg)
+        batch = _valid_batch(cfg)
+        batch["answer_mask"] = torch.zeros(
+            cfg.training.B, cfg.dataset.L, dtype=torch.bool
+        )
+        with pytest.raises(ValueError, match="all-False"):
+            model.training_step(batch, step=0)
+
+
 class TestComposition:
     def test_compose_transfers_backbone_and_gp(self) -> None:
         cfg = _tiny_cfg()

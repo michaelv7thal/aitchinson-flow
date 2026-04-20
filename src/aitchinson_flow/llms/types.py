@@ -37,3 +37,12 @@ class CausalLMForInference(Protocol):
     ) -> torch.Tensor:
         """Generate ids (B, L) for given prompt ids and attention mask. Must be called inside inference_mode."""
         ...
+
+    def decode(self, ids: torch.Tensor, *, skip_special_tokens: bool = True) -> list[str]:
+        """Decode a 1D or 2D token-id tensor back to text(s).
+
+        Used by Path B (Q+A hallucination auditor) to recover the LLM-generated
+        answer as a string for byte-level re-encoding. Implementations should
+        delegate to ``tokenizer.batch_decode`` when possible.
+        """
+        ...

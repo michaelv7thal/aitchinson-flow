@@ -47,8 +47,10 @@ def build_training_datamodule(cfg: Config) -> tuple[DataModule, dict[str, Any]]:
         return _build_raw_text_datamodule(cfg)
     if source == "llm_generated":
         return _build_llm_generated_datamodule(cfg)
+    if source == "qa_pairs":
+        return _build_qa_pairs_datamodule(cfg)
     raise ValueError(
-        f"Unknown cfg.training_data.source={source!r}; expected 'raw_text' or 'llm_generated'."
+        f"Unknown cfg.training_data.source={source!r}; expected 'raw_text', 'llm_generated' or 'qa_pairs'."
     )
 
 
@@ -192,6 +194,44 @@ def _build_llm_generated_datamodule(cfg: Config) -> tuple[DataModule, dict[str, 
         "invalid_corrupt_rate": cfg.text8_dataset.train_corrupt_rate,
         "invalid_order_mix_rate": cfg.text8_dataset.train_order_mix_rate,
         "invalid_order_mix_prob": cfg.text8_dataset.order_mix_prob,
+    }
+
+
+def _build_qa_pairs_datamodule(cfg: Config) -> tuple[DataModule, dict[str, Any]]:
+    from aitchinson_flow.data.qa_datamodule import QAPairsDataModule  # noqa: PLC0415
+
+    qa = cfg.qa_dataset
+    dm = QAPairsDataModule(cfg, skip_llm=cfg.training_data.qa_skip_llm_eval)
+    return dm, {
+        "source": "qa_pairs",
+        "hf_path": qa.hf_path,
+        "hf_name": qa.name,
+        "hf_revision": qa.revision,
+        "split_train": qa.split_train,
+        "split_val": qa.split_val,
+        "split_test": qa.split_test,
+        "question_col": qa.question_col,
+        "answer_col": qa.answer_col,
+        "aliases_col": qa.aliases_col,
+        "max_train_samples": qa.max_train_samples,
+        "max_val_samples": qa.max_val_samples,
+        "max_test_samples": qa.max_test_samples,
+        "max_question_bytes": qa.max_question_bytes,
+        "max_answer_bytes": qa.max_answer_bytes,
+        "shuffle_seed": qa.shuffle_seed,
+        "seq_length": cfg.dataset.L,
+        "vocab_size": cfg.dataset.K,
+        "skip_llm_eval": cfg.training_data.qa_skip_llm_eval,
+        "answer_generator": {
+            "lm_key": cfg.answer_generator.lm_key,
+            "model_id": cfg.answer_generator.model_id,
+            "revision": cfg.answer_generator.revision,
+            "temperature": cfg.answer_generator.temperature,
+            "top_p": cfg.answer_generator.top_p,
+            "max_new_tokens": cfg.answer_generator.max_new_tokens,
+            "prompt_template": cfg.answer_generator.prompt_template,
+            "generation_seed": cfg.answer_generator.generation_seed,
+        },
     }
 
 

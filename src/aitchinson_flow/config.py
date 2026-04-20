@@ -74,6 +74,16 @@ class GPConfig:
     so the minimum representable noise variance is ≈ 1e-6.
     """
 
+    score_answer_tokens_only: bool = False
+    """If True, restrict Stage 2 token-level NLL and contrastive loss to
+    answer-span positions (requires ``batch["answer_mask"]``).
+
+    Used by the Q+A hallucination auditor (Path B): question tokens are
+    identical across correct/incorrect pairs and would dilute the
+    contrastive signal. Defaults to ``False`` so existing text8/Path A
+    batches (which lack ``answer_mask``) behave unchanged.
+    """
+
     def __post_init__(self) -> None:
         if self.num_inducing < 1:
             raise ValueError(f"GPConfig.num_inducing must be >= 1, got {self.num_inducing}")
@@ -388,6 +398,73 @@ class TeacherConfig:
 
 
 @dataclass
+class QADatasetConfig:
+    """Generic HuggingFace Q+A datamodule config (Path B).
+
+    Answers and questions are byte-encoded (UTF-8, K=256) and concatenated
+    as ``[STX] question [ETX] answer [EOT]`` padded to ``cfg.dataset.L``.
+    """
+
+    hf_path: str = "trivia_qa"
+    name: str | None = "rc.nocontext"
+    revision: str | None = None
+    split_train: str = "train"
+    split_val: str | None = "validation"
+    split_test: str | None = None
+
+    question_col: str = "question"
+    answer_col: str = "answer.value"
+    """Dotted path to the ground-truth answer field. For TriviaQA use
+    ``"answer.value"`` or ``"answer.aliases"`` (first alias)."""
+
+    aliases_col: str | None = "answer.aliases"
+    """Optional dotted path to a list of acceptable alias answers, used
+    for label matching when scoring LLM-generated outputs. ``None``
+    disables alias matching (fall back to exact value match)."""
+
+    max_train_samples: int | None = 10_000
+    max_val_samples: int | None = 2_000
+    max_test_samples: int | None = 2_000
+
+    max_question_bytes: int = 96
+    max_answer_bytes: int = 28
+    shuffle_seed: int = 0
+    log_simplex_eps: float = 1e-8
+
+    trust_remote_code: bool = True
+
+
+@dataclass
+class AnswerGeneratorConfig:
+    """LLM answer-generator settings for Path B eval.
+
+    Instantiates a HuggingFace causal LM at eval time, asks it to answer
+    val/test questions, and labels the decoded output against the
+    ground-truth aliases. The auditor then scores ``[Q][A_llm]`` pairs.
+    """
+
+    lm_key: str = "hf_causal"
+    """Registry key (see ``aitchinson_flow.llms.registry``)."""
+
+    model_id: str = "gpt2"
+    revision: str | None = None
+    trust_remote_code: bool = False
+    dtype: str = "float32"
+    device: str = "auto"
+
+    temperature: float = 0.7
+    top_p: float = 0.9
+    max_new_tokens: int = 24
+    generation_seed: int = 0
+
+    prompt_template: str = "Q: {q}\nA:"
+    """Format string for the prompt fed to the LLM. ``{q}`` is substituted."""
+
+    cache_dir: str | None = None
+    """If set, cache pre-generated val/test answers under this directory."""
+
+
+@dataclass
 class TrainingDataConfig:
     """Training-time data source selection and generation controls.
 
@@ -408,7 +485,7 @@ class TrainingDataConfig:
     """
 
     source: str = "raw_text"
-    """One of: ``"raw_text"``, ``"llm_generated"``."""
+    """One of: ``"raw_text"``, ``"llm_generated"``, ``"qa_pairs"``."""
 
     raw_dataset: str = "text8"
     """Raw-data backend when ``source='raw_text'``.
@@ -435,7 +512,12 @@ class TrainingDataConfig:
     - ``"token_probs"``: LM token distributions -> simplex projection -> ILR/CLR.
     """
 
-    _VALID_SOURCES: ClassVar[tuple[str, ...]] = ("raw_text", "llm_generated")
+    qa_skip_llm_eval: bool = False
+    """If True and ``source='qa_pairs'``, skip instantiating the answer-generator
+    LLM and fall back to cross-question-swap placeholders for eval negatives.
+    Useful for smoke tests that exercise the plumbing without a real LLM."""
+
+    _VALID_SOURCES: ClassVar[tuple[str, ...]] = ("raw_text", "llm_generated", "qa_pairs")
     _VALID_RAW_DATASETS: ClassVar[tuple[str, ...]] = ("text8", "hf")
     _VALID_LLM_FEATURE_MODES: ClassVar[tuple[str, ...]] = ("token_ids", "token_probs")
 
@@ -570,6 +652,8 @@ class Config:
     bayesian_generator: BayesianGeneratorConfig = field(default_factory=BayesianGeneratorConfig)
     teacher: TeacherConfig = field(default_factory=TeacherConfig)
     training_data: TrainingDataConfig = field(default_factory=TrainingDataConfig)
+    qa_dataset: QADatasetConfig = field(default_factory=QADatasetConfig)
+    answer_generator: AnswerGeneratorConfig = field(default_factory=AnswerGeneratorConfig)
     benchmark: BenchmarkConfig = field(default_factory=BenchmarkConfig)
     per_token_auditor: PerTokenAuditorConfig = field(default_factory=PerTokenAuditorConfig)
     equilibrium: EquilibriumFlowConfig = field(default_factory=EquilibriumFlowConfig)

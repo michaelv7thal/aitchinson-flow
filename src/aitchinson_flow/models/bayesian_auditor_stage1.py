@@ -185,10 +185,11 @@ class BayesianAuditorStage1(nn.Module):
             c_gamma = one_minus_gamma
         elif strategy == "truncated":
             a = torch.as_tensor(eq.eqm_decay_a, device=gamma.device, dtype=gamma.dtype)
+            denominator = torch.clamp(1.0 - a, min=1e-7)
             c_gamma = torch.where(
                 gamma <= a,
                 torch.ones_like(gamma),
-                one_minus_gamma / (1.0 - a),
+                one_minus_gamma / denominator,
             )
         elif strategy == "piecewise":
             a = torch.as_tensor(eq.eqm_decay_a, device=gamma.device, dtype=gamma.dtype)
@@ -296,30 +297,36 @@ class BayesianAuditorStage1(nn.Module):
         return self.eval_step(batch)
 
     def _per_token_soft_hilbert(self, log_x: torch.Tensor) -> torch.Tensor:
-        """Per-token soft Hilbert distance ``d_H(f(x), x)`` of shape ``(B, L)``.
+        """Per-token soft Hilbert distance of the velocity field ||v(x)||_H.
 
-        ``f`` is the full forward pass (backbone + velocity head). The velocity
-        head enforces the sum-to-zero tangent-space constraint on ``f`` by
-        construction, so no further centering of ``f`` is needed. The input
-        ``log_x`` is centered to match ILR/CLR convention before computing the
-        Nielsen LogSumExp soft Hilbert distance.
+        Since the Equilibrium Matching (EqM) target velocity on the valid
+        data manifold is zero, the magnitude of the predicted velocity v(x)
+        acts as our geometric anomaly signal. We measure this restorative
+        magnitude using the soft Hilbert distance to the origin.
+
+        Args:
+            log_x: (B, L, D) sequences in ILR / log-simplex coordinates.
+
+        Returns:
+            (B, L) tensor representing the Hilbert magnitude of the velocity.
         """
-        f, _ = self.forward(log_x)
-        x_c = log_x - log_x.mean(dim=-1, keepdim=True)
-        return nielsen_soft_hilbert_distance(f, x_c, alpha=self.cfg.training.soft_hilbert_alpha)
+        v, _ = self.forward(log_x)
+
+        v_target = torch.zeros_like(v)
+
+        return nielsen_soft_hilbert_distance(
+            v, v_target, alpha=self.cfg.training.soft_hilbert_alpha
+        )
 
     @torch.no_grad()
     def energy_score(self, log_x: torch.Tensor) -> torch.Tensor:
-        """Stage 1 geometric energy ``g(x) = -d_H(f(x), x)``.
+        """Stage 1 geometric energy g(x) = -||v(x)||_H.
 
         Sequence-level scalar (averaged over tokens). This is the energy
         implied by the EqM + Hilbert training objective: on the valid manifold
-        the learned ``f`` is close to ``x`` so ``g(x)`` is near zero; far from
-        the manifold ``f`` and ``x`` diverge in the soft Hilbert metric and
-        ``g(x)`` becomes large and negative.
-
-        For AUROC-style anomaly scoring use `ood_score` (which returns the
-        sign-flipped quantity ``d_H`` so that higher = more OOD).
+        the learned velocity v(x) approaches 0, so g(x) is near zero.
+        Far from the manifold, the restoring velocity is large in the soft
+        Hilbert metric, and g(x) becomes large and negative.
 
         Args:
             log_x: (B, L, D) sequences in ILR / log-simplex coordinates.
@@ -329,19 +336,28 @@ class BayesianAuditorStage1(nn.Module):
         """
         was_training = self.training
         self.eval()
-        d_per_token = self._per_token_soft_hilbert(log_x)
-        energy = -d_per_token.mean(dim=-1)
+
+        # Calculate the Hilbert magnitude of the velocity field
+        v_magnitude_per_token = self._per_token_soft_hilbert(log_x)
+        energy = -v_magnitude_per_token.mean(dim=-1)
+
         if was_training:
             self.train()
         return energy
 
     @torch.no_grad()
     def ood_score(self, log_x: torch.Tensor) -> torch.Tensor:
-        """Sequence-level OOD score ``d_H(f(x), x)`` (higher = more OOD).
+        """Sequence-level OOD score ||v(x)||_H (higher = more OOD).
 
-        This is ``-energy_score(log_x)``, sign-flipped so it can be used
-        directly as an anomaly score in AUROC-style benchmarks (where the
-        positive class is "invalid").
+        Returns the sign-flipped geometric energy. Used directly as an
+        anomaly score in AUROC-style benchmarks where the positive class
+        is "invalid" (off-manifold).
+
+        Args:
+            log_x: (B, L, D) sequences in ILR / log-simplex coordinates.
+
+        Returns:
+            (B,) tensor representing the sequence-level anomaly score.
         """
         return -self.energy_score(log_x)
 

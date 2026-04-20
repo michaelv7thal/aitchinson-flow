@@ -19,6 +19,13 @@ random backbone for ablation purposes (the freeze rule is unchanged).
 
 Batch contract:
     * ``batch["log_x"]`` — valid sequences, shape ``(B, L, K-1)``.
+    * ``batch["log_x_invalid"]`` *(optional)* — real semantic negatives,
+      shape ``(B, L, K-1)``. When present, replaces the randn fallback in
+      the contrastive hinge.
+    * ``batch["answer_mask"]`` *(optional)* — boolean mask of shape
+      ``(B, L)`` marking answer-span positions. When present *and*
+      ``cfg.gp.score_answer_tokens_only`` is ``True``, the token-level NLL
+      and contrastive loss are restricted to masked positions (Path B).
 """
 
 from __future__ import annotations
@@ -129,24 +136,57 @@ class BayesianAuditorStage2(nn.Module):
         )
         return z
 
-    def _token_likelihood_loss(self, log_x1: torch.Tensor) -> LossDict:
+    def _token_likelihood_loss(
+        self,
+        log_x1: torch.Tensor,
+        log_x_invalid: torch.Tensor | None = None,
+        answer_mask: torch.Tensor | None = None,
+    ) -> LossDict:
         B, L, _ = log_x1.shape
 
         # Valid tokens: maximise likelihood at y=0.
-        z_valid = self._extract_tokens(log_x1).reshape(B * L, -1)
+        z_valid_full = self._extract_tokens(log_x1)  # (B, L, d_latent)
+
+        # Negatives: prefer real semantic negatives from the batch; fall back
+        # to centered random noise (preserves pre-Phase-2 Path A behavior).
+        if log_x_invalid is not None:
+            if log_x_invalid.shape != log_x1.shape:
+                raise ValueError(
+                    f"log_x_invalid shape {tuple(log_x_invalid.shape)} must match "
+                    f"log_x {tuple(log_x1.shape)}"
+                )
+            z_random_full = self._extract_tokens(log_x_invalid)
+        else:
+            with torch.no_grad():
+                log_x_random = torch.randn_like(log_x1)
+                log_x_random = log_x_random - log_x_random.mean(dim=-1, keepdim=True)
+            z_random_full = self._extract_tokens(log_x_random)
+
+        # Optional answer-span restriction (Path B): only score answer tokens.
+        use_mask = self.cfg.gp.score_answer_tokens_only and answer_mask is not None
+        if use_mask:
+            assert answer_mask is not None  # for type checkers
+            if answer_mask.shape != (B, L):
+                raise ValueError(
+                    f"answer_mask shape {tuple(answer_mask.shape)} must equal (B, L)=({B}, {L})"
+                )
+            mask_bool = answer_mask.to(dtype=torch.bool)
+            if not mask_bool.any():
+                raise ValueError("answer_mask is all-False across the batch; nothing to score")
+            z_valid = z_valid_full[mask_bool]  # (N_mask, d_latent)
+            z_random = z_random_full[mask_bool]
+        else:
+            z_valid = z_valid_full.reshape(B * L, -1)
+            z_random = z_random_full.reshape(B * L, -1)
+
         dist_valid = self.gp(z_valid)
         nll = -_gp_log_prob(dist_valid, torch.zeros_like(dist_valid.mean))
 
-        # Random negatives: centered in log-space to match simplex tangent space.
-        with torch.no_grad():
-            log_x_random = torch.randn_like(log_x1)
-            log_x_random = log_x_random - log_x_random.mean(dim=-1, keepdim=True)
-        z_random = self._extract_tokens(log_x_random).reshape(B * L, -1)
         dist_random = self.gp(z_random)
 
-        # Energy margin: random tokens should have higher energy than valid.
+        # Energy margin: negative tokens should have higher energy than valid.
         # Both sides receive gradients so the GP can simultaneously lower valid
-        # energy and raise random-negative energy.
+        # energy and raise negative energy.
         energy_gap = self.cfg.gp.margin_E - (dist_random.mean - dist_valid.mean)
         contrastive = F.relu(energy_gap).mean()
 
@@ -158,13 +198,20 @@ class BayesianAuditorStage2(nn.Module):
         kl = self.gp.kl_divergence()
         noise_var = self.gp.noise_var
 
-        # Per-token normalisation: nll is already averaged over B*L; divide KL
-        # by the same B*L so both terms are on the same per-token ELBO scale.
-        # lambda_kl then has a direct interpretation as regularisation weight
-        # relative to the likelihood, independent of batch size or dataset size.
-        n_norm = float(B * max(1, L))
+        # 1. Get the sequence-level normalizer from your robust utility
+        # Returns N_sequences (or B if in a unit test)
+        n_seq_norm = kl_normalizer(self, B)
 
-        # n_norm = kl_normalizer(self, B) * max(1, L)
+        # 2. Scale it to the Token Level based on the active path
+        if use_mask:
+            # PATH B (Trivia Task): We are only scoring the Answer tokens.
+            # We must multiply by the expected number of answer tokens per sequence.
+            # You can add `avg_answer_len` to your config, or default to a reasonable estimate.
+            avg_answer_len = getattr(self.cfg.dataset, "avg_answer_length", 10.0)
+            n_norm = n_seq_norm * float(avg_answer_len)
+        else:
+            # PATH A (Normal Text): We are scoring every token in the sequence.
+            n_norm = n_seq_norm * float(L)
 
         total = (
             nll.mean()
@@ -189,7 +236,11 @@ class BayesianAuditorStage2(nn.Module):
                 "(the valid-sample log-coordinates, shape (B, L, K-1)); got "
                 f"keys {sorted(batch.keys()) if hasattr(batch, 'keys') else type(batch).__name__}"
             )
-        return self._token_likelihood_loss(batch["log_x"])
+        return self._token_likelihood_loss(
+            batch["log_x"],
+            log_x_invalid=batch.get("log_x_invalid"),
+            answer_mask=batch.get("answer_mask"),
+        )
 
     @torch.no_grad()
     def eval_step(self, batch: Any) -> LossDict:
@@ -199,7 +250,11 @@ class BayesianAuditorStage2(nn.Module):
                 "(the valid-sample log-coordinates, shape (B, L, K-1)); got "
                 f"keys {sorted(batch.keys()) if hasattr(batch, 'keys') else type(batch).__name__}"
             )
-        return self._token_likelihood_loss(batch["log_x"])
+        return self._token_likelihood_loss(
+            batch["log_x"],
+            log_x_invalid=batch.get("log_x_invalid"),
+            answer_mask=batch.get("answer_mask"),
+        )
 
     @torch.no_grad()
     def ood_score(self, log_x: torch.Tensor) -> torch.Tensor:
@@ -216,6 +271,22 @@ class BayesianAuditorStage2(nn.Module):
     @torch.no_grad()
     def score_per_sample(self, log_x: torch.Tensor) -> torch.Tensor:
         return self.ood_score(log_x)
+
+    @torch.no_grad()
+    def ood_score_tokenwise(self, log_x: torch.Tensor) -> torch.Tensor:
+        """Per-token GP epistemic variance, shape ``(B, L)``.
+
+        Used by the Path B hallucination-audit task to compute answer-span
+        averaged scores when ``cfg.gp.score_answer_tokens_only`` is set.
+        """
+        was_training = self.training
+        self.eval()
+        B, L, _ = log_x.shape
+        z_tokens = self._extract_tokens(log_x).reshape(B * L, -1)
+        dist = self.gp(z_tokens)
+        if was_training:
+            self.train()
+        return dist.variance.view(B, L)
 
     @torch.no_grad()
     def per_token_uq(self, log_x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, float]:
