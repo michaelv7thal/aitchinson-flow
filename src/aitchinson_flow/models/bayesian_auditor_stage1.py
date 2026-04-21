@@ -439,7 +439,7 @@ class BayesianAuditorStage1(nn.Module):
         v, _ = self.forward(log_x)
         per_tok_resid = v.norm(dim=-1)
         d_per_token = self._per_token_soft_hilbert(log_x)
-        per_tok_energy = -d_per_token
+        per_tok_energy = d_per_token
         if was_training:
             self.train()
         return per_tok_energy, per_tok_resid, 0.0

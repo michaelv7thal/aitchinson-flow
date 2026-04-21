@@ -138,7 +138,7 @@ class TrainingConfig:
            ``ood_score``, ``per_token_uq``, ``audit``).
     """
     B: int = 128  # Batch size
-    epochs: int = 10_000  # Number of epochs
+    epochs: int = 25  # Number of epochs
     lr: float = 5e-4  # Learning rate
     loss: str = "hilbert"  # "hilbert" or "mse"
     device: torch.device = field(
@@ -157,7 +157,7 @@ class TrainingConfig:
     """One of: None, ``constant``, ``cosine``, ``cosine_restarts``, ``onecycle``, ``linear``,
     ``polynomial``, ``exponential``, ``multistep``."""
 
-    scheduler_warmup_epochs: int = 2
+    scheduler_warmup_epochs: int = 1
     """Linear warmup before the main schedule (paired with ``cosine``)."""
 
     scheduler_warmup_start_factor: float = 0.01
@@ -190,7 +190,7 @@ class TrainingConfig:
     velocity_loss: str = "soft_hilbert"
     soft_hilbert_alpha: float = 1.0
 
-    lambda_mask: float = 0.2
+    lambda_mask: float = 0.0
     """Weight for the Stage 1 masked-reconstruction auxiliary loss.
 
     When ``> 0`` ``BayesianAuditorStage1`` adds an MLM-style masking
@@ -337,9 +337,9 @@ class Text8DatasetConfig:
 
     enabled: bool = False
     cache_dir: str | None = None
-    train_corrupt_rate: float = 0.15
-    eval_corrupt_rate: float = 0.30
-    train_order_mix_rate: float = 0.15
+    train_corrupt_rate: float = 0.5
+    eval_corrupt_rate: float = 0.5
+    train_order_mix_rate: float = 0.0
     eval_order_mix_rate: float = 0.0
     order_mix_prob: float = 0.0
     max_train_windows: int | None = 10_000
