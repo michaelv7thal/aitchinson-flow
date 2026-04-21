@@ -179,6 +179,37 @@ def token_logits_to_features(
     return token_probs_to_features(probs, K=K, eps=eps, transform_mode=transform_mode)
 
 
+def sorted_topk_logits_to_features(
+    logits: torch.Tensor,
+    K: int,
+    *,
+    eps: float = 1e-8,
+    transform_mode: str = "ilr",
+) -> torch.Tensor:
+    """LM logits -> per-position sorted top-K probabilities -> ILR/CLR features.
+
+    At each position the top-``K`` softmax probabilities are gathered (descending),
+    renormalized so they sum to one, and projected through the ILR/CLR map. Unlike
+    :func:`token_logits_to_features`, which slices the first ``K`` tokenizer
+    indices, this helper treats the ``K`` outputs as rank slots (slot 0 = most
+    likely token at that position, slot 1 = second, …). This is the Path B
+    feature used for LLM-driven auditors.
+
+    Accepts ``(L, V)`` or ``(B, L, V)`` logits. Output shape matches the chosen
+    ``transform_mode`` (``K-1`` for ILR, ``K`` for CLR).
+    """
+    if logits.ndim not in (2, 3):
+        raise ValueError(f"logits must be 2D or 3D, got shape {tuple(logits.shape)}")
+    if logits.shape[-1] < K:
+        raise ValueError(f"logits last dim must be >= K ({K}), got {logits.shape[-1]}")
+    probs = torch.softmax(logits.to(dtype=torch.float32), dim=-1)
+    top_probs = probs.topk(K, dim=-1).values
+    top_probs = top_probs.clamp_min(eps)
+    top_probs = top_probs / top_probs.sum(dim=-1, keepdim=True)
+    log_p = top_probs.log()
+    return _project(log_p, mode=transform_mode)
+
+
 def token_ids_to_log_x(
     ids: torch.Tensor,
     K: int,

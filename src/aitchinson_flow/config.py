@@ -190,7 +190,7 @@ class TrainingConfig:
     velocity_loss: str = "soft_hilbert"
     soft_hilbert_alpha: float = 1.0
 
-    lambda_mask: float = 0.2
+    lambda_mask: float = 0.0
     """Weight for the Stage 1 masked-reconstruction auxiliary loss.
 
     When ``> 0`` ``BayesianAuditorStage1`` adds an MLM-style masking
@@ -337,9 +337,9 @@ class Text8DatasetConfig:
 
     enabled: bool = False
     cache_dir: str | None = None
-    train_corrupt_rate: float = 0.15
-    eval_corrupt_rate: float = 0.30
-    train_order_mix_rate: float = 0.15
+    train_corrupt_rate: float = 0.5
+    eval_corrupt_rate: float = 0.5
+    train_order_mix_rate: float = 0.0
     eval_order_mix_rate: float = 0.0
     order_mix_prob: float = 0.0
     max_train_windows: int | None = 10_000
@@ -465,6 +465,71 @@ class AnswerGeneratorConfig:
 
 
 @dataclass
+class LLMTopKDatasetConfig:
+    """Path B datasource: raw text -> pretrained LLM -> per-position top-K probs -> ILR.
+
+    The LLM is loaded via the registry entry named by ``lm_key`` (see
+    :mod:`aitchinson_flow.llms.registry`), using ``cfg.teacher`` for model
+    selection (``model_id``, ``revision``, ``dtype``, ``device``). For each
+    sampled raw text window the LLM produces logits of shape ``(L, V)``; the
+    top ``K = cfg.dataset.K`` probabilities per position are gathered, sorted
+    descending, renormalized, and projected through ILR/CLR.
+
+    Invalid (OOD) sequences are produced by applying Path A's char-level
+    corruption (via :func:`aitchinson_flow.data.corruption.corrupt_token_ids`)
+    to the same raw text window *before* LLM inference, so the auditor sees
+    the LLM's reaction to corrupted text rather than a feature-space
+    perturbation.
+    """
+
+    lm_key: str = "hf_causal"
+    """LLM registry key used to build the pretrained LM."""
+
+    raw_text_backend: str = "text8"
+    """Raw-text source: ``"text8"`` or ``"hf"`` (same semantics as
+    ``TrainingDataConfig.raw_dataset``)."""
+
+    char_window_length: int = 256
+    """Characters per raw-text window before tokenization. Picked large enough
+    that the LLM tokenizer produces at least ``cfg.dataset.L`` tokens after
+    truncation; excess tokens are truncated."""
+
+    n_batches_per_epoch: int = 200
+    """Number of minibatches per training epoch (iterable datamodule)."""
+
+    corrupt_rate: float | None = None
+    """Char-level corruption rate for invalid batches. ``None`` falls back to
+    ``cfg.text8_dataset.train_corrupt_rate``."""
+
+    generation_seed: int = 0
+    """Seed for the per-batch corruption RNG."""
+
+    _VALID_BACKENDS: ClassVar[tuple[str, ...]] = ("text8", "hf")
+
+    def __post_init__(self) -> None:
+        if self.raw_text_backend not in self._VALID_BACKENDS:
+            raise ValueError(
+                f"LLMTopKDatasetConfig.raw_text_backend={self.raw_text_backend!r} must "
+                f"be one of {self._VALID_BACKENDS}"
+            )
+        if self.char_window_length < 1:
+            raise ValueError(
+                f"LLMTopKDatasetConfig.char_window_length must be >= 1, got "
+                f"{self.char_window_length}"
+            )
+        if self.n_batches_per_epoch < 1:
+            raise ValueError(
+                f"LLMTopKDatasetConfig.n_batches_per_epoch must be >= 1, got "
+                f"{self.n_batches_per_epoch}"
+            )
+        if self.corrupt_rate is not None and not 0.0 <= self.corrupt_rate <= 1.0:
+            raise ValueError(
+                f"LLMTopKDatasetConfig.corrupt_rate must be in [0, 1], got "
+                f"{self.corrupt_rate}"
+            )
+
+
+@dataclass
 class TrainingDataConfig:
     """Training-time data source selection and generation controls.
 
@@ -472,20 +537,25 @@ class TrainingDataConfig:
     training objectives may want different input pipelines than benchmark
     sweeps.
 
-    Two first-class sources are supported (dispatched by
+    Supported sources (dispatched by
     ``aitchinson_flow.training.data_sources.build_training_datamodule``):
 
-    * ``source="raw_text"`` — load a raw corpus (``text8`` or the HF-hub
-      datamodule) and feed it through the standard discrete→ILR transform.
-    * ``source="llm_generated"`` — ask a registered causal LM
-      (``aitchinson_flow.llms.registry``) to generate batches on the fly.
-      Generation is seeded per-batch via ``generation_seed`` for
-      reproducibility, and ``use_text8_prompts`` optionally seeds every
+    * ``source="raw_text"`` — Path A: load a raw corpus (``text8`` or the
+      HF-hub datamodule) and feed it through the standard discrete→ILR
+      transform.
+    * ``source="llm_topk"`` — Path B: run raw text windows through a
+      pretrained LLM and take per-position sorted top-K softmax probabilities
+      as the simplex row. See :class:`LLMTopKDatasetConfig`.
+    * ``source="llm_generated"`` — ask a registered causal LM to *generate*
+      batches on the fly. Generation is seeded per-batch via
+      ``generation_seed``; ``use_text8_prompts`` optionally seeds every
       generation from a text8 prompt window.
+    * ``source="qa_pairs"`` — Path C: byte-level Q+A (trivia) auditor using
+      cross-question-swap negatives and an LLM answer generator.
     """
 
     source: str = "raw_text"
-    """One of: ``"raw_text"``, ``"llm_generated"``, ``"qa_pairs"``."""
+    """One of: ``"raw_text"``, ``"llm_topk"``, ``"llm_generated"``, ``"qa_pairs"``."""
 
     raw_dataset: str = "text8"
     """Raw-data backend when ``source='raw_text'``.
@@ -517,7 +587,12 @@ class TrainingDataConfig:
     LLM and fall back to cross-question-swap placeholders for eval negatives.
     Useful for smoke tests that exercise the plumbing without a real LLM."""
 
-    _VALID_SOURCES: ClassVar[tuple[str, ...]] = ("raw_text", "llm_generated", "qa_pairs")
+    _VALID_SOURCES: ClassVar[tuple[str, ...]] = (
+        "raw_text",
+        "llm_topk",
+        "llm_generated",
+        "qa_pairs",
+    )
     _VALID_RAW_DATASETS: ClassVar[tuple[str, ...]] = ("text8", "hf")
     _VALID_LLM_FEATURE_MODES: ClassVar[tuple[str, ...]] = ("token_ids", "token_probs")
 
@@ -537,9 +612,7 @@ class TrainingDataConfig:
                 f"{self._VALID_LLM_FEATURE_MODES}"
             )
         if self.n_batches < 1:
-            raise ValueError(
-                f"TrainingDataConfig.n_batches must be >= 1, got {self.n_batches}"
-            )
+            raise ValueError(f"TrainingDataConfig.n_batches must be >= 1, got {self.n_batches}")
         if self.text8_prompt_length < 1:
             raise ValueError(
                 f"TrainingDataConfig.text8_prompt_length must be >= 1, got "
@@ -652,6 +725,7 @@ class Config:
     bayesian_generator: BayesianGeneratorConfig = field(default_factory=BayesianGeneratorConfig)
     teacher: TeacherConfig = field(default_factory=TeacherConfig)
     training_data: TrainingDataConfig = field(default_factory=TrainingDataConfig)
+    llm_topk_dataset: LLMTopKDatasetConfig = field(default_factory=LLMTopKDatasetConfig)
     qa_dataset: QADatasetConfig = field(default_factory=QADatasetConfig)
     answer_generator: AnswerGeneratorConfig = field(default_factory=AnswerGeneratorConfig)
     benchmark: BenchmarkConfig = field(default_factory=BenchmarkConfig)

@@ -45,12 +45,15 @@ def build_training_datamodule(cfg: Config) -> tuple[DataModule, dict[str, Any]]:
     source = cfg.training_data.source
     if source == "raw_text":
         return _build_raw_text_datamodule(cfg)
+    if source == "llm_topk":
+        return _build_llm_topk_datamodule(cfg)
     if source == "llm_generated":
         return _build_llm_generated_datamodule(cfg)
     if source == "qa_pairs":
         return _build_qa_pairs_datamodule(cfg)
     raise ValueError(
-        f"Unknown cfg.training_data.source={source!r}; expected 'raw_text', 'llm_generated' or 'qa_pairs'."
+        f"Unknown cfg.training_data.source={source!r}; expected 'raw_text', "
+        f"'llm_topk', 'llm_generated' or 'qa_pairs'."
     )
 
 
@@ -194,6 +197,37 @@ def _build_llm_generated_datamodule(cfg: Config) -> tuple[DataModule, dict[str, 
         "invalid_corrupt_rate": cfg.text8_dataset.train_corrupt_rate,
         "invalid_order_mix_rate": cfg.text8_dataset.train_order_mix_rate,
         "invalid_order_mix_prob": cfg.text8_dataset.order_mix_prob,
+    }
+
+
+def _build_llm_topk_datamodule(cfg: Config) -> tuple[DataModule, dict[str, Any]]:
+    from aitchinson_flow.data.llm_topk_datamodule import LLMTopKDataModule  # noqa: PLC0415
+    from aitchinson_flow.llms.registry import build_lm  # noqa: PLC0415
+
+    topk = cfg.llm_topk_dataset
+    lm = build_lm(topk.lm_key, cfg.teacher)
+    dm = LLMTopKDataModule(cfg, lm)
+
+    corrupt_rate = (
+        topk.corrupt_rate
+        if topk.corrupt_rate is not None
+        else cfg.text8_dataset.train_corrupt_rate
+    )
+    return dm, {
+        "source": "llm_topk",
+        "lm_key": topk.lm_key,
+        "teacher": {
+            "model_id": cfg.teacher.model_id,
+            "revision": cfg.teacher.revision,
+            "dtype": cfg.teacher.dtype,
+            "device": cfg.teacher.device,
+        },
+        "raw_text_backend": topk.raw_text_backend,
+        "char_window_length": topk.char_window_length,
+        "llm_token_length": cfg.dataset.L,
+        "top_k": cfg.dataset.K,
+        "corrupt_rate": corrupt_rate,
+        "generation_seed": topk.generation_seed,
     }
 
 
