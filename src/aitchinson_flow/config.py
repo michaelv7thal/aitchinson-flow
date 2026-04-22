@@ -147,8 +147,8 @@ class TrainingConfig:
     seed: int = 0
     grad_clip_norm: float | None = None  # if set, clip after backward
     log_every: int = 50
-    eval_every: int = 1  # epochs between validation
-    checkpoint_every: int = 1
+    eval_every: int = 5  # epochs between validation
+    checkpoint_every: int = 5
     checkpoint_dir: str = "checkpoints"
     num_workers: int = 8
     weight_decay: float = 0.0
@@ -524,8 +524,7 @@ class LLMTopKDatasetConfig:
             )
         if self.corrupt_rate is not None and not 0.0 <= self.corrupt_rate <= 1.0:
             raise ValueError(
-                f"LLMTopKDatasetConfig.corrupt_rate must be in [0, 1], got "
-                f"{self.corrupt_rate}"
+                f"LLMTopKDatasetConfig.corrupt_rate must be in [0, 1], got {self.corrupt_rate}"
             )
 
 

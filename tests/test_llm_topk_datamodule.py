@@ -25,9 +25,14 @@ class _DeterministicStubLM:
     def device(self) -> torch.device:
         return torch.device("cpu")
 
+    @torch.inference_mode()
     def forward_logits(
         self, input_ids: torch.Tensor, attention_mask: torch.Tensor | None = None
     ) -> torch.Tensor:
+        # Match the real ``HFCausalLMInference.forward_logits`` inference-mode
+        # contract so the stub exposes the same tensor-flag propagation. Without
+        # this, the datamodule's collate could return inference tensors that
+        # silently fail when fed into autograd-tracked training graphs.
         B, L = input_ids.shape
         base = torch.arange(self._vocab, dtype=torch.float32).view(1, 1, -1).expand(B, L, -1)
         bump = input_ids.float().unsqueeze(-1) * 0.01
@@ -171,6 +176,31 @@ class TestLLMTopKDispatch:
             dm, _ = build_training_datamodule(cfg)
             batch = next(iter(dm.train_dataloader()))
         assert not torch.allclose(batch["log_x"], batch["log_x_invalid"])
+
+    def test_batch_tensors_support_autograd(self) -> None:
+        """Regression: tensors emitted by Path B must not be inference tensors.
+
+        The underlying LM wraps ``forward_logits`` in ``@torch.inference_mode()``,
+        which taints downstream tensors; feeding those into a trainable module
+        raises ``RuntimeError: Inference tensors cannot be saved for backward``.
+        The collate must strip that flag before returning.
+        """
+        cfg = _make_path_b_cfg()
+        with patch(
+            "aitchinson_flow.data.llm_topk_datamodule._load_text8_splits_cfg",
+            side_effect=_fake_text8_splits,
+        ):
+            dm, _ = build_training_datamodule(cfg)
+            batch = next(iter(dm.train_dataloader()))
+
+        assert not batch["log_x"].is_inference()
+        assert not batch["log_x_invalid"].is_inference()
+
+        net = torch.nn.Linear(cfg.dataset.K - 1, 3)
+        loss = net(batch["log_x"]).sum() + net(batch["log_x_invalid"]).sum()
+        loss.backward()
+        assert net.weight.grad is not None
+        assert torch.isfinite(net.weight.grad).all()
 
     def test_rejects_non_text8_backend(self) -> None:
         cfg = _make_path_b_cfg()

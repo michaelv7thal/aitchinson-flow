@@ -98,7 +98,6 @@ class _LLMTopKCollate:
         self._seed = seed
         self._n_calls = 0
 
-    @torch.inference_mode()
     def __call__(self, samples: list[dict[str, Tensor]]) -> dict[str, Tensor]:
         K = self._cfg.dataset.K
         L = self._cfg.dataset.L
@@ -118,25 +117,33 @@ class _LLMTopKCollate:
         clean_texts = [_char_ids_to_text(row) for row in clean_char_ids]
         corrupt_texts = [_char_ids_to_text(row) for row in corrupt_char_ids]
 
-        clean_ids, clean_mask = _batch_encode(self._lm, clean_texts, max_length=L)
-        corrupt_ids, corrupt_mask = _batch_encode(self._lm, corrupt_texts, max_length=L)
+        with torch.no_grad():
+            clean_ids, clean_mask = _batch_encode(self._lm, clean_texts, max_length=L)
+            corrupt_ids, corrupt_mask = _batch_encode(self._lm, corrupt_texts, max_length=L)
 
-        clean_logits = self._lm.forward_logits(clean_ids, clean_mask).cpu()
-        corrupt_logits = self._lm.forward_logits(corrupt_ids, corrupt_mask).cpu()
+            clean_logits = self._lm.forward_logits(clean_ids, clean_mask).cpu()
+            corrupt_logits = self._lm.forward_logits(corrupt_ids, corrupt_mask).cpu()
 
-        log_x = sorted_topk_logits_to_features(
-            clean_logits, K=K, eps=eps, transform_mode=transform_mode
-        )
-        log_x_invalid = sorted_topk_logits_to_features(
-            corrupt_logits, K=K, eps=eps, transform_mode=transform_mode
-        )
+            log_x = sorted_topk_logits_to_features(
+                clean_logits, K=K, eps=eps, transform_mode=transform_mode
+            )
+            log_x_invalid = sorted_topk_logits_to_features(
+                corrupt_logits, K=K, eps=eps, transform_mode=transform_mode
+            )
 
-        return {
-            "log_x": log_x.detach().clone(),
-            "log_x_invalid": log_x_invalid.detach().clone(),
-            "token_ids": clean_ids.cpu().detach().clone(),
-            "token_ids_invalid": corrupt_ids.cpu().detach().clone(),
-        }
+        # Strip the inference-mode tag so tensors feeding Stage 1 / Stage 2
+        # training can participate in autograd. The LM itself wraps
+        # ``forward_logits`` in ``@torch.inference_mode()``, which propagates
+        # that flag through ``.cpu()`` and subsequent ops — cloning under
+        # ``inference_mode(False)`` is the supported way to promote the result
+        # back to a normal tensor.
+        with torch.inference_mode(False):
+            return {
+                "log_x": log_x.detach().clone(),
+                "log_x_invalid": log_x_invalid.detach().clone(),
+                "token_ids": clean_ids.cpu().detach().clone(),
+                "token_ids_invalid": corrupt_ids.cpu().detach().clone(),
+            }
 
 
 class LLMTopKDataModule(DataModule):
