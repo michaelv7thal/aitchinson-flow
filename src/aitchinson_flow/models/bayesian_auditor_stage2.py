@@ -41,6 +41,10 @@ from torch.nn.attention import SDPBackend, sdpa_kernel
 from aitchinson_flow.config import Config
 from aitchinson_flow.gp.gp import GPOutput, SparseGP
 from aitchinson_flow.models.base import TRAINING_LOSS_KEY, LossDict, kl_normalizer
+from aitchinson_flow.models.bayesian_auditor_stage1 import (
+    _build_llm_projection,
+    _prepare_batch_with_projection,
+)
 from aitchinson_flow.models.factory import register
 from aitchinson_flow.transformer_backbone import TokenLatentHead, TransformerBackbone
 
@@ -92,25 +96,41 @@ class BayesianAuditorStage2(nn.Module):
         )
         self.latent_head = TokenLatentHead(cfg=cfg)
         self.gp = SparseGP(cfg=cfg)
+        # Path B: learned embedding→simplex projection, frozen along with the
+        # backbone. Stage 2 never trains this — it comes from Stage 1 via
+        # ``compose_auditor_from_stages`` / ``_load_backbone_into_stage2``.
+        self.llm_projection = _build_llm_projection(cfg)
 
         self._freeze_representations()
 
     def _freeze_representations(self) -> None:
-        """Disable gradients for the backbone only.
+        """Disable gradients for the backbone (and the Path B projection).
 
         ``latent_head`` and the full GP (including ``log_noise_var``) remain
         trainable so the token-level likelihood can shape both the projection
         and the observation-noise scale on top of fixed backbone features.
+        The Path B ``llm_projection`` is trained in Stage 1 and treated as
+        part of the frozen representation from Stage 2 onward.
         """
         for p in self.backbone.parameters():
             p.requires_grad_(False)
         self.backbone.eval()
+        if self.llm_projection is not None:
+            for p in self.llm_projection.parameters():
+                p.requires_grad_(False)
+            self.llm_projection.eval()
 
     def train(self, mode: bool = True) -> "BayesianAuditorStage2":
-        """Override to keep the backbone in eval even when training the head."""
+        """Override to keep the backbone (and llm_projection) in eval while training the head."""
         super().train(mode)
         self.backbone.eval()
+        if self.llm_projection is not None:
+            self.llm_projection.eval()
         return self
+
+    def prepare_batch(self, batch: Any) -> Any:
+        """Path B shim: convert ``embeddings`` → ``log_x`` via the frozen projection."""
+        return _prepare_batch_with_projection(batch, self.llm_projection)
 
     def trainable_parameters(self) -> list[nn.Parameter]:
         """Explicit list of parameters that should be handed to an optimizer.
@@ -230,6 +250,7 @@ class BayesianAuditorStage2(nn.Module):
 
     def training_step(self, batch: Any, step: int) -> LossDict:
         del step
+        batch = self.prepare_batch(batch)
         if "log_x" not in batch:
             raise KeyError(
                 "BayesianAuditorStage2.training_step requires batch['log_x'] "
@@ -244,6 +265,7 @@ class BayesianAuditorStage2(nn.Module):
 
     @torch.no_grad()
     def eval_step(self, batch: Any) -> LossDict:
+        batch = self.prepare_batch(batch)
         if "log_x" not in batch:
             raise KeyError(
                 "BayesianAuditorStage2.eval_step requires batch['log_x'] "

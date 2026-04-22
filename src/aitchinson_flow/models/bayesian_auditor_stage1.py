@@ -37,11 +37,62 @@ from aitchinson_flow.geometry import nielsen_soft_hilbert_distance
 from aitchinson_flow.loss import build_velocity_loss
 from aitchinson_flow.models.base import TRAINING_LOSS_KEY, LossDict
 from aitchinson_flow.models.factory import register
+from aitchinson_flow.models.llm_projection import TokenEmbeddingToSimplex
 from aitchinson_flow.transformer_backbone import (
     MaskReconHead,
     TransformerBackbone,
     VelocityHead,
 )
+
+
+def _build_llm_projection(cfg: Config) -> TokenEmbeddingToSimplex | None:
+    """Return a ``TokenEmbeddingToSimplex`` head when Path B is configured, else ``None``.
+
+    Stage 1 / Stage 2 / fused auditors all need the same head when the active
+    training data source is ``llm_topk``. The LLM embedding dim is surfaced by
+    :func:`~aitchinson_flow.training.data_sources._build_llm_topk_datamodule`
+    onto ``cfg.llm_embedding_dataset.llm_embed_dim``; we require the caller
+    has already built the datamodule before building the model.
+    """
+    if cfg.training_data.source != "llm_topk":
+        return None
+    d_embed = cfg.llm_embedding_dataset.llm_embed_dim
+    if d_embed is None:
+        raise ValueError(
+            "cfg.llm_embedding_dataset.llm_embed_dim is None — build the Path B "
+            "datamodule (via build_training_datamodule) before constructing the "
+            "auditor so the LLM's input-embedding size is available."
+        )
+    return TokenEmbeddingToSimplex(
+        llm_embed_dim=int(d_embed),
+        K=cfg.dataset.K,
+        transform_mode=cfg.hf_dataset.transform_mode,
+    )
+
+
+def _prepare_batch_with_projection(
+    batch: Any,
+    projection: TokenEmbeddingToSimplex | None,
+) -> Any:
+    """Populate ``batch["log_x"]`` / ``batch["log_x_invalid"]`` from embeddings.
+
+    Path A batches already carry ``log_x`` — this is a no-op there. Path B
+    batches carry ``embeddings`` / ``embeddings_invalid``; we run them through
+    the learned projection so every downstream step can keep reading
+    ``batch["log_x"]`` uniformly.
+    """
+    if projection is None or not isinstance(batch, dict):
+        return batch
+    has_clean_emb = "embeddings" in batch
+    has_invalid_emb = "embeddings_invalid" in batch
+    if not (has_clean_emb or has_invalid_emb):
+        return batch
+    new_batch = dict(batch)
+    if has_clean_emb:
+        new_batch["log_x"] = projection(batch["embeddings"])
+    if has_invalid_emb:
+        new_batch["log_x_invalid"] = projection(batch["embeddings_invalid"])
+    return new_batch
 
 
 _HILBERT_FAMILY = {"soft_hilbert", "hard_hilbert", "clr_mse", "ilr_mse"}
@@ -141,9 +192,23 @@ class BayesianAuditorStage1(nn.Module):
         )
         self.velocity_head = VelocityHead(cfg=cfg)
         self.mask_recon_head = MaskReconHead(cfg=cfg)
+        # Path B: learned projection from frozen LLM embeddings → simplex.
+        # ``None`` on Path A (raw_text); Stage 2 / fused copy it via
+        # compose_auditor_from_stages just like ``backbone.*``.
+        self.llm_projection = _build_llm_projection(cfg)
         self._velocity_loss_fn = build_velocity_loss(
             vname, soft_hilbert_alpha=cfg.training.soft_hilbert_alpha
         )
+
+    def prepare_batch(self, batch: Any) -> Any:
+        """Path B shim: convert ``embeddings`` → ``log_x`` via the learned projection.
+
+        No-op on Path A (``log_x`` already present) and on Path B batches that
+        have already been projected. External callers that bypass
+        ``training_step`` / ``eval_step`` / ``audit`` (e.g. the ``text_audit``
+        benchmark task) should call this first.
+        """
+        return _prepare_batch_with_projection(batch, self.llm_projection)
 
     def forward(
         self, log_x: torch.Tensor, t: torch.Tensor | None = None
@@ -284,12 +349,14 @@ class BayesianAuditorStage1(nn.Module):
 
     def training_step(self, batch: Any, step: int) -> LossDict:
         del step
+        batch = self.prepare_batch(batch)
         if "log_x" not in batch:
             raise KeyError("BayesianAuditorStage1 requires batch['log_x']")
         return self._eqm_hilbert_loss(batch["log_x"])
 
     @torch.no_grad()
     def eval_step(self, batch: Any) -> LossDict:
+        batch = self.prepare_batch(batch)
         return self._eqm_hilbert_loss(batch["log_x"])
 
     @torch.no_grad()

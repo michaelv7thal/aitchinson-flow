@@ -61,6 +61,34 @@ class HFCausalLMInference:
     def device(self) -> torch.device:
         return self._device
 
+    @property
+    def embed_dim(self) -> int:
+        """Input-embedding dimension (``d_embed``) of the underlying HF model."""
+        emb = self._model.get_input_embeddings()
+        weight = getattr(emb, "weight", None)
+        if weight is None:
+            raise RuntimeError(
+                f"HF model {type(self._model).__name__} has no input embedding weight; "
+                f"cannot determine embed_dim."
+            )
+        return int(weight.shape[-1])
+
+    def embed_tokens(self, token_ids: torch.Tensor) -> torch.Tensor:
+        """Frozen input-embedding lookup. Returns a plain autograd-safe tensor.
+
+        The HF ``get_input_embeddings`` module is already frozen in
+        ``__init__`` (``requires_grad_(False)``), but the forward still runs
+        under ``torch.no_grad()`` so the lookup itself builds no graph. The
+        final ``.clone()`` inside ``inference_mode(False)`` strips any
+        inference-mode tag a frozen buffer may propagate.
+        """
+        emb = self._model.get_input_embeddings()
+        with torch.no_grad():
+            ids = token_ids.to(emb.weight.device)
+            out = emb(ids).to(dtype=torch.float32, device="cpu")
+        with torch.inference_mode(False):
+            return out.clone()
+
     @torch.inference_mode()
     def forward_logits(
         self,

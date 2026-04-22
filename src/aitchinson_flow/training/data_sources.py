@@ -201,33 +201,41 @@ def _build_llm_generated_datamodule(cfg: Config) -> tuple[DataModule, dict[str, 
 
 
 def _build_llm_topk_datamodule(cfg: Config) -> tuple[DataModule, dict[str, Any]]:
-    from aitchinson_flow.data.llm_topk_datamodule import LLMTopKDataModule  # noqa: PLC0415
+    from aitchinson_flow.data.llm_embedding_datamodule import (  # noqa: PLC0415
+        LLMEmbeddingDataModule,
+    )
     from aitchinson_flow.llms.registry import build_lm  # noqa: PLC0415
 
-    topk = cfg.llm_topk_dataset
-    lm = build_lm(topk.lm_key, cfg.teacher)
-    dm = LLMTopKDataModule(cfg, lm)
+    emb_cfg = cfg.llm_embedding_dataset
+    lm = build_lm(emb_cfg.lm_key, cfg.teacher)
+    dm = LLMEmbeddingDataModule(cfg, lm)
+
+    # Surface the LLM's embedding dim back onto the config so model builders
+    # (Stage 1 / Stage 2 / fused) can size their ``TokenEmbeddingToSimplex``
+    # head without re-loading the LLM.
+    cfg.llm_embedding_dataset.llm_embed_dim = dm.llm_embed_dim
 
     corrupt_rate = (
-        topk.corrupt_rate
-        if topk.corrupt_rate is not None
+        emb_cfg.corrupt_rate
+        if emb_cfg.corrupt_rate is not None
         else cfg.text8_dataset.train_corrupt_rate
     )
     return dm, {
         "source": "llm_topk",
-        "lm_key": topk.lm_key,
+        "lm_key": emb_cfg.lm_key,
         "teacher": {
             "model_id": cfg.teacher.model_id,
             "revision": cfg.teacher.revision,
             "dtype": cfg.teacher.dtype,
             "device": cfg.teacher.device,
         },
-        "raw_text_backend": topk.raw_text_backend,
-        "char_window_length": topk.char_window_length,
+        "raw_text_backend": emb_cfg.raw_text_backend,
+        "char_window_length": emb_cfg.char_window_length,
         "llm_token_length": cfg.dataset.L,
-        "top_k": cfg.dataset.K,
+        "simplex_dim": cfg.dataset.K,
+        "llm_embed_dim": dm.llm_embed_dim,
         "corrupt_rate": corrupt_rate,
-        "generation_seed": topk.generation_seed,
+        "generation_seed": emb_cfg.generation_seed,
     }
 
 

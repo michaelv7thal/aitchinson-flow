@@ -13,6 +13,10 @@ from aitchinson_flow.models.bayesian_generator import (
     _sdpa_math_ctx,
     _uniform_log_x0,
 )
+from aitchinson_flow.models.bayesian_auditor_stage1 import (
+    _build_llm_projection,
+    _prepare_batch_with_projection,
+)
 from aitchinson_flow.models.factory import register
 from aitchinson_flow.config import Config
 from aitchinson_flow.transformer_backbone import TokenLatentHead
@@ -21,11 +25,14 @@ from aitchinson_flow.transformer_backbone import TokenLatentHead
 logger = logging.getLogger(__name__)
 
 
-_STAGE1_TRANSFER_PREFIXES: tuple[str, ...] = ("backbone.",)
+_STAGE1_TRANSFER_PREFIXES: tuple[str, ...] = ("backbone.", "llm_projection.")
 """State-dict key prefixes copied from a Stage 1 checkpoint into `BayesianAuditor`.
 
 Stage 1 also owns a `velocity_head.*` that is not part of the combined model,
-so those keys are intentionally dropped at composition.
+so those keys are intentionally dropped at composition. The optional Path B
+``llm_projection.*`` (trained in Stage 1, frozen in Stage 2) is copied through
+alongside the backbone so the fused auditor reproduces Stage 1's simplex
+features.
 """
 
 _STAGE2_TRANSFER_PREFIXES: tuple[str, ...] = ("latent_head.", "gp.")
@@ -55,6 +62,18 @@ class BayesianAuditor(BayesianGenerator):
     def __init__(self, cfg: Config) -> None:
         super().__init__(cfg)
         self.latent_head = TokenLatentHead(cfg=cfg)
+        # Path B: optional learned embedding→simplex projection. Same freeze
+        # semantics as in Stage 2 — the projection comes from the Stage 1
+        # checkpoint at compose time and is not further trained here.
+        self.llm_projection = _build_llm_projection(cfg)
+        if self.llm_projection is not None:
+            for p in self.llm_projection.parameters():
+                p.requires_grad_(False)
+            self.llm_projection.eval()
+
+    def prepare_batch(self, batch: Any) -> Any:
+        """Path B shim: convert ``embeddings`` → ``log_x`` via the frozen projection."""
+        return _prepare_batch_with_projection(batch, self.llm_projection)
 
     def _extract(self, log_x: torch.Tensor) -> torch.Tensor:
         """Sequence-level latent ``(B, d_latent)`` via per-token head + mean-pool."""
@@ -132,6 +151,7 @@ class BayesianAuditor(BayesianGenerator):
 
     def training_step(self, batch: Any, step: int) -> LossDict:
         del step
+        batch = self.prepare_batch(batch)
         if "log_x_invalid" not in batch:
             raise KeyError("BayesianAuditor requires batch['log_x_invalid']")
 
@@ -143,6 +163,7 @@ class BayesianAuditor(BayesianGenerator):
 
     @torch.no_grad()
     def eval_step(self, batch: Any) -> LossDict:
+        batch = self.prepare_batch(batch)
         if "log_x_invalid" not in batch:
             raise KeyError("BayesianAuditor requires batch['log_x_invalid']")
 
@@ -246,6 +267,7 @@ class BayesianAuditor(BayesianGenerator):
 
     @torch.no_grad()
     def audit(self, batch: Any) -> LossDict:
+        batch = self.prepare_batch(batch)
         # If benchmark batch lacks invalid samples, still provide useful score.
         if "log_x_invalid" in batch:
             return self.eval_step(batch)

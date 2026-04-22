@@ -1,7 +1,11 @@
-"""Path B datamodule: raw text -> pretrained LLM -> per-position top-K -> ILR.
+"""Path B datamodule: raw text -> LLM tokenize -> frozen-embedding lookup -> auditor.
 
 Mirrors Path A's map-style text8 pipeline but replaces the one-hot-on-char-vocab
-row with the pretrained LLM's top-``K`` softmax probabilities at each position.
+row with the pretrained LLM's **input-embedding** at each tokenized position.
+The datamodule is intentionally the only part of the pipeline that touches the
+LLM — the subsequent learned ``Linear(d_embed, K)`` head
+(:class:`~aitchinson_flow.models.llm_projection.TokenEmbeddingToSimplex`) lives
+on the auditor model and is trained jointly with the backbone.
 
 Data flow per batch:
 
@@ -11,13 +15,14 @@ Data flow per batch:
    (:func:`aitchinson_flow.data.corruption.corrupt_token_ids`) to the same
    windows.
 3. Decode both to strings, tokenize with the LLM tokenizer (truncate/pad to
-   ``cfg.dataset.L`` LLM tokens), run ``forward_logits``.
-4. Project logits through :func:`sorted_topk_logits_to_features` to yield
-   ``(B, L, K-1)`` ILR coordinates for each of the clean and corrupted paths.
+   ``cfg.dataset.L`` LLM tokens).
+4. Look up the LLM's frozen input embeddings for the clean and corrupted ids
+   and return ``(B, L, d_embed)`` float tensors.
 
-The emitted batch has the same keys Stage 1/Stage 2 already consume:
-``log_x`` and ``log_x_invalid`` (plus ``token_ids`` / ``token_ids_invalid``
-for downstream debugging).
+The emitted batch replaces Path A's ``log_x`` with ``embeddings``:
+``embeddings``, ``embeddings_invalid``, ``token_ids``, ``token_ids_invalid``.
+Auditor models detect ``embeddings`` in :meth:`prepare_batch` and run the
+learned projection before training/evaluation.
 """
 
 from __future__ import annotations
@@ -36,7 +41,6 @@ from aitchinson_flow.data.text8_datamodule import (
     _ALPHABET,
     _load_text8_splits_cfg,
 )
-from aitchinson_flow.data.transforms.discrete import sorted_topk_logits_to_features
 from aitchinson_flow.llms.types import CausalLMForInference
 from aitchinson_flow.training.datamodule import DataModule
 
@@ -81,8 +85,8 @@ class _RawCharWindowDataset(Dataset[dict[str, Tensor]]):
         return {"char_ids": self._windows[idx]}
 
 
-class _LLMTopKCollate:
-    """Collate windows, run clean+corrupt through the LLM, produce ILR features."""
+class _LLMEmbeddingCollate:
+    """Collate windows, run clean+corrupt through the LLM tokenizer + embedding."""
 
     def __init__(
         self,
@@ -99,10 +103,7 @@ class _LLMTopKCollate:
         self._n_calls = 0
 
     def __call__(self, samples: list[dict[str, Tensor]]) -> dict[str, Tensor]:
-        K = self._cfg.dataset.K
         L = self._cfg.dataset.L
-        eps = self._cfg.hf_dataset.log_simplex_eps
-        transform_mode = self._cfg.hf_dataset.transform_mode
 
         clean_char_ids = torch.stack([s["char_ids"] for s in samples], dim=0)
         seed = self._seed + self._n_calls
@@ -118,46 +119,37 @@ class _LLMTopKCollate:
         corrupt_texts = [_char_ids_to_text(row) for row in corrupt_char_ids]
 
         with torch.no_grad():
-            clean_ids, clean_mask = _batch_encode(self._lm, clean_texts, max_length=L)
-            corrupt_ids, corrupt_mask = _batch_encode(self._lm, corrupt_texts, max_length=L)
+            clean_ids, _ = _batch_encode(self._lm, clean_texts, max_length=L)
+            corrupt_ids, _ = _batch_encode(self._lm, corrupt_texts, max_length=L)
 
-            clean_logits = self._lm.forward_logits(clean_ids, clean_mask).cpu()
-            corrupt_logits = self._lm.forward_logits(corrupt_ids, corrupt_mask).cpu()
+            clean_emb = self._lm.embed_tokens(clean_ids)
+            corrupt_emb = self._lm.embed_tokens(corrupt_ids)
 
-            log_x = sorted_topk_logits_to_features(
-                clean_logits, K=K, eps=eps, transform_mode=transform_mode
-            )
-            log_x_invalid = sorted_topk_logits_to_features(
-                corrupt_logits, K=K, eps=eps, transform_mode=transform_mode
-            )
-
-        # Strip the inference-mode tag so tensors feeding Stage 1 / Stage 2
-        # training can participate in autograd. The LM itself wraps
-        # ``forward_logits`` in ``@torch.inference_mode()``, which propagates
-        # that flag through ``.cpu()`` and subsequent ops — cloning under
-        # ``inference_mode(False)`` is the supported way to promote the result
-        # back to a normal tensor.
+        # ``embed_tokens`` already strips the inference-mode flag, but cloning
+        # under ``inference_mode(False)`` keeps this collate robust against
+        # CausalLMForInference implementations that skip that courtesy.
         with torch.inference_mode(False):
             return {
-                "log_x": log_x.detach().clone(),
-                "log_x_invalid": log_x_invalid.detach().clone(),
+                "embeddings": clean_emb.detach().clone(),
+                "embeddings_invalid": corrupt_emb.detach().clone(),
                 "token_ids": clean_ids.cpu().detach().clone(),
                 "token_ids_invalid": corrupt_ids.cpu().detach().clone(),
             }
 
 
-class LLMTopKDataModule(DataModule):
-    """Path B datamodule: pretrained LLM top-K simplex rows with char-corrupted negatives."""
+class LLMEmbeddingDataModule(DataModule):
+    """Path B datamodule: LLM-embedding windows with char-corrupted negatives."""
 
     def __init__(self, cfg: Config, lm: CausalLMForInference) -> None:
-        topk_cfg = cfg.llm_topk_dataset
+        topk_cfg = cfg.llm_embedding_dataset
         if topk_cfg.raw_text_backend != "text8":
             raise NotImplementedError(
-                f"LLMTopKDataModule currently supports raw_text_backend='text8' only; "
+                f"LLMEmbeddingDataModule currently supports raw_text_backend='text8' only; "
                 f"got {topk_cfg.raw_text_backend!r}."
             )
         self._cfg = cfg
         self._lm = lm
+        self._llm_embed_dim = int(lm.embed_dim)
 
         # Reuse text8's native split loader, but chunk by char_window_length
         # (not cfg.dataset.L — that's the LLM-token length for the auditor).
@@ -186,10 +178,10 @@ class LLMTopKDataModule(DataModule):
             if topk_cfg.corrupt_rate is not None
             else tcfg.train_corrupt_rate
         )
-        self._train_collate = _LLMTopKCollate(
+        self._train_collate = _LLMEmbeddingCollate(
             cfg, lm, corrupt_rate=corrupt_rate, seed=topk_cfg.generation_seed
         )
-        self._eval_collate = _LLMTopKCollate(
+        self._eval_collate = _LLMEmbeddingCollate(
             cfg,
             lm,
             corrupt_rate=corrupt_rate,
@@ -199,6 +191,11 @@ class LLMTopKDataModule(DataModule):
     @property
     def splits(self) -> _Splits:
         return self._splits
+
+    @property
+    def llm_embed_dim(self) -> int:
+        """Input-embedding dim ``d_embed`` reported by the loaded LLM."""
+        return self._llm_embed_dim
 
     def _loader(
         self, ds: Dataset[Any], *, shuffle: bool, collate: Any
@@ -225,3 +222,8 @@ class LLMTopKDataModule(DataModule):
 
     def num_train_samples(self) -> int | None:
         return len(self._train_ds)
+
+
+# Backwards-compatible alias so any external code still importing the old
+# symbol keeps working. New code should use ``LLMEmbeddingDataModule``.
+LLMTopKDataModule = LLMEmbeddingDataModule

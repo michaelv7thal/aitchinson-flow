@@ -211,6 +211,13 @@ class TextAuditTask:
                 )
 
             batch_dev = to_device(batch, device)
+            # Path B: translate ``embeddings`` → ``log_x`` via the learned
+            # projection before every downstream read. No-op on Path A batches
+            # that already carry ``log_x``.
+            prepare = getattr(auditor, "prepare_batch", None)
+            if prepare is not None:
+                with torch.no_grad():
+                    batch_dev = prepare(batch_dev)
             out = auditor.audit(batch_dev)
             running_average(agg, counts, out)
 

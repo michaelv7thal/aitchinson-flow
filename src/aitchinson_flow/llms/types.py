@@ -11,6 +11,24 @@ class CausalLMForInference(Protocol):
     @property
     def device(self) -> torch.device: ...
 
+    @property
+    def embed_dim(self) -> int:
+        """Input-embedding (``d_embed``) size of the underlying LM.
+
+        Used by Path B (``LLMEmbeddingDataModule`` + ``TokenEmbeddingToSimplex``)
+        to size the learned projection without re-loading the model weights.
+        """
+        ...
+
+    def embed_tokens(self, token_ids: torch.Tensor) -> torch.Tensor:
+        """Frozen input-embedding lookup: ``(..., L)`` ids → ``(..., L, d_embed)``.
+
+        Returns a plain tensor (inference-mode flag stripped) so callers can
+        feed the result into autograd-tracked modules. This is the exclusive
+        hook Path B uses — it never calls ``forward_logits`` on the frozen LM.
+        """
+        ...
+
     def forward_logits(
         self,
         input_ids: torch.Tensor,

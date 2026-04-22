@@ -465,19 +465,26 @@ class AnswerGeneratorConfig:
 
 
 @dataclass
-class LLMTopKDatasetConfig:
-    """Path B datasource: raw text -> pretrained LLM -> per-position top-K probs -> ILR.
+class LLMEmbeddingDatasetConfig:
+    """Path B datasource: raw text -> LLM token embeddings -> learned projection -> ILR.
 
-    The LLM is loaded via the registry entry named by ``lm_key`` (see
-    :mod:`aitchinson_flow.llms.registry`), using ``cfg.teacher`` for model
-    selection (``model_id``, ``revision``, ``dtype``, ``device``). For each
-    sampled raw text window the LLM produces logits of shape ``(L, V)``; the
-    top ``K = cfg.dataset.K`` probabilities per position are gathered, sorted
-    descending, renormalized, and projected through ILR/CLR.
+    Each raw text window is tokenized by the pretrained LLM's tokenizer; the
+    LLM's **frozen input embedding matrix** is then indexed to produce per-token
+    embeddings of shape ``(L, d_embed)``. The embeddings are handed to a small
+    learned ``Linear(d_embed, K) + log_softmax`` head on the auditor model
+    (``TokenEmbeddingToSimplex``), whose output is projected through ILR/CLR to
+    yield ``(L, K-1)`` simplex coordinates. The embedding lookup lives on the
+    datamodule (LLM stays off the model checkpoint); the projection weights
+    live on the auditor and are trained in Stage 1, then frozen for Stage 2.
+
+    ``K = cfg.dataset.K`` is the **simplex output dimension of the learned
+    projection** — it has no relationship to LLM vocabulary size. Same
+    ``token_id`` always maps to the same simplex point, so identical text
+    produces identical features (deterministic, unlike top-K sampling).
 
     Invalid (OOD) sequences are produced by applying Path A's char-level
     corruption (via :func:`aitchinson_flow.data.corruption.corrupt_token_ids`)
-    to the same raw text window *before* LLM inference, so the auditor sees
+    to the same raw text window *before* tokenization, so the projection sees
     the LLM's reaction to corrupted text rather than a feature-space
     perturbation.
     """
@@ -504,27 +511,39 @@ class LLMTopKDatasetConfig:
     generation_seed: int = 0
     """Seed for the per-batch corruption RNG."""
 
+    llm_embed_dim: int | None = None
+    """LLM input-embedding dimension (d_embed). Populated by the datamodule at
+    build time from the selected LLM (e.g. 768 for GPT-2, 896 for Qwen2.5-0.5B).
+    The auditor reads this at ``__init__`` to size the learned
+    ``TokenEmbeddingToSimplex`` projection — leave ``None`` and the datamodule
+    will fill it in via :func:`~aitchinson_flow.training.data_sources.build_training_datamodule`."""
+
     _VALID_BACKENDS: ClassVar[tuple[str, ...]] = ("text8", "hf")
 
     def __post_init__(self) -> None:
         if self.raw_text_backend not in self._VALID_BACKENDS:
             raise ValueError(
-                f"LLMTopKDatasetConfig.raw_text_backend={self.raw_text_backend!r} must "
+                f"LLMEmbeddingDatasetConfig.raw_text_backend={self.raw_text_backend!r} must "
                 f"be one of {self._VALID_BACKENDS}"
             )
         if self.char_window_length < 1:
             raise ValueError(
-                f"LLMTopKDatasetConfig.char_window_length must be >= 1, got "
+                f"LLMEmbeddingDatasetConfig.char_window_length must be >= 1, got "
                 f"{self.char_window_length}"
             )
         if self.n_batches_per_epoch < 1:
             raise ValueError(
-                f"LLMTopKDatasetConfig.n_batches_per_epoch must be >= 1, got "
+                f"LLMEmbeddingDatasetConfig.n_batches_per_epoch must be >= 1, got "
                 f"{self.n_batches_per_epoch}"
             )
         if self.corrupt_rate is not None and not 0.0 <= self.corrupt_rate <= 1.0:
             raise ValueError(
-                f"LLMTopKDatasetConfig.corrupt_rate must be in [0, 1], got {self.corrupt_rate}"
+                f"LLMEmbeddingDatasetConfig.corrupt_rate must be in [0, 1], got {self.corrupt_rate}"
+            )
+        if self.llm_embed_dim is not None and self.llm_embed_dim < 1:
+            raise ValueError(
+                f"LLMEmbeddingDatasetConfig.llm_embed_dim must be >= 1 when set, got "
+                f"{self.llm_embed_dim}"
             )
 
 
@@ -542,9 +561,11 @@ class TrainingDataConfig:
     * ``source="raw_text"`` — Path A: load a raw corpus (``text8`` or the
       HF-hub datamodule) and feed it through the standard discrete→ILR
       transform.
-    * ``source="llm_topk"`` — Path B: run raw text windows through a
-      pretrained LLM and take per-position sorted top-K softmax probabilities
-      as the simplex row. See :class:`LLMTopKDatasetConfig`.
+    * ``source="llm_topk"`` — Path B: tokenize raw text with a pretrained LLM
+      tokenizer, look up the frozen input embeddings, and project them into
+      the simplex with a learned ``Linear + log_softmax + ILR`` head
+      (``TokenEmbeddingToSimplex``) trained jointly with the auditor. See
+      :class:`LLMEmbeddingDatasetConfig`.
     * ``source="llm_generated"`` — ask a registered causal LM to *generate*
       batches on the fly. Generation is seeded per-batch via
       ``generation_seed``; ``use_text8_prompts`` optionally seeds every
@@ -724,7 +745,9 @@ class Config:
     bayesian_generator: BayesianGeneratorConfig = field(default_factory=BayesianGeneratorConfig)
     teacher: TeacherConfig = field(default_factory=TeacherConfig)
     training_data: TrainingDataConfig = field(default_factory=TrainingDataConfig)
-    llm_topk_dataset: LLMTopKDatasetConfig = field(default_factory=LLMTopKDatasetConfig)
+    llm_embedding_dataset: LLMEmbeddingDatasetConfig = field(
+        default_factory=LLMEmbeddingDatasetConfig
+    )
     qa_dataset: QADatasetConfig = field(default_factory=QADatasetConfig)
     answer_generator: AnswerGeneratorConfig = field(default_factory=AnswerGeneratorConfig)
     benchmark: BenchmarkConfig = field(default_factory=BenchmarkConfig)

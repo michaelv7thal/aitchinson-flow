@@ -150,12 +150,17 @@ def _load_backbone_into_stage2(
     stage2_model: torch.nn.Module,
     stage1_state: dict[str, torch.Tensor],
 ) -> list[str]:
-    """Copy ``backbone.*`` weights from Stage 1 into a freshly built Stage 2 model.
+    """Copy ``backbone.*`` (and Path B ``llm_projection.*``) from Stage 1 into Stage 2.
 
     The Stage 2 model already enforces that the backbone is frozen (see
     ``BayesianAuditorStage2._freeze_representations``); copying weights here
     just gives Stage 2 a meaningful starting representation. ``latent_head``
     and ``gp`` are left at random init.
+
+    For Path B runs, the ``llm_projection.*`` learned during Stage 1 is also
+    copied so Stage 2 sees the same simplex features Stage 1 was trained on.
+    It is frozen alongside the backbone by ``_freeze_representations`` — Stage
+    2 never updates it.
 
     Returns the list of unexpected backbone keys that were filtered out, so
     callers can surface them to logs (M7). An empty return value means the
@@ -173,6 +178,21 @@ def _load_backbone_into_stage2(
         raise RuntimeError(
             f"Missing backbone keys when seeding Stage 2 from Stage 1: {sorted(missing)}"
         )
+
+    # Path B: seed llm_projection from Stage 1 when both sides carry one.
+    stage1_proj = _filter_state_dict_by_prefix(stage1_state, "llm_projection.")
+    if stage1_proj and getattr(stage2_model, "llm_projection", None) is not None:
+        proj_missing, proj_unexpected = stage2_model.llm_projection.load_state_dict(  # type: ignore[attr-defined]
+            {k.removeprefix("llm_projection."): v for k, v in stage1_proj.items()},
+            strict=False,
+        )
+        if proj_missing:
+            raise RuntimeError(
+                f"Missing llm_projection keys when seeding Stage 2 from Stage 1: "
+                f"{sorted(proj_missing)}"
+            )
+        unexpected = list(unexpected) + [f"llm_projection.{k}" for k in proj_unexpected]
+
     # Unexpected keys (e.g. velocity head fragments) are tolerated but reported.
     return list(unexpected)
 
@@ -185,8 +205,13 @@ def _init_inducing_from_data(
     """Initialise GP inducing points from actual training token latents."""
     model.eval()
     z_samples: list[torch.Tensor] = []
+    prepare = getattr(model, "prepare_batch", None)
     with torch.no_grad():
         for batch in datamodule.train_dataloader():
+            # Path B: translate ``embeddings`` → ``log_x`` via the (frozen)
+            # projection so Path A and Path B take the same inducing-init path.
+            if prepare is not None:
+                batch = prepare(batch)
             log_x = batch["log_x"]
             z = model._extract_tokens(log_x)  # type: ignore[attr-defined]
             z_samples.append(z.reshape(-1, z.shape[-1]))
