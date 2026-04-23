@@ -53,9 +53,14 @@ def build_training_datamodule(cfg: Config) -> tuple[DataModule, dict[str, Any]]:
         return _build_llm_generated_datamodule(cfg)
     if source == "qa_pairs":
         return _build_qa_pairs_datamodule(cfg)
+    if source == "dna":
+        return _build_dna_datamodule(cfg)
+    if source == "medical":
+        return _build_medical_datamodule(cfg)
     raise ValueError(
-        f"Unknown cfg.training_data.source={source!r}; expected 'raw_text', "
-        f"'llm_topk', 'llm_topk_probs', 'llm_generated' or 'qa_pairs'."
+        f"Unknown cfg.training_data.source={source!r}; expected one of "
+        f"'raw_text', 'llm_topk', 'llm_topk_probs', 'llm_generated', "
+        f"'qa_pairs', 'dna', or 'medical'."
     )
 
 
@@ -316,6 +321,46 @@ def _build_qa_pairs_datamodule(cfg: Config) -> tuple[DataModule, dict[str, Any]]
             "prompt_template": cfg.answer_generator.prompt_template,
             "generation_seed": cfg.answer_generator.generation_seed,
         },
+    }
+
+
+def _build_dna_datamodule(cfg: Config) -> tuple[DataModule, dict[str, Any]]:
+    """Build the DNA nucleotide sequence datamodule (Component 1 structural UQ)."""
+    from aitchinson_flow.data.dna_datamodule import DNADataModule  # noqa: PLC0415
+
+    dcfg = cfg.dna_dataset
+    dm = DNADataModule(cfg)
+    return dm, {
+        "source": "dna",
+        "hf_path": dcfg.hf_path,
+        "hf_name": dcfg.hf_name,
+        "use_n_base": dcfg.use_n_base,
+        "seq_length": cfg.dataset.L,
+        "vocab_size": cfg.dataset.K,
+        "gc_content": dcfg.gc_content,
+        "train_corrupt_rate": dcfg.train_corrupt_rate,
+        "eval_corrupt_rate": dcfg.eval_corrupt_rate,
+        "corruption_seed": dcfg.corruption_seed,
+        "synthetic_seed": dcfg.synthetic_seed,
+    }
+
+
+def _build_medical_datamodule(cfg: Config) -> tuple[DataModule, dict[str, Any]]:
+    """Build the clinical text datamodule (Component 1+2 structural + contextual UQ)."""
+    from aitchinson_flow.data.medical_datamodule import MedicalDataModule  # noqa: PLC0415
+
+    mcfg = cfg.medical_dataset
+    dm = MedicalDataModule(cfg)
+    return dm, {
+        "source": "medical",
+        "hf_path": mcfg.hf_path,
+        "hf_name": mcfg.hf_name,
+        "seq_length": cfg.dataset.L,
+        "vocab_size": cfg.dataset.K,
+        "train_corrupt_rate": mcfg.train_corrupt_rate,
+        "eval_corrupt_rate": mcfg.eval_corrupt_rate,
+        "corruption_seed": mcfg.corruption_seed,
+        "synthetic_seed": mcfg.synthetic_seed,
     }
 
 
