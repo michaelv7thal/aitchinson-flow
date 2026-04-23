@@ -383,25 +383,20 @@ class BayesianAuditorStage1(nn.Module):
         return self.eval_step(batch)
 
     def _per_token_soft_hilbert(self, log_x: torch.Tensor) -> torch.Tensor:
-        """Per-token soft Hilbert distance of the velocity field ||v(x)||_H.
-
-        Since the Equilibrium Matching (EqM) target velocity on the valid
-        data manifold is zero, the magnitude of the predicted velocity v(x)
-        acts as our geometric anomaly signal. We measure this restorative
-        magnitude using the soft Hilbert distance to the origin.
+        """Per-token soft Hilbert distance d_H(f_c, x_c) where f_c and x_c are
+        mean-centred velocity and input respectively.
 
         Args:
             log_x: (B, L, D) sequences in ILR / log-simplex coordinates.
 
         Returns:
-            (B, L) tensor representing the Hilbert magnitude of the velocity.
+            (B, L) tensor of per-token Hilbert distances.
         """
         v, _ = self.forward(log_x)
-
-        v_target = torch.zeros_like(v)
-
+        f_c = v - v.mean(dim=-1, keepdim=True)
+        x_c = log_x - log_x.mean(dim=-1, keepdim=True)
         return nielsen_soft_hilbert_distance(
-            v, v_target, alpha=self.cfg.training.soft_hilbert_alpha
+            f_c, x_c, alpha=self.cfg.training.soft_hilbert_alpha
         )
 
     @torch.no_grad()

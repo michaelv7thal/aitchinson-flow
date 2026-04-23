@@ -47,13 +47,15 @@ def build_training_datamodule(cfg: Config) -> tuple[DataModule, dict[str, Any]]:
         return _build_raw_text_datamodule(cfg)
     if source == "llm_topk":
         return _build_llm_topk_datamodule(cfg)
+    if source == "llm_topk_probs":
+        return _build_llm_topk_probs_datamodule(cfg)
     if source == "llm_generated":
         return _build_llm_generated_datamodule(cfg)
     if source == "qa_pairs":
         return _build_qa_pairs_datamodule(cfg)
     raise ValueError(
         f"Unknown cfg.training_data.source={source!r}; expected 'raw_text', "
-        f"'llm_topk', 'llm_generated' or 'qa_pairs'."
+        f"'llm_topk', 'llm_topk_probs', 'llm_generated' or 'qa_pairs'."
     )
 
 
@@ -236,6 +238,46 @@ def _build_llm_topk_datamodule(cfg: Config) -> tuple[DataModule, dict[str, Any]]
         "llm_embed_dim": dm.llm_embed_dim,
         "corrupt_rate": corrupt_rate,
         "generation_seed": emb_cfg.generation_seed,
+    }
+
+
+def _build_llm_topk_probs_datamodule(cfg: Config) -> tuple[DataModule, dict[str, Any]]:
+    """Build the Component 2 (top-K probability) datamodule.
+
+    Tokenizes raw text with a frozen LLM, extracts top-K softmax probabilities
+    per token position, re-normalizes, and applies ILR. The resulting batch keys
+    (``log_x``, ``log_x_invalid``) are compatible with Stage 1 and Stage 2.
+    """
+    from aitchinson_flow.data.llm_topk_probs_datamodule import (  # noqa: PLC0415
+        LLMTopKProbsDataModule,
+    )
+    from aitchinson_flow.llms.registry import build_lm  # noqa: PLC0415
+
+    topk_cfg = cfg.llm_topk_probs
+    lm = build_lm(topk_cfg.lm_key, cfg.teacher)
+    dm = LLMTopKProbsDataModule(cfg, lm)
+
+    corrupt_rate = (
+        topk_cfg.corrupt_rate
+        if topk_cfg.corrupt_rate is not None
+        else cfg.text8_dataset.train_corrupt_rate
+    )
+    return dm, {
+        "source": "llm_topk_probs",
+        "lm_key": topk_cfg.lm_key,
+        "teacher": {
+            "model_id": cfg.teacher.model_id,
+            "revision": cfg.teacher.revision,
+            "dtype": cfg.teacher.dtype,
+            "device": cfg.teacher.device,
+        },
+        "raw_text_backend": topk_cfg.raw_text_backend,
+        "char_window_length": topk_cfg.char_window_length,
+        "llm_token_length": cfg.dataset.L,
+        "top_k": cfg.dataset.K,
+        "renormalize": topk_cfg.renormalize,
+        "corrupt_rate": corrupt_rate,
+        "generation_seed": topk_cfg.generation_seed,
     }
 
 

@@ -57,10 +57,11 @@ def add_training_data_args(parser: argparse.ArgumentParser) -> None:
     group.add_argument(
         "--training-data-source",
         type=str,
-        choices=("raw_text", "llm_topk", "llm_generated"),
+        choices=("raw_text", "llm_topk", "llm_topk_probs", "llm_generated"),
         default=None,
         help="Training input source: raw text datamodule, pretrained-LLM top-K "
-        "features (Path B), or LLM-generated stream.",
+        "embedding features (Path B / llm_topk), LLM top-K softmax probability "
+        "features (Component 2 / llm_topk_probs), or LLM-generated stream.",
     )
     group.add_argument(
         "--raw-dataset",

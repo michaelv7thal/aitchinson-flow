@@ -46,6 +46,35 @@ class CausalLMTeacher(TeacherBackend):
         return torch.stack(rows, dim=0)
 
     @torch.inference_mode()
+    def top_k_probs(
+        self,
+        input_ids: torch.Tensor,
+        K: int,
+        *,
+        renormalize: bool = True,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Extract top-K softmax probabilities from the LLM for each token position.
+
+        Args:
+            input_ids: ``(B, L)`` integer token ids.
+            K: Number of top vocabulary slots to retain per token position.
+            renormalize: If True, re-normalize the selected top-K probabilities
+                so they sum to 1 (Aitchison closed operation on the simplex).
+
+        Returns:
+            probs: ``(B, L, K)`` top-K softmax probabilities, re-normalized when
+                ``renormalize=True``.
+            indices: ``(B, L, K)`` vocabulary indices of the selected top-K slots,
+                sorted descending by probability.
+        """
+        logits = self._lm.forward_logits(input_ids=input_ids)  # (B, L, V)
+        probs_full = torch.softmax(logits.to(dtype=torch.float32), dim=-1)
+        top_probs, top_indices = torch.topk(probs_full, K, dim=-1, sorted=True)
+        if renormalize:
+            top_probs = top_probs / top_probs.sum(dim=-1, keepdim=True)
+        return self._materialize(top_probs), self._materialize(top_indices)
+
+    @torch.inference_mode()
     def sample_log_x(
         self,
         *,

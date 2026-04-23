@@ -555,6 +555,62 @@ class LLMEmbeddingDatasetConfig:
 
 
 @dataclass
+class LLMTopKProbsConfig:
+    """Component 2 datasource: raw text → LLM top-K softmax probabilities → ILR.
+
+    Each raw text window is tokenized by the LLM's tokenizer; the frozen LLM's
+    forward pass extracts per-token softmax probabilities over the full
+    vocabulary, then the top-K entries are selected and re-normalized to form a
+    K-dimensional probability simplex. ILR projection yields (L, K-1) Aitchison
+    coordinates for the flow-matching backbone.
+
+    ``K = cfg.dataset.K`` controls how many top-K vocabulary slots are retained.
+    Valid text produces exponential-decay-like top-K distributions (one token
+    dominates); corrupted text produces flatter distributions — this geometric
+    difference is what the Stage 1 + Stage 2 pipeline learns to detect.
+    """
+
+    lm_key: str = "hf_causal"
+    """LLM registry key used to build the pretrained LM."""
+
+    renormalize: bool = True
+    """Re-normalize the top-K probabilities to sum to 1 after truncation."""
+
+    raw_text_backend: str = "text8"
+    """Raw-text source for valid sequences; currently only ``"text8"`` is supported."""
+
+    char_window_length: int = 256
+    """Characters per raw-text window before LLM tokenization. Should be large
+    enough that the tokenizer produces at least ``cfg.dataset.L`` tokens after
+    truncation."""
+
+    corrupt_rate: float | None = None
+    """Char-level corruption rate for the invalid (OOD) batches. ``None`` falls
+    back to ``cfg.text8_dataset.train_corrupt_rate``."""
+
+    generation_seed: int = 0
+    """Base seed for the per-batch corruption RNG."""
+
+    _VALID_BACKENDS: ClassVar[tuple[str, ...]] = ("text8",)
+
+    def __post_init__(self) -> None:
+        if self.raw_text_backend not in self._VALID_BACKENDS:
+            raise ValueError(
+                f"LLMTopKProbsConfig.raw_text_backend={self.raw_text_backend!r} must "
+                f"be one of {self._VALID_BACKENDS}"
+            )
+        if self.char_window_length < 1:
+            raise ValueError(
+                f"LLMTopKProbsConfig.char_window_length must be >= 1, got "
+                f"{self.char_window_length}"
+            )
+        if self.corrupt_rate is not None and not 0.0 <= self.corrupt_rate <= 1.0:
+            raise ValueError(
+                f"LLMTopKProbsConfig.corrupt_rate must be in [0, 1], got {self.corrupt_rate}"
+            )
+
+
+@dataclass
 class TrainingDataConfig:
     """Training-time data source selection and generation controls.
 
@@ -579,10 +635,15 @@ class TrainingDataConfig:
       generation from a text8 prompt window.
     * ``source="qa_pairs"`` — Path C: byte-level Q+A (trivia) auditor using
       cross-question-swap negatives and an LLM answer generator.
+    * ``source="llm_topk_probs"`` — Component 2: tokenize raw text, run frozen
+      LLM forward pass, extract top-K softmax probabilities per position,
+      re-normalize, then apply ILR. Captures contextual semantic uncertainty.
+      See :class:`LLMTopKProbsConfig`.
     """
 
     source: str = "raw_text"
-    """One of: ``"raw_text"``, ``"llm_topk"``, ``"llm_generated"``, ``"qa_pairs"``."""
+    """One of: ``"raw_text"``, ``"llm_topk"``, ``"llm_generated"``, ``"qa_pairs"``,
+    ``"llm_topk_probs"``."""
 
     raw_dataset: str = "text8"
     """Raw-data backend when ``source='raw_text'``.
@@ -619,6 +680,7 @@ class TrainingDataConfig:
         "llm_topk",
         "llm_generated",
         "qa_pairs",
+        "llm_topk_probs",
     )
     _VALID_RAW_DATASETS: ClassVar[tuple[str, ...]] = ("text8", "hf")
     _VALID_LLM_FEATURE_MODES: ClassVar[tuple[str, ...]] = ("token_ids", "token_probs")
@@ -626,7 +688,8 @@ class TrainingDataConfig:
     def __post_init__(self) -> None:
         if self.source not in self._VALID_SOURCES:
             raise ValueError(
-                f"TrainingDataConfig.source={self.source!r} must be one of {self._VALID_SOURCES}"
+                f"TrainingDataConfig.source={self.source!r} must be one of {self._VALID_SOURCES}; "
+                f"use 'llm_topk_probs' for Component 2 (top-K probability path)"
             )
         if self.raw_dataset not in self._VALID_RAW_DATASETS:
             raise ValueError(
@@ -755,6 +818,7 @@ class Config:
     llm_embedding_dataset: LLMEmbeddingDatasetConfig = field(
         default_factory=LLMEmbeddingDatasetConfig
     )
+    llm_topk_probs: LLMTopKProbsConfig = field(default_factory=LLMTopKProbsConfig)
     qa_dataset: QADatasetConfig = field(default_factory=QADatasetConfig)
     answer_generator: AnswerGeneratorConfig = field(default_factory=AnswerGeneratorConfig)
     benchmark: BenchmarkConfig = field(default_factory=BenchmarkConfig)
