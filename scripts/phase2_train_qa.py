@@ -1,14 +1,12 @@
-"""Path B Phase 2: train the byte-level Q+A Stage 2 GP head.
+"""Phase 2: train the byte-level Q+A Stage 2 GP head on raw QA pairs.
 
-Loads the Path B Phase 1 backbone (produced by
-:mod:`scripts.phase1_train_bytes`) into a fresh ``BayesianAuditorStage2`` at
-``K=256``, then trains the contrastive GP head on byte-encoded ``[Q][A]``
-pairs from :class:`~aitchinson_flow.data.qa_datamodule.QAPairsDataModule`.
+Loads the Phase 1 backbone (produced by :mod:`scripts.phase1_train_bytes`)
+into a fresh ``BayesianAuditorStage2`` at ``K=256``, then trains the
+contrastive GP head on byte-encoded ``[Q][A]`` pairs from
+:class:`~aitchinson_flow.data.qa_datamodule.QAPairsDataModule`.
 
-The training loss uses the QA datamodule's ``log_x_invalid`` (cross-question
-swap) instead of ``randn_like`` negatives, and — when
-``cfg.gp.score_answer_tokens_only`` is True — restricts the GP loss to
-answer-span positions via ``answer_mask``.
+The training loss uses ``log_x_invalid`` from cross-question-swap negatives,
+and restricts GP loss terms to answer-span positions via ``answer_mask``.
 
 Usage::
 
@@ -38,8 +36,6 @@ import sys  # noqa: E402
 _SCRIPTS = _REPO_ROOT / "scripts"
 if str(_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS))
-
-import torch  # noqa: E402
 
 import aitchinson_flow.models  # noqa: E402,F401 — populate REGISTRY
 
@@ -84,7 +80,6 @@ def run_phase2_qa(
     stage1_backbone_ckpt: Path,
     epochs: int,
     L: int,
-    skip_llm_eval: bool = False,
 ) -> dict[str, Any]:
     if not stage1_backbone_ckpt.is_file():
         raise FileNotFoundError(
@@ -93,9 +88,9 @@ def run_phase2_qa(
     out_dir.mkdir(parents=True, exist_ok=True)
 
     run_cfg = _phase2_qa_config(cfg, epochs=epochs, L=L, ckpt_dir=out_dir / "stage2_ckpts")
-    run_cfg.training_data = replace(run_cfg.training_data, qa_skip_llm_eval=skip_llm_eval)
+    run_cfg.training_data = replace(run_cfg.training_data, qa_skip_llm_eval=True)
 
-    datamodule = QAPairsDataModule(run_cfg, skip_llm=skip_llm_eval)
+    datamodule = QAPairsDataModule(run_cfg, skip_llm=True)
 
     stage1_state, _, _ = _load_stage1_checkpoint_state(
         stage1_backbone_ckpt, map_location=run_cfg.training.device
@@ -119,7 +114,6 @@ def run_phase2_qa(
             "stage": "phase2_qa",
             "K": run_cfg.dataset.K,
             "L": run_cfg.dataset.L,
-            "skip_llm_eval": skip_llm_eval,
             "stage1_backbone_ckpt": str(stage1_backbone_ckpt),
             "out_dir": str(out_dir),
         },
@@ -167,7 +161,7 @@ def run_phase2_qa(
         "epochs": epochs,
         "K": run_cfg.dataset.K,
         "L": run_cfg.dataset.L,
-        "skip_llm_eval": skip_llm_eval,
+        "skip_llm_eval": True,
         "score_answer_tokens_only": run_cfg.gp.score_answer_tokens_only,
         "stage2_cfg": config_checkpoint_dict(run_cfg),
     }
@@ -200,11 +194,6 @@ def _build_argparser() -> argparse.ArgumentParser:
     )
     p.add_argument("--epochs", type=positive_int, default=10)
     p.add_argument("--L", type=positive_int, default=128)
-    p.add_argument(
-        "--skip-llm-eval",
-        action="store_true",
-        help="Use cross-question-swap placeholders instead of instantiating an LLM.",
-    )
     p.add_argument("--smoke", action="store_true")
     return p
 
@@ -220,7 +209,6 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
         stage1_backbone_ckpt=Path(args.stage1_backbone_ckpt),
         epochs=epochs,
         L=L,
-        skip_llm_eval=args.skip_llm_eval,
     )
     print(json.dumps(manifest, indent=2, default=str))
     return manifest

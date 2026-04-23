@@ -51,7 +51,7 @@ def _load_trivia_answers(
     """Load a flat list of correct answer strings from TriviaQA (rc.nocontext)."""
     import datasets  # noqa: PLC0415
 
-    ds = datasets.load_dataset("trivia_qa", "rc.nocontext", split=split, trust_remote_code=True)
+    ds = datasets.load_dataset("mandarjoshi/trivia_qa", "rc.nocontext", split=split)
     if max_samples is not None:
         ds = ds.shuffle(seed=seed).select(range(min(max_samples, len(ds))))
 

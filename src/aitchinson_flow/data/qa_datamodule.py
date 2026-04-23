@@ -16,6 +16,7 @@ repeated eval runs skip regeneration.
 
 from __future__ import annotations
 
+import csv
 import hashlib
 import json
 import random
@@ -69,6 +70,26 @@ def _coerce_aliases(value: Any) -> list[str]:
     return [str(value)]
 
 
+def _normalize_text(value: str) -> str:
+    return " ".join(value.strip().lower().split())
+
+
+def _coerce_label(value: Any) -> int | None:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, (int, float)):
+        return int(value != 0)
+    if isinstance(value, str):
+        token = value.strip().lower()
+        if token in {"1", "true", "yes", "hallucinated", "invalid", "incorrect"}:
+            return 1
+        if token in {"0", "false", "no", "correct", "valid"}:
+            return 0
+    return None
+
+
 def _load_qa_rows(
     hf_path: str,
     *,
@@ -79,14 +100,11 @@ def _load_qa_rows(
     aliases_col: str | None,
     max_samples: int | None,
     seed: int,
-    trust_remote_code: bool,
 ) -> list[dict[str, Any]]:
     """Load ``(question, answer, aliases)`` rows from a HuggingFace dataset."""
     import datasets  # noqa: PLC0415
 
-    ds = datasets.load_dataset(
-        hf_path, name, split=split, trust_remote_code=trust_remote_code
-    )
+    ds = datasets.load_dataset(hf_path, name, split=split)
     if max_samples is not None:
         ds = ds.shuffle(seed=seed).select(range(min(max_samples, len(ds))))
 
@@ -100,6 +118,73 @@ def _load_qa_rows(
             continue
         aliases = _coerce_aliases(_dotted_get(raw, aliases_col)) if aliases_col else []
         rows.append({"question": q, "answer": a, "aliases": aliases})
+    return rows
+
+
+def _load_external_eval_rows(
+    path: str,
+    *,
+    question_col: str,
+    answer_col: str,
+    label_col: str | None,
+    reference_answer_col: str | None,
+    max_samples: int | None,
+) -> list[dict[str, Any]]:
+    """Load external eval rows as ``{question, answer, label}``.
+
+    Supports JSON (list), JSONL, and CSV. Labels are read from ``label_col``
+    when available; otherwise, if ``reference_answer_col`` is supplied, labels
+    are inferred via normalized exact match between answer/reference.
+    """
+    p = Path(path)
+    if not p.is_file():
+        raise FileNotFoundError(f"External eval file not found: {p}")
+
+    suffix = p.suffix.lower()
+    raw_rows: list[dict[str, Any]] = []
+    if suffix == ".json":
+        payload = json.loads(p.read_text(encoding="utf-8"))
+        if not isinstance(payload, list):
+            raise ValueError("External JSON eval input must be a list of objects.")
+        raw_rows = [r for r in payload if isinstance(r, dict)]
+    elif suffix == ".jsonl":
+        for line in p.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            row = json.loads(line)
+            if isinstance(row, dict):
+                raw_rows.append(row)
+    elif suffix == ".csv":
+        with p.open("r", encoding="utf-8", newline="") as fh:
+            reader = csv.DictReader(fh)
+            raw_rows = [dict(r) for r in reader]
+    else:
+        raise ValueError(
+            f"Unsupported external eval format: {suffix}. Use .json, .jsonl, or .csv."
+        )
+
+    rows: list[dict[str, Any]] = []
+    for raw in raw_rows:
+        question = _dotted_get(raw, question_col)
+        answer = _dotted_get(raw, answer_col)
+        if not isinstance(question, str) or not question.strip():
+            continue
+        answer_text = _coerce_answer(answer)
+        if answer_text is None:
+            continue
+
+        label = _coerce_label(_dotted_get(raw, label_col)) if label_col else None
+        if label is None and reference_answer_col:
+            ref = _coerce_answer(_dotted_get(raw, reference_answer_col))
+            if ref is not None:
+                label = int(_normalize_text(answer_text) != _normalize_text(ref))
+        if label is None:
+            continue
+
+        rows.append({"question": question, "answer": answer_text, "label": int(label)})
+        if max_samples is not None and len(rows) >= max_samples:
+            break
     return rows
 
 
@@ -236,6 +321,27 @@ class _QAEvalDataset(Dataset[dict[str, Tensor]]):
         }
 
 
+class _QAExternalEvalDataset(Dataset[dict[str, Tensor]]):
+    """Eval dataset from externally supplied `(question, answer, label)` rows."""
+
+    def __init__(self, rows: list[dict[str, Any]], cfg: Config) -> None:
+        self.rows = rows
+        self.cfg = cfg
+
+    def __len__(self) -> int:
+        return len(self.rows)
+
+    def __getitem__(self, idx: int) -> dict[str, Tensor]:
+        row = self.rows[idx]
+        feats, ids, mask = _encode_pair(row["question"], row["answer"], cfg=self.cfg)
+        return {
+            "log_x": feats,
+            "token_ids": ids,
+            "answer_mask": mask,
+            "label": torch.tensor(int(row["label"]), dtype=torch.long),
+        }
+
+
 def _cache_key(
     hf_path: str,
     name: str | None,
@@ -318,7 +424,6 @@ class QAPairsDataModule(DataModule):
             aliases_col=qa.aliases_col,
             max_samples=qa.max_train_samples,
             seed=qa.shuffle_seed,
-            trust_remote_code=qa.trust_remote_code,
         )
         self._val_rows = (
             _load_qa_rows(
@@ -330,7 +435,6 @@ class QAPairsDataModule(DataModule):
                 aliases_col=qa.aliases_col,
                 max_samples=qa.max_val_samples,
                 seed=qa.shuffle_seed + 1,
-                trust_remote_code=qa.trust_remote_code,
             )
             if qa.split_val is not None
             else []
@@ -345,7 +449,6 @@ class QAPairsDataModule(DataModule):
                 aliases_col=qa.aliases_col,
                 max_samples=qa.max_test_samples,
                 seed=qa.shuffle_seed + 2,
-                trust_remote_code=qa.trust_remote_code,
             )
             if qa.split_test is not None
             else []
@@ -493,3 +596,57 @@ class QAPairsDataModule(DataModule):
         self._ensure_rows_loaded()
         assert self._train_rows is not None
         return len(self._train_rows)
+
+
+class QAExternalEvalDataModule(DataModule):
+    """Datamodule for external target-domain QA hallucination eval batches."""
+
+    def __init__(
+        self,
+        cfg: Config,
+        *,
+        external_path: str,
+        question_col: str = "question",
+        answer_col: str = "answer",
+        label_col: str | None = "label",
+        reference_answer_col: str | None = None,
+        max_samples: int | None = None,
+    ) -> None:
+        if cfg.dataset.K != 256:
+            raise ValueError(
+                f"QAExternalEvalDataModule requires cfg.dataset.K == 256 (byte-level); got {cfg.dataset.K}"
+            )
+        self.cfg = cfg
+        self.rows = _load_external_eval_rows(
+            external_path,
+            question_col=question_col,
+            answer_col=answer_col,
+            label_col=label_col,
+            reference_answer_col=reference_answer_col,
+            max_samples=max_samples,
+        )
+        if not self.rows:
+            raise ValueError(
+                "No valid external eval rows loaded; ensure question/answer and label "
+                "or reference-answer columns are present."
+            )
+        self._ds = _QAExternalEvalDataset(self.rows, cfg)
+
+    def train_dataloader(self) -> DataLoader:  # type: ignore[override]
+        return DataLoader(
+            self._ds,
+            batch_size=self.cfg.training.B,
+            shuffle=False,
+            num_workers=self.cfg.training.num_workers,
+        )
+
+    def val_dataloader(self) -> DataLoader | None:  # type: ignore[override]
+        return None
+
+    def test_dataloader(self) -> DataLoader | None:  # type: ignore[override]
+        return DataLoader(
+            self._ds,
+            batch_size=self.cfg.training.B,
+            shuffle=False,
+            num_workers=self.cfg.training.num_workers,
+        )

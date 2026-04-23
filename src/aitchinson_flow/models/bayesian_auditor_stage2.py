@@ -220,7 +220,7 @@ class BayesianAuditorStage2(nn.Module):
 
         # 1. Get the sequence-level normalizer from your robust utility
         # Returns N_sequences (or B if in a unit test)
-        n_seq_norm = kl_normalizer(self, B)
+        # n_seq_norm = kl_normalizer(self, B)
 
         # 2. Scale it to the Token Level based on the active path
         if use_mask:
@@ -228,10 +228,10 @@ class BayesianAuditorStage2(nn.Module):
             # We must multiply by the expected number of answer tokens per sequence.
             # You can add `avg_answer_len` to your config, or default to a reasonable estimate.
             avg_answer_len = getattr(self.cfg.dataset, "avg_answer_length", 10.0)
-            n_norm = n_seq_norm * float(avg_answer_len)
+            n_norm = B * float(avg_answer_len)
         else:
             # PATH A (Normal Text): We are scoring every token in the sequence.
-            n_norm = n_seq_norm * float(L)
+            n_norm = B * float(L)
 
         total = (
             nll.mean()

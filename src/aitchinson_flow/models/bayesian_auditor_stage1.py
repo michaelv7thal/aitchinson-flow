@@ -318,7 +318,11 @@ class BayesianAuditorStage1(nn.Module):
 
         return nielsen_soft_hilbert_distance(pred_masked, target_masked).mean()
 
-    def _eqm_hilbert_loss(self, log_x1: torch.Tensor) -> LossDict:
+    def _eqm_hilbert_loss(
+        self,
+        log_x1: torch.Tensor,
+        answer_mask: torch.Tensor | None = None,
+    ) -> LossDict:
         B, L, D = log_x1.shape
         device, dt = log_x1.device, log_x1.dtype
         log_x0 = _scrambled_log_x0(self.cfg, bsz=B, seq_len=L, device=device, dtype=dt)
@@ -328,7 +332,22 @@ class BayesianAuditorStage1(nn.Module):
         # The matching integrator subtracts v: x ← x - v(x) * dt (noise → data).
         u_tgt = self._c_gamma(gamma) * (log_x0 - log_x1)
         v_pred, _ = self.forward(log_x_gamma)
-        flow_loss = self._velocity_loss_fn(v_pred, u_tgt)
+        if self.cfg.training.stage1_answer_tokens_only:
+            if answer_mask is None:
+                raise KeyError(
+                    "BayesianAuditorStage1 with training.stage1_answer_tokens_only=True "
+                    "requires batch['answer_mask']"
+                )
+            if answer_mask.shape != (B, L):
+                raise ValueError(
+                    f"answer_mask shape {tuple(answer_mask.shape)} must equal (B, L)=({B}, {L})"
+                )
+            mask_bool = answer_mask.to(dtype=torch.bool, device=log_x1.device)
+            if not mask_bool.any():
+                raise ValueError("answer_mask is all-False across the batch; nothing to score")
+            flow_loss = self._velocity_loss_fn(v_pred[mask_bool], u_tgt[mask_bool])
+        else:
+            flow_loss = self._velocity_loss_fn(v_pred, u_tgt)
 
         lambda_mask = self.cfg.training.lambda_mask
         if lambda_mask > 0.0:
@@ -352,12 +371,12 @@ class BayesianAuditorStage1(nn.Module):
         batch = self.prepare_batch(batch)
         if "log_x" not in batch:
             raise KeyError("BayesianAuditorStage1 requires batch['log_x']")
-        return self._eqm_hilbert_loss(batch["log_x"])
+        return self._eqm_hilbert_loss(batch["log_x"], answer_mask=batch.get("answer_mask"))
 
     @torch.no_grad()
     def eval_step(self, batch: Any) -> LossDict:
         batch = self.prepare_batch(batch)
-        return self._eqm_hilbert_loss(batch["log_x"])
+        return self._eqm_hilbert_loss(batch["log_x"], answer_mask=batch.get("answer_mask"))
 
     @torch.no_grad()
     def audit(self, batch: Any) -> LossDict:

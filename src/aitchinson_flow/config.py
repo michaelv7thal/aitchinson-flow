@@ -204,6 +204,13 @@ class TrainingConfig:
     masked-reconstruction loss. Only read when ``lambda_mask > 0``.
     """
 
+    stage1_answer_tokens_only: bool = False
+    """If True, Stage 1 EqM/Hilbert loss is restricted to ``answer_mask`` tokens.
+
+    Intended for QA training on concatenated ``[Q][A]`` where question tokens
+    are context and gradients should focus on answer spans.
+    """
+
     use_tqdm: bool = True
     """Show tqdm progress bars for training/validation loops."""
 
@@ -405,7 +412,7 @@ class QADatasetConfig:
     as ``[STX] question [ETX] answer [EOT]`` padded to ``cfg.dataset.L``.
     """
 
-    hf_path: str = "trivia_qa"
+    hf_path: str = "mandarjoshi/trivia_qa"
     name: str | None = "rc.nocontext"
     revision: str | None = None
     split_train: str = "train"
