@@ -57,6 +57,6 @@ class TestAuditorScoreHook:
         cfg.transformer.d_latent = 16
 
         model = build_model(cfg).eval()
-        log_x = torch.randn(3, cfg.dataset.L, cfg.dataset.K)
+        log_x = torch.randn(3, cfg.dataset.L, cfg.dataset.K - 1)
         scores = model.score_per_sample(log_x)
         assert scores.shape == (3,)

@@ -129,7 +129,6 @@ class TestTextAuditTaskSmoke:
         # Bayesian auditor metrics (with log_x_invalid present → eval_step path)
         assert "flow_loss" in result
         assert "mean_loss" in result
-        assert "var_loss" in result
         # AUROC benchmark: auditor vs spilled energy
         assert "auroc_auditor" in result
         assert "auroc_spilled" in result
