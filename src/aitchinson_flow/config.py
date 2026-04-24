@@ -669,6 +669,101 @@ class MedicalDatasetConfig:
 
 
 @dataclass
+class HealingConfig:
+    """Phase 4 OOD healing strategy configuration.
+
+    Three strategies (see :mod:`aitchinson_flow.healing`):
+
+    * ``"targeted_resample"`` — mask per-token positions with energy > threshold,
+      project via EqM or resample via LLM; iterate up to ``max_iter`` times.
+    * ``"simplex_project"`` — run EqM on flagged sequences, project back to the
+      nearest vocabulary token via ILR inverse + argmax.
+    * ``"beam_rerank"`` — score beam candidates by
+      ``log_p − lambda_energy · mean_energy``; return the highest-scoring one.
+    * ``"eqm"`` — legacy whole-sequence EqM integration (equivalent to the
+      ``HealingPipeline`` in :mod:`benchmarks.healing`).
+    """
+
+    strategy: str = "targeted_resample"
+    """Healing strategy: one of ``targeted_resample``, ``simplex_project``,
+    ``beam_rerank``, ``eqm``."""
+
+    threshold: float = 1.0
+    """Per-token (``targeted_resample``) or sequence-level (others) energy
+    threshold for flagging sequences / positions as OOD."""
+
+    max_iter: int = 5
+    """Maximum healing iterations (``targeted_resample`` only)."""
+
+    lambda_energy: float = 1.0
+    """Energy penalty weight λ for beam reranking:
+    ``score = log_p − λ · mean_energy``."""
+
+    n_beams: int = 5
+    """Number of beam candidates to generate before reranking."""
+
+    heal_steps: int | None = None
+    """EqM integration steps per healing pass (``None`` → healer model default)."""
+
+    heal_dt: float | None = None
+    """EqM step size (``None`` → healer model default)."""
+
+    re_encode: bool = True
+    """If ``True`` (default), re-encode snapped token IDs back to ILR after
+    simplex projection so the output geometry matches training."""
+
+    eps: float = 1e-8
+    """Additive smoothing epsilon used when re-encoding token IDs to ILR."""
+
+    label_smoothing: float = 0.0
+    """Label-smoothing coefficient for re-encoding (mirrors
+    ``cfg.hf_dataset.label_smoothing`` — set consistently)."""
+
+    transform_mode: str = "ilr"
+    """``"ilr"`` or ``"clr"`` for re-encoding token IDs (must match training)."""
+
+    _VALID_STRATEGIES: ClassVar[tuple[str, ...]] = (
+        "targeted_resample",
+        "simplex_project",
+        "beam_rerank",
+        "eqm",
+    )
+
+    def __post_init__(self) -> None:
+        if self.strategy not in self._VALID_STRATEGIES:
+            raise ValueError(
+                f"HealingConfig.strategy={self.strategy!r} must be one of "
+                f"{self._VALID_STRATEGIES}"
+            )
+        if self.threshold <= 0.0:
+            raise ValueError(
+                f"HealingConfig.threshold must be > 0, got {self.threshold}"
+            )
+        if self.max_iter < 1:
+            raise ValueError(
+                f"HealingConfig.max_iter must be >= 1, got {self.max_iter}"
+            )
+        if self.lambda_energy < 0.0:
+            raise ValueError(
+                f"HealingConfig.lambda_energy must be >= 0 (negative values reward "
+                f"anomalous sequences), got {self.lambda_energy}"
+            )
+        if self.n_beams < 1:
+            raise ValueError(
+                f"HealingConfig.n_beams must be >= 1, got {self.n_beams}"
+            )
+        if self.heal_steps is not None and self.heal_steps < 1:
+            raise ValueError(
+                f"HealingConfig.heal_steps must be >= 1 when set, got {self.heal_steps}"
+            )
+        if self.transform_mode not in ("ilr", "clr"):
+            raise ValueError(
+                f"HealingConfig.transform_mode must be 'ilr' or 'clr', "
+                f"got {self.transform_mode!r}"
+            )
+
+
+@dataclass
 class TrainingDataConfig:
     """Training-time data source selection and generation controls.
 
@@ -887,6 +982,7 @@ class Config:
     benchmark: BenchmarkConfig = field(default_factory=BenchmarkConfig)
     per_token_auditor: PerTokenAuditorConfig = field(default_factory=PerTokenAuditorConfig)
     equilibrium: EquilibriumFlowConfig = field(default_factory=EquilibriumFlowConfig)
+    healing: HealingConfig = field(default_factory=HealingConfig)
 
     def __post_init__(self) -> None:
         # Backward-compatible aliases: if the new unified selector stays at defaults,
