@@ -365,6 +365,7 @@ def run_two_stage(
         # Re-pin the freeze policy now that we mutated backbone weights.
         s2_model._freeze_representations()  # type: ignore[attr-defined]
 
+    s2_model = s2_model.to(s2_cfg.training.device)
     _init_inducing_from_data(s2_model, datamodule, s2_cfg)
 
     s2_history: list[dict[str, float]] = []

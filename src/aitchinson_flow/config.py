@@ -157,7 +157,7 @@ class TrainingConfig:
     """One of: None, ``constant``, ``cosine``, ``cosine_restarts``, ``onecycle``, ``linear``,
     ``polynomial``, ``exponential``, ``multistep``."""
 
-    scheduler_warmup_epochs: int = 1
+    scheduler_warmup_epochs: int = 0
     """Linear warmup before the main schedule (paired with ``cosine``)."""
 
     scheduler_warmup_start_factor: float = 0.01
@@ -601,8 +601,7 @@ class LLMTopKProbsConfig:
             )
         if self.char_window_length < 1:
             raise ValueError(
-                f"LLMTopKProbsConfig.char_window_length must be >= 1, got "
-                f"{self.char_window_length}"
+                f"LLMTopKProbsConfig.char_window_length must be >= 1, got {self.char_window_length}"
             )
         if self.corrupt_rate is not None and not 0.0 <= self.corrupt_rate <= 1.0:
             raise ValueError(
@@ -732,34 +731,26 @@ class HealingConfig:
     def __post_init__(self) -> None:
         if self.strategy not in self._VALID_STRATEGIES:
             raise ValueError(
-                f"HealingConfig.strategy={self.strategy!r} must be one of "
-                f"{self._VALID_STRATEGIES}"
+                f"HealingConfig.strategy={self.strategy!r} must be one of {self._VALID_STRATEGIES}"
             )
         if self.threshold <= 0.0:
-            raise ValueError(
-                f"HealingConfig.threshold must be > 0, got {self.threshold}"
-            )
+            raise ValueError(f"HealingConfig.threshold must be > 0, got {self.threshold}")
         if self.max_iter < 1:
-            raise ValueError(
-                f"HealingConfig.max_iter must be >= 1, got {self.max_iter}"
-            )
+            raise ValueError(f"HealingConfig.max_iter must be >= 1, got {self.max_iter}")
         if self.lambda_energy < 0.0:
             raise ValueError(
                 f"HealingConfig.lambda_energy must be >= 0 (negative values reward "
                 f"anomalous sequences), got {self.lambda_energy}"
             )
         if self.n_beams < 1:
-            raise ValueError(
-                f"HealingConfig.n_beams must be >= 1, got {self.n_beams}"
-            )
+            raise ValueError(f"HealingConfig.n_beams must be >= 1, got {self.n_beams}")
         if self.heal_steps is not None and self.heal_steps < 1:
             raise ValueError(
                 f"HealingConfig.heal_steps must be >= 1 when set, got {self.heal_steps}"
             )
         if self.transform_mode not in ("ilr", "clr"):
             raise ValueError(
-                f"HealingConfig.transform_mode must be 'ilr' or 'clr', "
-                f"got {self.transform_mode!r}"
+                f"HealingConfig.transform_mode must be 'ilr' or 'clr', got {self.transform_mode!r}"
             )
 
 
