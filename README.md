@@ -1,142 +1,172 @@
-# Aitchison Flow: Three-Stage Bayesian Auditor
+# Aitchison Flow: Three-Component Uncertainty Quantification
 
-Uncertainty quantification for discrete-token sequences using:
+Calibrated, per-token uncertainty quantification for discrete-token sequences using:
 
-- simplex-aware geometry (Aitchison/log-ratio coordinates),
-- Equilibrium Matching (EqM) for manifold-aware velocity learning,
-- sparse Gaussian Processes (GPs) for calibrated uncertainty signals.
+- **Simplex-aware geometry** — Aitchison/ILR coordinates for token distributions
+- **Equilibrium Matching (EqM)** — manifold-aware velocity learning on valid sequences only
+- **Sparse Gaussian Processes (SVGP)** — calibrated epistemic energy + variance after contrastive training
+- **Spilled energy** — training-free anomaly score from frozen LLM logits
 
-The repo supports both a single-stage auditor and a **two-stage Bayesian Auditor**:
-
-1. **Stage 1**: EqM + Hilbert-family training on valid data only (learn geometry of the valid manifold).
-2. **Stage 2**: freeze Stage 1 backbone, train latent projection + GP contrastively on valid vs invalid.
-3. **Compose** both into one inference model (`BayesianAuditor`).
-
-### Three coexisting task paths
-
-The same Stage 1 / Stage 2 infrastructure drives three distinct auditors that produce separate checkpoints:
-
-- **Path A — char-level text8 OOD (K=27, L=30).** The established flow; text corruption provides invalid negatives.
-- **Path B — pretrained-LLM top-K OOD (K ∈ [16, 256], L ∈ [8, 128]).** Raw text windows → pretrained causal LM (GPT-2, Qwen, etc.) → per-position sorted top-K softmax probabilities → ILR/CLR features. Invalid samples are produced by applying char-level corruption *before* LLM inference, so the auditor learns the LLM's reaction to corrupted text. See `LLMTopKDatasetConfig`.
-- **Path C — byte-level Q+A hallucination auditor (K=256, L=128).** Trained on `[Question][Answer]` pairs from a Hugging Face dataset (default `trivia_qa/rc.nocontext`). In-batch cross-question-swap supplies training negatives; an HF causal LM (e.g. `gpt2`) supplies eval-time hallucinated answers. The GP loss can be restricted to answer-span tokens via `cfg.gp.score_answer_tokens_only`.
-
-Path selection is config-driven (`cfg.dataset.K`, `cfg.training_data.source`); all three paths share the same `fit()` loop, the same `BayesianAuditorStage1`/`Stage2` classes, and the same geometry/GP modules.
+Each token position receives up to five signals: structural energy, structural variance, contextual energy, contextual variance, and spilled energy. All three components share architecture code, loss functions, and GP implementation; they differ only in input space.
 
 ---
 
-## Theory (What The Model Is Doing)
+## Three UQ Components
 
-### 1) Discrete tokens -> simplex geometry
+### Component 1 — Structural Geometry UQ
 
-Tokens are converted to continuous features via:
+Does this sequence look structurally valid independent of meaning? (correct spelling, valid syntax, biologically plausible nucleotides)
 
-`token ids -> one-hot -> (label smoothing or eps path) -> log -> ILR/CLR`
+```
+token IDs → one-hot → ILR → Stage 1 EqM backbone → Stage 2 SVGP
+                                                           ↓
+                                          energy (L,)  variance (L,)
+```
 
-- **Label smoothing** (`alpha > 0`) moves one-hot points into the simplex interior with  
-  `(1 - alpha) * one_hot + alpha / K`.
-- **Log-space** linearizes multiplicative/probability-ratio structure.
-- **ILR** (default) maps to an unconstrained Euclidean chart (`K-1` dims).
-- **CLR** is available for ablation (`K` dims, sum-to-zero constrained).
+### Component 2 — Contextual Semantic UQ
 
-### 2) Stage 1 geometric objective
+Does the LLM treat this context as plausible? Valid contexts produce exponential-decay top-K distributions; surprising or invalid contexts produce flat distributions.
 
-Stage 1 learns a velocity field on interpolants between uniform noise and valid sequences.
+```
+raw text → frozen LLM → top-K softmax → re-normalize → ILR → Stage 1 EqM → Stage 2 SVGP
+                                                                                    ↓
+                                                               energy (L,)  variance (L,)
+```
 
-- EqM target direction in this codebase:
-  `u_tgt = c(gamma) * (log_x0 - log_x1)` (data -> noise convention)
-- Inference integration follows:
-  `x <- x - v_theta(x) * dt` (noise -> data)
+### Component 3 — Spilled Energy (training-free)
 
-Stage 1 also exposes an explicit geometric score based on soft Hilbert distance:
+Internal consistency of the autoregressive distribution. Requires no training.
 
-- `g(x) = - d_H(f(x), x)`  (sequence energy, averaged over tokens)
-- `ood_score(x) = -g(x) = d_H(f(x), x)` (higher means more OOD)
+```
+ΔE(x_i) = −logsumexp(logits[i]) + logits[i, token_id[i+1]]
+anomaly(x) = −mean_i(ΔE(x_i))
+```
 
-where `f(x)` is the Stage 1 forward output in the same coordinate space.
+### Signal interpretation
 
-### 3) Stage 2 contrastive GP objective
-
-On top of frozen Stage 1 backbone features:
-
-- `backbone`: frozen
-- `latent_head`: trainable
-- `gp`: trainable
-
-The GP is trained with contrastive valid/invalid supervision and KL regularization to separate in-distribution vs anomalous behavior, while keeping valid energy anchored.
-Stage 2 does **not** include Hilbert-distance penalties directly; Hilbert geometry is learned in Stage 1 and transferred through the frozen backbone. By default in Stage 2, GP aleatoric noise (`log_noise_var`) is fixed and the objective focuses on epistemic/contrastive learning.
-
-### 4) Two complementary UQ signals
-
-- **Stage 1 geometric score** (`d_H`-based): sequence-level OOD sensitivity without invalid-label training.
-- **Stage 2 GP variance/energy outputs**: finer uncertainty structure after contrastive calibration.
+| Structural energy | Structural variance | Interpretation |
+|---|---|---|
+| Low | Low | Structurally certain token |
+| Low | High | Plausible but model is unsure |
+| High | Low | Confidently out-of-distribution |
+| High | High | Anomalous and uncertain |
 
 ---
 
-## Code Architecture
+## Architecture
 
-Core package: `src/aitchinson_flow/`
+```
+                  Input Token Sequence
+                          │
+        ┌─────────────────┼─────────────────┐
+        │                 │                 │
+        ▼                 ▼                 ▼
+ Component 1       Component 2       Component 3
+ Structural UQ     Contextual UQ     Spilled Energy
+                                     (training-free)
+ one-hot → ILR     top-K probs →     ΔE = -logsumexp
+ → EqM Flow        re-norm → ILR        + logit[t+1]
+ → Sparse GP       → EqM Flow
+                   → Sparse GP
+        │                 │                 │
+        └─────────────────┴─────────────────┘
+                          │
+               Unified UQ Report (5 signals / token)
+```
 
-- `config.py`  
-  Typed dataclass config for model/training/data/benchmark.
-- `geometry.py`  
-  ILR/CLR and Hilbert-geometry primitives.
-- `loss.py`  
-  Velocity loss builders (Hilbert-family + MSE-family options).
-- `transformer_backbone.py`  
-  Shared transformer representation stack (`TransformerBackbone`, `VelocityHead`, `LatentHead`).
-- `models/`
-  - `bayesian_auditor_stage1.py`: Stage 1 EqM + geometric scoring
-  - `bayesian_auditor_stage2.py`: Stage 2 frozen-backbone contrastive GP
-  - `bayesian_auditor.py`: composed inference model + stage composition helpers
-  - `flow_matching.py`, `equilibrium.py`, `bayesian_generator.py`, etc.
-  - `factory.py`: model registry (`cfg.training.model_name`)
-- `gp/`  
-  Sparse GP implementation and algebra/kernels.
-- `training/`
-  - `runner.py`: `fit(...)`
-  - `loops.py`: train/eval loops
-  - `optim.py`: optimizer/scheduler builders
-  - `checkpoint.py`: checkpoint IO
-- `data/`
-  - `transforms/discrete.py`: token → ILR/CLR feature transform, **LLM logits → sorted top-K → ILR/CLR** (Path B)
-  - `feature_dim.py`: transform-aware feature dimensionality helper
-  - `text8_datamodule.py`: text8 dataset + corruption plumbing (Path A)
-  - `trivia_datamodule.py`: char-level trivia Q+A data (Path A, K=27)
-  - `llm_topk_datamodule.py`: **pretrained LLM top-K datamodule** (Path B)
-  - `byte_vocab.py`: UTF-8 byte codec + role markers (Path C)
-  - `bytes_datamodule.py`: raw-text corpus → byte windows for Path C Phase 1
-  - `qa_datamodule.py`: `[Q][A]` byte-encoded pairs for Path C Phase 2
-  - `qa_negatives.py`: cross-question-swap training negatives
+### Two-stage architecture
 
-Benchmark package: `benchmarks/`
+Stage 1 learns the geometry of valid sequences without ever seeing invalid samples — preventing the backbone from collapsing to a trivial discriminator. Stage 2 then trains the GP contrastively on frozen Stage 1 features.
 
-- `runner.py`: scale + ablation sweeps
-- `tasks/text_audit.py`: metrics/AUROC reporting (Path A, auditor/residual/energy/spilled)
-- `tasks/trivia_audit.py`: char-level trivia OOD AUROC (Path A)
-- `tasks/hallucination_audit.py`: byte-level Q+A hallucination AUROC (Path C)
-- `corruption.py`: invalid sample construction
-- `plots.py`: benchmark plotting utilities
-- `run_bench.py`: simple programmable benchmark example
-
-Scripts:
-
-- `scripts/two_stage_train.py`: Path A/B — unified Stage1 → Stage2 → compose workflow (config-driven data source)
-- `scripts/phase1_train_bytes.py`: Path C — retrain the Stage 1 backbone at K=256 on bytes
-- `scripts/phase2_train_qa.py`: Path C — Stage 2 Q+A head on top of the byte-level backbone
-- `scripts/phase2_eval_hallucination.py`: Path C — AUROC eval against LLM-generated answers
-- `scripts/scale_sweep.py`: utility sweep script
+| Stage | Trainable | Objective |
+|---|---|---|
+| Stage 1 | Transformer backbone + velocity head | Hilbert-family velocity loss on valid data |
+| Stage 2 | Latent head + SVGP | Contrastive energy hinge + KL regularization |
+| Inference | Composed `BayesianAuditor` | Energy + variance per token |
 
 ---
 
-## Getting Started
+## Code Layout
 
-### Prerequisites
+```
+src/aitchinson_flow/
+├── config.py                    # All typed dataclasses (Config + 20 sub-configs)
+├── geometry.py                  # ILR, CLR, Hilbert distances
+├── loss.py                      # Velocity loss builders
+├── transformer_backbone.py      # Shared backbone + heads
+│
+├── gp/                          # Sparse GP
+│   ├── gp.py                    # SparseGP: Matérn 5/2, SVGP, predictive
+│   ├── _svgp_algebra.py         # Titsias predictive + KL
+│   └── _svgp_kernels.py         # Matérn kernel, adaptive Cholesky
+│
+├── models/
+│   ├── bayesian_auditor_stage1.py   # EqM backbone training
+│   ├── bayesian_auditor_stage2.py   # Frozen backbone + contrastive GP
+│   ├── bayesian_auditor.py          # Composed Stage 1+2 inference
+│   ├── flow_matching.py             # Time-conditioned CFM
+│   ├── equilibrium.py               # Time-independent EqM
+│   ├── llm_projection.py            # TokenEmbeddingToSimplex
+│   └── factory.py                   # Model registry
+│
+├── data/
+│   ├── text8_datamodule.py          # Char-level text8 (K=27, Path A)
+│   ├── llm_topk_probs_datamodule.py # Component 2 top-K probability pipeline
+│   ├── llm_embedding_datamodule.py  # Path B frozen-embedding pipeline
+│   ├── qa_datamodule.py             # Byte-level Q+A trivia (Path C)
+│   ├── dna_datamodule.py            # Nucleotide sequences (K=4/5)
+│   ├── medical_datamodule.py        # Clinical text (K=47)
+│   ├── corruption.py                # Swap / drop / insert / replace corruptions
+│   ├── teachers/causal_lm.py        # Frozen HF CausalLM + top_k_probs()
+│   └── transforms/discrete.py       # Token IDs → ILR/CLR features
+│
+├── training/
+│   ├── runner.py                # fit() — epoch loop + checkpointing
+│   ├── data_sources.py          # Source string → DataModule dispatcher
+│   ├── loops.py                 # train_epoch(), evaluate()
+│   ├── optim.py                 # Optimizer + scheduler builders
+│   └── checkpoint.py            # Save / load helpers
+│
+├── metrics/
+│   ├── auroc.py                 # NaN-safe AUROC
+│   ├── spilled_energy.py        # Marginal + spilled energy (training-free)
+│   └── calibration.py           # ECE + reliability diagrams for GP variance
+│
+├── analysis/
+│   ├── token_heatmaps.py        # Multi-signal stacked token heatmaps
+│   ├── component_correlation.py # Pearson/Spearman between C1/C2/C3 energies
+│   └── failure_modes.py         # Detect cross-component disagreements
+│
+├── healing/
+│   ├── targeted_resample.py     # Mask high-energy tokens → resample → iterate
+│   ├── simplex_project.py       # EqM backward → project to nearest valid token
+│   └── beam_rerank.py           # Beam reranking with energy penalty
+│
+└── plots/plots.py               # Benchmark heatmaps, stage diagnostic plots
 
-- Python `>=3.11`
-- Linux/macOS recommended
-- GPU optional (CPU works for smoke tests)
+benchmarks/
+├── runner.py                    # ComponentTaskSpec, run_unified_benchmark()
+├── results_schema.py            # BenchmarkResultRow, FullBenchmarkResults
+└── tasks/
+    ├── text_audit.py            # Component 1 text8 AUROC
+    ├── trivia_audit.py          # Component 2 Q+A AUROC
+    ├── hallucination_audit.py   # Component 2 hallucination detection
+    ├── dna_audit.py             # Component 1 DNA sequences
+    ├── medical_audit.py         # Component 1+2 clinical text
+    └── healing_audit.py         # Phase 4 healing evaluation
 
-### Install
+scripts/
+├── two_stage_train.py           # Canonical training entry point
+├── run_full_benchmark.py        # Phase 3 unified benchmark matrix
+├── run_healing_eval.py          # Phase 4 healing evaluation
+├── phase1_train_bytes.py        # Path C backbone training
+├── phase2_train_qa.py           # Path C Q+A GP head
+└── phase2_eval_hallucination.py # Path C hallucination eval
+```
+
+---
+
+## Install
 
 ```bash
 python -m venv .venv
@@ -144,145 +174,204 @@ source .venv/bin/activate
 pip install -e ".[dev,benchmarks]"
 ```
 
-If you use `uv`, `pyproject.toml` already includes a CUDA index setup for Linux torch wheels.
+`uv` is also supported; `pyproject.toml` includes a CUDA index for Linux torch wheels.
 
-### Running the Examples
+---
 
-This repository includes a comprehensive getting-started guide for all three paths: see [GETTING_STARTED_TWO_PATHS.md](GETTING_STARTED_TWO_PATHS.md). That guide includes:
+## Quickstart
 
-- Installation verification  
-- Per-path quickstart commands
-- Core config knobs for each workflow  
-- End-to-end examples for Path A, Path B, and Path C
-
-### Quick test runs
-
-```bash
-# Run pytest suite
-source .venv/bin/activate
-pytest -q
-
-# Run benchmark sweep entrypoint
-bench-scaling
-
-# Programmatic benchmark example
-python benchmarks/run_bench.py
-```
-
-### Path A: Two-Stage text8 Workflow (Train → Compose)
-
-Use the dedicated orchestration script:
+### Path A — Char-level text8 (Component 1)
 
 ```bash
 python scripts/two_stage_train.py \
-  --out-dir checkpoints/two_stage/baseline \
+  --out-dir checkpoints/text8 \
   --stage1-epochs 10 \
   --stage2-epochs 5
 ```
 
-### Path B: Pretrained-LLM top-K OOD Auditor
-
-Reuses Path A's orchestration driver, but with the LLM top-K data source:
+### Path B — Pretrained-LLM top-K (Component 2)
 
 ```bash
 python scripts/two_stage_train.py \
-  --out-dir checkpoints/two_stage/path_b_baseline \
+  --out-dir checkpoints/path_b \
   --stage1-epochs 5 \
   --stage2-epochs 3 \
-  --training-data-source llm_topk
+  --training-data-source llm_topk_probs
 ```
 
-The LLM is configured via `cfg.llm_topk_dataset` and `cfg.teacher` (see config knobs below).
+The frozen LLM is configured via `cfg.teacher` (default: `gpt2`). Any HF causal LM works.
 
-### Path C: Byte-level Q+A Hallucination Auditor
-
-Path C is a 3-step flow with separate checkpoints:
+### Path C — Byte-level Q+A hallucination auditor
 
 ```bash
-# Phase 1: retrain the backbone at K=256 on raw bytes.
+# Stage 1: train backbone at K=256 on raw bytes
 python scripts/phase1_train_bytes.py \
-  --out-dir checkpoints/phase1_bytes/baseline \
+  --out-dir checkpoints/phase1_bytes \
   --epochs 10 --L 512
 
-# Phase 2: train Stage 2 GP head on byte-encoded [Q][A] pairs.
+# Stage 2: train GP head on [Q][A] pairs
 python scripts/phase2_train_qa.py \
-  --out-dir checkpoints/phase2_qa/baseline \
-  --stage1-backbone-ckpt checkpoints/phase1_bytes/baseline/stage1.pt \
+  --out-dir checkpoints/phase2_qa \
+  --stage1-backbone-ckpt checkpoints/phase1_bytes/stage1.pt \
   --epochs 10
 
-# Eval: have gpt2 answer val questions, score [Q][A_llm] pairs, report AUROC.
+# Eval: score LLM-generated answers, report AUROC
 python scripts/phase2_eval_hallucination.py \
-  --stage2-ckpt checkpoints/phase2_qa/baseline/stage2.pt \
+  --stage2-ckpt checkpoints/phase2_qa/stage2.pt \
   --answer-model-id gpt2 --max-val-samples 200
+```
+
+### Full benchmark matrix (all components × all tasks)
+
+```bash
+python scripts/run_full_benchmark.py --out-dir results/
+```
+
+Produces `results/full_benchmark.json` with one row per `(component, task, scale)`.
+
+### Healing evaluation
+
+```bash
+python scripts/run_healing_eval.py \
+  --stage2-ckpt checkpoints/text8/stage2.pt \
+  --out-dir results/healing/
 ```
 
 ---
 
-## Running Ablations
+## Benchmark Tasks
 
-The benchmark scale grid accepts architecture and ablation overrides per run.
-Supported ablation keys include:
+| Task | Component | Vocabulary | Valid | Invalid |
+|---|---|---|---|---|
+| `text8_audit` | 1 | K=27 chars | text8 windows | swap / drop / insert corruptions |
+| `trivia_audit` | 2 | byte-level | correct Q+A pairs | cross-question swap |
+| `hallucination_audit` | 2 | byte-level | correct answers | LLM-generated answers |
+| `dna_audit` | 1 | K=4/5 nucleotides | real genomic sequences | point mutations, frameshifts |
+| `medical_audit` | 1+2 | K=47 chars | clinical notes | drug misspellings, unit corruption |
+| `healing_audit` | 1+2+3 | — | — | energy/variance before vs after repair |
 
-- `velocity_loss` (e.g. `soft_hilbert`, `hard_hilbert`, `clr_mse`, `ilr_mse`)
-- `transform_mode` (`ilr` or `clr`)
-- `label_smoothing` (float in `[0,1)`)
-- `model_name` (e.g. `bayesian_auditor_stage1`, `bayesian_auditor`)
+### Evaluation metrics
 
-Example (programmatic):
+| Metric | Description |
+|---|---|
+| `auroc_energy` | Separability (valid / invalid) using GP energy |
+| `auroc_variance` | Separability using GP variance alone |
+| `auroc_combined` | Energy + variance joint score |
+| `auroc_spilled` | Spilled energy as training-free baseline |
+| `energy_gap` | `mean_energy(invalid) − mean_energy(valid)` |
+| `variance_ratio` | `mean_var(invalid) / mean_var(valid)` |
+| `per_token_auroc` | Token-level AUROC at corruption sites |
 
-```python
-from aitchinson_flow.config import Config
-from benchmarks.runner import run_benchmark
+---
 
-cfg = Config()
-cfg.benchmark.scale_grid = [
-    {"d_model": 128, "num_layers": 4, "nhead": 8, "velocity_loss": "soft_hilbert", "transform_mode": "ilr"},
-    {"d_model": 128, "num_layers": 4, "nhead": 8, "velocity_loss": "clr_mse", "transform_mode": "ilr"},
-    {"d_model": 128, "num_layers": 4, "nhead": 8, "velocity_loss": "soft_hilbert", "transform_mode": "clr"},
-]
-results = run_benchmark(cfg)
-```
+## OOD Healing
 
-`text_audit` output includes AUROCs and `ablation_tags` for easy slicing/aggregation.
+Three strategies are implemented in `src/aitchinson_flow/healing/`:
+
+| Strategy | File | Description |
+|---|---|---|
+| Beam reranking | `beam_rerank.py` | `score = log_p − λ·mean_energy`; penalizes high-energy candidates |
+| Targeted resampling | `targeted_resample.py` | Mask tokens where `energy[t] > threshold`, resample via LLM/EqM, iterate |
+| Simplex projection | `simplex_project.py` | Run EqM ODE backward on flagged tokens, snap to nearest valid token via ILR inverse + argmax |
+
+Configure via `HealingConfig(strategy, threshold, max_iter, lambda_energy)`.
 
 ---
 
 ## Key Config Knobs
 
-From `Config()`:
+All configuration lives in `Config()` from `src/aitchinson_flow/config.py`.
 
-- `cfg.training.model_name`: model registry key
-- `cfg.training.velocity_loss`: Stage1 velocity objective family
-- `cfg.training.lambda_mask`: weight for Stage 1 masked-reconstruction auxiliary loss (default 0.0)
-- `cfg.equilibrium.*`: EqM schedule + generation settings
-- `cfg.hf_dataset.label_smoothing`: explicit simplex-interior smoothing
-- `cfg.hf_dataset.transform_mode`: `ilr` vs `clr`
-- `cfg.dataset.K`: vocabulary size (27 for text8, 256 for bytes, 16–256 for LLM top-K)
-- `cfg.dataset.L`: sequence length
-- `cfg.training_data.source`: data pipeline (`"raw_text"`, `"llm_topk"`, `"llm_generated"`, or `"qa_pairs"`)
-- `cfg.llm_topk_dataset.*`: Path B LLM top-K config (see `LLMTopKDatasetConfig`)
-- `cfg.teacher.*`: pretrained LLM selection (model_id, dtype, device) for Path B and Path C eval
-- `cfg.benchmark.*`: scale sweeps, corruption params, plotting, reporting
+```python
+from aitchinson_flow.config import Config
+cfg = Config()
 
----
-
-## Composition API (Manual)
-
-If you already have checkpoints/states:
-
-- `aitchinson_flow.models.compose_auditor_from_stages(...)`
-- `aitchinson_flow.models.load_auditor_from_stage_checkpoints(...)`
-
-These build an inference-ready `BayesianAuditor` by fusing Stage 1 backbone + Stage 2 latent/GP weights.
+cfg.dataset.K           # vocabulary size (27=text8, 256=bytes, 4=DNA, 50=top-K)
+cfg.dataset.L           # sequence length
+cfg.training.velocity_loss     # "soft_hilbert" | "hard_hilbert" | "clr_mse" | "ilr_mse"
+cfg.training_data.source       # "raw_text" | "llm_topk_probs" | "qa_pairs" | "dna" | "medical"
+cfg.teacher.model_id           # frozen LLM for Component 2 (e.g. "gpt2", "Qwen/Qwen2-1.5B")
+cfg.gp.num_inducing            # SVGP inducing point count
+cfg.equilibrium.ode_steps      # EqM integration steps at inference
+cfg.healing.strategy           # "beam_rerank" | "targeted_resample" | "simplex_project"
+cfg.healing.threshold          # energy threshold for targeted resampling
+cfg.benchmark.scale_grid       # list of (d_model, nhead, num_layers) dicts
+```
 
 ---
 
-## Development Notes
+## Analysis Tools
 
-- Model registry keys are defined through `@register(...)` in `models/factory.py`.
-- Training loop entrypoint is `aitchinson_flow.training.runner.fit`.
-- Checkpoints are saved every `cfg.training.checkpoint_every` epochs to `cfg.training.checkpoint_dir`.
-- The repository currently uses strict typing/linting tooling (`mypy`, `ruff`) in optional dev dependencies.
+```python
+from aitchinson_flow.analysis.token_heatmaps import plot_token_heatmap
+from aitchinson_flow.analysis.component_correlation import compute_correlations
+from aitchinson_flow.analysis.failure_modes import find_disagreements
+from aitchinson_flow.metrics.calibration import expected_calibration_error
+```
+
+- `token_heatmaps.py` — stacked heatmap of all five UQ signals aligned to token positions
+- `component_correlation.py` — Pearson/Spearman correlation matrix between Component 1, 2, and 3 energy signals
+- `failure_modes.py` — identifies sequences where components disagree (e.g., structurally valid but contextually anomalous)
+- `calibration.py` — ECE and reliability diagrams for GP variance estimates
+
+---
+
+## Composition API
+
+```python
+from aitchinson_flow.models import compose_auditor_from_stages, load_auditor_from_stage_checkpoints
+
+# From existing Stage 1 + Stage 2 objects
+auditor = compose_auditor_from_stages(stage1, stage2)
+
+# From saved checkpoints
+auditor = load_auditor_from_stage_checkpoints(
+    stage1_path="checkpoints/text8/stage1.pt",
+    stage2_path="checkpoints/text8/stage2.pt",
+    cfg=cfg,
+)
+
+# Inference
+energy, variance = auditor.per_token_uq(log_x)   # both shape (B, L)
+ood = auditor.ood_score(log_x)                    # shape (B,)
+```
+
+---
+
+## Ablations
+
+```python
+from aitchinson_flow.config import Config
+from benchmarks.runner import run_unified_benchmark
+
+cfg = Config()
+cfg.benchmark.scale_grid = [
+    {"d_model": 64,  "num_layers": 2, "nhead": 4, "velocity_loss": "soft_hilbert"},
+    {"d_model": 128, "num_layers": 4, "nhead": 8, "velocity_loss": "soft_hilbert"},
+    {"d_model": 128, "num_layers": 4, "nhead": 8, "velocity_loss": "clr_mse"},
+]
+results = run_unified_benchmark(cfg)
+```
+
+Supported ablation keys: `velocity_loss`, `transform_mode` (`ilr` / `clr`), `label_smoothing`, `model_name`.
+
+---
+
+## Tests
+
+```bash
+pytest -q
+```
+
+Coverage includes geometry, transforms, all datamodules, GP, spilled energy, calibration, benchmark schema, two-stage orchestration, ablation plumbing, and unified benchmark output.
+
+---
+
+## CLI Entry Point
+
+```bash
+bench-scaling   # runs benchmarks/runner:main — scale-grid AUROC sweep
+```
 
 ---
 
