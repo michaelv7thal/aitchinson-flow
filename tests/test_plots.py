@@ -9,6 +9,7 @@ import numpy as np
 
 from aitchinson_flow.plots.plots import (
     StagePlotData,
+    plot_benchmark_table,
     plot_corruption_comparison,
     plot_loss_curves,
     plot_total_loss,
@@ -116,3 +117,28 @@ def test_plot_corruption_comparison_shape_mismatch(tmp_path: Path) -> None:
         values, bad_mask, out, title="shape mismatch", xlabel="x"
     )
     assert not out.exists(), "plot must not be written on shape mismatch"
+
+
+def test_plot_benchmark_table_handles_missing_metric(tmp_path: Path) -> None:
+    rows = [
+        {
+            "component": "structural",
+            "task": "text_audit",
+            "scale": "baseline",
+            "auroc_combined": 0.91,
+        },
+        {
+            "component": "contextual",
+            "task": "trivia_audit",
+            "scale": "baseline",
+            "auroc_combined": None,
+        },
+    ]
+    out = tmp_path / "benchmark_table.png"
+    summary = plot_benchmark_table(rows, out_path=out, metric="auroc_combined", aggregate="best")
+    _assert_file_nonempty(out)
+    sidecar = out.with_suffix(".json")
+    assert sidecar.exists()
+    payload = json.loads(sidecar.read_text(encoding="utf-8"))
+    assert payload["metric"] == "auroc_combined"
+    assert summary["values"]["contextual"]["trivia_audit"] is None

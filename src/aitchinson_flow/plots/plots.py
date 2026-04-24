@@ -15,7 +15,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable
+from typing import Any, Iterable, Mapping
 
 import matplotlib
 
@@ -825,3 +825,122 @@ def save_stage_plots(out_dir: Path | str, data: StagePlotData) -> dict[str, str]
         written["auroc_summary"] = summary_name
 
     return written
+
+
+def _row_to_mapping(row: Any) -> Mapping[str, Any]:
+    if isinstance(row, Mapping):
+        return row
+    to_dict = getattr(row, "to_dict", None)
+    if callable(to_dict):
+        out = to_dict()
+        if isinstance(out, Mapping):
+            return out
+    raise TypeError(f"Unsupported benchmark row payload type: {type(row)!r}")
+
+
+def plot_benchmark_table(
+    rows: Iterable[Any],
+    *,
+    out_path: Path | str,
+    metric: str = "auroc_combined",
+    aggregate: str = "best",
+) -> dict[str, Any]:
+    """Plot component×task AUROC heatmap from unified benchmark rows.
+
+    Args:
+        rows: Iterable of row dicts or dataclasses exposing ``to_dict()`` with
+            at least ``component``, ``task``, and the requested ``metric``.
+        out_path: Output heatmap image path.
+        metric: Metric field to visualize.
+        aggregate: How to combine multiple scales per (component, task):
+            ``"best"`` (max) or ``"mean"``.
+    """
+    if aggregate not in {"best", "mean"}:
+        raise ValueError(f"aggregate must be 'best' or 'mean', got {aggregate!r}")
+
+    parsed: list[Mapping[str, Any]] = [_row_to_mapping(row) for row in rows]
+    components: list[str] = []
+    tasks: list[str] = []
+    grouped: dict[tuple[str, str], list[float]] = {}
+
+    for row in parsed:
+        component = str(row.get("component", "unknown"))
+        task = str(row.get("task", "unknown"))
+        if component not in components:
+            components.append(component)
+        if task not in tasks:
+            tasks.append(task)
+
+        raw = row.get(metric)
+        if raw is None:
+            continue
+        try:
+            value = float(raw)
+        except (TypeError, ValueError):
+            continue
+        if not np.isfinite(value):
+            continue
+        grouped.setdefault((component, task), []).append(value)
+
+    if not components or not tasks:
+        raise ValueError("No benchmark rows were provided for heatmap plotting.")
+
+    matrix = np.full((len(components), len(tasks)), np.nan, dtype=np.float64)
+    values_summary: dict[str, dict[str, float | None]] = {}
+    for i, component in enumerate(components):
+        row_summary: dict[str, float | None] = {}
+        for j, task in enumerate(tasks):
+            vals = grouped.get((component, task), [])
+            if not vals:
+                row_summary[task] = None
+                continue
+            if aggregate == "best":
+                agg = float(np.max(vals))
+            else:
+                agg = float(np.mean(vals))
+            matrix[i, j] = agg
+            row_summary[task] = agg
+        values_summary[component] = row_summary
+
+    finite = matrix[np.isfinite(matrix)]
+    vmin = float(np.min(finite)) if finite.size else 0.0
+    vmax = float(np.max(finite)) if finite.size else 1.0
+    if abs(vmax - vmin) < 1e-9:
+        vmax = vmin + 1e-6
+
+    fig, ax = plt.subplots(figsize=(max(6, len(tasks) * 1.2), max(3, len(components) * 0.9)))
+    im = ax.imshow(matrix, aspect="auto", interpolation="nearest", cmap="viridis", vmin=vmin, vmax=vmax)
+    ax.set_xticks(np.arange(len(tasks)))
+    ax.set_xticklabels(tasks, rotation=30, ha="right")
+    ax.set_yticks(np.arange(len(components)))
+    ax.set_yticklabels(components)
+    ax.set_title(f"benchmark table: {metric} ({aggregate} across scales)")
+    ax.set_xlabel("task")
+    ax.set_ylabel("component")
+    cbar = fig.colorbar(im, ax=ax)
+    cbar.set_label(metric)
+
+    for i in range(len(components)):
+        for j in range(len(tasks)):
+            val = matrix[i, j]
+            text = "--" if not np.isfinite(val) else f"{val:.3f}"
+            ax.text(j, i, text, ha="center", va="center", fontsize=8, color="white")
+
+    fig.tight_layout()
+    output = Path(out_path)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(output, dpi=140)
+    plt.close(fig)
+
+    summary: dict[str, Any] = {
+        "metric": metric,
+        "aggregate": aggregate,
+        "components": components,
+        "tasks": tasks,
+        "values": values_summary,
+        "heatmap_path": str(output),
+    }
+    summary_path = output.with_suffix(".json")
+    summary_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
+    summary["summary_path"] = str(summary_path)
+    return summary

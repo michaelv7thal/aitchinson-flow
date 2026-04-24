@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 from copy import deepcopy
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 from tqdm.auto import tqdm
@@ -15,7 +15,9 @@ import aitchinson_flow.models  # noqa: F401 — populate model REGISTRY
 from aitchinson_flow.config import Config
 from aitchinson_flow.models.factory import build_model
 from aitchinson_flow.training.datamodule import DataModule
+from aitchinson_flow.training.data_sources import build_training_datamodule
 from aitchinson_flow.training.runner import fit
+from benchmarks.results_schema import BenchmarkResultRow, FullBenchmarkResults
 from benchmarks.tasks.registry import build_task
 from aitchinson_flow.data.text8_datamodule import Text8DataModule
 
@@ -26,6 +28,16 @@ _ABLATION_KEYS = {
     "label_smoothing",
     "model_name",
 }
+
+
+@dataclass(frozen=True)
+class ComponentTaskSpec:
+    """One component+task benchmark sweep specification."""
+
+    component: str
+    task_name: str
+    data_source: str
+    model_name: str | None = None
 
 
 def apply_transformer_scale(
@@ -118,6 +130,96 @@ def _strip_scores(result: dict[str, Any]) -> tuple[dict[str, float], dict[str, A
     return result, scores
 
 
+def _cfg_for_data_source(cfg: Config, source: str) -> Config:
+    """Map benchmark source labels to training-data source config."""
+    out = deepcopy(cfg)
+    out.benchmark = replace(out.benchmark, data_source=source)
+
+    td = out.training_data
+    if source == "text8":
+        out.training_data = replace(td, source="raw_text", raw_dataset="text8")
+    elif source == "trivia":
+        out.training_data = replace(td, source="qa_pairs")
+    elif source in {"dna", "medical", "llm_topk_probs"}:
+        out.training_data = replace(td, source=source)
+    else:
+        raise ValueError(
+            f"Unsupported benchmark data_source={source!r}; expected one of "
+            "'text8', 'trivia', 'dna', 'medical', or 'llm_topk_probs'."
+        )
+    return out
+
+
+def _normalize_to_result_row(
+    *,
+    spec: ComponentTaskSpec,
+    scale_tag: str,
+    metrics: dict[str, Any],
+) -> BenchmarkResultRow:
+    """Normalize a task result dict into the Phase 3 typed row."""
+
+    def _pick(keys: list[str]) -> float | None:
+        for key in keys:
+            val = metrics.get(key)
+            if val is None:
+                continue
+            try:
+                return float(val)
+            except (TypeError, ValueError):
+                continue
+        return None
+
+    auroc_energy = _pick(["auroc_energy"])
+    auroc_variance = _pick(
+        [
+            "auroc_variance",
+            "auroc_auditor",
+            "auroc_trivia",
+            "auroc_hallucination",
+            "auroc_dna_overall",
+            "auroc_medical_overall",
+            "post_auroc",
+            "pre_auroc",
+        ]
+    )
+    auroc_spilled = _pick(["auroc_spilled"])
+    auroc_combined = _pick(["auroc_combined"])
+    if auroc_combined is None:
+        combo_parts = [v for v in (auroc_energy, auroc_variance) if v is not None]
+        auroc_combined = sum(combo_parts) / len(combo_parts) if combo_parts else None
+
+    energy_gap = _pick(["energy_gap", "energy_separation"])
+    variance_ratio = _pick(["variance_ratio"])
+    per_token = _pick(
+        [
+            "per_token_auroc_at_corruption",
+            "auroc_auditor_token_corrupted",
+            "auroc_auditor_token_all",
+            "auroc_spilled_token_all",
+        ]
+    )
+
+    if variance_ratio is None:
+        v_valid = _pick(["var_correct_mean"])
+        v_invalid = _pick(["var_incorrect_mean", "var_hallucinated_mean"])
+        if v_valid is not None and v_invalid is not None and abs(v_valid) > 1e-12:
+            variance_ratio = v_invalid / v_valid
+
+    return BenchmarkResultRow(
+        component=spec.component,
+        task=spec.task_name,
+        scale=scale_tag,
+        auroc_energy=auroc_energy,
+        auroc_variance=auroc_variance,
+        auroc_combined=auroc_combined,
+        auroc_spilled=auroc_spilled,
+        energy_gap=energy_gap,
+        variance_ratio=variance_ratio,
+        per_token_auroc_at_corruption=per_token,
+        metadata={k: v for k, v in metrics.items() if k != "_scores"},
+    )
+
+
 def run_benchmark(cfg: Config) -> dict[str, dict[str, float]]:
     """Build LM teacher data, then for each scale entry build model and run the benchmark task."""
     import benchmarks.tasks  # noqa: F401 — register tasks (text_audit)
@@ -198,6 +300,94 @@ def run_benchmark(cfg: Config) -> dict[str, dict[str, float]]:
             scale_iter.set_postfix(scale=tag)
 
     return results
+
+
+def run_unified_benchmark(
+    cfg: Config,
+    *,
+    specs: list[ComponentTaskSpec],
+) -> FullBenchmarkResults:
+    """Run Phase 3 unified benchmark over component-task-scale tuples."""
+    import benchmarks.tasks  # noqa: F401 — register tasks
+
+    rows: list[BenchmarkResultRow] = []
+    base_grid: list[dict[str, int]] = cfg.benchmark.scale_grid or [{}]
+
+    for spec in specs:
+        spec_base = _cfg_for_data_source(cfg, spec.data_source)
+        datamodule, _source_meta = build_training_datamodule(spec_base)
+        task = build_task(spec.task_name)
+        scale_iter = tqdm(
+            base_grid,
+            desc=f"{spec.component}:{spec.task_name}",
+            disable=not cfg.benchmark.use_tqdm,
+        )
+        for scale in scale_iter:
+            if scale:
+                ablation_kwargs = {k: scale[k] for k in _ABLATION_KEYS if k in scale}
+                if "pretrained_backbone" in scale:
+                    scfg = apply_transformer_scale(
+                        spec_base,
+                        pretrained_backbone=scale["pretrained_backbone"],
+                        **ablation_kwargs,
+                    )
+                elif "d_model" in scale or "num_layers" in scale or "nhead" in scale:
+                    scfg = apply_transformer_scale(
+                        spec_base,
+                        d_model=scale["d_model"],
+                        num_layers=scale["num_layers"],
+                        nhead=scale["nhead"],
+                        d_latent=scale.get("d_latent"),
+                        **ablation_kwargs,
+                    )
+                else:
+                    scfg = apply_transformer_scale(spec_base, **ablation_kwargs)
+            else:
+                scfg = deepcopy(spec_base)
+
+            if spec.model_name is not None:
+                scfg.training = replace(scfg.training, model_name=spec.model_name)
+            if scfg.benchmark.train_epochs is not None:
+                scfg.training = replace(scfg.training, epochs=scfg.benchmark.train_epochs)
+
+            model = build_model(scfg)
+            tag = _scale_tag(scale) if scale else "baseline"
+            history: list[dict[str, float]] = []
+            if scfg.benchmark.train_before_eval:
+                model = fit(
+                    scfg,
+                    datamodule,
+                    model=model,
+                    history_out=history,
+                    wandb_run_name=f"{scfg.training.model_name}-{spec.component}-{tag}",
+                    wandb_group=scfg.training.wandb_group or "benchmark_full",
+                    wandb_job_type="benchmark_train",
+                    wandb_tags=["benchmark", "phase3", spec.component, spec.task_name, tag],
+                    wandb_extra_config={
+                        "benchmark_component": spec.component,
+                        "benchmark_task": spec.task_name,
+                        "benchmark_scale": dict(scale),
+                        "benchmark_data_source": spec.data_source,
+                    },
+                )
+            metrics = task.run(model, datamodule, scfg)
+            metrics["num_params"] = _count_params(model)
+            if history:
+                metrics["train_loss_final"] = float(history[-1].get("loss", float("nan")))
+            rows.append(_normalize_to_result_row(spec=spec, scale_tag=tag, metrics=metrics))
+            if scfg.benchmark.use_tqdm:
+                scale_iter.set_postfix(scale=tag)
+
+    snapshot = {
+        "benchmark": dict(cfg.benchmark.__dict__),
+        "training": {
+            "model_name": cfg.training.model_name,
+            "epochs": cfg.training.epochs,
+            "device": cfg.training.device,
+        },
+        "specs": [spec.__dict__ for spec in specs],
+    }
+    return FullBenchmarkResults(rows=rows, config_snapshot=snapshot)
 
 
 def main(argv: list[str] | None = None) -> None:

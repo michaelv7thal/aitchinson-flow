@@ -2,6 +2,7 @@
 
 from aitchinson_flow.plots.plots import (
     StagePlotData,
+    plot_benchmark_table,
     plot_histogram,
     plot_latent_density,
     plot_loss_curves,
@@ -13,6 +14,7 @@ from aitchinson_flow.plots.plots import (
 
 __all__ = [
     "StagePlotData",
+    "plot_benchmark_table",
     "plot_histogram",
     "plot_latent_density",
     "plot_loss_curves",
