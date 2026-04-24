@@ -4,11 +4,13 @@ Data flow per batch:
 
 1. Sample ``B`` char-level windows of length ``char_window_length`` from the
    text8 corpus.
-2. Build an invalid copy by applying char-level corruption
-   (:func:`aitchinson_flow.data.corruption.corrupt_token_ids`) to the same
-   windows, producing structurally anomalous text.
-3. Decode both to strings, tokenize with the LLM tokenizer (truncate/pad to
-   ``cfg.dataset.L`` LLM tokens).
+2. Decode to strings and tokenize with the LLM tokenizer (truncate/pad to
+   ``cfg.dataset.L`` LLM tokens) to obtain ``clean_ids``.
+3. Build an invalid copy by corrupting exactly ``corrupt_rate`` fraction of
+   the ``L`` LLM token positions with random replacement
+   (:func:`aitchinson_flow.data.corruption.corrupt_token_ids`). Corruption at
+   LLM-token level gives precise control; character-level corruption caused
+   BPE re-segmentation cascades that affected nearly all token distributions.
 4. Run the frozen LLM's forward pass on both the clean and corrupted token ids
    to obtain per-position logits, then extract the top-K softmax probabilities
    (shape ``(B, L, K)``) and re-normalize within the K slots.
@@ -39,10 +41,7 @@ from aitchinson_flow.data.llm_embedding_datamodule import (
     _batch_encode,
     _char_ids_to_text,
 )
-from aitchinson_flow.data.text8_datamodule import (
-    VOCAB_SIZE as TEXT8_VOCAB_SIZE,
-    _load_text8_splits_cfg,
-)
+from aitchinson_flow.data.text8_datamodule import _load_text8_splits_cfg
 from aitchinson_flow.data.transforms.discrete import project_log_to_simplex_features
 from aitchinson_flow.llms.types import CausalLMForInference
 from aitchinson_flow.training.datamodule import DataModule
@@ -116,6 +115,7 @@ class _LLMTopKProbsCollate:
         self._corrupt_rate = corrupt_rate
         self._seed = seed
         self._n_calls = 0
+        self._lm_vocab_size = lm.vocab_size
 
     def __call__(self, samples: list[dict[str, Tensor]]) -> dict[str, Tensor]:
         K = self._cfg.dataset.K
@@ -127,19 +127,21 @@ class _LLMTopKProbsCollate:
         clean_char_ids = torch.stack([s["char_ids"] for s in samples], dim=0)
         seed = self._seed + self._n_calls
         self._n_calls += 1
-        corrupt_char_ids = corrupt_token_ids(
-            clean_char_ids,
-            vocab_size=TEXT8_VOCAB_SIZE,
-            corrupt_rate=self._corrupt_rate,
-            seed=seed,
-        )
 
         clean_texts = [_char_ids_to_text(row) for row in clean_char_ids]
-        corrupt_texts = [_char_ids_to_text(row) for row in corrupt_char_ids]
 
         with torch.no_grad():
             clean_ids, _ = _batch_encode(self._lm, clean_texts, max_length=L)
-            corrupt_ids, _ = _batch_encode(self._lm, corrupt_texts, max_length=L)
+
+        # Corrupt at LLM-token level so exactly corrupt_rate fraction of the L
+        # token positions are replaced. Character-level corruption caused BPE
+        # re-segmentation cascades that affected nearly all token distributions.
+        corrupt_ids = corrupt_token_ids(
+            clean_ids,
+            vocab_size=self._lm_vocab_size,
+            corrupt_rate=self._corrupt_rate,
+            seed=seed,
+        )
 
         log_x = _top_k_probs_to_ilr(
             self._lm, clean_ids, K,

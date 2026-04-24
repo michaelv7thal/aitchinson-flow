@@ -173,6 +173,13 @@ class BayesianAuditorStage1(nn.Module):
         self._validate_c_gamma_config()
 
         vname = cfg.training.velocity_loss
+        # llm_topk_probs distributions are multi-component (not one-hot-like):
+        # ilr_mse provides dense L2 gradients across all K positions, while
+        # soft_hilbert's L∞-like behaviour focuses only on the extremal component
+        # and misses the distributional signal in the lower-ranked probability slots.
+        # Auto-select when the user has not explicitly overridden the default.
+        if cfg.training_data.source == "llm_topk_probs" and vname == "soft_hilbert":
+            vname = "ilr_mse"
         if vname not in _HILBERT_FAMILY:
             raise ValueError(
                 f"BayesianAuditorStage1 expects a Hilbert-family velocity loss "

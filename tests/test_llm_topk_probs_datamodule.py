@@ -27,6 +27,10 @@ class _StubLMForTopK:
         return torch.device("cpu")
 
     @property
+    def vocab_size(self) -> int:
+        return self._vocab
+
+    @property
     def embed_dim(self) -> int:
         return self._embed_dim
 

@@ -62,6 +62,11 @@ class HFCausalLMInference:
         return self._device
 
     @property
+    def vocab_size(self) -> int:
+        """Full vocabulary size of the underlying HF model."""
+        return int(self._model.config.vocab_size)
+
+    @property
     def embed_dim(self) -> int:
         """Input-embedding dimension (``d_embed``) of the underlying HF model."""
         emb = self._model.get_input_embeddings()

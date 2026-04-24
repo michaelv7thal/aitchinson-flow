@@ -12,6 +12,11 @@ class CausalLMForInference(Protocol):
     def device(self) -> torch.device: ...
 
     @property
+    def vocab_size(self) -> int:
+        """Full vocabulary size of the underlying LM (number of valid token ids)."""
+        ...
+
+    @property
     def embed_dim(self) -> int:
         """Input-embedding (``d_embed``) size of the underlying LM.
 

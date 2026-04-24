@@ -579,10 +579,11 @@ class LLMTopKProbsConfig:
     raw_text_backend: str = "text8"
     """Raw-text source for valid sequences; currently only ``"text8"`` is supported."""
 
-    char_window_length: int = 256
+    char_window_length: int = 128
     """Characters per raw-text window before LLM tokenization. Should be large
-    enough that the tokenizer produces at least ``cfg.dataset.L`` tokens after
-    truncation."""
+    enough that the tokenizer produces at least ``cfg.dataset.L`` LLM tokens
+    after truncation (roughly ``L * avg_chars_per_token``; for GPT-2 with L=30
+    the default of 128 gives ~32 tokens with a small safety margin)."""
 
     corrupt_rate: float | None = None
     """Char-level corruption rate for the invalid (OOD) batches. ``None`` falls
