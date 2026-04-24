@@ -519,6 +519,7 @@ class TestStage2Freezing:
             "contrastive",
             "anchor",
             "kl",
+            "kl_norm",
             "noise_var",
         }
         assert out["loss"].requires_grad
@@ -764,7 +765,7 @@ class TestComposedTrainingStep:
         )
         batch = _valid_batch(cfg, with_invalid=True, seed=7)
         out = composed.training_step(batch, step=0)
-        expected_keys = {"loss", "flow_loss", "mean_loss", "kl", "noise_var"}
+        expected_keys = {"loss", "flow_loss", "mean_loss", "kl", "kl_norm", "noise_var"}
         assert expected_keys.issubset(out.keys()), (
             f"expected {expected_keys} in {sorted(out.keys())}"
         )

@@ -132,12 +132,13 @@ class BayesianAuditor(BayesianGenerator):
 
         kl = self.gp.kl_divergence()
         n_norm = kl_normalizer(self, B)
+        kl_norm = kl / n_norm
 
         total = (
             flow_loss
             + mean_loss
             + self.cfg.gp.lambda_var * anchor_loss
-            + self.cfg.gp.lambda_kl * kl / n_norm
+            + self.cfg.gp.lambda_kl * kl_norm
         )
 
         return {
@@ -146,6 +147,7 @@ class BayesianAuditor(BayesianGenerator):
             "mean_loss": mean_loss,
             # "var_loss": var_loss,
             "kl": kl,
+            "kl_norm": kl_norm,
             "noise_var": noise_var.detach(),
         }
 

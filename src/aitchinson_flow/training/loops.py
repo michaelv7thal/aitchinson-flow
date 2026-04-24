@@ -42,6 +42,26 @@ def _loss_postfix(out: LossDict) -> dict[str, str]:
     if mask is not None:
         postfix["mask_loss"] = f"{mask:.4f}"
 
+    kl = _to_float_scalar(out.get("kl"))
+    if kl is not None:
+        postfix["kl"] = f"{kl:.4f}"
+
+    kl_norm = _to_float_scalar(out.get("kl_norm"))
+    if kl_norm is not None:
+        postfix["kl_norm"] = f"{kl_norm:.4f}"
+
+    nll = _to_float_scalar(out.get("nll"))
+    if nll is not None:
+        postfix["nll"] = f"{nll:.4f}"
+
+    anchor = _to_float_scalar(out.get("anchor"))
+    if anchor is not None:
+        postfix["anchor"] = f"{anchor:.4f}"
+
+    contrastive = _to_float_scalar(out.get("contrastive"))
+    if contrastive is not None:
+        postfix["contrastive"] = f"{contrastive:.4f}"
+
     return postfix
 
 

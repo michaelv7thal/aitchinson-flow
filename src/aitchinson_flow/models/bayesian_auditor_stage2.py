@@ -227,12 +227,13 @@ class BayesianAuditorStage2(nn.Module):
             n_norm = n_seq_norm * float(avg_answer_len)
         else:
             n_norm = n_seq_norm * float(L)
+        kl_norm = kl / n_norm
 
         total = (
             nll.mean()
             + self.cfg.gp.lambda_contrastive * contrastive
             + self.cfg.gp.lambda_anchor * anchor
-            + self.cfg.gp.lambda_kl * kl / n_norm
+            + self.cfg.gp.lambda_kl * kl_norm
         )
         return {
             TRAINING_LOSS_KEY: total,
@@ -240,6 +241,7 @@ class BayesianAuditorStage2(nn.Module):
             "contrastive": contrastive.detach(),
             "anchor": anchor.detach(),
             "kl": kl.detach(),
+            "kl_norm": kl_norm.detach(),
             "noise_var": noise_var.detach(),
         }
 
