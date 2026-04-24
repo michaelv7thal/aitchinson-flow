@@ -332,13 +332,7 @@ class BayesianAuditorStage1(nn.Module):
     ) -> LossDict:
         B, L, D = log_x1.shape
         device, dt = log_x1.device, log_x1.dtype
-        # Component-2 (llm_topk_probs) lives in a probability-simplex geometry;
-        # use the canonical EqM uniform source there to match the documented
-        # noise->data setup and avoid source-distribution mismatch.
-        if self.cfg.training_data.source == "llm_topk_probs":
-            log_x0 = _uniform_log_x0(B, L, D, device, dt)
-        else:
-            log_x0 = _scrambled_log_x0(self.cfg, bsz=B, seq_len=L, device=device, dtype=dt)
+        log_x0 = _scrambled_log_x0(self.cfg, bsz=B, seq_len=L, device=device, dtype=dt)
         gamma = torch.rand(B, device=device, dtype=dt)
         log_x_gamma = (1.0 - gamma[:, None, None]) * log_x0 + gamma[:, None, None] * log_x1
         # Sign convention: target velocity points data → noise (log_x0 - log_x1).

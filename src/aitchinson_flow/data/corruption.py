@@ -34,12 +34,19 @@ def corrupt_token_ids(
     -------
     Tensor, shape (B, L), dtype long — corrupted copy
     """
-    gen = torch.Generator()
+    gen: torch.Generator | None = None
     if seed is not None:
+        gen = torch.Generator(device=token_ids.device)
         gen.manual_seed(seed)
 
-    mask = torch.rand(token_ids.shape, generator=gen) < corrupt_rate
-    replacements = torch.randint(0, vocab_size, token_ids.shape, generator=gen)
+    mask = torch.rand(token_ids.shape, device=token_ids.device, generator=gen) < corrupt_rate
+    replacements = torch.randint(
+        0,
+        vocab_size,
+        token_ids.shape,
+        device=token_ids.device,
+        generator=gen,
+    )
     # Avoid replacing with the same token (best-effort: re-draw once)
     same = replacements == token_ids
     replacements[same] = (replacements[same] + 1) % vocab_size
@@ -56,18 +63,19 @@ def partially_shuffle_token_ids(
     if shuffle_rate <= 0.0:
         return token_ids.clone()
 
-    gen = torch.Generator()
+    gen: torch.Generator | None = None
     if seed is not None:
+        gen = torch.Generator(device=token_ids.device)
         gen.manual_seed(seed)
 
     out = token_ids.clone()
     bsz, seq_len = out.shape
     for b in range(bsz):
-        mask = torch.rand(seq_len, generator=gen) < shuffle_rate
+        mask = torch.rand(seq_len, device=out.device, generator=gen) < shuffle_rate
         idx = mask.nonzero(as_tuple=False).squeeze(-1)
         if idx.numel() <= 1:
             continue
-        perm = idx[torch.randperm(idx.numel(), generator=gen)]
+        perm = idx[torch.randperm(idx.numel(), device=idx.device, generator=gen)]
         out[b, idx] = out[b, perm]
     return out
 
@@ -111,7 +119,10 @@ def build_invalid_batch(
         apply_order_mix = True
         if seed is not None:
             apply_order_mix = bool(
-                (torch.rand(1, generator=torch.Generator().manual_seed(seed + 1)) < order_mix_prob).item()
+                (
+                    torch.rand(1, generator=torch.Generator().manual_seed(seed + 1))
+                    < order_mix_prob
+                ).item()
             )
         if apply_order_mix:
             bad_ids = partially_shuffle_token_ids(
