@@ -16,10 +16,10 @@ class DatasetConfig:
 
 @dataclass
 class TransformerConfig:
-    d_model: int = 1440  # Dimension of the model
+    d_model: int = 880  # Dimension of the model
     nhead: int = 8  # Number of attention heads
     num_layers: int = 8  # Number of layers
-    d_latent: int = 1440  # Dimension of the latent space
+    d_latent: int = 880  # Dimension of the latent space
     dropout: float = 0.0  # Dropout rate
     time_conditioned: bool = False  # Whether to condition on time
     pretrained_backbone: str | None = None  # e.g. "gpt2", "gpt2-medium", "gpt2-large"
@@ -36,7 +36,7 @@ class TransformerConfig:
 class GPConfig:
     num_inducing: int = 500  # Number of inducing points
     lambda_kl: float = 1.0  # KL regularization parameter
-    lambda_contrastive: float = 1.0  # Stage 2 random-negative energy hinge weight
+    lambda_contrastive: float = 0.1  # Stage 2 random-negative energy hinge weight
     lambda_var: float = 2.0
     """Anchor weight on valid GP mean in the composed ``BayesianAuditor`` loss.
 
@@ -45,14 +45,14 @@ class GPConfig:
     checkpoint compatibility; see also ``lambda_anchor`` for the Stage 2
     analogue.
     """
-    lambda_anchor: float = 0.01
+    lambda_anchor: float = 0.2
     """Stage 2 anchor weight on ``E[valid]^2`` (defaults to off).
 
     Mirrors ``lambda_var`` in the composed auditor. Enable when relaxing the
     contrastive hinge (C2 fix removes the ``.detach()``) causes valid energy
     to drift.
     """
-    margin_E: float = 2.0  # Hinge margin for L_energy score
+    margin_E: float = 1.0  # Hinge margin for L_energy score
     margin_V: float = 1.0
     """Hinge margin for variance separation.
 
