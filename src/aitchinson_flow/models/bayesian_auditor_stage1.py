@@ -325,7 +325,13 @@ class BayesianAuditorStage1(nn.Module):
     ) -> LossDict:
         B, L, D = log_x1.shape
         device, dt = log_x1.device, log_x1.dtype
-        log_x0 = _scrambled_log_x0(self.cfg, bsz=B, seq_len=L, device=device, dtype=dt)
+        # Component-2 (llm_topk_probs) lives in a probability-simplex geometry;
+        # use the canonical EqM uniform source there to match the documented
+        # noise->data setup and avoid source-distribution mismatch.
+        if self.cfg.training_data.source == "llm_topk_probs":
+            log_x0 = _uniform_log_x0(B, L, D, device, dt)
+        else:
+            log_x0 = _scrambled_log_x0(self.cfg, bsz=B, seq_len=L, device=device, dtype=dt)
         gamma = torch.rand(B, device=device, dtype=dt)
         log_x_gamma = (1.0 - gamma[:, None, None]) * log_x0 + gamma[:, None, None] * log_x1
         # Sign convention: target velocity points data → noise (log_x0 - log_x1).
@@ -383,20 +389,18 @@ class BayesianAuditorStage1(nn.Module):
         return self.eval_step(batch)
 
     def _per_token_soft_hilbert(self, log_x: torch.Tensor) -> torch.Tensor:
-        """Per-token soft Hilbert distance d_H(f_c, x_c) where f_c and x_c are
-        mean-centred velocity and input respectively.
+        """Per-token soft Hilbert norm ||center(v)||_H of the predicted velocity.
 
         Args:
             log_x: (B, L, D) sequences in ILR / log-simplex coordinates.
 
         Returns:
-            (B, L) tensor of per-token Hilbert distances.
+            (B, L) tensor of per-token Hilbert velocity norms.
         """
         v, _ = self.forward(log_x)
         f_c = v - v.mean(dim=-1, keepdim=True)
-        x_c = log_x - log_x.mean(dim=-1, keepdim=True)
         return nielsen_soft_hilbert_distance(
-            f_c, x_c, alpha=self.cfg.training.soft_hilbert_alpha
+            f_c, torch.zeros_like(f_c), alpha=self.cfg.training.soft_hilbert_alpha
         )
 
     @torch.no_grad()

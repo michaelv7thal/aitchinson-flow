@@ -218,20 +218,15 @@ class BayesianAuditorStage2(nn.Module):
         kl = self.gp.kl_divergence()
         noise_var = self.gp.noise_var
 
-        # 1. Get the sequence-level normalizer from your robust utility
-        # Returns N_sequences (or B if in a unit test)
-        # n_seq_norm = kl_normalizer(self, B)
+        # KL normalizer: total training-set sequences (set by the runner via
+        # model._kl_normalizer = len(train_dataset)); falls back to B in tests.
+        n_seq_norm = kl_normalizer(self, B)
 
-        # 2. Scale it to the Token Level based on the active path
         if use_mask:
-            # PATH B (Trivia Task): We are only scoring the Answer tokens.
-            # We must multiply by the expected number of answer tokens per sequence.
-            # You can add `avg_answer_len` to your config, or default to a reasonable estimate.
             avg_answer_len = getattr(self.cfg.dataset, "avg_answer_length", 10.0)
-            n_norm = B * float(avg_answer_len)
+            n_norm = n_seq_norm * float(avg_answer_len)
         else:
-            # PATH A (Normal Text): We are scoring every token in the sequence.
-            n_norm = B * float(L)
+            n_norm = n_seq_norm * float(L)
 
         total = (
             nll.mean()

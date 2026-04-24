@@ -344,8 +344,8 @@ class Text8DatasetConfig:
 
     enabled: bool = False
     cache_dir: str | None = None
-    train_corrupt_rate: float = 0.5
-    eval_corrupt_rate: float = 0.5
+    train_corrupt_rate: float = 0.15
+    eval_corrupt_rate: float = 0.15
     train_order_mix_rate: float = 0.0
     eval_order_mix_rate: float = 0.0
     order_mix_prob: float = 0.0
