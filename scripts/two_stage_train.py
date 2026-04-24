@@ -73,6 +73,7 @@ from aitchinson_flow.training.checkpoint import (  # noqa: E402
     config_checkpoint_dict,
     save_checkpoint,
 )
+from aitchinson_flow.training.batch import to_device  # noqa: E402
 from aitchinson_flow.training.datamodule import DataModule  # noqa: E402
 from aitchinson_flow.training.runner import fit  # noqa: E402
 from aitchinson_flow.training.wandb_logger import WandbLogger  # noqa: E402
@@ -206,8 +207,10 @@ def _init_inducing_from_data(
     model.eval()
     z_samples: list[torch.Tensor] = []
     prepare = getattr(model, "prepare_batch", None)
+    device = cfg.training.device
     with torch.no_grad():
         for batch in datamodule.train_dataloader():
+            batch = to_device(batch, device)
             # Path B: translate ``embeddings`` → ``log_x`` via the (frozen)
             # projection so Path A and Path B take the same inducing-init path.
             if prepare is not None:
@@ -217,13 +220,15 @@ def _init_inducing_from_data(
             z_samples.append(z.reshape(-1, z.shape[-1]))
             if sum(t.shape[0] for t in z_samples) >= cfg.gp.num_inducing:
                 break
+    if not z_samples:
+        raise RuntimeError("Could not collect latent tokens to initialize inducing points.")
     Z_all = torch.cat(z_samples)
     M = cfg.gp.num_inducing
     if len(Z_all) >= M:
-        idx = torch.randperm(len(Z_all))[:M]
+        idx = torch.randperm(len(Z_all), device=Z_all.device)[:M]
         Z_sel = Z_all[idx]
     else:
-        idx = torch.randint(0, len(Z_all), (M,))
+        idx = torch.randint(0, len(Z_all), (M,), device=Z_all.device)
         Z_sel = Z_all[idx]
     model.gp.Z.data.copy_(Z_sel)  # type: ignore[attr-defined]
     model.train()
