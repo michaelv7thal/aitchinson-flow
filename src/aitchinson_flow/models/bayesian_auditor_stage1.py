@@ -99,11 +99,11 @@ _HILBERT_FAMILY = {"soft_hilbert", "hard_hilbert", "clr_mse", "ilr_mse"}
 _CGAMMA_STRATEGIES = {"legacy", "linear", "truncated", "piecewise"}
 
 
-def _uniform_log_x0(
+def _random_log_x0(
     B: int, L: int, D: int, device: torch.device, dtype: torch.dtype
 ) -> torch.Tensor:
     """Uniform log-simplex source: zeros in log-space (constant after centering)."""
-    return torch.zeros((B, L, D), device=device, dtype=dtype)
+    return torch.randn((B, L, D), device=device, dtype=dtype)
 
 
 def _scrambled_log_x0(
@@ -178,14 +178,14 @@ class BayesianAuditorStage1(nn.Module):
         # soft_hilbert's L∞-like behaviour focuses only on the extremal component
         # and misses the distributional signal in the lower-ranked probability slots.
         # Auto-select when the user has not explicitly overridden the default.
-        if cfg.training_data.source == "llm_topk_probs" and vname == "soft_hilbert":
-            vname = "ilr_mse"
-        if vname not in _HILBERT_FAMILY:
-            raise ValueError(
-                f"BayesianAuditorStage1 expects a Hilbert-family velocity loss "
-                f"(one of {sorted(_HILBERT_FAMILY)}), got {vname!r}. "
-                "Set cfg.training.velocity_loss to 'soft_hilbert' (default) for EqM+Hilbert."
-            )
+        # if cfg.training_data.source == "llm_topk_probs" and vname == "soft_hilbert":
+        #    vname = "ilr_mse"
+        # if vname not in _HILBERT_FAMILY:
+        #    raise ValueError(
+        #        f"BayesianAuditorStage1 expects a Hilbert-family velocity loss "
+        #        f"(one of {sorted(_HILBERT_FAMILY)}), got {vname!r}. "
+        #        "Set cfg.training.velocity_loss to 'soft_hilbert' (default) for EqM+Hilbert."
+        #    )
 
         if cfg.training.lambda_mask < 0.0:
             raise ValueError(f"training.lambda_mask must be >= 0, got {cfg.training.lambda_mask}")
@@ -577,7 +577,7 @@ class BayesianAuditorStage1(nn.Module):
         clr = self.cfg.hf_dataset.transform_mode.lower() == "clr"
         was_training = self.training
         self.eval()
-        x = _uniform_log_x0(n, L, D, device, torch.float32)
+        x = _random_log_x0(n, L, D, device, torch.float32)
         x = x + eq.generate_init_noise * torch.randn_like(x)
         if clr:
             x = x - x.mean(dim=-1, keepdim=True)  # ensure noise starts in V_K

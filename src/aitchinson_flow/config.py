@@ -16,10 +16,10 @@ class DatasetConfig:
 
 @dataclass
 class TransformerConfig:
-    d_model: int = 880  # Dimension of the model
+    d_model: int = 1280  # Dimension of the model
     nhead: int = 8  # Number of attention heads
     num_layers: int = 8  # Number of layers
-    d_latent: int = 880  # Dimension of the latent space
+    d_latent: int = 1280  # Dimension of the latent space
     dropout: float = 0.0  # Dropout rate
     time_conditioned: bool = False  # Whether to condition on time
     pretrained_backbone: str | None = None  # e.g. "gpt2", "gpt2-medium", "gpt2-large"
@@ -138,7 +138,7 @@ class TrainingConfig:
            ``ood_score``, ``per_token_uq``, ``audit``).
     """
     B: int = 128  # Batch size
-    epochs: int = 25  # Number of epochs
+    epochs: int = 15  # Number of epochs
     lr: float = 5e-4  # Learning rate
     loss: str = "hilbert"  # "hilbert" or "mse"
     device: torch.device = field(
@@ -187,7 +187,7 @@ class TrainingConfig:
     multistep_milestones: tuple[int, ...] = ()
     multistep_gamma: float = 0.1
 
-    velocity_loss: str = "soft_hilbert"
+    velocity_loss: str = "mse"
     soft_hilbert_alpha: float = 1.0
 
     lambda_mask: float = 0.0
@@ -215,7 +215,7 @@ class TrainingConfig:
     """Show tqdm progress bars for training/validation loops."""
 
     # --- Weights & Biases ---
-    wandb_enabled: bool = True
+    wandb_enabled: bool = False
     """Enable Weights & Biases experiment tracking."""
     wandb_mode: str = "online"
     """W&B mode: ``online`` / ``offline`` / ``disabled``."""
