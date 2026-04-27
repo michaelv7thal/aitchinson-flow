@@ -42,7 +42,7 @@ from aitchinson_flow.config import Config
 from aitchinson_flow.gp.gp import GPOutput, SparseGP
 from aitchinson_flow.models.base import TRAINING_LOSS_KEY, LossDict, kl_normalizer
 from aitchinson_flow.models.bayesian_auditor_stage1 import (
-    ContextualAuditorBackbone,
+    TransformerBackbone,
     _build_llm_projection,
     _prepare_batch_with_projection,
 )
@@ -92,7 +92,7 @@ class BayesianAuditorStage2(nn.Module):
         super().__init__()
         self.cfg = cfg
 
-        self.backbone = ContextualAuditorBackbone(cfg=cfg)
+        self.backbone = TransformerBackbone(cfg=cfg)
         self.latent_head = TokenLatentHead(cfg=cfg)
         self.gp = SparseGP(cfg=cfg)
         # Path B: learned embedding→simplex projection, frozen along with the
@@ -153,11 +153,7 @@ class BayesianAuditorStage2(nn.Module):
         """
         B, L, _ = log_x.shape
         with torch.no_grad(), sdpa_kernel(SDPBackend.MATH):
-            h = self.backbone(
-                log_x,
-                log_x_question=log_x_question,
-                question_mask=question_mask,
-            )
+            h = self.backbone(log_x)
         z = self.latent_head(h)
         assert z.shape[:2] == (B, L), (
             f"TokenLatentHead must preserve (B, L) dims; got {tuple(z.shape)}"

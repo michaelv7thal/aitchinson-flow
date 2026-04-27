@@ -93,6 +93,19 @@ def _build_argparser() -> argparse.ArgumentParser:
         default=64,
         help="Number of valid/invalid pairs per corruption rate for grid evaluation.",
     )
+    p.add_argument(
+        "--scramble-rates",
+        type=float,
+        nargs="+",
+        default=[0.0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6],
+        help="Actual text corruption rates to sweep (like Stage 2). Rebuilds datamodule per rate.",
+    )
+    p.add_argument(
+        "--n-scramble-samples",
+        type=positive_int,
+        default=128,
+        help="Number of valid/invalid pairs to score per scramble rate.",
+    )
     return p
 
 
@@ -533,6 +546,196 @@ def eval_energy_distributions(
     print(f"Saved distribution plots → {path}")
 
 
+def _route_corrupt_rate(cfg: Config, rate: float) -> None:
+    """Route a corruption-rate override to the active datasource family."""
+    source = cfg.training_data.source
+    if source == "llm_topk_probs":
+        cfg.llm_topk_probs.corrupt_rate = rate
+    elif source == "llm_topk":
+        cfg.llm_embedding_dataset.corrupt_rate = rate
+    elif source in ("dna",):
+        cfg.dna_dataset.train_corrupt_rate = rate
+        cfg.dna_dataset.eval_corrupt_rate = rate
+    elif source in ("medical",):
+        cfg.medical_dataset.train_corrupt_rate = rate
+        cfg.medical_dataset.eval_corrupt_rate = rate
+    else:
+        cfg.text8_dataset.train_corrupt_rate = rate
+        cfg.text8_dataset.eval_corrupt_rate = rate
+
+
+def eval_scramble_rate_sweep(
+    model: nn.Module,
+    base_cfg: Config,
+    *,
+    scramble_rates: list[float],
+    n_samples: int,
+    use_train_loader: bool,
+    device: torch.device,
+) -> dict[str, list]:
+    """
+    Sweep over actual text corruption rates (like Stage 2) and compute AUROC
+    using the model's ``score_per_sample`` (OOD score: higher = more OOD).
+    The datamodule is rebuilt at each rate so the invalid sequences are real
+    corrupted text, not a latent-space interpolation.
+    """
+    model.eval()
+    rates = sorted(scramble_rates)
+    result: dict[str, list] = {
+        "rates": rates,
+        "ood_valid": [],
+        "ood_invalid": [],
+        "auroc": [],
+        "ood_valid_mean": [],
+        "ood_valid_std": [],
+        "ood_invalid_mean": [],
+        "ood_invalid_std": [],
+    }
+
+    print("\n--- Stage-1 Scramble-Rate Sweep (actual text corruptions) ---")
+    print(f"{'rate':>8}  {'AUROC':>8}  {'mu_valid':>10}  {'mu_invalid':>12}")
+    print("-" * 46)
+
+    for rate in tqdm(rates, desc="scramble-rate sweep"):
+        cfg_rate = deepcopy(base_cfg)
+        _route_corrupt_rate(cfg_rate, rate)
+
+        valid, invalid = _load_valid_invalid_pairs(
+            model=model,
+            cfg=cfg_rate,
+            n_needed=n_samples,
+            use_train_loader=use_train_loader,
+            device=device,
+        )
+        x_valid = valid.to(device)
+        x_invalid = invalid.to(device)
+
+        with torch.no_grad():
+            s_valid = model.score_per_sample(x_valid).cpu()
+            s_invalid = model.score_per_sample(x_invalid).cpu()
+
+        auroc = compute_auroc(positive_scores=s_invalid, negative_scores=s_valid)
+        mu_v = float(s_valid.mean().item())
+        std_v = float(s_valid.std().item())
+        mu_i = float(s_invalid.mean().item())
+        std_i = float(s_invalid.std().item())
+
+        print(f"{rate:>8.2f}  {auroc:>8.4f}  {mu_v:>10.4f}  {mu_i:>12.4f}")
+
+        result["ood_valid"].append(s_valid)
+        result["ood_invalid"].append(s_invalid)
+        result["auroc"].append(auroc)
+        result["ood_valid_mean"].append(mu_v)
+        result["ood_valid_std"].append(std_v)
+        result["ood_invalid_mean"].append(mu_i)
+        result["ood_invalid_std"].append(std_i)
+
+    return result
+
+
+def plot_scramble_ood_vs_rate(
+    metrics: dict[str, list],
+    out_dir: Path,
+) -> None:
+    """Mean OOD score (± std) for valid and invalid sequences vs corruption rate."""
+    rates = metrics["rates"]
+    vm = metrics["ood_valid_mean"]
+    vs = metrics["ood_valid_std"]
+    im = metrics["ood_invalid_mean"]\
+
+    is_ = metrics["ood_invalid_std"]
+
+    fig, ax = plt.subplots(figsize=(8, 5))
+    ax.plot(rates, vm, "o-", color="steelblue", label="valid mean OOD score")
+    ax.fill_between(
+        rates,
+        [m - s for m, s in zip(vm, vs)],
+        [m + s for m, s in zip(vm, vs)],
+        color="steelblue",
+        alpha=0.2,
+    )
+    ax.plot(rates, im, "o-", color="tomato", label="invalid mean OOD score")
+    ax.fill_between(
+        rates,
+        [m - s for m, s in zip(im, is_)],
+        [m + s for m, s in zip(im, is_)],
+        color="tomato",
+        alpha=0.2,
+    )
+    ax.set_xlabel("corruption rate")
+    ax.set_ylabel("OOD score (higher = more OOD)")
+    ax.set_title("Stage-1 OOD score vs corruption rate")
+    ax.grid(True)
+    ax.legend()
+    fig.tight_layout()
+    out_path = out_dir / "stage1_ood_vs_rate.png"
+    fig.savefig(out_path, dpi=160)
+    plt.close(fig)
+    print(f"Saved OOD-vs-rate plot → {out_path}")
+
+
+def plot_scramble_auroc_vs_rate(
+    metrics: dict[str, list],
+    out_dir: Path,
+) -> None:
+    """AUROC vs actual text corruption rate for Stage 1."""
+    rates = metrics["rates"]
+    aurocs = metrics["auroc"]
+
+    fig, ax = plt.subplots(figsize=(8, 5))
+    ax.plot(rates, aurocs, "o-", color="purple", label="energy AUROC")
+    ax.axhline(0.5, color="k", linestyle="--", linewidth=1, alpha=0.5, label="random")
+    ax.axhline(1.0, color="gray", linestyle="--", linewidth=1, alpha=0.4)
+    ax.set_ylim(0.4, 1.05)
+    ax.set_xlabel("corruption rate")
+    ax.set_ylabel("AUROC")
+    ax.set_title("Stage-1 AUROC vs corruption rate (actual text corruption)")
+    ax.grid(True)
+    ax.legend()
+    fig.tight_layout()
+    out_path = out_dir / "stage1_auroc_vs_rate.png"
+    fig.savefig(out_path, dpi=160)
+    plt.close(fig)
+    print(f"Saved AUROC-vs-rate plot → {out_path}")
+
+
+def plot_scramble_roc_overlay(
+    metrics: dict[str, list],
+    out_dir: Path,
+) -> None:
+    """ROC curves across actual corruption rates for Stage 1."""
+    rates = metrics["rates"]
+    pos_list = metrics["ood_invalid"]
+    neg_list = metrics["ood_valid"]
+    auc_list = metrics["auroc"]
+
+    fig, ax = plt.subplots(figsize=(7, 7))
+    cmap = plt.cm.plasma
+    colors = [cmap(i / max(len(rates) - 1, 1)) for i in range(len(rates))]
+
+    for rate, pos, neg, auc, color in zip(rates, pos_list, neg_list, auc_list, colors):
+        fpr, tpr = compute_roc_curve(positive_scores=pos, negative_scores=neg)
+        ax.plot(
+            fpr.numpy(),
+            tpr.numpy(),
+            color=color,
+            alpha=0.85,
+            label=f"r={rate:.2f} (AUC={float(auc):.3f})",
+        )
+
+    ax.plot([0, 1], [0, 1], "k--", linewidth=1, alpha=0.5, label="random")
+    ax.set_xlabel("false positive rate")
+    ax.set_ylabel("true positive rate")
+    ax.set_title("Stage-1 ROC curves across corruption rates")
+    ax.grid(True)
+    ax.legend(fontsize=8)
+    fig.tight_layout()
+    out_path = out_dir / "stage1_roc_curves_scramble.png"
+    fig.savefig(out_path, dpi=160)
+    plt.close(fig)
+    print(f"Saved ROC overlay (scramble rates) → {out_path}")
+
+
 def eval_corruption_gamma_grid(
     model: nn.Module,
     base_cfg: Config,
@@ -555,20 +758,7 @@ def eval_corruption_gamma_grid(
     for i, rate in enumerate(rates):
         cfg_rate = deepcopy(base_cfg)
         # Route the corruption-rate override to the active datasource family.
-        source = cfg_rate.training_data.source
-        if source == "llm_topk_probs":
-            cfg_rate.llm_topk_probs.corrupt_rate = rate
-        elif source == "llm_topk":
-            cfg_rate.llm_embedding_dataset.corrupt_rate = rate
-        elif source in ("dna",):
-            cfg_rate.dna_dataset.train_corrupt_rate = rate
-            cfg_rate.dna_dataset.eval_corrupt_rate = rate
-        elif source in ("medical",):
-            cfg_rate.medical_dataset.train_corrupt_rate = rate
-            cfg_rate.medical_dataset.eval_corrupt_rate = rate
-        else:
-            cfg_rate.text8_dataset.train_corrupt_rate = rate
-            cfg_rate.text8_dataset.eval_corrupt_rate = rate
+        _route_corrupt_rate(cfg_rate, rate)
 
         valid, invalid = _load_valid_invalid_pairs(
             model=model,
@@ -745,6 +935,19 @@ def main(argv: list[str] | None = None):
         )
     elif args.grid_corrupt_rates or args.grid_gammas:
         print("Skipping corruption×gamma grid: pass both --grid-corrupt-rates and --grid-gammas.")
+
+    print(f"\nRunning scramble-rate sweep over {args.scramble_rates}...")
+    scramble_metrics = eval_scramble_rate_sweep(
+        model=model,
+        base_cfg=cfg,
+        scramble_rates=args.scramble_rates,
+        n_samples=args.n_scramble_samples,
+        use_train_loader=args.use_train_loader,
+        device=device,
+    )
+    plot_scramble_ood_vs_rate(scramble_metrics, out_dir=out_dir)
+    plot_scramble_auroc_vs_rate(scramble_metrics, out_dir=out_dir)
+    plot_scramble_roc_overlay(scramble_metrics, out_dir=out_dir)
 
     print("\nDone. All plots saved to:", out_dir)
 

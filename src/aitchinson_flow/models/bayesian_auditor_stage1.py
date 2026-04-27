@@ -247,7 +247,7 @@ class BayesianAuditorStage1(nn.Module):
 
         # Aligned with Stage 2 / BayesianAuditor: same ``time_conditioned`` flag so
         # ``compose_auditor_from_stages`` loads ``backbone.*`` without shape/key skew.
-        self.backbone = ContextualAuditorBackbone(cfg=cfg)
+        self.backbone = TransformerBackbone(cfg=cfg)
         self.velocity_head = VelocityHead(cfg=cfg)
         self.mask_recon_head = MaskReconHead(cfg=cfg)
         # Path B: learned projection from frozen LLM embeddings → simplex.
@@ -283,7 +283,7 @@ class BayesianAuditorStage1(nn.Module):
         reuse the shared backbone pass without a second forward.
         """
         del t
-        h = self.backbone(log_x, log_x_question=log_x_question, question_mask=question_mask)
+        h = self.backbone(log_x)
         v = self.velocity_head(h)
         return v, h
 
