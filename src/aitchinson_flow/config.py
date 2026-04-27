@@ -35,7 +35,7 @@ class TransformerConfig:
 @dataclass
 class GPConfig:
     num_inducing: int = 500  # Number of inducing points
-    lambda_kl: float = 1.0  # KL regularization parameter
+    lambda_kl: float = 2.0  # KL regularization parameter
     lambda_contrastive: float = 0.1  # Stage 2 random-negative energy hinge weight
     lambda_var: float = 2.0
     """Anchor weight on valid GP mean in the composed ``BayesianAuditor`` loss.
@@ -137,7 +137,7 @@ class TrainingConfig:
            supports the full inference API (``forward``/``_velocity``,
            ``ood_score``, ``per_token_uq``, ``audit``).
     """
-    B: int = 128  # Batch size
+    B: int = 84  # Batch size
     epochs: int = 15  # Number of epochs
     lr: float = 5e-4  # Learning rate
     loss: str = "hilbert"  # "hilbert" or "mse"
@@ -209,6 +209,24 @@ class TrainingConfig:
 
     Intended for QA training on concatenated ``[Q][A]`` where question tokens
     are context and gradients should focus on answer spans.
+    """
+
+    use_contextual_backbone: bool = False
+    """Enable question-conditioned answer encoding when question tensors are present.
+
+    When enabled, Stage 1/2 models run answer tokens through a dedicated answer
+    backbone and fuse question/context representations via cross-attention.
+    If ``batch["log_x_question"]`` is missing, models fall back to answer-only
+    behavior for backward compatibility.
+    """
+
+    context_gate_init: float = -4.0
+    """Initial value for the contextual residual gate logit.
+
+    Stage 1/2 contextual backbones mix cross-attention output as:
+    ``h_answer + sigmoid(context_gate) * h_cross``. Setting this to ``-4``
+    starts near answer-only behavior (sigmoid ≈ 0.018) and stabilizes early
+    optimization.
     """
 
     use_tqdm: bool = True
@@ -433,12 +451,53 @@ class QADatasetConfig:
     max_val_samples: int | None = 2_000
     max_test_samples: int | None = 2_000
 
+    context_col: str | None = None
+    """Optional dotted path to contextual passages (e.g. ``context.contexts``)."""
+
+    context_joiner: str = "\n\n"
+    """Join string used when ``context_col`` resolves to multiple passages."""
+
+    include_context_in_question: bool = False
+    """If True, append context passages to the question conditioning stream."""
+
+    final_decision_col: str | None = None
+    """Optional dotted path to class labels such as ``yes/no/maybe``."""
+
+    maybe_policy: str = "separate_split"
+    """Handling for rows where final decision is ``maybe``.
+
+    Supported values:
+    - ``"drop_maybe"``: remove maybe rows.
+    - ``"treat_maybe_incorrect"``: map maybe to binary label 1.
+    - ``"treat_maybe_correct"``: map maybe to binary label 0.
+    - ``"separate_split"``: keep maybe rows with ``final_decision`` metadata
+      for uncertainty analysis, but do not force them into binary supervision.
+    """
+
+    emit_question_context: bool = False
+    """If True, emit ``log_x_question`` and ``question_mask`` in batches."""
+
     max_question_bytes: int = 96
+    max_context_bytes: int = 384
     max_answer_bytes: int = 28
     shuffle_seed: int = 0
     log_simplex_eps: float = 1e-8
 
     trust_remote_code: bool = True
+
+    _VALID_MAYBE_POLICIES: ClassVar[tuple[str, ...]] = (
+        "drop_maybe",
+        "treat_maybe_incorrect",
+        "treat_maybe_correct",
+        "separate_split",
+    )
+
+    def __post_init__(self) -> None:
+        if self.maybe_policy not in self._VALID_MAYBE_POLICIES:
+            raise ValueError(
+                f"QADatasetConfig.maybe_policy={self.maybe_policy!r} must be one of "
+                f"{self._VALID_MAYBE_POLICIES}"
+            )
 
 
 @dataclass

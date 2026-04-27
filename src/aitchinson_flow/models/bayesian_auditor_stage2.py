@@ -42,11 +42,12 @@ from aitchinson_flow.config import Config
 from aitchinson_flow.gp.gp import GPOutput, SparseGP
 from aitchinson_flow.models.base import TRAINING_LOSS_KEY, LossDict, kl_normalizer
 from aitchinson_flow.models.bayesian_auditor_stage1 import (
+    ContextualAuditorBackbone,
     _build_llm_projection,
     _prepare_batch_with_projection,
 )
 from aitchinson_flow.models.factory import register
-from aitchinson_flow.transformer_backbone import TokenLatentHead, TransformerBackbone
+from aitchinson_flow.transformer_backbone import TokenLatentHead
 
 
 def _gp_log_prob(dist: GPOutput, y: torch.Tensor) -> torch.Tensor:
@@ -91,9 +92,7 @@ class BayesianAuditorStage2(nn.Module):
         super().__init__()
         self.cfg = cfg
 
-        self.backbone = TransformerBackbone(
-            cfg=cfg, time_conditioned=False, sdp_math_for_autograd=True
-        )
+        self.backbone = ContextualAuditorBackbone(cfg=cfg)
         self.latent_head = TokenLatentHead(cfg=cfg)
         self.gp = SparseGP(cfg=cfg)
         # Path B: learned embedding→simplex projection, frozen along with the
@@ -140,7 +139,12 @@ class BayesianAuditorStage2(nn.Module):
         """
         return [p for p in self.parameters() if p.requires_grad]
 
-    def _extract_tokens(self, log_x: torch.Tensor) -> torch.Tensor:
+    def _extract_tokens(
+        self,
+        log_x: torch.Tensor,
+        log_x_question: torch.Tensor | None = None,
+        question_mask: torch.Tensor | None = None,
+    ) -> torch.Tensor:
         """Token-level representation: ``log_x`` (B, L, K-1) → ``z`` (B, L, d_latent).
 
         The backbone runs under ``torch.no_grad`` (it is frozen), but the
@@ -149,7 +153,11 @@ class BayesianAuditorStage2(nn.Module):
         """
         B, L, _ = log_x.shape
         with torch.no_grad(), sdpa_kernel(SDPBackend.MATH):
-            h = self.backbone(log_x)
+            h = self.backbone(
+                log_x,
+                log_x_question=log_x_question,
+                question_mask=question_mask,
+            )
         z = self.latent_head(h)
         assert z.shape[:2] == (B, L), (
             f"TokenLatentHead must preserve (B, L) dims; got {tuple(z.shape)}"
@@ -159,13 +167,19 @@ class BayesianAuditorStage2(nn.Module):
     def _token_likelihood_loss(
         self,
         log_x1: torch.Tensor,
+        log_x_question: torch.Tensor | None = None,
+        question_mask: torch.Tensor | None = None,
         log_x_invalid: torch.Tensor | None = None,
         answer_mask: torch.Tensor | None = None,
     ) -> LossDict:
         B, L, _ = log_x1.shape
 
         # Valid tokens: maximise likelihood at y=0.
-        z_valid_full = self._extract_tokens(log_x1)  # (B, L, d_latent)
+        z_valid_full = self._extract_tokens(
+            log_x1,
+            log_x_question=log_x_question,
+            question_mask=question_mask,
+        )  # (B, L, d_latent)
 
         # Negatives: prefer real semantic negatives from the batch; fall back
         # to centered random noise (preserves pre-Phase-2 Path A behavior).
@@ -175,12 +189,20 @@ class BayesianAuditorStage2(nn.Module):
                     f"log_x_invalid shape {tuple(log_x_invalid.shape)} must match "
                     f"log_x {tuple(log_x1.shape)}"
                 )
-            z_random_full = self._extract_tokens(log_x_invalid)
+            z_random_full = self._extract_tokens(
+                log_x_invalid,
+                log_x_question=log_x_question,
+                question_mask=question_mask,
+            )
         else:
             with torch.no_grad():
                 log_x_random = torch.randn_like(log_x1)
                 log_x_random = log_x_random - log_x_random.mean(dim=-1, keepdim=True)
-            z_random_full = self._extract_tokens(log_x_random)
+            z_random_full = self._extract_tokens(
+                log_x_random,
+                log_x_question=log_x_question,
+                question_mask=question_mask,
+            )
 
         # Optional answer-span restriction (Path B): only score answer tokens.
         use_mask = self.cfg.gp.score_answer_tokens_only and answer_mask is not None
@@ -256,6 +278,8 @@ class BayesianAuditorStage2(nn.Module):
             )
         return self._token_likelihood_loss(
             batch["log_x"],
+            log_x_question=batch.get("log_x_question"),
+            question_mask=batch.get("question_mask"),
             log_x_invalid=batch.get("log_x_invalid"),
             answer_mask=batch.get("answer_mask"),
         )
@@ -271,28 +295,56 @@ class BayesianAuditorStage2(nn.Module):
             )
         return self._token_likelihood_loss(
             batch["log_x"],
+            log_x_question=batch.get("log_x_question"),
+            question_mask=batch.get("question_mask"),
             log_x_invalid=batch.get("log_x_invalid"),
             answer_mask=batch.get("answer_mask"),
         )
 
     @torch.no_grad()
-    def ood_score(self, log_x: torch.Tensor) -> torch.Tensor:
+    def ood_score(
+        self,
+        log_x: torch.Tensor,
+        *,
+        log_x_question: torch.Tensor | None = None,
+        question_mask: torch.Tensor | None = None,
+    ) -> torch.Tensor:
         """Sequence-level OOD score: mean token epistemic variance, shape ``(B,)``."""
         was_training = self.training
         self.eval()
         B, L, _ = log_x.shape
-        z_tokens = self._extract_tokens(log_x).reshape(B * L, -1)
+        z_tokens = self._extract_tokens(
+            log_x,
+            log_x_question=log_x_question,
+            question_mask=question_mask,
+        ).reshape(B * L, -1)
         dist = self.gp(z_tokens)
         if was_training:
             self.train()
         return dist.variance.view(B, L).mean(dim=1)
 
     @torch.no_grad()
-    def score_per_sample(self, log_x: torch.Tensor) -> torch.Tensor:
-        return self.ood_score(log_x)
+    def score_per_sample(
+        self,
+        log_x: torch.Tensor,
+        *,
+        log_x_question: torch.Tensor | None = None,
+        question_mask: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        return self.ood_score(
+            log_x,
+            log_x_question=log_x_question,
+            question_mask=question_mask,
+        )
 
     @torch.no_grad()
-    def ood_score_tokenwise(self, log_x: torch.Tensor) -> torch.Tensor:
+    def ood_score_tokenwise(
+        self,
+        log_x: torch.Tensor,
+        *,
+        log_x_question: torch.Tensor | None = None,
+        question_mask: torch.Tensor | None = None,
+    ) -> torch.Tensor:
         """Per-token GP epistemic variance, shape ``(B, L)``.
 
         Used by the Path B hallucination-audit task to compute answer-span
@@ -301,14 +353,24 @@ class BayesianAuditorStage2(nn.Module):
         was_training = self.training
         self.eval()
         B, L, _ = log_x.shape
-        z_tokens = self._extract_tokens(log_x).reshape(B * L, -1)
+        z_tokens = self._extract_tokens(
+            log_x,
+            log_x_question=log_x_question,
+            question_mask=question_mask,
+        ).reshape(B * L, -1)
         dist = self.gp(z_tokens)
         if was_training:
             self.train()
         return dist.variance.view(B, L)
 
     @torch.no_grad()
-    def per_token_uq(self, log_x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, float]:
+    def per_token_uq(
+        self,
+        log_x: torch.Tensor,
+        *,
+        log_x_question: torch.Tensor | None = None,
+        question_mask: torch.Tensor | None = None,
+    ) -> tuple[torch.Tensor, torch.Tensor, float]:
         """Per-token GP energy and epistemic variance, plus scalar aleatoric noise.
 
         The ``@torch.no_grad`` decorator is sufficient here — neither the
@@ -318,7 +380,11 @@ class BayesianAuditorStage2(nn.Module):
         was_training = self.training
         self.eval()
         B, L, _ = log_x.shape
-        z_tokens = self._extract_tokens(log_x).reshape(B * L, -1)
+        z_tokens = self._extract_tokens(
+            log_x,
+            log_x_question=log_x_question,
+            question_mask=question_mask,
+        ).reshape(B * L, -1)
         dist = self.gp(z_tokens)
         if was_training:
             self.train()
@@ -329,7 +395,13 @@ class BayesianAuditorStage2(nn.Module):
         )
 
     @torch.no_grad()
-    def token_latents(self, log_x: torch.Tensor) -> torch.Tensor:
+    def token_latents(
+        self,
+        log_x: torch.Tensor,
+        *,
+        log_x_question: torch.Tensor | None = None,
+        question_mask: torch.Tensor | None = None,
+    ) -> torch.Tensor:
         """Per-token GP input latents, shape ``(B, L, d_latent)``.
 
         Same projection used by the token-level likelihood and
@@ -338,7 +410,11 @@ class BayesianAuditorStage2(nn.Module):
         was_training = self.training
         self.eval()
         B, L, _ = log_x.shape
-        z_tokens = self._extract_tokens(log_x).reshape(B, L, -1)
+        z_tokens = self._extract_tokens(
+            log_x,
+            log_x_question=log_x_question,
+            question_mask=question_mask,
+        ).reshape(B, L, -1)
         if was_training:
             self.train()
         return z_tokens.detach()

@@ -41,6 +41,31 @@ def byte_ids_to_text(ids: Tensor | list[int]) -> str:
     return payload.decode("utf-8", errors="replace")
 
 
+def encode_text_bytes(
+    text: str,
+    *,
+    max_text_bytes: int,
+    L: int,
+) -> tuple[Tensor, Tensor]:
+    """Encode a text span into fixed-length bytes with a non-pad content mask.
+
+    Returns ``(token_ids (L,), content_mask (L,))`` where ``content_mask`` is
+    True on actual UTF-8 bytes and False on right-padding positions.
+    """
+    payload = text_to_byte_ids(text, max_text_bytes)
+    if len(payload) >= L:
+        payload = payload[:L]
+        mask = [True] * L
+    else:
+        pad = L - len(payload)
+        mask = [True] * len(payload) + [False] * pad
+        payload = payload + [PAD] * pad
+    return (
+        torch.tensor(payload, dtype=torch.long),
+        torch.tensor(mask, dtype=torch.bool),
+    )
+
+
 def concat_qa_bytes(
     question: str,
     answer: str,

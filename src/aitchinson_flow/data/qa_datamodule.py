@@ -1,9 +1,14 @@
 """Byte-level Q+A datamodule (Path B).
 
 Train split emits ``{log_x, token_ids, answer_mask, log_x_invalid}`` with
-cross-question-swap in-batch negatives. Val/test splits emit
-``{log_x, token_ids, answer_mask, label}`` with interleaved correct (label=0)
-and LLM-generated (label=1) answers.
+cross-question-swap in-batch negatives. When contextual batching is enabled
+(``cfg.qa_dataset.emit_question_context``), train/eval batches also include
+``log_x_question`` and ``question_mask``.
+
+Val/test splits emit ``{log_x, token_ids, answer_mask, label}`` with
+interleaved correct (label=0) and LLM-generated (label=1) answers. Optional
+``final_decision`` metadata (yes/no/maybe) is propagated for uncertainty-only
+slice analysis.
 
 Questions and answers are byte-encoded (UTF-8) and concatenated via
 :func:`~aitchinson_flow.data.byte_vocab.concat_qa_bytes` as
@@ -29,7 +34,7 @@ from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
 
 from aitchinson_flow.config import Config
-from aitchinson_flow.data.byte_vocab import concat_qa_bytes
+from aitchinson_flow.data.byte_vocab import concat_qa_bytes, encode_text_bytes
 from aitchinson_flow.data.qa_negatives import cross_question_swap
 from aitchinson_flow.data.transforms.discrete import token_ids_to_features
 from aitchinson_flow.training.datamodule import DataModule
@@ -70,6 +75,17 @@ def _coerce_aliases(value: Any) -> list[str]:
     return [str(value)]
 
 
+def _coerce_context(value: Any, *, joiner: str) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value.strip()
+    if isinstance(value, (list, tuple)):
+        chunks = [str(v).strip() for v in value if str(v).strip()]
+        return joiner.join(chunks)
+    return str(value).strip()
+
+
 def _normalize_text(value: str) -> str:
     return " ".join(value.strip().lower().split())
 
@@ -90,6 +106,45 @@ def _coerce_label(value: Any) -> int | None:
     return None
 
 
+def _coerce_final_decision(value: Any) -> str | None:
+    if value is None:
+        return None
+    token = str(value).strip().lower()
+    if token in {"yes", "no", "maybe"}:
+        return token
+    return None
+
+
+def _final_decision_id(value: str | None) -> int:
+    if value == "yes":
+        return 0
+    if value == "no":
+        return 1
+    if value == "maybe":
+        return 2
+    return -1
+
+
+def _map_maybe_to_binary(decision: str | None, *, maybe_policy: str) -> int | None:
+    if decision is None:
+        return None
+    if decision == "yes":
+        return 0
+    if decision == "no":
+        return 1
+    if decision != "maybe":
+        return None
+    if maybe_policy == "drop_maybe":
+        return None
+    if maybe_policy == "treat_maybe_incorrect":
+        return 1
+    if maybe_policy == "treat_maybe_correct":
+        return 0
+    if maybe_policy == "separate_split":
+        return None
+    return None
+
+
 def _load_qa_rows(
     hf_path: str,
     *,
@@ -98,6 +153,11 @@ def _load_qa_rows(
     question_col: str,
     answer_col: str,
     aliases_col: str | None,
+    context_col: str | None,
+    include_context_in_question: bool,
+    context_joiner: str,
+    final_decision_col: str | None,
+    maybe_policy: str,
     max_samples: int | None,
     seed: int,
 ) -> list[dict[str, Any]]:
@@ -113,11 +173,37 @@ def _load_qa_rows(
         q = _dotted_get(raw, question_col)
         if not isinstance(q, str) or not q:
             continue
+        context_text = (
+            _coerce_context(_dotted_get(raw, context_col), joiner=context_joiner)
+            if context_col
+            else ""
+        )
+        question_context = q
+        if include_context_in_question and context_text:
+            question_context = f"{q.strip()}\n\n{context_text}"
         a = _coerce_answer(_dotted_get(raw, answer_col))
         if a is None:
             continue
         aliases = _coerce_aliases(_dotted_get(raw, aliases_col)) if aliases_col else []
-        rows.append({"question": q, "answer": a, "aliases": aliases})
+        final_decision = (
+            _coerce_final_decision(_dotted_get(raw, final_decision_col))
+            if final_decision_col is not None
+            else None
+        )
+        if final_decision == "maybe" and maybe_policy == "drop_maybe":
+            continue
+        rows.append(
+            {
+                "question": q,
+                "question_context": question_context,
+                "answer": a,
+                "aliases": aliases,
+                "final_decision": final_decision,
+                "binary_decision_label": _map_maybe_to_binary(
+                    final_decision, maybe_policy=maybe_policy
+                ),
+            }
+        )
     return rows
 
 
@@ -160,9 +246,7 @@ def _load_external_eval_rows(
             reader = csv.DictReader(fh)
             raw_rows = [dict(r) for r in reader]
     else:
-        raise ValueError(
-            f"Unsupported external eval format: {suffix}. Use .json, .jsonl, or .csv."
-        )
+        raise ValueError(f"Unsupported external eval format: {suffix}. Use .json, .jsonl, or .csv.")
 
     rows: list[dict[str, Any]] = []
     for raw in raw_rows:
@@ -182,7 +266,15 @@ def _load_external_eval_rows(
         if label is None:
             continue
 
-        rows.append({"question": question, "answer": answer_text, "label": int(label)})
+        rows.append(
+            {
+                "question": question,
+                "question_context": question,
+                "answer": answer_text,
+                "label": int(label),
+                "final_decision": _coerce_final_decision(_dotted_get(raw, "final_decision")),
+            }
+        )
         if max_samples is not None and len(rows) >= max_samples:
             break
     return rows
@@ -223,6 +315,49 @@ def _encode_pair(
     return feats, ids, mask
 
 
+def _encode_contextual_pair(
+    question_context: str,
+    answer: str,
+    *,
+    cfg: Config,
+) -> tuple[Tensor, Tensor, Tensor, Tensor, Tensor]:
+    """Encode one contextual QA pair into answer/question feature streams.
+
+    Returns ``(answer_feats, answer_ids, answer_mask, question_feats, question_pad_mask)``
+    where ``question_pad_mask`` uses MultiheadAttention convention
+    (True means padding position should be ignored).
+    """
+    qa = cfg.qa_dataset
+    hf = cfg.hf_dataset
+
+    answer_ids, answer_mask = encode_text_bytes(
+        answer,
+        max_text_bytes=qa.max_answer_bytes,
+        L=cfg.dataset.L,
+    )
+    question_ids, question_content_mask = encode_text_bytes(
+        question_context,
+        max_text_bytes=qa.max_question_bytes + qa.max_context_bytes,
+        L=cfg.dataset.L,
+    )
+    answer_feats = token_ids_to_features(
+        answer_ids,
+        cfg.dataset.K,
+        eps=qa.log_simplex_eps,
+        label_smoothing=hf.label_smoothing,
+        transform_mode=hf.transform_mode,
+    )
+    question_feats = token_ids_to_features(
+        question_ids,
+        cfg.dataset.K,
+        eps=qa.log_simplex_eps,
+        label_smoothing=hf.label_smoothing,
+        transform_mode=hf.transform_mode,
+    )
+    question_pad_mask = ~question_content_mask
+    return answer_feats, answer_ids, answer_mask, question_feats, question_pad_mask
+
+
 class _QATrainDataset(Dataset[dict[str, Any]]):
     """Emits raw ``(question, answer)`` plus the positive encoding.
 
@@ -239,13 +374,35 @@ class _QATrainDataset(Dataset[dict[str, Any]]):
 
     def __getitem__(self, idx: int) -> dict[str, Any]:
         row = self.rows[idx]
+        if self.cfg.qa_dataset.emit_question_context:
+            feats, ids, mask, q_feats, q_mask = _encode_contextual_pair(
+                row["question_context"], row["answer"], cfg=self.cfg
+            )
+            return {
+                "question": row["question"],
+                "question_context": row["question_context"],
+                "answer": row["answer"],
+                "log_x": feats,
+                "token_ids": ids,
+                "answer_mask": mask,
+                "log_x_question": q_feats,
+                "question_mask": q_mask,
+                "final_decision": torch.tensor(
+                    _final_decision_id(row.get("final_decision")), dtype=torch.long
+                ),
+            }
+
         feats, ids, mask = _encode_pair(row["question"], row["answer"], cfg=self.cfg)
         return {
             "question": row["question"],
+            "question_context": row["question_context"],
             "answer": row["answer"],
             "log_x": feats,
             "token_ids": ids,
             "answer_mask": mask,
+            "final_decision": torch.tensor(
+                _final_decision_id(row.get("final_decision")), dtype=torch.long
+            ),
         }
 
 
@@ -255,10 +412,39 @@ def _make_train_collate(cfg: Config) -> Any:
 
     def collate(items: list[dict[str, Any]]) -> dict[str, Tensor]:
         questions = [it["question"] for it in items]
+        question_contexts = [it["question_context"] for it in items]
         answers = [it["answer"] for it in items]
         log_x = torch.stack([it["log_x"] for it in items], dim=0)
         token_ids = torch.stack([it["token_ids"] for it in items], dim=0)
         answer_mask = torch.stack([it["answer_mask"] for it in items], dim=0)
+        final_decision = torch.stack([it["final_decision"] for it in items], dim=0)
+
+        if cfg.qa_dataset.emit_question_context:
+            log_x_question = torch.stack([it["log_x_question"] for it in items], dim=0)
+            question_mask = torch.stack([it["question_mask"] for it in items], dim=0)
+
+            n = len(items)
+            perm_list = torch.randperm(n).tolist()
+            if n > 1:
+                fixed = [i for i, j in enumerate(perm_list) if i == j]
+                for i in fixed:
+                    j = (i + 1) % n
+                    perm_list[i], perm_list[j] = perm_list[j], perm_list[i]
+            invalid_answers = [answers[j] for j in perm_list]
+            invalid_rows = [
+                _encode_contextual_pair(question_contexts[i], invalid_answers[i], cfg=cfg)[0]
+                for i in range(n)
+            ]
+            log_x_invalid = torch.stack(invalid_rows, dim=0)
+            return {
+                "log_x": log_x,
+                "token_ids": token_ids,
+                "answer_mask": answer_mask,
+                "log_x_question": log_x_question,
+                "question_mask": question_mask,
+                "log_x_invalid": log_x_invalid,
+                "final_decision": final_decision,
+            }
 
         seed = qa.shuffle_seed + int(torch.randint(0, 2**30, (1,)).item())
         log_x_invalid, _, _ = cross_question_swap(
@@ -278,6 +464,7 @@ def _make_train_collate(cfg: Config) -> Any:
             "token_ids": token_ids,
             "answer_mask": answer_mask,
             "log_x_invalid": log_x_invalid,
+            "final_decision": final_decision,
         }
 
     return collate
@@ -312,12 +499,29 @@ class _QAEvalDataset(Dataset[dict[str, Tensor]]):
         is_hallucinated = idx % 2 == 1
         row = self.rows[row_idx]
         answer = self.llm_answers[row_idx] if is_hallucinated else row["answer"]
+        final_decision = torch.tensor(
+            _final_decision_id(row.get("final_decision")), dtype=torch.long
+        )
+        if self.cfg.qa_dataset.emit_question_context:
+            feats, ids, mask, q_feats, q_mask = _encode_contextual_pair(
+                row["question_context"], answer, cfg=self.cfg
+            )
+            return {
+                "log_x": feats,
+                "token_ids": ids,
+                "answer_mask": mask,
+                "log_x_question": q_feats,
+                "question_mask": q_mask,
+                "label": torch.tensor(1 if is_hallucinated else 0, dtype=torch.long),
+                "final_decision": final_decision,
+            }
         feats, ids, mask = _encode_pair(row["question"], answer, cfg=self.cfg)
         return {
             "log_x": feats,
             "token_ids": ids,
             "answer_mask": mask,
             "label": torch.tensor(1 if is_hallucinated else 0, dtype=torch.long),
+            "final_decision": final_decision,
         }
 
 
@@ -333,12 +537,29 @@ class _QAExternalEvalDataset(Dataset[dict[str, Tensor]]):
 
     def __getitem__(self, idx: int) -> dict[str, Tensor]:
         row = self.rows[idx]
+        final_decision = torch.tensor(
+            _final_decision_id(row.get("final_decision")), dtype=torch.long
+        )
+        if self.cfg.qa_dataset.emit_question_context:
+            feats, ids, mask, q_feats, q_mask = _encode_contextual_pair(
+                row["question_context"], row["answer"], cfg=self.cfg
+            )
+            return {
+                "log_x": feats,
+                "token_ids": ids,
+                "answer_mask": mask,
+                "log_x_question": q_feats,
+                "question_mask": q_mask,
+                "label": torch.tensor(int(row["label"]), dtype=torch.long),
+                "final_decision": final_decision,
+            }
         feats, ids, mask = _encode_pair(row["question"], row["answer"], cfg=self.cfg)
         return {
             "log_x": feats,
             "token_ids": ids,
             "answer_mask": mask,
             "label": torch.tensor(int(row["label"]), dtype=torch.long),
+            "final_decision": final_decision,
         }
 
 
@@ -411,7 +632,7 @@ class QAPairsDataModule(DataModule):
         self._val_llm_answers: list[str] | None = None
         self._test_llm_answers: list[str] | None = None
 
-    def _ensure_rows_loaded(self) -> None:
+    def _ensure_train_rows_loaded(self) -> None:
         if self._train_rows is not None:
             return
         qa = self.cfg.qa_dataset
@@ -422,9 +643,19 @@ class QAPairsDataModule(DataModule):
             question_col=qa.question_col,
             answer_col=qa.answer_col,
             aliases_col=qa.aliases_col,
+            context_col=qa.context_col,
+            include_context_in_question=qa.include_context_in_question,
+            context_joiner=qa.context_joiner,
+            final_decision_col=qa.final_decision_col,
+            maybe_policy=qa.maybe_policy,
             max_samples=qa.max_train_samples,
             seed=qa.shuffle_seed,
         )
+
+    def _ensure_val_rows_loaded(self) -> None:
+        if self._val_rows is not None:
+            return
+        qa = self.cfg.qa_dataset
         self._val_rows = (
             _load_qa_rows(
                 qa.hf_path,
@@ -433,12 +664,22 @@ class QAPairsDataModule(DataModule):
                 question_col=qa.question_col,
                 answer_col=qa.answer_col,
                 aliases_col=qa.aliases_col,
+                context_col=qa.context_col,
+                include_context_in_question=qa.include_context_in_question,
+                context_joiner=qa.context_joiner,
+                final_decision_col=qa.final_decision_col,
+                maybe_policy=qa.maybe_policy,
                 max_samples=qa.max_val_samples,
                 seed=qa.shuffle_seed + 1,
             )
             if qa.split_val is not None
             else []
         )
+
+    def _ensure_test_rows_loaded(self) -> None:
+        if self._test_rows is not None:
+            return
+        qa = self.cfg.qa_dataset
         self._test_rows = (
             _load_qa_rows(
                 qa.hf_path,
@@ -447,6 +688,11 @@ class QAPairsDataModule(DataModule):
                 question_col=qa.question_col,
                 answer_col=qa.answer_col,
                 aliases_col=qa.aliases_col,
+                context_col=qa.context_col,
+                include_context_in_question=qa.include_context_in_question,
+                context_joiner=qa.context_joiner,
+                final_decision_col=qa.final_decision_col,
+                maybe_policy=qa.maybe_policy,
                 max_samples=qa.max_test_samples,
                 seed=qa.shuffle_seed + 2,
             )
@@ -496,9 +742,7 @@ class QAPairsDataModule(DataModule):
                 top_p=gen.top_p,
                 max_new_tokens=gen.max_new_tokens,
                 generation_seed=gen.generation_seed,
-                max_samples=(
-                    qa.max_val_samples if split == qa.split_val else qa.max_test_samples
-                ),
+                max_samples=(qa.max_val_samples if split == qa.split_val else qa.max_test_samples),
                 shuffle_seed=qa.shuffle_seed,
             )
             cache_path = Path(gen.cache_dir) / f"qa_answers_{split}_{key}.json"
@@ -535,7 +779,7 @@ class QAPairsDataModule(DataModule):
                 temperature=gen.temperature,
                 top_p=gen.top_p,
             )
-            new_ids = gen_ids[0, prompt_ids.shape[1]:]
+            new_ids = gen_ids[0, prompt_ids.shape[1] :]
             decoded = lm.decode(new_ids, skip_special_tokens=True)
             text = decoded[0] if decoded else ""
             first_line = text.strip().splitlines()[0] if text.strip() else ""
@@ -546,7 +790,7 @@ class QAPairsDataModule(DataModule):
         return answers
 
     def train_dataloader(self) -> DataLoader:  # type: ignore[override]
-        self._ensure_rows_loaded()
+        self._ensure_train_rows_loaded()
         assert self._train_rows is not None
         ds = _QATrainDataset(self._train_rows, self.cfg)
         return DataLoader(
@@ -559,7 +803,7 @@ class QAPairsDataModule(DataModule):
         )
 
     def val_dataloader(self) -> DataLoader | None:  # type: ignore[override]
-        self._ensure_rows_loaded()
+        self._ensure_val_rows_loaded()
         assert self._val_rows is not None
         if not self._val_rows:
             return None
@@ -576,7 +820,7 @@ class QAPairsDataModule(DataModule):
         )
 
     def test_dataloader(self) -> DataLoader | None:  # type: ignore[override]
-        self._ensure_rows_loaded()
+        self._ensure_test_rows_loaded()
         assert self._test_rows is not None
         if not self._test_rows:
             return None
@@ -593,7 +837,7 @@ class QAPairsDataModule(DataModule):
         )
 
     def num_train_samples(self) -> int | None:  # pragma: no cover - trivial
-        self._ensure_rows_loaded()
+        self._ensure_train_rows_loaded()
         assert self._train_rows is not None
         return len(self._train_rows)
 

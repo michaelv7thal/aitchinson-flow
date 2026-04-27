@@ -135,6 +135,59 @@ def _scrambled_log_x0(
     return torch.stack(rows, dim=0).to(device=device, dtype=dtype)
 
 
+class ContextualAuditorBackbone(nn.Module):
+    """Two-stream backbone with optional question-conditioned cross-attention."""
+
+    def __init__(self, cfg: Config) -> None:
+        super().__init__()
+        self.cfg = cfg
+        self.answer_backbone = TransformerBackbone(
+            cfg=cfg,
+            time_conditioned=False,
+            sdp_math_for_autograd=True,
+        )
+        self.question_backbone = TransformerBackbone(
+            cfg=cfg,
+            time_conditioned=False,
+            sdp_math_for_autograd=True,
+        )
+        self.cross_attention = nn.MultiheadAttention(
+            embed_dim=cfg.transformer.d_model,
+            num_heads=cfg.transformer.nhead,
+            dropout=cfg.transformer.dropout,
+            batch_first=True,
+        )
+        gate_init = float(getattr(cfg.training, "context_gate_init", -4.0))
+        self.context_gate = nn.Parameter(torch.tensor(gate_init, dtype=torch.float32))
+        self.cross_norm = nn.LayerNorm(cfg.transformer.d_model)
+
+    def forward(
+        self,
+        log_x_answer: torch.Tensor,
+        log_x_question: torch.Tensor | None = None,
+        question_mask: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        h_answer = self.answer_backbone(log_x_answer)
+        use_context = bool(getattr(self.cfg.training, "use_contextual_backbone", False))
+        if not use_context or log_x_question is None:
+            return h_answer
+
+        h_question = self.question_backbone(log_x_question)
+        key_padding_mask = None
+        if question_mask is not None:
+            key_padding_mask = question_mask.to(dtype=torch.bool, device=h_question.device)
+
+        h_cross, _ = self.cross_attention(
+            query=self.cross_norm(h_answer),
+            key=h_question,
+            value=h_question,
+            key_padding_mask=key_padding_mask,
+            need_weights=False,
+        )
+        gate = torch.sigmoid(self.context_gate).to(dtype=h_answer.dtype, device=h_answer.device)
+        return h_answer + gate * h_cross
+
+
 class BayesianAuditorStage1(nn.Module):
     """EqM + Hilbert flow-matching backbone (Stage 1 of two-stage auditor).
 
@@ -194,9 +247,7 @@ class BayesianAuditorStage1(nn.Module):
 
         # Aligned with Stage 2 / BayesianAuditor: same ``time_conditioned`` flag so
         # ``compose_auditor_from_stages`` loads ``backbone.*`` without shape/key skew.
-        self.backbone = TransformerBackbone(
-            cfg=cfg, time_conditioned=cfg.transformer.time_conditioned
-        )
+        self.backbone = ContextualAuditorBackbone(cfg=cfg)
         self.velocity_head = VelocityHead(cfg=cfg)
         self.mask_recon_head = MaskReconHead(cfg=cfg)
         # Path B: learned projection from frozen LLM embeddings → simplex.
@@ -218,7 +269,12 @@ class BayesianAuditorStage1(nn.Module):
         return _prepare_batch_with_projection(batch, self.llm_projection)
 
     def forward(
-        self, log_x: torch.Tensor, t: torch.Tensor | None = None
+        self,
+        log_x: torch.Tensor,
+        t: torch.Tensor | None = None,
+        *,
+        log_x_question: torch.Tensor | None = None,
+        question_mask: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """``log_x`` (B, L, D) → (velocity (B, L, D), hidden (B, L, d_model)).
 
@@ -227,7 +283,7 @@ class BayesianAuditorStage1(nn.Module):
         reuse the shared backbone pass without a second forward.
         """
         del t
-        h = self.backbone(log_x)
+        h = self.backbone(log_x, log_x_question=log_x_question, question_mask=question_mask)
         v = self.velocity_head(h)
         return v, h
 
@@ -306,14 +362,23 @@ class BayesianAuditorStage1(nn.Module):
                     f"equilibrium.eqm_decay_b must be >= 1 for piecewise decay, got {eq.eqm_decay_b}"
                 )
 
-    def _masked_reconstruction_loss(self, log_x: torch.Tensor) -> torch.Tensor:
+    def _masked_reconstruction_loss(
+        self,
+        log_x: torch.Tensor,
+        log_x_question: torch.Tensor | None = None,
+        question_mask: torch.Tensor | None = None,
+    ) -> torch.Tensor:
         B, L, _ = log_x.shape
         mask = torch.rand(B, L, device=log_x.device) < self.cfg.training.mask_rate
 
         log_x_masked = log_x.clone()
         log_x_masked[mask] = 0.0
 
-        h = self.backbone(log_x_masked)
+        h = self.backbone(
+            log_x_masked,
+            log_x_question=log_x_question,
+            question_mask=question_mask,
+        )
         pred = self.mask_recon_head(h)
 
         if not mask.any():
@@ -328,6 +393,8 @@ class BayesianAuditorStage1(nn.Module):
     def _eqm_hilbert_loss(
         self,
         log_x1: torch.Tensor,
+        log_x_question: torch.Tensor | None = None,
+        question_mask: torch.Tensor | None = None,
         answer_mask: torch.Tensor | None = None,
     ) -> LossDict:
         B, L, D = log_x1.shape
@@ -338,7 +405,11 @@ class BayesianAuditorStage1(nn.Module):
         # Sign convention: target velocity points data → noise (log_x0 - log_x1).
         # The matching integrator subtracts v: x ← x - v(x) * dt (noise → data).
         u_tgt = self._c_gamma(gamma) * (log_x0 - log_x1)
-        v_pred, _ = self.forward(log_x_gamma)
+        v_pred, _ = self.forward(
+            log_x_gamma,
+            log_x_question=log_x_question,
+            question_mask=question_mask,
+        )
         if self.cfg.training.stage1_answer_tokens_only:
             if answer_mask is None:
                 raise KeyError(
@@ -358,7 +429,11 @@ class BayesianAuditorStage1(nn.Module):
 
         lambda_mask = self.cfg.training.lambda_mask
         if lambda_mask > 0.0:
-            mask_loss = self._masked_reconstruction_loss(log_x1)
+            mask_loss = self._masked_reconstruction_loss(
+                log_x1,
+                log_x_question=log_x_question,
+                question_mask=question_mask,
+            )
             total = flow_loss + lambda_mask * mask_loss
             return {
                 TRAINING_LOSS_KEY: total,
@@ -378,12 +453,22 @@ class BayesianAuditorStage1(nn.Module):
         batch = self.prepare_batch(batch)
         if "log_x" not in batch:
             raise KeyError("BayesianAuditorStage1 requires batch['log_x']")
-        return self._eqm_hilbert_loss(batch["log_x"], answer_mask=batch.get("answer_mask"))
+        return self._eqm_hilbert_loss(
+            batch["log_x"],
+            log_x_question=batch.get("log_x_question"),
+            question_mask=batch.get("question_mask"),
+            answer_mask=batch.get("answer_mask"),
+        )
 
     @torch.no_grad()
     def eval_step(self, batch: Any) -> LossDict:
         batch = self.prepare_batch(batch)
-        return self._eqm_hilbert_loss(batch["log_x"], answer_mask=batch.get("answer_mask"))
+        return self._eqm_hilbert_loss(
+            batch["log_x"],
+            log_x_question=batch.get("log_x_question"),
+            question_mask=batch.get("question_mask"),
+            answer_mask=batch.get("answer_mask"),
+        )
 
     @torch.no_grad()
     def audit(self, batch: Any) -> LossDict:

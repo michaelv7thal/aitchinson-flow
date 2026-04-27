@@ -57,11 +57,20 @@ def add_training_data_args(parser: argparse.ArgumentParser) -> None:
     group.add_argument(
         "--training-data-source",
         type=str,
-        choices=("raw_text", "llm_topk", "llm_topk_probs", "llm_generated"),
+        choices=(
+            "raw_text",
+            "llm_topk",
+            "llm_topk_probs",
+            "llm_generated",
+            "qa_pairs",
+            "dna",
+            "medical",
+        ),
         default=None,
         help="Training input source: raw text datamodule, pretrained-LLM top-K "
         "embedding features (Path B / llm_topk), LLM top-K softmax probability "
-        "features (Component 2 / llm_topk_probs), or LLM-generated stream.",
+        "features (Component 2 / llm_topk_probs), LLM-generated stream, "
+        "or task-specific QA/biomedical datasets.",
     )
     group.add_argument(
         "--raw-dataset",
@@ -161,6 +170,29 @@ def add_training_data_args(parser: argparse.ArgumentParser) -> None:
         default=None,
         help="Prompt length used with --use-text8-prompts.",
     )
+    group.add_argument("--qa-hf-path", type=str, default=None)
+    group.add_argument("--qa-name", type=str, default=None)
+    group.add_argument("--qa-question-col", type=str, default=None)
+    group.add_argument("--qa-answer-col", type=str, default=None)
+    group.add_argument("--qa-context-col", type=str, default=None)
+    group.add_argument("--qa-final-decision-col", type=str, default=None)
+    group.add_argument(
+        "--qa-maybe-policy",
+        type=str,
+        choices=("drop_maybe", "treat_maybe_incorrect", "treat_maybe_correct", "separate_split"),
+        default=None,
+    )
+    group.add_argument("--qa-emit-question-context", action="store_true")
+    group.add_argument("--qa-include-context-in-question", action="store_true")
+    group.add_argument("--qa-max-question-bytes", type=positive_int, default=None)
+    group.add_argument("--qa-max-context-bytes", type=positive_int, default=None)
+    group.add_argument("--qa-max-answer-bytes", type=positive_int, default=None)
+    group.add_argument("--qa-max-train-samples", type=positive_int, default=None)
+    group.add_argument("--qa-max-val-samples", type=positive_int, default=None)
+    group.add_argument("--qa-max-test-samples", type=positive_int, default=None)
+    group.add_argument("--qa-skip-llm-eval", action="store_true")
+    group.add_argument("--use-contextual-backbone", action="store_true")
+    group.add_argument("--context-gate-init", type=float, default=None)
 
 
 def apply_training_data_args(cfg: Config, args: argparse.Namespace) -> None:
@@ -195,8 +227,58 @@ def apply_training_data_args(cfg: Config, args: argparse.Namespace) -> None:
         "text8_prompt_length",
         getattr(args, "text8_prompt_length", None),
     )
+    _maybe_set(cfg.qa_dataset, "hf_path", getattr(args, "qa_hf_path", None))
+    _maybe_set(cfg.qa_dataset, "name", getattr(args, "qa_name", None))
+    _maybe_set(cfg.qa_dataset, "question_col", getattr(args, "qa_question_col", None))
+    _maybe_set(cfg.qa_dataset, "answer_col", getattr(args, "qa_answer_col", None))
+    _maybe_set(cfg.qa_dataset, "context_col", getattr(args, "qa_context_col", None))
+    _maybe_set(
+        cfg.qa_dataset,
+        "final_decision_col",
+        getattr(args, "qa_final_decision_col", None),
+    )
+    _maybe_set(cfg.qa_dataset, "maybe_policy", getattr(args, "qa_maybe_policy", None))
+    _maybe_set(
+        cfg.qa_dataset,
+        "max_question_bytes",
+        getattr(args, "qa_max_question_bytes", None),
+    )
+    _maybe_set(
+        cfg.qa_dataset,
+        "max_context_bytes",
+        getattr(args, "qa_max_context_bytes", None),
+    )
+    _maybe_set(
+        cfg.qa_dataset,
+        "max_answer_bytes",
+        getattr(args, "qa_max_answer_bytes", None),
+    )
+    _maybe_set(
+        cfg.qa_dataset,
+        "max_train_samples",
+        getattr(args, "qa_max_train_samples", None),
+    )
+    _maybe_set(cfg.qa_dataset, "max_val_samples", getattr(args, "qa_max_val_samples", None))
+    _maybe_set(
+        cfg.qa_dataset,
+        "max_test_samples",
+        getattr(args, "qa_max_test_samples", None),
+    )
+    _maybe_set(
+        cfg.training,
+        "context_gate_init",
+        getattr(args, "context_gate_init", None),
+    )
     if getattr(args, "use_text8_prompts", False):
         cfg.training_data.use_text8_prompts = True
+    if getattr(args, "qa_emit_question_context", False):
+        cfg.qa_dataset.emit_question_context = True
+    if getattr(args, "qa_include_context_in_question", False):
+        cfg.qa_dataset.include_context_in_question = True
+    if getattr(args, "qa_skip_llm_eval", False):
+        cfg.training_data.qa_skip_llm_eval = True
+    if getattr(args, "use_contextual_backbone", False):
+        cfg.training.use_contextual_backbone = True
 
 
 def _maybe_set(obj: Any, attr: str, value: Any) -> None:

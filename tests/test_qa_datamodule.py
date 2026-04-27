@@ -9,6 +9,7 @@ from __future__ import annotations
 import math
 import random
 from dataclasses import replace
+from unittest.mock import patch
 
 import torch
 
@@ -34,10 +35,7 @@ def _sample_rows(n: int) -> list[dict]:
     rng = random.Random(0)
     qs = [f"question number {i} about topic {rng.randrange(1000)}" for i in range(n)]
     ans = [f"answer_{i}" for i in range(n)]
-    return [
-        {"question": q, "answer": a, "aliases": [a]}
-        for q, a in zip(qs, ans, strict=True)
-    ]
+    return [{"question": q, "answer": a, "aliases": [a]} for q, a in zip(qs, ans, strict=True)]
 
 
 class TestCrossQuestionSwap:
@@ -46,9 +44,15 @@ class TestCrossQuestionSwap:
         qs = [r["question"] for r in rows]
         ans = [r["answer"] for r in rows]
         log_x, ids, mask = cross_question_swap(
-            qs, ans,
-            max_question_bytes=48, max_answer_bytes=16, L=64,
-            K=256, eps=1e-8, label_smoothing=0.0, transform_mode="ilr",
+            qs,
+            ans,
+            max_question_bytes=48,
+            max_answer_bytes=16,
+            L=64,
+            K=256,
+            eps=1e-8,
+            label_smoothing=0.0,
+            transform_mode="ilr",
             seed=42,
         )
         assert log_x.shape == (6, 64, 255)
@@ -67,9 +71,15 @@ class TestCrossQuestionSwap:
 
         with pytest.raises(ValueError):
             cross_question_swap(
-                ["only one q"], ["only one a"],
-                max_question_bytes=32, max_answer_bytes=16, L=64,
-                K=256, eps=1e-8, label_smoothing=0.0, transform_mode="ilr",
+                ["only one q"],
+                ["only one a"],
+                max_question_bytes=32,
+                max_answer_bytes=16,
+                L=64,
+                K=256,
+                eps=1e-8,
+                label_smoothing=0.0,
+                transform_mode="ilr",
                 seed=0,
             )
 
@@ -157,6 +167,25 @@ class TestQAPairsDataModulePlaceholder:
         batch = next(iter(loader))
         assert "log_x_invalid" in batch
         assert batch["log_x_invalid"].shape == batch["log_x"].shape
+
+    def test_train_loader_does_not_eagerly_load_eval_splits(self) -> None:
+        cfg = _byte_cfg(L=64, B=4)
+        cfg.qa_dataset.hf_path = "synthetic"
+        cfg.qa_dataset.name = None
+        cfg.qa_dataset.split_val = "validation"
+        cfg.qa_dataset.split_test = "test"
+        rows = _sample_rows(16)
+
+        def fake_load(*args, split: str, **kwargs):
+            if split == "train":
+                return rows
+            raise AssertionError(f"unexpected eager split load: {split}")
+
+        with patch("aitchinson_flow.data.qa_datamodule._load_qa_rows", side_effect=fake_load):
+            dm = QAPairsDataModule(cfg, skip_llm=True)
+            batch = next(iter(dm.train_dataloader()))
+
+        assert batch["log_x"].shape == (4, 64, 255)
 
     def test_rejects_non_byte_K(self) -> None:
         import pytest
