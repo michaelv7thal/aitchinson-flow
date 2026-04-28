@@ -70,31 +70,6 @@ def _build_llm_projection(cfg: Config) -> TokenEmbeddingToSimplex | None:
     )
 
 
-def _prepare_batch_with_projection(
-    batch: Any,
-    projection: TokenEmbeddingToSimplex | None,
-) -> Any:
-    """Populate ``batch["log_x"]`` / ``batch["log_x_invalid"]`` from embeddings.
-
-    Path A batches already carry ``log_x`` — this is a no-op there. Path B
-    batches carry ``embeddings`` / ``embeddings_invalid``; we run them through
-    the learned projection so every downstream step can keep reading
-    ``batch["log_x"]`` uniformly.
-    """
-    if projection is None or not isinstance(batch, dict):
-        return batch
-    has_clean_emb = "embeddings" in batch
-    has_invalid_emb = "embeddings_invalid" in batch
-    if not (has_clean_emb or has_invalid_emb):
-        return batch
-    new_batch = dict(batch)
-    if has_clean_emb:
-        new_batch["log_x"] = projection(batch["embeddings"])
-    if has_invalid_emb:
-        new_batch["log_x_invalid"] = projection(batch["embeddings_invalid"])
-    return new_batch
-
-
 _HILBERT_FAMILY = {"soft_hilbert", "hard_hilbert", "clr_mse", "ilr_mse"}
 _CGAMMA_STRATEGIES = {"legacy", "linear", "truncated", "piecewise"}
 
@@ -102,7 +77,7 @@ _CGAMMA_STRATEGIES = {"legacy", "linear", "truncated", "piecewise"}
 def _random_log_x0(
     B: int, L: int, D: int, device: torch.device, dtype: torch.dtype
 ) -> torch.Tensor:
-    """Uniform log-simplex source: zeros in log-space (constant after centering)."""
+    """Sample random noise"""
     return torch.randn((B, L, D), device=device, dtype=dtype)
 
 
@@ -133,59 +108,6 @@ def _scrambled_log_x0(
         for i in range(bsz)
     ]
     return torch.stack(rows, dim=0).to(device=device, dtype=dtype)
-
-
-class ContextualAuditorBackbone(nn.Module):
-    """Two-stream backbone with optional question-conditioned cross-attention."""
-
-    def __init__(self, cfg: Config) -> None:
-        super().__init__()
-        self.cfg = cfg
-        self.answer_backbone = TransformerBackbone(
-            cfg=cfg,
-            time_conditioned=False,
-            sdp_math_for_autograd=True,
-        )
-        self.question_backbone = TransformerBackbone(
-            cfg=cfg,
-            time_conditioned=False,
-            sdp_math_for_autograd=True,
-        )
-        self.cross_attention = nn.MultiheadAttention(
-            embed_dim=cfg.transformer.d_model,
-            num_heads=cfg.transformer.nhead,
-            dropout=cfg.transformer.dropout,
-            batch_first=True,
-        )
-        gate_init = float(getattr(cfg.training, "context_gate_init", -4.0))
-        self.context_gate = nn.Parameter(torch.tensor(gate_init, dtype=torch.float32))
-        self.cross_norm = nn.LayerNorm(cfg.transformer.d_model)
-
-    def forward(
-        self,
-        log_x_answer: torch.Tensor,
-        log_x_question: torch.Tensor | None = None,
-        question_mask: torch.Tensor | None = None,
-    ) -> torch.Tensor:
-        h_answer = self.answer_backbone(log_x_answer)
-        use_context = bool(getattr(self.cfg.training, "use_contextual_backbone", False))
-        if not use_context or log_x_question is None:
-            return h_answer
-
-        h_question = self.question_backbone(log_x_question)
-        key_padding_mask = None
-        if question_mask is not None:
-            key_padding_mask = question_mask.to(dtype=torch.bool, device=h_question.device)
-
-        h_cross, _ = self.cross_attention(
-            query=self.cross_norm(h_answer),
-            key=h_question,
-            value=h_question,
-            key_padding_mask=key_padding_mask,
-            need_weights=False,
-        )
-        gate = torch.sigmoid(self.context_gate).to(dtype=h_answer.dtype, device=h_answer.device)
-        return h_answer + gate * h_cross
 
 
 class BayesianAuditorStage1(nn.Module):
@@ -226,19 +148,6 @@ class BayesianAuditorStage1(nn.Module):
         self._validate_c_gamma_config()
 
         vname = cfg.training.velocity_loss
-        # llm_topk_probs distributions are multi-component (not one-hot-like):
-        # ilr_mse provides dense L2 gradients across all K positions, while
-        # soft_hilbert's L∞-like behaviour focuses only on the extremal component
-        # and misses the distributional signal in the lower-ranked probability slots.
-        # Auto-select when the user has not explicitly overridden the default.
-        # if cfg.training_data.source == "llm_topk_probs" and vname == "soft_hilbert":
-        #    vname = "ilr_mse"
-        # if vname not in _HILBERT_FAMILY:
-        #    raise ValueError(
-        #        f"BayesianAuditorStage1 expects a Hilbert-family velocity loss "
-        #        f"(one of {sorted(_HILBERT_FAMILY)}), got {vname!r}. "
-        #        "Set cfg.training.velocity_loss to 'soft_hilbert' (default) for EqM+Hilbert."
-        #    )
 
         if cfg.training.lambda_mask < 0.0:
             raise ValueError(f"training.lambda_mask must be >= 0, got {cfg.training.lambda_mask}")
@@ -258,16 +167,6 @@ class BayesianAuditorStage1(nn.Module):
             vname, soft_hilbert_alpha=cfg.training.soft_hilbert_alpha
         )
 
-    def prepare_batch(self, batch: Any) -> Any:
-        """Path B shim: convert ``embeddings`` → ``log_x`` via the learned projection.
-
-        No-op on Path A (``log_x`` already present) and on Path B batches that
-        have already been projected. External callers that bypass
-        ``training_step`` / ``eval_step`` / ``audit`` (e.g. the ``text_audit``
-        benchmark task) should call this first.
-        """
-        return _prepare_batch_with_projection(batch, self.llm_projection)
-
     def forward(
         self,
         log_x: torch.Tensor,
@@ -285,6 +184,7 @@ class BayesianAuditorStage1(nn.Module):
         del t
         h = self.backbone(log_x)
         v = self.velocity_head(h)
+
         return v, h
 
     def _c_gamma(self, gamma: torch.Tensor) -> torch.Tensor:
@@ -399,6 +299,7 @@ class BayesianAuditorStage1(nn.Module):
     ) -> LossDict:
         B, L, D = log_x1.shape
         device, dt = log_x1.device, log_x1.dtype
+
         log_x0 = _scrambled_log_x0(self.cfg, bsz=B, seq_len=L, device=device, dtype=dt)
         gamma = torch.rand(B, device=device, dtype=dt)
         log_x_gamma = (1.0 - gamma[:, None, None]) * log_x0 + gamma[:, None, None] * log_x1
@@ -410,37 +311,8 @@ class BayesianAuditorStage1(nn.Module):
             log_x_question=log_x_question,
             question_mask=question_mask,
         )
-        if self.cfg.training.stage1_answer_tokens_only:
-            if answer_mask is None:
-                raise KeyError(
-                    "BayesianAuditorStage1 with training.stage1_answer_tokens_only=True "
-                    "requires batch['answer_mask']"
-                )
-            if answer_mask.shape != (B, L):
-                raise ValueError(
-                    f"answer_mask shape {tuple(answer_mask.shape)} must equal (B, L)=({B}, {L})"
-                )
-            mask_bool = answer_mask.to(dtype=torch.bool, device=log_x1.device)
-            if not mask_bool.any():
-                raise ValueError("answer_mask is all-False across the batch; nothing to score")
-            flow_loss = self._velocity_loss_fn(v_pred[mask_bool], u_tgt[mask_bool])
-        else:
-            flow_loss = self._velocity_loss_fn(v_pred, u_tgt)
 
-        lambda_mask = self.cfg.training.lambda_mask
-        if lambda_mask > 0.0:
-            mask_loss = self._masked_reconstruction_loss(
-                log_x1,
-                log_x_question=log_x_question,
-                question_mask=question_mask,
-            )
-            total = flow_loss + lambda_mask * mask_loss
-            return {
-                TRAINING_LOSS_KEY: total,
-                "flow_loss": flow_loss.detach(),
-                "velocity_loss": flow_loss.detach(),
-                "mask_loss": mask_loss.detach(),
-            }
+        flow_loss = self._velocity_loss_fn(v_pred, u_tgt)
 
         return {
             TRAINING_LOSS_KEY: flow_loss,
@@ -450,7 +322,6 @@ class BayesianAuditorStage1(nn.Module):
 
     def training_step(self, batch: Any, step: int) -> LossDict:
         del step
-        batch = self.prepare_batch(batch)
         if "log_x" not in batch:
             raise KeyError("BayesianAuditorStage1 requires batch['log_x']")
         return self._eqm_hilbert_loss(
@@ -462,7 +333,6 @@ class BayesianAuditorStage1(nn.Module):
 
     @torch.no_grad()
     def eval_step(self, batch: Any) -> LossDict:
-        batch = self.prepare_batch(batch)
         return self._eqm_hilbert_loss(
             batch["log_x"],
             log_x_question=batch.get("log_x_question"),
