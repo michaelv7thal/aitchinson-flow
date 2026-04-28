@@ -84,7 +84,9 @@ class PerTokenBayesianAuditor(BayesianAuditor):
             if ctx_1 is None:
                 raise ValueError("ctx_1 is required when use_context=True")
             # Teacher activations: no grad through HF backbone for energy (matches typical auditor).
-            h_flat = self.ctx_proj(ctx_1.to(log_xt.device).float()).reshape(b * seq_len, -1).detach()
+            h_flat = (
+                self.ctx_proj(ctx_1.to(log_xt.device).float()).reshape(b * seq_len, -1).detach()
+            )
             dist = self._gp_forward(z_flat, h_flat)
         else:
             dist = self._gp_forward(z_flat, None)
@@ -124,7 +126,11 @@ class PerTokenBayesianAuditor(BayesianAuditor):
             with torch.no_grad():
                 z_t = self._extract_per_token(log_xt.detach()).reshape(b * seq_len, -1)
                 if self.use_context and ctx_1 is not None:
-                    h_t = self.ctx_proj(ctx_1.to(log_x1.device).float()).reshape(b * seq_len, -1).detach()
+                    h_t = (
+                        self.ctx_proj(ctx_1.to(log_x1.device).float())
+                        .reshape(b * seq_len, -1)
+                        .detach()
+                    )
                     var_t = self._gp_forward(z_t, h_t).variance.reshape(b, seq_len)
                 else:
                     var_t = self.gp(z_t).variance.reshape(b, seq_len)
@@ -152,20 +158,30 @@ class PerTokenBayesianAuditor(BayesianAuditor):
             d_v = self.gp(z_v)
             d_i = self.gp(z_i)
         mean_loss = d_v.mean.pow(2).mean() + F.relu(self.cfg.gp.margin_E - d_i.mean).mean()
-        var_gap = self.cfg.gp.margin_V + d_v.variance - d_i.variance
-        var_loss = F.relu(var_gap).mean()
+        # Two-term absolute form: independently suppress valid variance (→0) and
+        # push invalid variance above the absolute threshold margin_V.
+        var_loss = d_v.variance.mean() + F.relu(self.cfg.gp.margin_V - d_i.variance).mean()
         kl = self.gp.kl_divergence()
+        # Volume-at-endpoint: maximise simplex volume of valid data (well-spread
+        # distributions), acting as a geometric prior complementary to the flow field.
+        vol_valid = volume_penalty(
+            log_x1.view(b, -1),
+            alpha=self.cfg.bayesian_generator.volume_penalty_alpha,
+        )
+        vol_loss = -vol_valid.mean()
         total = (
             flow_loss
             + mean_loss
             + self.cfg.gp.lambda_var * var_loss
             + self.cfg.gp.lambda_kl * kl / b
+            + self.cfg.gp.lambda_vol * vol_loss
         )
         return {
             TRAINING_LOSS_KEY: total,
             "flow_loss": flow_loss,
             "mean_loss": mean_loss,
             "var_loss": var_loss,
+            "vol_loss": vol_loss.detach(),
             "kl": kl,
             "noise_var": noise_var.detach(),
         }

@@ -126,6 +126,7 @@ def main(argv: list[str] | None = None):
         loss_meter: list[float] = []
         flow_meter: list[float] = []
         mask_meter: list[float] = []
+        vol_meter: list[float] = []
         for batch in pbar:
             batch = to_device(batch, device)
             optimizer.zero_grad(set_to_none=True)
@@ -146,11 +147,16 @@ def main(argv: list[str] | None = None):
             mask_loss = out.get("mask_loss")
             if torch.is_tensor(mask_loss):
                 mask_meter.append(float(mask_loss.detach().cpu()))
+            vol_loss = out.get("vol_loss")
+            if torch.is_tensor(vol_loss):
+                vol_meter.append(float(vol_loss.detach().cpu()))
             postfix: dict[str, str] = {"loss": f"{loss_value:.4f}"}
             if flow_meter:
                 postfix["flow"] = f"{flow_meter[-1]:.4f}"
             if mask_meter:
                 postfix["mask"] = f"{mask_meter[-1]:.4f}"
+            if vol_meter:
+                postfix["vol"] = f"{vol_meter[-1]:.4f}"
             pbar.set_postfix(postfix)
             global_step += 1
 
@@ -160,6 +166,8 @@ def main(argv: list[str] | None = None):
             msg += f", mean flow: {sum(flow_meter) / len(flow_meter):.6f}"
         if mask_meter:
             msg += f", mean mask: {sum(mask_meter) / len(mask_meter):.6f}"
+        if vol_meter:
+            msg += f", mean vol: {sum(vol_meter) / len(vol_meter):.6f}"
         print(msg)
         if scheduler is not None:
             scheduler.step()

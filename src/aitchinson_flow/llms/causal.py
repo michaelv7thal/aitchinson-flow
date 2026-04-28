@@ -110,6 +110,28 @@ class HFCausalLMInference:
             raise TypeError("Expected model output logits to be a Tensor")
         return logits
 
+    @torch.inference_mode()
+    def forward_logits_and_hidden_states(
+        self,
+        input_ids: torch.Tensor,
+        attention_mask: torch.Tensor | None = None,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        input_ids = input_ids.to(self._device)
+        if attention_mask is not None:
+            attention_mask = attention_mask.to(self._device)
+        out = self._model(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            output_hidden_states=True,
+        )
+        logits = out.logits
+        # hidden_states is a tuple of (L+1) tensors, the last one is the output of the final layer
+        hidden_states = out.hidden_states[-1]
+
+        if not isinstance(logits, torch.Tensor):
+            raise TypeError("Expected model output logits to be a Tensor")
+        return logits, hidden_states
+
     def encode_text(self, text: str, *, max_length: int) -> tuple[torch.Tensor, torch.Tensor]:
         enc = self._tokenizer(
             text, return_tensors="pt", truncation=True, max_length=max_length, padding="max_length"

@@ -55,7 +55,8 @@ def _top_k_probs_to_ilr(
     renormalize: bool,
     eps: float,
     transform_mode: str,
-) -> Tensor:
+    return_hidden: bool = False,
+) -> Tensor | tuple[Tensor, Tensor]:
     """Run ``input_ids`` through ``lm``, extract top-K softmax probs, apply ILR.
 
     Args:
@@ -66,19 +67,28 @@ def _top_k_probs_to_ilr(
         eps: Small constant added before log to avoid ``-inf``.
         transform_mode: ``"ilr"`` or ``"clr"``; passed to
             :func:`~aitchinson_flow.data.transforms.discrete.project_log_to_simplex_features`.
+        return_hidden: If True, also return the LLM's last-layer hidden states.
 
     Returns:
         ``(B, L, K-1)`` ILR coordinates (or ``(B, L, K)`` for CLR mode).
+        If ``return_hidden=True``, returns a tuple of ``(ilr, hidden_states)``.
     """
     with torch.no_grad():
-        logits = lm.forward_logits(input_ids=input_ids)  # (B, L, V)
+        if return_hidden:
+            logits, hidden = lm.forward_logits_and_hidden_states(input_ids=input_ids)
+        else:
+            logits = lm.forward_logits(input_ids=input_ids)  # (B, L, V)
     probs_full = torch.softmax(logits.to(dtype=torch.float32), dim=-1)
     top_probs, _ = torch.topk(probs_full, K, dim=-1, sorted=True)  # (B, L, K)
     if renormalize:
         top_probs = top_probs / top_probs.sum(dim=-1, keepdim=True)
     top_probs = top_probs.clamp_min(eps)
     log_probs = top_probs.log()
-    return project_log_to_simplex_features(log_probs, mode=transform_mode)
+    ilr = project_log_to_simplex_features(log_probs, mode=transform_mode)
+    
+    if return_hidden:
+        return ilr, hidden.to("cpu")
+    return ilr
 
 
 @dataclass(frozen=True)
@@ -143,19 +153,23 @@ class _LLMTopKProbsCollate:
             seed=seed,
         )
 
-        log_x = _top_k_probs_to_ilr(
+        log_x, ctx_1 = _top_k_probs_to_ilr(
             self._lm, clean_ids, K,
             renormalize=renormalize, eps=eps, transform_mode=transform_mode,
+            return_hidden=True,
         )
-        log_x_invalid = _top_k_probs_to_ilr(
+        log_x_invalid, ctx_1_invalid = _top_k_probs_to_ilr(
             self._lm, corrupt_ids, K,
             renormalize=renormalize, eps=eps, transform_mode=transform_mode,
+            return_hidden=True,
         )
 
         with torch.inference_mode(False):
             return {
                 "log_x": log_x.detach().clone(),
                 "log_x_invalid": log_x_invalid.detach().clone(),
+                "ctx_1": ctx_1.detach().clone(),
+                "ctx_1_invalid": ctx_1_invalid.detach().clone(),
                 "token_ids": clean_ids.cpu().detach().clone(),
                 "token_ids_invalid": corrupt_ids.cpu().detach().clone(),
             }

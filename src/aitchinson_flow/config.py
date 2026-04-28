@@ -52,6 +52,15 @@ class GPConfig:
     contrastive hinge (C2 fix removes the ``.detach()``) causes valid energy
     to drift.
     """
+    lambda_vol: float = 0.5
+    """Weight on the volume-penalty training term at the valid data endpoint.
+
+    When > 0, adds ``−lambda_vol * vol_valid.mean()`` to the per-token
+    auditor loss, encouraging valid sequences to occupy high-volume simplex
+    regions (well-spread distributions). Defaults to 0 (off) for backward
+    compatibility; the velocity-field volume term in ``_velocity`` is
+    unaffected by this setting.
+    """
     margin_E: float = 1.0  # Hinge margin for L_energy score
     margin_V: float = 1.0
     """Hinge margin for variance separation.
@@ -97,7 +106,13 @@ class GPConfig:
                 f"GPConfig.margin_V must be > 0 (a non-positive margin makes the "
                 f"variance hinge vacuous), got {self.margin_V}"
             )
-        for name in ("lambda_kl", "lambda_contrastive", "lambda_var", "lambda_anchor"):
+        for name in (
+            "lambda_kl",
+            "lambda_contrastive",
+            "lambda_var",
+            "lambda_anchor",
+            "lambda_vol",
+        ):
             v = getattr(self, name)
             if v < 0.0:
                 raise ValueError(
@@ -140,7 +155,6 @@ class TrainingConfig:
     B: int = 84  # Batch size
     epochs: int = 15  # Number of epochs
     lr: float = 5e-4  # Learning rate
-    loss: str = "hilbert"  # "hilbert" or "mse"
     device: torch.device = field(
         default_factory=lambda: torch.device("cuda" if torch.cuda.is_available() else "cpu")
     )
@@ -187,7 +201,7 @@ class TrainingConfig:
     multistep_milestones: tuple[int, ...] = ()
     multistep_gamma: float = 0.1
 
-    velocity_loss: str = "mse"
+    velocity_loss: str = "ilr_mse"
     soft_hilbert_alpha: float = 1.0
 
     lambda_mask: float = 0.0

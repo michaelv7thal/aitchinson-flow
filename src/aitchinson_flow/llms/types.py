@@ -42,6 +42,14 @@ class CausalLMForInference(Protocol):
         """Return logits (B, L, K) for given input ids. Must be called inside inference_mode."""
         ...
 
+    def forward_logits_and_hidden_states(
+        self,
+        input_ids: torch.Tensor,
+        attention_mask: torch.Tensor | None = None,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Return logits (B, L, K) and last-layer hidden states (B, L, H) for given input ids. Must be called inside inference_mode."""
+        ...
+
     def encode_text(
         self, text: str, *, max_length: int
     ) -> tuple[torch.Tensor, torch.Tensor | None]:

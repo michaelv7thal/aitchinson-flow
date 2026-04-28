@@ -33,8 +33,8 @@ def nielsen_soft_hilbert_distance(
     """
     diff = x - y
     # τ logsumexp(x/τ) → max(x) as τ→0+; same structure for soft min via -max(-x).
-    soft_max = alpha * torch.logsumexp(diff / alpha, dim=-1)
-    soft_min = -alpha * torch.logsumexp(-diff / alpha, dim=-1)
+    soft_max = torch.logsumexp(alpha * diff, dim=-1) / alpha
+    soft_min = -torch.logsumexp(-alpha * diff, dim=-1) / alpha
     return soft_max - soft_min
 
 
@@ -153,6 +153,3 @@ def volume_penalty(
         log_det = torch.where(sign > 0, log_det, torch.zeros_like(log_det))
 
     return 0.5 * log_det.clamp(min=-50.0, max=50.0)
-
-
-

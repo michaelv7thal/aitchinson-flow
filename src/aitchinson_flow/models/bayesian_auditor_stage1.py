@@ -33,7 +33,7 @@ import torch.nn as nn
 from aitchinson_flow.config import Config
 from aitchinson_flow.data.transforms.discrete import token_ids_to_features
 from aitchinson_flow.data.feature_dim import feature_dim
-from aitchinson_flow.geometry import nielsen_soft_hilbert_distance
+from aitchinson_flow.geometry import nielsen_soft_hilbert_distance, volume_penalty
 from aitchinson_flow.loss import build_velocity_loss
 from aitchinson_flow.models.base import TRAINING_LOSS_KEY, LossDict
 from aitchinson_flow.models.factory import register
@@ -68,6 +68,26 @@ def _build_llm_projection(cfg: Config) -> TokenEmbeddingToSimplex | None:
         K=cfg.dataset.K,
         transform_mode=cfg.hf_dataset.transform_mode,
     )
+
+
+def _prepare_batch_with_projection(
+    batch: Any,
+    llm_projection: "TokenEmbeddingToSimplex | None",
+) -> Any:
+    """Path B shim: convert ``batch["embeddings"]`` → ``batch["log_x"]`` via projection.
+
+    When ``llm_projection`` is ``None`` (Path A) the batch is returned unchanged.
+    When it is set, ``batch["embeddings"]`` (shape ``(B, L, d_embed)``) is passed
+    through the frozen projection and the result is stored as ``batch["log_x"]``.
+    """
+    if llm_projection is None or "embeddings" not in batch:
+        return batch
+    out = dict(batch)
+    with torch.no_grad():
+        out["log_x"] = llm_projection(
+            batch["embeddings"].to(next(llm_projection.parameters()).device)
+        )
+    return out
 
 
 _HILBERT_FAMILY = {"soft_hilbert", "hard_hilbert", "clr_mse", "ilr_mse"}
@@ -303,9 +323,9 @@ class BayesianAuditorStage1(nn.Module):
         log_x0 = _scrambled_log_x0(self.cfg, bsz=B, seq_len=L, device=device, dtype=dt)
         gamma = torch.rand(B, device=device, dtype=dt)
         log_x_gamma = (1.0 - gamma[:, None, None]) * log_x0 + gamma[:, None, None] * log_x1
-        # Sign convention: target velocity points data → noise (log_x0 - log_x1).
-        # The matching integrator subtracts v: x ← x - v(x) * dt (noise → data).
+
         u_tgt = self._c_gamma(gamma) * (log_x0 - log_x1)
+
         v_pred, _ = self.forward(
             log_x_gamma,
             log_x_question=log_x_question,
