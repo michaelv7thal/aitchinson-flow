@@ -320,7 +320,7 @@ class BayesianAuditorStage1(nn.Module):
         B, L, D = log_x1.shape
         device, dt = log_x1.device, log_x1.dtype
 
-        log_x0 = _scrambled_log_x0(self.cfg, bsz=B, seq_len=L, device=device, dtype=dt)
+        log_x0 = _random_log_x0(B=B, L=L, D=D, device=device, dtype=dt)
         gamma = torch.rand(B, device=device, dtype=dt)
         log_x_gamma = (1.0 - gamma[:, None, None]) * log_x0 + gamma[:, None, None] * log_x1
 
