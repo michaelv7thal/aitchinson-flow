@@ -16,10 +16,10 @@ class DatasetConfig:
 
 @dataclass
 class TransformerConfig:
-    d_model: int = 1280  # Dimension of the model
+    d_model: int = 1048  # Dimension of the model
     nhead: int = 8  # Number of attention heads
     num_layers: int = 8  # Number of layers
-    d_latent: int = 1280  # Dimension of the latent space
+    d_latent: int = 1048  # Dimension of the latent space
     dropout: float = 0.0  # Dropout rate
     time_conditioned: bool = False  # Whether to condition on time
     pretrained_backbone: str | None = None  # e.g. "gpt2", "gpt2-medium", "gpt2-large"

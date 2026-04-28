@@ -102,7 +102,7 @@ def run_single_stage(
 
 def _build_argparser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--out-dir", type=str, default="checkpoints/single_stage/baseline")
+    p.add_argument("--out-dir", type=str, default="checkpoints/single_stage_context/baseline")
     p.add_argument("--epochs", type=positive_int, default=25)
     p.add_argument(
         "--model-name",
@@ -113,6 +113,11 @@ def _build_argparser() -> argparse.ArgumentParser:
             "``aitchinson_flow.models.factory.REGISTRY`` (e.g. "
             "``bayesian_auditor``, ``flow_matching``, ``equilibrium``)."
         ),
+    )
+    p.add_argument(
+        "--use-context",
+        action="store_true",
+        help="Set cfg.per_token_auditor.use_context=True (enables ProductSparseGP with hidden-state context).",
     )
     p.add_argument(
         "--smoke",
@@ -127,6 +132,8 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
     args = _build_argparser().parse_args(argv)
     cfg = make_smoke_config() if args.smoke else Config()
     apply_training_data_args(cfg, args)
+    if args.use_context:
+        cfg.per_token_auditor.use_context = True
 
     manifest = run_single_stage(
         cfg,
@@ -134,9 +141,7 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
         epochs=args.epochs,
         model_name=args.model_name,
     )
-    print(
-        json.dumps({k: v for k, v in manifest.items() if k != "history"}, indent=2, default=str)
-    )
+    print(json.dumps({k: v for k, v in manifest.items() if k != "history"}, indent=2, default=str))
     return manifest
 
 

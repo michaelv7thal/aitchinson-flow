@@ -18,7 +18,7 @@ from aitchinson_flow.loss import build_velocity_loss
 
 
 def _uniform_log_x0(B: int, L: int, D: int, device: torch.device) -> torch.Tensor:
-    return torch.zeros((B, L, D), device=device, dtype=torch.float32)
+    return torch.randn((B, L, D), device=device, dtype=torch.float32)
 
 
 def _sdpa_math_ctx():
