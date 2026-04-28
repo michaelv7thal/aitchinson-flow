@@ -250,6 +250,24 @@ class PerTokenBayesianAuditor(BayesianAuditor):
         return var.mean(dim=1)
 
     @torch.no_grad()
+    def ood_score(self, log_x: torch.Tensor, ctx: torch.Tensor | None = None) -> torch.Tensor:
+        """Predictive variance as OOD score, shape ``(B,)``."""
+        _, var = self.per_token_ood(log_x, ctx=ctx)
+        return var.mean(dim=1)
+
+    def residual_score(self, log_x: torch.Tensor, ctx: torch.Tensor | None = None) -> torch.Tensor:
+        """Flow-based per-sample UQ — L2-norm of the velocity field, shape ``(B,)``."""
+        was_training = self.training
+        self.eval()
+        b, seq_len, k = log_x.shape
+        log_x_req = log_x.detach().requires_grad_(True)
+        v = self._velocity(log_x_req, create_graph=False, ctx_1=ctx)
+        score = v.reshape(b, -1).norm(dim=1).detach()
+        if was_training:
+            self.train()
+        return score
+
+    @torch.no_grad()
     def per_token_uq(
         self,
         log_x: torch.Tensor,
