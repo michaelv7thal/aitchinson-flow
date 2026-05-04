@@ -7,14 +7,14 @@ from dataclasses import dataclass, field
 
 @dataclass
 class TrainingConfigs:
-    lr: float = 1e-5
+    lr: float = 3e-4
     device: torch.device = field(
         default_factory=lambda: torch.device(
             "cuda" if torch.cuda.is_available() else "cpu"
         )
     )
     lr_sheduler: str | None = "cosine"
-    """One of: None, ``constant``, ``cosine``, ``cosine_restarts``, ``onecycle``, ``linear``, ``polynomial``, ``exponential``, ``multistep``."""
+    """One of: None, ``constant``, ``cosine``."""
 
     epochs: int = 5
 
@@ -27,8 +27,11 @@ class TrainingConfigs:
     checkpoint_dir: str = "checkpoints"
     checkpoint_every: int = 5
     log_every: int = 5
-    grad_clip_norm: float | None = None
+    grad_clip_norm: float | None = 1.0
     eval_every: int = 5
+    sample_eval_every: int | None = 1  # epochs between unigram-KL probes; None disables
+    sample_eval_n: int = 64  # sequences per probe
+    sample_eval_steps: int = 100  # NAG-GD steps per probe
     eval_bpd: bool = (
         False  # BPD requires full sampling per batch; disable for fast training evals
     )
@@ -93,9 +96,18 @@ class EqM:
     decay_a: float = 0.2
     decay_b: float = 1.0
     gradient_lambda: float = 1.0
-    lambda_vol: float = 1e-3
-    lambda_mse: float = 5e-3
-    alpha: float = 1.0
+    lambda_vol: float = 1e-3  # unused (volume penalty not wired into _eqm_loss)
+    lambda_mse: float = 5e-3  # unused
+    alpha: float = 1.0  # unused
+    # Aux CE on the implied x1 reconstructed from grad_g (anchors per-token attractors).
+    # x1 ≈ x_γ − λ·grad_g for linear decay; CE(decode(x1_pred), token_ids).
+    lambda_ce: float = 0.5
+    ce_min_gamma: float = 0.5  # only apply CE where gamma >= this (signal regime)
+    # γ importance sampling: gamma = U(0,1)**gamma_power.
+    # gamma_power=1.0 → uniform; <1 pushes mass toward γ=1 (more signal).
+    gamma_power: float = 0.5
+    # x0 source noise scale (used at both train and inference for distribution match).
+    source_sigma: float = 0.1
     # NAG-GD sampling hyperparameters (Algorithm 2)
     sample_eta: float = 0.1  # step size η
     sample_mu: float = 0.9  # NAG look-ahead factor μ
@@ -116,7 +128,7 @@ class LoaderSettings:
 
 @dataclass
 class LossConfig:
-    mode: str = "hilbert_soft"  # "hilbert" | "hilbert_soft" | "mse"
+    mode: str = "mse"  # "hilbert" | "hilbert_soft" | "mse"
     hilbert_alpha: float = 5.0  # target alpha for "hilbert_soft"
     hilbert_alpha_start: float = 5.0  # initial alpha; anneals up to hilbert_alpha
     hilbert_alpha_anneal_epochs: int | None = (

@@ -111,7 +111,7 @@ def evaluate(
     return finalize_averages(agg, counts)
 
 
-_GAMMA_BIN_KEYS = ("g<.33", "g<.66", "g<1", "mse")
+_GAMMA_BIN_KEYS = ("flow_loss", "ce", "g<.33", "g<.66", "g<1")
 
 
 def _loss_postfix(out: LossDict) -> dict[str, str]:

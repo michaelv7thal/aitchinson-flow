@@ -50,6 +50,10 @@ def build_scheduler(optimizer: AdamW, cfg: Config) -> LRScheduler | None:
     if name == "cosine":
         return _build_cosine(optimizer, cfg, cfg.training.epochs)
 
+    raise ValueError(
+        f"Unsupported lr_sheduler={raw!r}. Supported: None, 'constant', 'cosine'."
+    )
+
 
 def _build_cosine(optimizer: AdamW, cfg: Config, epochs: int) -> LRScheduler:
     warmup = max(0, cfg.training.scheduler_warmup_epochs)
@@ -98,8 +102,8 @@ def _build_cosine(optimizer: AdamW, cfg: Config, epochs: int) -> LRScheduler:
 
 def _clamp_unit_open(x: float, field: str) -> float:
     """``LinearLR`` requires ``start_factor`` in (0, 1]."""
-    if not (0.0, x <= 1.0):
-        raise ValueError(f"{field} must be in (0,1], got {x})")
+    if not (0.0 < x <= 1.0):
+        raise ValueError(f"{field} must be in (0, 1], got {x}")
 
     return x
 

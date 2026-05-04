@@ -60,7 +60,7 @@ from aitchinson_flow.models import build_model
 ALPHABET = "".join(sorted(CHAR2ID, key=CHAR2ID.__getitem__))  # 'abcde…z '
 
 # ── Eval hyperparameters ───────────────────────────────────────────────────────
-CKPT = ROOT / "checkpoints/epoch_5.pt"
+CKPT = ROOT / "checkpoints/epoch_final.pt"
 ETA = 0.05  # GD step size η
 MU_NAG = 0.9  # NAG look-ahead factor μ
 B_EVAL = 64  # batch size for sweeps
@@ -72,6 +72,27 @@ N_STEPS_SWEEP = [5, 10, 20, 50]  # step counts for panels A & E
 N_STEPS_MAIN = 100  # steps for unigram / bigram / trajectory / gradient panels
 N_STEPS_GRAD = 200  # steps for the convergence curve (panel E)
 SNAP_COUNT = 12  # trajectory snapshots (panel B)
+
+# Decoding for panel G text samples: "argmax" | "sample" | "topk"
+DECODE_MODE = "topk"
+DECODE_TEMPERATURE = 1.0  # only used for "sample" / "topk"
+DECODE_TOPK = 3  # only used for "topk"
+
+
+def _decode(log_probs: torch.Tensor) -> torch.Tensor:
+    """Token IDs from log-probabilities (..., K) per the configured DECODE_MODE."""
+    if DECODE_MODE == "argmax":
+        return log_probs.argmax(-1)
+    logits = log_probs / DECODE_TEMPERATURE
+    if DECODE_MODE == "topk":
+        topk = min(DECODE_TOPK, logits.size(-1))
+        v, idx = logits.topk(topk, dim=-1)
+        probs = torch.softmax(v, dim=-1)
+        choice = torch.distributions.Categorical(probs=probs).sample()
+        return idx.gather(-1, choice.unsqueeze(-1)).squeeze(-1)
+    if DECODE_MODE == "sample":
+        return torch.distributions.Categorical(logits=logits).sample()
+    raise ValueError(f"Unknown DECODE_MODE={DECODE_MODE!r}")
 
 # Character groups for trajectory colouring
 _SPACE = CHAR2ID[" "]
@@ -412,11 +433,11 @@ gen_gnorms = _grad_norms_at(model, gen_x_eval)
 
 # ── G: Generated text samples ─────────────────────────────────────────────────
 
-print("G: Generating text samples…")
+print(f"G: Generating text samples (decode={DECODE_MODE}, T={DECODE_TEMPERATURE})…")
 x_txt = _sample(
     model, N_SAMPLES, L, K, n_steps=N_STEPS_MAIN, eta=ETA, mu=MU_NAG, device=device
 )
-generated = _tokens_to_text(_decode_logprobs(x_txt).argmax(-1))
+generated = _tokens_to_text(_decode(_decode_logprobs(x_txt)))
 
 
 # ── Plotting ──────────────────────────────────────────────────────────────────

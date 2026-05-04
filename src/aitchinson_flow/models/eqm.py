@@ -20,69 +20,81 @@ class EquilibriumFlowMatching(nn.Module):
         self.backbone = TransformerBackbone(cfg=cfg)
         self.velocity_head = VelocityHead(cfg=cfg)
 
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.velocity_head(self.backbone(x))
+
     def training_step(self, batch: Any, step: int) -> LossDict:
         del step
-        return self._eqm_loss(batch["x"])
+        return self._eqm_loss(batch["x"], token_ids=batch.get("token_ids"))
 
     @torch.no_grad()
     def eval_step(self, batch: Any) -> LossDict:
-        out = self._eqm_loss(batch["x"])
+        out = self._eqm_loss(batch["x"], token_ids=batch.get("token_ids"))
         if self.cfg.training.eval_bpd:
             out["bpd"] = self.bpd(
                 batch["token_ids"], max_steps=self.cfg.training.eval_bpd_max_steps
             )
         return out
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.velocity_head(self.backbone(x))
-
     @torch.enable_grad()
-    def _eqm_loss(self, x1: torch.Tensor) -> LossDict:
+    def _eqm_loss(
+        self, x1: torch.Tensor, *, token_ids: torch.Tensor | None = None
+    ) -> LossDict:
         B, L, D = x1.shape
         device, dt = x1.device, x1.dtype
+        s = self.cfg.eqm
 
-        # 1. Source Distribution
-        x0 = 0.1 * torch.randn(B, L, D, device=device, dtype=dt)
-        x0 = x0 - x0.mean(dim=-1, keepdim=True)  # Stay in V_d
+        # 1. Source distribution — same σ as inference (cfg.eqm.source_sigma).
+        x0 = s.source_sigma * torch.randn(B, L, D, device=device, dtype=dt)
+        x0 = x0 - x0.mean(dim=-1, keepdim=True)  # stay in V_d
 
-        # 2. Trajectory Interpolation
-        gamma = torch.rand(B, device=device, dtype=dt)
+        # 2. γ importance sampling — push mass toward γ ≈ 1 (where signal lives).
+        gamma = torch.rand(B, device=device, dtype=dt).pow(s.gamma_power)
         x_gamma = (1.0 - gamma[:, None, None]) * x0 + gamma[:, None, None] * x1
 
         x_gamma.requires_grad_(True)
 
-        # 3. Target Gradient (Data-to-Noise direction)
+        # 3. Target gradient (data-to-noise direction).
         u_tgt = self._c_gamma(gamma) * (x0 - x1)
 
-        # 4. Forward Pass to get raw velocity predictions
+        # 4. Forward pass.
         v = self.forward(x_gamma)
 
-        # 5. Explicit Energy Computation (Dot Product approach)
-        # g(x) = x * f(x). We sum the batch to get a single scalar for autograd.
-        # Since batch elements are independent, the derivative w.r.t x_gamma[i]
-        # correctly isolates to only the i-th sequence.
+        # 5. Conservative gradient via autograd of E(x) = ⟨x, f(x)⟩.
         energy = (x_gamma * v).sum()
-
-        # 6. Compute the conservative vector field (grad_g)
-        # This requires a double backward pass during the actual optimization step,
-        # hence create_graph=True.
         grad_g = torch.autograd.grad(
             outputs=energy, inputs=x_gamma, create_graph=True, retain_graph=True
         )[0]
 
-        # 7. Loss Calculation
-        # Match the explicit, conservative gradient to the target gradient.
+        # 6. Flow loss — regress conservative gradient to FM target.
         flow_loss = self.loss_fn(grad_g, u_tgt)
-        out: LossDict = {TRAINING_LOSS_KEY: flow_loss}
+        total_loss = flow_loss
+        out: LossDict = {"flow_loss": flow_loss}
 
-        # 8. Logging metrics across trajectory phases
+        # 7. Aux CE on implied-x1 reconstruction (linear decay: x1 ≈ x_γ − λ·grad_g).
+        # Anchors per-token attractors so unconditional sampling doesn't collapse to
+        # the unigram mode. Only applied where γ ≥ ce_min_gamma (the signal regime).
+        if s.lambda_ce > 0.0 and token_ids is not None:
+            ce_mask = gamma >= s.ce_min_gamma
+            if ce_mask.any():
+                lam = s.gradient_lambda
+                pred_x1 = x_gamma[ce_mask] - lam * grad_g[ce_mask]
+                log_probs = pred_x1 - torch.logsumexp(pred_x1, dim=-1, keepdim=True)
+                ce = F.nll_loss(
+                    log_probs.reshape(-1, D), token_ids[ce_mask].reshape(-1).long()
+                )
+                total_loss = total_loss + s.lambda_ce * ce
+                out["ce"] = ce.detach()
+
+        out[TRAINING_LOSS_KEY] = total_loss
+
+        # 8. γ-bucket diagnostics.
         for key, mask in (
             ("g<.33", gamma < 0.33),
             ("g<.66", (gamma >= 0.33) & (gamma < 0.66)),
             ("g<1", gamma >= 0.66),
         ):
             if mask.any():
-                # Ensure we evaluate the mask on grad_g, not the raw v
                 out[key] = self.loss_fn(grad_g[mask], u_tgt[mask])
 
         return out
@@ -126,7 +138,6 @@ class EquilibriumFlowMatching(nn.Module):
 
         return c_gamma[:, None, None]
 
-    @torch.no_grad()
     def sample(
         self,
         B: int,
@@ -144,7 +155,8 @@ class EquilibriumFlowMatching(nn.Module):
         or max_steps is reached. Defaults are read from cfg.eqm.
 
         x_init: optional starting CLR tensor (B, L, K). When None, initialises
-                from small centred Gaussian noise (unconditional generation).
+                from a centred Gaussian with σ = cfg.eqm.source_sigma so the
+                inference x0 distribution matches the training source.
         """
         s = self.cfg.eqm
         eta = eta if eta is not None else s.sample_eta
@@ -156,9 +168,9 @@ class EquilibriumFlowMatching(nn.Module):
         K = self.cfg.text8_dataset.K
 
         if x_init is not None:
-            x = x_init.to(device)
+            x = x_init.to(device).detach()
         else:
-            x = 0.01 * torch.randn(B, L, K, device=device)
+            x = s.source_sigma * torch.randn(B, L, K, device=device)
             x = x - x.mean(dim=-1, keepdim=True)
 
         x_last = x.clone()
@@ -174,7 +186,12 @@ class EquilibriumFlowMatching(nn.Module):
         return x
 
     def _compute_grad(self, x: torch.Tensor) -> torch.Tensor:
-        return self.forward(x)
+        """Conservative gradient ∇_x ⟨x, f(x)⟩ — matches the training target."""
+        with torch.enable_grad():
+            x_req = x.detach().requires_grad_(True)
+            energy = (x_req * self.forward(x_req)).sum()
+            grad = torch.autograd.grad(energy, x_req, create_graph=False)[0]
+        return grad.detach()
 
     def decode_to_logprobs(self, x: torch.Tensor) -> torch.Tensor:
         """CLR features → log-probabilities over the K-character vocab."""

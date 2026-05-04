@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import torch
 import torch.nn as nn
 from tqdm.auto import tqdm
 
@@ -18,6 +19,50 @@ from aitchinson_flow.training import (
 )
 from aitchinson_flow.models import build_model, TRAINING_LOSS_KEY
 from aitchinson_flow.losses import anneal_alpha
+
+
+def _unigram_kl_probe(
+    model: nn.Module, datamodule: DataModule, cfg: Config
+) -> dict[str, float]:
+    """Sample sequences and report unigram KL against the training corpus.
+
+    Catches mode-collapse (e.g. all-space) which the training MSE / γ-bucket
+    losses don't expose. Returns 'unigram_kl', 'H_gen', 'H_gt' (nats).
+    """
+    if not hasattr(datamodule, "splits"):
+        return {}
+    sample = getattr(model, "sample", None)
+    if sample is None:
+        return {}
+    K = cfg.text8_dataset.K
+    L = cfg.text8_dataset.L
+    n = cfg.training.sample_eval_n
+    steps = cfg.training.sample_eval_steps
+
+    was_training = model.training
+    model.eval()
+    try:
+        x = sample(n, L, max_steps=steps)
+        log_probs = model.decode_to_logprobs(x)
+        ids = log_probs.argmax(-1).cpu().reshape(-1)
+    finally:
+        if was_training:
+            model.train()
+
+    gen = torch.zeros(K).scatter_add_(0, ids, torch.ones_like(ids, dtype=torch.float))
+    gen = (gen + 1e-9) / (gen.sum() + K * 1e-9)
+
+    train_ids = datamodule.splits.train.reshape(-1).long()
+    gt = torch.zeros(K).scatter_add_(
+        0, train_ids, torch.ones_like(train_ids, dtype=torch.float)
+    )
+    gt = (gt + 1e-9) / (gt.sum() + K * 1e-9)
+
+    return {
+        "unigram_kl": float((gen * (gen.log() - gt.log())).sum()),
+        "H_gen": float(-(gen * gen.log()).sum()),
+        "H_gt": float(-(gt * gt.log()).sum()),
+    }
 
 
 def fit(
@@ -121,6 +166,13 @@ def fit(
                 for k, v in val_metrics.items():
                     epoch_entry[f"val_{k}"] = float(v)
 
+            sev = cfg.training.sample_eval_every
+            if sev is not None and sev > 0 and (epoch + 1) % sev == 0:
+                probe = _unigram_kl_probe(model, datamodule, cfg)
+                for k, v in probe.items():
+                    epoch_entry[k] = v
+                    postfix[k] = f"{v:.4f}"
+
             if history_out is not None:
                 history_out.append(epoch_entry)
 
@@ -149,7 +201,7 @@ def fit(
         ckpt_dir / "epoch_final.pt",
         model=model,
         cfg=cfg,
-        optimizer=optimizer,
+        optimizer=None,  # final ckpt is for inference only — strip optimizer state
         epoch=len(epoch_pbar),
         global_step=global_step,
     )
