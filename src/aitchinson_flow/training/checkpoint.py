@@ -33,10 +33,14 @@ def save_checkpoint(
         "cfg": config_checkpoint_dict(cfg),
         "epoch": epoch,
         "global_step": global_step,
-        "optimizer_state_dict": optimizer.state_dict() if optimizer is not None else None,
+        "optimizer_state_dict": optimizer.state_dict()
+        if optimizer is not None
+        else None,
     }
+
     if extra_metadata:
         payload["extra_metadata"] = dict(extra_metadata)
+
     torch.save(payload, path)
 
 

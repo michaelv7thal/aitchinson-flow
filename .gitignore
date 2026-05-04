@@ -1,39 +1,5 @@
-.python-version
+project-descriptions/
 .venv/
 __pycache__/
-*.pyc
-results/*.pt
-
-# Common Python/OS artifacts
-.DS_Store
-*.log
-.pytest_cache/
-.coverage
-htmlcov/
-dist/
-build/
-*.egg-info/
-
-# Data and Checkpoints (common conventions)
+.env
 checkpoints/
-logs/
-
-# Plotting artifacts (likely from HSGembedding/plot.py)
-*.png
-*.jpg
-*.jpeg
-*.svg
-*.pdf
-results/
-*.html
-mercer_theorem.py
-text8.qmd
-text8_gemini.py
-trivia.qmd
-trivia_bench.py
-wiki.qmd
-healer.qmd
-core/spilled_energy.py
-**.zip
-wandb/
-results/

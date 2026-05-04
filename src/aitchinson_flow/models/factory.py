@@ -1,5 +1,3 @@
-"""Register and construct generative models by name (for training / benchmarks)."""
-
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -7,16 +5,18 @@ from collections.abc import Callable
 import torch.nn as nn
 
 from aitchinson_flow.config import Config
-from aitchinson_flow.utils.registry import Registry
+from aitchinson_flow.utils import Registry
+
 
 ModelBuilder = Callable[[Config], nn.Module]
+
 
 _REGISTRY: Registry[ModelBuilder] = Registry("model")
 REGISTRY = _REGISTRY.builders
 
 
 def register(name: str) -> Callable[[ModelBuilder], ModelBuilder]:
-    """Decorator to register a builder under a stable string key."""
+    """Decorators to register a builder under a stable string key."""
     return _REGISTRY.register(name)
 
 

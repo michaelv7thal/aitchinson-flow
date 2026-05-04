@@ -1,29 +1,8 @@
-from aitchinson_flow.models.base import (
-    GenerativeTrainingModel,
-    LossDict,
-    TRAINING_LOSS_KEY,
-    AuditorModel,
-)
-from aitchinson_flow.models.factory import (
-    REGISTRY,
-    build_model,
-    register,
-    registered_model_names,
-)
-from aitchinson_flow.models.bayesian_auditor import (
-    BayesianAuditor,
-    compose_auditor_from_stages,
-    load_auditor_from_stage_checkpoints,
-)
-from aitchinson_flow.models.bayesian_auditor_stage1 import BayesianAuditorStage1
-from aitchinson_flow.models.bayesian_auditor_stage2 import BayesianAuditorStage2
-from aitchinson_flow.models.bayesian_generator import BayesianGenerator
-from aitchinson_flow.models.per_token_bayesian_auditor import PerTokenBayesianAuditor
+from .base import GenerativeTrainingModel, LossDict, TRAINING_LOSS_KEY
+from .factory import REGISTRY, build_model, register
+from .eqm import EquilibriumFlowMatching
+from .dfm import DiscreteFlowMatching
 
-# Populate REGISTRY (side-effect imports)
-from aitchinson_flow.models import equilibrium  # noqa: F401
-from aitchinson_flow.models import flow_matching  # noqa: F401
-from aitchinson_flow.models import frozen_backbone  # noqa: F401
 __all__ = [
     "GenerativeTrainingModel",
     "LossDict",
@@ -31,13 +10,6 @@ __all__ = [
     "REGISTRY",
     "build_model",
     "register",
-    "registered_model_names",
-    "AuditorModel",
-    "BayesianAuditor",
-    "BayesianAuditorStage1",
-    "BayesianAuditorStage2",
-    "BayesianGenerator",
-    "PerTokenBayesianAuditor",
-    "compose_auditor_from_stages",
-    "load_auditor_from_stage_checkpoints",
+    "EquilibriumFlowMatching",
+    "DiscreteFlowMatching",
 ]

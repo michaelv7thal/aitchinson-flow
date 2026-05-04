@@ -1,250 +1,124 @@
-"""Char-level text8 datamodule with train/val/test splits + on-the-fly corruption."""
-
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import dataclass
-import math
+from pathlib import Path
 from typing import Any
 
 import torch
-from torch import Tensor
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import Dataset, DataLoader
 
-from aitchinson_flow.config import Config
-from aitchinson_flow.data.hf_hub import TEXT8_DATASET_CANDIDATES, load_raw_text_column
-from aitchinson_flow.data.transforms.discrete import token_ids_to_features
-from aitchinson_flow.training.datamodule import DataModule
-
-
-_ALPHABET = "abcdefghijklmnopqrstuvwxyz "
-CHAR2ID: dict[str, int] = {c: i for i, c in enumerate(_ALPHABET)}
-VOCAB_SIZE: int = len(_ALPHABET)  # 27
+from aitchinson_flow.config import Text8DataConfig, TransformationConfig, LoaderSettings
+from aitchinson_flow.data.char_window_dataset import CharWindowDataset, VOCAB_SIZE
+from aitchinson_flow.data.corrupting_collate import CorruptingCollate
+from aitchinson_flow.data.hf_text_loader import load_splits
+from aitchinson_flow.training import DataModule
 
 
-def _load_text8_chars(
-    split: str,
-    cache_dir: str | None = None,
-    cfg: Config | None = None,
-) -> str:
-    use_cfg = cfg if cfg is not None else Config()
-    fallback_paths: tuple[str, ...] = ()
-    if use_cfg.raw_text_dataset.source_ref == TEXT8_DATASET_CANDIDATES[0]:
-        fallback_paths = TEXT8_DATASET_CANDIDATES[1:]
-    return load_raw_text_column(
-        use_cfg.raw_text_dataset,
-        split=split,
-        cache_dir=cache_dir,
-        fallback_paths=fallback_paths,
-    )
+def _windows_cache_path(dataset_cfg: Text8DataConfig) -> Path | None:
+    if dataset_cfg.cache_dir is None:
+        return None
+    key_data = {
+        "source_ref": dataset_cfg.source_ref,
+        "dataset_name": dataset_cfg.dataset_name,
+        "L": dataset_cfg.L,
+        "K": dataset_cfg.K,
+        "max_train": dataset_cfg.max_train_windows,
+        "max_eval": dataset_cfg.max_eval_windows,
+        "split_train": dataset_cfg.split_train,
+        "split_val": dataset_cfg.split_val,
+        "split_test": dataset_cfg.split_test,
+    }
+    key = hashlib.md5(json.dumps(key_data, sort_keys=True).encode()).hexdigest()
+    return Path(dataset_cfg.cache_dir) / "windows" / f"{key}.pt"
 
 
-def chunk_text8_to_ids(text: str, L: int) -> Tensor:
-    """Filter to the 27-char vocab, map to ids, reshape into `(N, L)` windows."""
-    ids = [CHAR2ID[c] for c in text if c in CHAR2ID]
-    n = len(ids) // L
-    if n == 0:
-        raise ValueError(f"text8 corpus too short for L={L}")
-    t = torch.tensor(ids[: n * L], dtype=torch.long)
-    return t.view(n, L)
+def _load_or_compute_splits(
+    dataset_cfg: Text8DataConfig,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    cache_path = _windows_cache_path(dataset_cfg)
+    if cache_path is not None and cache_path.exists():
+        saved = torch.load(cache_path, weights_only=True)
+        return saved["train"], saved["val"], saved["test"]
 
+    train, val, test = load_splits(dataset_cfg, dataset_cfg.L)
 
-def _load_text8_splits(
-    cache_dir: str | None, L: int, cfg: Config | None = None
-) -> tuple[Tensor, Tensor, Tensor]:
-    """Load native train/validation/test splits and chunk into windows."""
-    use_cfg = cfg if cfg is not None else Config()
-    return _load_text8_splits_cfg(use_cfg, cache_dir, L)
+    if dataset_cfg.max_train_windows is not None:
+        train = train[: dataset_cfg.max_train_windows]
+    if dataset_cfg.max_eval_windows is not None:
+        val = val[: dataset_cfg.max_eval_windows]
+        test = test[: dataset_cfg.max_eval_windows]
 
+    if cache_path is not None:
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        torch.save({"train": train, "val": val, "test": test}, cache_path)
 
-def _load_text8_splits_cfg(cfg: Config, cache_dir: str | None, L: int) -> tuple[Tensor, Tensor, Tensor]:
-    """Load native train/validation/test splits and chunk into windows."""
-    split_train = cfg.raw_text_dataset.split_train
-    split_val = cfg.raw_text_dataset.split_val or "validation"
-    split_test = cfg.raw_text_dataset.split_test or "test"
-    train_text = _load_text8_chars(split_train, cache_dir=cache_dir, cfg=cfg)
-    val_text = _load_text8_chars(split_val, cache_dir=cache_dir, cfg=cfg)
-    test_text = _load_text8_chars(split_test, cache_dir=cache_dir, cfg=cfg)
-
-    train_windows = chunk_text8_to_ids(train_text, L)
-    val_windows = chunk_text8_to_ids(val_text, L)
-    test_windows = chunk_text8_to_ids(test_text, L)
-    return train_windows, val_windows, test_windows
+    return train, val, test
 
 
 @dataclass(frozen=True)
 class _Text8Splits:
-    train: Tensor
-    val: Tensor
-    test: Tensor
-
-
-class Text8WindowDataset(Dataset[dict[str, Tensor]]):
-    """Map-style dataset of length-L char windows → `{log_x, token_ids}`.
-
-    Honors ``cfg.hf_dataset.label_smoothing`` and
-    ``cfg.hf_dataset.transform_mode`` so the ILR/CLR + label-smoothing
-    ablations flip with config alone.
-    """
-
-    def __init__(
-        self,
-        windows: Tensor,
-        *,
-        K: int,
-        eps: float,
-        label_smoothing: float = 0.0,
-        transform_mode: str = "ilr",
-    ) -> None:
-        self._windows = windows
-        self._K = K
-        self._eps = eps
-        self._label_smoothing = label_smoothing
-        self._transform_mode = transform_mode
-
-    def __len__(self) -> int:
-        return self._windows.shape[0]
-
-    def __getitem__(self, idx: int) -> dict[str, Tensor]:
-        ids = self._windows[idx]
-        log_x = token_ids_to_features(
-            ids,
-            K=self._K,
-            eps=self._eps,
-            label_smoothing=self._label_smoothing,
-            transform_mode=self._transform_mode,
-        )
-        return {"log_x": log_x, "token_ids": ids}
-
-
-class _CorruptingCollate:
-    """Collate window dicts and add `log_x_invalid`, `token_ids_invalid`."""
-
-    def __init__(
-        self,
-        *,
-        K: int,
-        vocab_size: int,
-        corrupt_rate: float,
-        order_mix_rate: float,
-        order_mix_prob: float,
-        eps: float,
-        seed: int,
-        label_smoothing: float = 0.0,
-        transform_mode: str = "ilr",
-    ) -> None:
-        self._K = K
-        self._vocab = vocab_size
-        self._rate = corrupt_rate
-        self._order_mix_rate = order_mix_rate
-        self._order_mix_prob = order_mix_prob
-        self._eps = eps
-        self._seed = seed
-        self._label_smoothing = label_smoothing
-        self._transform_mode = transform_mode
-        self._n_calls = 0
-
-    def _token_ids_to_logits(self, token_ids: Tensor) -> Tensor:
-        bsz, seq_len = token_ids.shape
-        logits = torch.full((bsz, seq_len, self._vocab), math.log(self._eps))
-        logits.scatter_(dim=-1, index=token_ids.unsqueeze(-1), value=0.0)
-        return logits
-
-    def __call__(self, samples: list[dict[str, Tensor]]) -> dict[str, Tensor]:
-        from aitchinson_flow.data.corruption import build_invalid_batch  # noqa: PLC0415
-
-        log_x = torch.stack([s["log_x"] for s in samples], dim=0)
-        token_ids = torch.stack([s["token_ids"] for s in samples], dim=0)
-        batch: dict[str, Tensor] = {"log_x": log_x, "token_ids": token_ids}
-
-        # Keep benchmark logits in vocab-space even though features are ILR.
-        batch["logits"] = self._token_ids_to_logits(token_ids)
-
-        seed = self._seed + self._n_calls
-        self._n_calls += 1
-        build_invalid_batch(
-            batch,
-            K=self._K,
-            corrupt_rate=self._rate,
-            order_mix_rate=self._order_mix_rate,
-            order_mix_prob=self._order_mix_prob,
-            eps=self._eps,
-            label_smoothing=self._label_smoothing,
-            transform_mode=self._transform_mode,
-            seed=seed,
-        )
-        return batch
+    train: torch.Tensor
+    val: torch.Tensor
+    test: torch.Tensor
 
 
 class Text8DataModule(DataModule):
-    """Char-level text8 with real train/val/test loaders and per-split corruption."""
+    """Char-level text8 datamodule — thin orchestrator."""
 
-    def __init__(self, cfg: Config) -> None:
-        self._cfg = cfg
-        tcfg = cfg.text8_dataset
-        L = cfg.dataset.L
-        K = cfg.dataset.K
+    def __init__(
+        self,
+        dataset_cfg: Text8DataConfig,
+        transform_cfg: TransformationConfig,
+        loader_settings: LoaderSettings,
+    ) -> None:
+        K = dataset_cfg.K
+
         if K != VOCAB_SIZE:
-            raise ValueError(f"Text8DataModule expects cfg.dataset.K == {VOCAB_SIZE}, got K={K}")
+            raise ValueError(f"Text8DataModule expects K == {VOCAB_SIZE}, got K={K}")
 
-        train, val, test = _load_text8_splits_cfg(cfg, tcfg.cache_dir, L)
-
-        if tcfg.max_train_windows is not None:
-            train = train[: tcfg.max_train_windows]
-        if tcfg.max_eval_windows is not None:
-            val = val[: tcfg.max_eval_windows]
-            test = test[: tcfg.max_eval_windows]
+        train, val, test = _load_or_compute_splits(dataset_cfg)
 
         self._splits = _Text8Splits(train=train, val=val, test=test)
+        self._loader_settings = loader_settings
 
-        eps = cfg.hf_dataset.log_simplex_eps
-        ls = cfg.hf_dataset.label_smoothing
-        tm = cfg.hf_dataset.transform_mode
-        self._train_ds = Text8WindowDataset(
-            train, K=K, eps=eps, label_smoothing=ls, transform_mode=tm
-        )
-        self._val_ds = Text8WindowDataset(
-            val, K=K, eps=eps, label_smoothing=ls, transform_mode=tm
-        )
-        self._test_ds = Text8WindowDataset(
-            test, K=K, eps=eps, label_smoothing=ls, transform_mode=tm
-        )
+        ls = transform_cfg.label_smoothing
 
-        self._train_collate = _CorruptingCollate(
+        self._train_ds = CharWindowDataset(train, K=K, label_smoothing=ls)
+        self._val_ds = CharWindowDataset(val, K=K, label_smoothing=ls)
+        self._test_ds = CharWindowDataset(test, K=K, label_smoothing=ls)
+
+        self._train_collate = CorruptingCollate(
             K=K,
-            vocab_size=K,
-            corrupt_rate=tcfg.train_corrupt_rate,
-            order_mix_rate=tcfg.train_order_mix_rate,
-            order_mix_prob=tcfg.order_mix_prob,
-            eps=eps,
-            seed=tcfg.corruption_seed,
+            corrupt_rate=dataset_cfg.train_corrupt_rate,
+            order_mix_rate=dataset_cfg.train_order_mix_rate,
+            order_mix_prob=dataset_cfg.order_mix_prob,
+            seed=dataset_cfg.corruption_seed,
             label_smoothing=ls,
-            transform_mode=tm,
         )
-
-        self._eval_collate = _CorruptingCollate(
+        self._eval_collate = CorruptingCollate(
             K=K,
-            vocab_size=K,
-            corrupt_rate=tcfg.eval_corrupt_rate,
-            order_mix_rate=tcfg.eval_order_mix_rate,
-            order_mix_prob=tcfg.order_mix_prob,
-            eps=eps,
-            seed=tcfg.corruption_seed + 10_000,
+            corrupt_rate=dataset_cfg.eval_corrupt_rate,
+            order_mix_rate=dataset_cfg.eval_order_mix_rate,
+            order_mix_prob=dataset_cfg.order_mix_prob,
+            seed=dataset_cfg.corruption_seed + 10_000,
             label_smoothing=ls,
-            transform_mode=tm,
         )
 
     @property
     def splits(self) -> _Text8Splits:
         return self._splits
 
-    def _loader(self, ds: Dataset[Any], *, shuffle: bool, collate: Any) -> DataLoader[Any]:
+    def _loader(self, ds: Dataset[Any], *, shuffle: bool, collate: Any) -> DataLoader:
+        s = self._loader_settings
         return DataLoader(
             ds,
-            batch_size=self._cfg.training.B,
+            batch_size=s.batch_size,
             shuffle=shuffle,
-            num_workers=self._cfg.training.num_workers,
+            num_workers=s.num_workers,
             collate_fn=collate,
-            pin_memory=self._cfg.training.device.type == "cuda",
+            pin_memory=(s.device_type.type == "cuda"),
         )
 
     def train_dataloader(self) -> DataLoader[Any]:
@@ -255,6 +129,3 @@ class Text8DataModule(DataModule):
 
     def test_dataloader(self) -> DataLoader[Any] | None:
         return self._loader(self._test_ds, shuffle=False, collate=self._eval_collate)
-
-    def num_train_samples(self) -> int | None:
-        return len(self._train_ds)

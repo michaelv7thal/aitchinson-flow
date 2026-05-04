@@ -25,15 +25,19 @@ uv venv /workspace/.venv
 
 echo "==> Syncing project dependencies with dev tools"
 cd /workspace
-uv sync --group dev
+if [ -f pyproject.toml ]; then
+	uv sync --group dev
 
-echo "==> Verifying GPU (informational — failure is non-fatal)"
-uv run python - <<'EOF'
+	echo "==> Verifying GPU (informational — failure is non-fatal)"
+	uv run python - <<'EOF'
 import torch
 print(f"PyTorch  : {torch.__version__}")
 print(f"CUDA     : {torch.version.cuda}")
 print(f"GPU      : {torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'not available'}")
 EOF
+else
+	echo "  No pyproject.toml found — skipping uv sync (run 'uv sync --group dev' once the project is initialised)"
+fi
 
 echo "==> Setting up SSH"
 

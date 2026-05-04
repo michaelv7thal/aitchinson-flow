@@ -1,17 +1,8 @@
-"""Random token corruption utilities shared by datamodules and benchmark tasks.
-
-Originally lived under ``benchmarks/corruption.py`` which created a reverse
-dependency: core datamodules in :mod:`aitchinson_flow.data` imported back into
-the benchmark package. The logic belongs in :mod:`aitchinson_flow.data` because
-the text8 datamodule and several other datamodules apply the same corruption
-during training; benchmarks just consume the same helpers.
-"""
-
 from __future__ import annotations
 
 import torch
 
-from aitchinson_flow.data.transforms.discrete import token_ids_to_features, token_logits_to_features
+from aitchinson_flow.data.transforms import token_ids_to_features
 
 
 def corrupt_token_ids(
@@ -39,7 +30,10 @@ def corrupt_token_ids(
         gen = torch.Generator(device=token_ids.device)
         gen.manual_seed(seed)
 
-    mask = torch.rand(token_ids.shape, device=token_ids.device, generator=gen) < corrupt_rate
+    mask = (
+        torch.rand(token_ids.shape, device=token_ids.device, generator=gen)
+        < corrupt_rate
+    )
     replacements = torch.randint(
         0,
         vocab_size,
@@ -87,31 +81,21 @@ def build_invalid_batch(
     corrupt_rate: float = 0.15,
     order_mix_rate: float = 0.15,
     order_mix_prob: float = 0.5,
-    eps: float = 1e-8,
-    label_smoothing: float = 0.0,
-    transform_mode: str = "ilr",
-    feature_mode: str = "token_ids",
+    label_smoothing: float = 1e-4,
     seed: int | None = None,
 ) -> dict[str, torch.Tensor]:
     """Augment a batch with corrupted invalid samples (in-place + returned).
 
-    Expects ``batch["token_ids"]`` (B, L) and ``batch["logits"]`` (B, L, vocab).
-    Adds ``batch["log_x_invalid"]``, ``batch["token_ids_invalid"]``, and
-    ``batch["logits_invalid"]`` (logits unchanged — still original LM scores).
-
-    The continuous representation honors ``label_smoothing`` and
-    ``transform_mode`` so the ablation switches set on the valid path also
-    apply to invalid samples (otherwise distances and AUROC would be biased
-    by mismatched feature pipelines).
+    Expects ``batch["token_ids"]`` (B, L).
+    Adds ``batch["x_invalid"]`` and ``batch["token_ids_invalid"]``.
     """
     token_ids = batch["token_ids"]
-    vocab_size = batch["logits"].shape[-1]
 
     bad_ids = token_ids.clone()
     if corrupt_rate > 0.0:
         bad_ids = corrupt_token_ids(
             bad_ids,
-            vocab_size=vocab_size,
+            vocab_size=K,
             corrupt_rate=corrupt_rate,
             seed=seed,
         )
@@ -131,36 +115,8 @@ def build_invalid_batch(
                 seed=None if seed is None else seed + 2,
             )
 
-    if feature_mode == "token_probs":
-        logits_invalid = torch.full(
-            (bad_ids.shape[0], bad_ids.shape[1], vocab_size),
-            fill_value=float(torch.log(torch.tensor(eps))),
-            dtype=torch.float32,
-        )
-        logits_invalid.scatter_(dim=-1, index=bad_ids.unsqueeze(-1), value=0.0)
-        log_x_invalid = token_logits_to_features(
-            logits_invalid,
-            K=K,
-            eps=eps,
-            transform_mode=transform_mode,
-        )
-    else:
-        rows = [
-            token_ids_to_features(
-                row,
-                K=K,
-                eps=eps,
-                label_smoothing=label_smoothing,
-                transform_mode=transform_mode,
-            )
-            for row in bad_ids
-        ]
-        log_x_invalid = torch.stack(rows, dim=0)
-        logits_invalid = batch["logits"].clone()
-
     batch["token_ids_invalid"] = bad_ids
-    batch["log_x_invalid"] = log_x_invalid
-    batch["logits_invalid"] = logits_invalid
+    batch["x_invalid"] = token_ids_to_features(bad_ids, K, label_smoothing=label_smoothing)
     return batch
 
 
