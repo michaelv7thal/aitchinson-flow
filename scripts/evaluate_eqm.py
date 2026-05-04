@@ -127,7 +127,19 @@ def _tokens_to_text(ids: torch.Tensor) -> list[str]:
 # ── NAG-GD samplers (all in CLR space) ────────────────────────────────────────
 
 
-@torch.no_grad()
+def _grad_field(model, x: torch.Tensor) -> torch.Tensor:
+    """Conservative ∇⟨x, f(x)⟩ — what the trained sampler descends."""
+    with torch.enable_grad():
+        x_req = x.detach().requires_grad_(True)
+        energy = (x_req * model(x_req)).sum()
+        return torch.autograd.grad(energy, x_req)[0].detach()
+
+
+def _x0(B: int, L: int, K: int, device, sigma: float) -> torch.Tensor:
+    x = sigma * torch.randn(B, L, K, device=device)
+    return x - x.mean(-1, keepdim=True)
+
+
 def _sample(
     model,
     B: int,
@@ -139,27 +151,20 @@ def _sample(
     mu: float,
     device: torch.device,
     x_init: torch.Tensor | None = None,
+    sigma: float = 0.1,
 ) -> torch.Tensor:
-    """Fixed-step NAG-GD → final CLR tensor (B, L, K).
-
-    x_init: optional starting point; defaults to small centred Gaussian noise.
-    """
-    if x_init is not None:
-        x = x_init.to(device)
-    else:
-        x = 0.01 * torch.randn(B, L, K, device=device)
-        x = x - x.mean(-1, keepdim=True)
+    """Fixed-step NAG-GD on the conservative field → final CLR tensor (B, L, K)."""
+    x = x_init.to(device).detach() if x_init is not None else _x0(B, L, K, device, sigma)
     x_last = x.clone()
-    grad = model(x)
+    grad = _grad_field(model, x)
     for _ in range(n_steps):
         x_last_prev = x.clone()
         x = x - eta * grad
-        grad = model(x + mu * (x - x_last))
+        grad = _grad_field(model, x + mu * (x - x_last))
         x_last = x_last_prev
     return x
 
 
-@torch.no_grad()
 def _sample_snapshots(
     model,
     B: int,
@@ -171,25 +176,24 @@ def _sample_snapshots(
     mu: float,
     n_snaps: int,
     device: torch.device,
+    sigma: float = 0.1,
 ) -> list[torch.Tensor]:
-    """NAG-GD with n_snaps+1 evenly-spaced CLR snapshots (on CPU)."""
-    x = 0.01 * torch.randn(B, L, K, device=device)
-    x = x - x.mean(-1, keepdim=True)
+    """NAG-GD with n_snaps+1 evenly-spaced CLR snapshots."""
+    x = _x0(B, L, K, device, sigma)
     x_last = x.clone()
-    grad = model(x)
+    grad = _grad_field(model, x)
     record_at = {int(round(i * n_steps / n_snaps)) for i in range(n_snaps + 1)}
     snaps: list[torch.Tensor] = [x.cpu()] if 0 in record_at else []
     for step in range(1, n_steps + 1):
         x_last_prev = x.clone()
         x = x - eta * grad
-        grad = model(x + mu * (x - x_last))
+        grad = _grad_field(model, x + mu * (x - x_last))
         x_last = x_last_prev
         if step in record_at:
             snaps.append(x.cpu())
     return snaps
 
 
-@torch.no_grad()
 def _sample_grad_norms(
     model,
     B: int,
@@ -200,27 +204,27 @@ def _sample_grad_norms(
     eta: float,
     mu: float,
     device: torch.device,
+    sigma: float = 0.1,
 ) -> list[float]:
-    """NAG-GD recording mean per-sequence gradient norm at every step."""
-    x = 0.01 * torch.randn(B, L, K, device=device)
-    x = x - x.mean(-1, keepdim=True)
+    """NAG-GD on conservative field, recording mean ‖∇E‖ at every step."""
+    x = _x0(B, L, K, device, sigma)
     x_last = x.clone()
-    grad = model(x)
+    grad = _grad_field(model, x)
     norms = [float(grad.reshape(B, -1).norm(dim=-1).mean())]
     for _ in range(n_steps):
         x_last_prev = x.clone()
         x = x - eta * grad
-        grad = model(x + mu * (x - x_last))
+        grad = _grad_field(model, x + mu * (x - x_last))
         x_last = x_last_prev
         norms.append(float(grad.reshape(B, -1).norm(dim=-1).mean()))
     return norms
 
 
-@torch.no_grad()
 def _grad_norms_at(model, x: torch.Tensor) -> np.ndarray:
-    """Per-sequence gradient norm for a batch of CLR tensors."""
+    """Per-sequence ‖∇E(x)‖ — uses the conservative field, not raw f(x)."""
+    g = _grad_field(model, x)
     B = x.shape[0]
-    return model(x).reshape(B, -1).norm(dim=-1).cpu().numpy()
+    return g.reshape(B, -1).norm(dim=-1).cpu().numpy()
 
 
 # ── Load checkpoint ────────────────────────────────────────────────────────────
@@ -256,11 +260,12 @@ if "eqm" in cfg_d:
 L = cfg.text8_dataset.L
 K = cfg.text8_dataset.K
 LS = cfg.transformation.label_smoothing
+SIGMA = cfg.eqm.source_sigma
 
 model = build_model(cfg).to(device)
 model.load_state_dict(ckpt["model_state_dict"])
 model.eval()
-print(f"  epoch {ckpt['epoch']}  |  K={K}  L={L}  |  device: {device}")
+print(f"  epoch {ckpt['epoch']}  |  K={K}  L={L}  σ={SIGMA}  |  device: {device}")
 
 tick_labels = [c if c != " " else "·" for c in ALPHABET]
 
@@ -342,6 +347,7 @@ snaps = _sample_snapshots(
     mu=MU_NAG,
     n_snaps=SNAP_COUNT,
     device=device,
+    sigma=SIGMA,
 )
 T = len(snaps)
 
