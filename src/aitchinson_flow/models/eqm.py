@@ -148,6 +148,8 @@ class EquilibriumFlowMatching(nn.Module):
         g_min: float | None = None,
         max_steps: int | None = None,
         x_init: torch.Tensor | None = None,
+        grad_clip: float | None = None,
+        return_best: bool | None = None,
     ) -> torch.Tensor:
         """NAG-GD sampling with adaptive stopping (Algorithm 2, EqM paper).
 
@@ -157,12 +159,29 @@ class EquilibriumFlowMatching(nn.Module):
         x_init: optional starting CLR tensor (B, L, K). When None, initialises
                 from a centred Gaussian with σ = cfg.eqm.source_sigma so the
                 inference x0 distribution matches the training source.
+        grad_clip: per-position L2 cap on ∇E. Prevents the cold-start
+                spike at the noise init from being amplified by NAG momentum
+                into a basin overshoot. None disables.
+        return_best: when True, return the lowest mean-‖∇E‖ iterate seen
+                across the trajectory rather than the final iterate. NAG
+                reliably overshoots the basin around step 60 on this model;
+                the best iterate is what should leave the sampler.
         """
         s = self.cfg.eqm
         eta = eta if eta is not None else s.sample_eta
         mu = mu if mu is not None else s.sample_mu
         g_min = g_min if g_min is not None else s.sample_g_min
         max_steps = max_steps if max_steps is not None else s.sample_max_steps
+        if grad_clip is None:
+            grad_clip = s.sample_grad_clip
+        if return_best is None:
+            return_best = s.sample_return_best
+
+        def _clip(g: torch.Tensor) -> torch.Tensor:
+            if grad_clip is None:
+                return g
+            n = g.norm(dim=-1, keepdim=True).clamp(min=1e-9)
+            return g * (n.clamp(max=grad_clip) / n)
 
         device = next(self.parameters()).device
         K = self.cfg.text8_dataset.K
@@ -174,16 +193,24 @@ class EquilibriumFlowMatching(nn.Module):
             x = x - x.mean(dim=-1, keepdim=True)
 
         x_last = x.clone()
-        grad = self._compute_grad(x)
+        grad = _clip(self._compute_grad(x))
+
+        best_x = x.clone()
+        best_g = grad.norm(dim=-1).mean().item() if return_best else float("inf")
 
         for _ in range(max_steps):
             if grad.reshape(B, -1).norm(dim=-1).max() < g_min:
                 break
             x_last = x
             x = x - eta * grad
-            grad = self._compute_grad(x + mu * (x - x_last))
+            grad = _clip(self._compute_grad(x + mu * (x - x_last)))
+            if return_best:
+                g_mean = grad.norm(dim=-1).mean().item()
+                if g_mean < best_g:
+                    best_g = g_mean
+                    best_x = x.clone()
 
-        return x
+        return best_x if return_best else x
 
     def _compute_grad(self, x: torch.Tensor) -> torch.Tensor:
         """Conservative gradient ∇_x ⟨x, f(x)⟩ — matches the training target."""

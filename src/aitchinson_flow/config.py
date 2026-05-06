@@ -112,7 +112,15 @@ class EqM:
     sample_eta: float = 0.1  # step size η
     sample_mu: float = 0.9  # NAG look-ahead factor μ
     sample_g_min: float = 0.01  # gradient-norm stopping threshold
-    sample_max_steps: int = 500  # hard cap on iterations
+    sample_max_steps: int = 200  # hard cap on iterations (no benefit beyond ~150 once clipped)
+    # Per-position L2 clip on ∇E during sampling. Kills the cold-start gradient
+    # spike (||∇E||_pos ≈ 4.6 → 9.7 at step 1) that NAG amplifies into a basin
+    # overshoot. None disables clipping. See SAMPLER_FINDINGS.md.
+    sample_grad_clip: float | None = 1.0
+    # Return the lowest-‖∇E‖ iterate seen, not the trajectory's endpoint. NAG
+    # overshoots the basin around step 60 and drifts away; the trajectory
+    # minimum is the right thing to return.
+    sample_return_best: bool = True
 
 
 @dataclass(frozen=True)
