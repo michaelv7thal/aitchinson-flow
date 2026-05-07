@@ -63,16 +63,92 @@ class EquilibriumFlowMatching(nn.Module):
 
     def training_step(self, batch: Any, step: int) -> LossDict:
         del step
-        return self._eqm_loss(batch["x"], token_ids=batch.get("token_ids"))
-
-    @torch.no_grad()
-    def eval_step(self, batch: Any) -> LossDict:
         out = self._eqm_loss(batch["x"], token_ids=batch.get("token_ids"))
-        if self.cfg.training.eval_bpd:
-            out["bpd"] = self.bpd(
-                batch["token_ids"], max_steps=self.cfg.training.eval_bpd_max_steps
+        if (
+            getattr(self.cfg.eqm, "lambda_E_hinge", 0.0) > 0.0
+            and "x_invalid" in batch
+        ):
+            aux = self._auditor_hinge(batch["x"], batch["x_invalid"])
+            out[TRAINING_LOSS_KEY] = out[TRAINING_LOSS_KEY] + (
+                self.cfg.eqm.lambda_E_hinge * aux["hinge_loss"]
             )
+            for k, v in aux.items():
+                if k != "hinge_loss":
+                    out[k] = v
+            out["hinge_loss"] = aux["hinge_loss"].detach()
         return out
+
+    def eval_step(self, batch: Any) -> LossDict:
+        # Eval mirrors training_step structure but skips the FM regression's
+        # second-order autograd path when no aux losses need it. We still
+        # need autograd for grad-norm computation, so don't wrap in no_grad.
+        out = self._eqm_loss(batch["x"], token_ids=batch.get("token_ids"))
+        if (
+            getattr(self.cfg.eqm, "lambda_E_hinge", 0.0) > 0.0
+            and "x_invalid" in batch
+        ):
+            aux = self._auditor_hinge(batch["x"], batch["x_invalid"])
+            out["hinge_loss"] = aux["hinge_loss"].detach()
+            out["E_grad_clean"] = aux["E_grad_clean"]
+            out["E_grad_invalid"] = aux["E_grad_invalid"]
+        if self.cfg.training.eval_bpd:
+            with torch.no_grad():
+                out["bpd"] = self.bpd(
+                    batch["token_ids"], max_steps=self.cfg.training.eval_bpd_max_steps
+                )
+        return out
+
+    @torch.enable_grad()
+    def _auditor_hinge(
+        self, x_clean: torch.Tensor, x_invalid: torch.Tensor
+    ) -> LossDict:
+        """Compute the binary-discriminator hinge loss on grad-norm².
+
+        Per-sequence grad-norm² is ``Σ_{l,k} (∇⟨x,f(x;γ_aud)⟩)²`` evaluated
+        at ``γ = cfg.eqm.auditor_gamma`` (default 1.0, the data-manifold
+        endpoint). The hinge biases the trained field so that this
+        quantity is small on clean and at least ``margin²`` on invalid.
+
+        The implementation re-uses ``_grad_norm_sq`` for both branches; the
+        compute graph is preserved so the loss back-propagates through the
+        velocity head and backbone.
+        """
+        s = self.cfg.eqm
+        margin = float(s.margin_energy)
+        e_clean = self._grad_norm_sq(x_clean, gamma_value=s.auditor_gamma)
+        e_invalid = self._grad_norm_sq(x_invalid, gamma_value=s.auditor_gamma)
+        hinge_clean = e_clean.mean()
+        hinge_invalid = torch.relu(margin * margin - e_invalid).mean()
+        hinge_total = hinge_clean + hinge_invalid
+        return {
+            "hinge_loss": hinge_total,
+            "E_grad_clean": e_clean.mean().detach(),
+            "E_grad_invalid": e_invalid.mean().detach(),
+        }
+
+    def _grad_norm_sq(
+        self, x: torch.Tensor, *, gamma_value: float
+    ) -> torch.Tensor:
+        """Per-sequence ``Σ_{l,k} (∇_x ⟨x, f(x;γ)⟩)²`` with create_graph=True
+        so the discriminator hinge can back-prop through the gradient.
+
+        Returns (B,) tensor.
+        """
+        time_cond = getattr(self.cfg.eqm, "time_conditioning", "off")
+        B = x.shape[0]
+        x_req = x.detach().requires_grad_(True)
+        if time_cond != "off":
+            gamma = torch.full(
+                (B,), float(gamma_value), device=x.device, dtype=x.dtype
+            )
+        else:
+            gamma = None
+        v = self.forward(x_req, gamma)
+        energy = (x_req * v).sum()
+        grad = torch.autograd.grad(
+            energy, x_req, create_graph=self.training, retain_graph=True
+        )[0]
+        return grad.pow(2).sum(dim=(-1, -2))
 
     @torch.enable_grad()
     def _eqm_loss(

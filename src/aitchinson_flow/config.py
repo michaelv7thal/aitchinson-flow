@@ -158,6 +158,21 @@ class EqM:
     # factorised lambda_bigram above (which Phase 5 showed is a re-weighted
     # unigram CE — kept here only for reproducibility of that negative).
     lambda_bigram_joint: float = 0.0
+    # Auditor hinge loss (Phase F — TRAINING_PROTOCOL.md §6).
+    # Active when ``lambda_E_hinge > 0`` AND the batch carries an
+    # ``x_invalid`` paired-input tensor. Trains the field so that
+    # per-sequence grad-norm² ``Σ‖∇⟨x,f(x;γ_aud)⟩‖²`` is *small* on clean
+    # inputs and *at least margin_energy²* on invalid inputs. This
+    # repurposes the EqM energy as a binary clean/invalid discriminator;
+    # FM regression on the clean samples is still computed, so the field
+    # is anchored on the data manifold.
+    lambda_E_hinge: float = 0.0
+    margin_energy: float = 2.0
+    # γ at which the auditor's energy proxy is evaluated. γ=1 is the
+    # data-manifold endpoint where FM training drives grad_g → 0 on
+    # clean inputs. Use γ=1.0 for time-conditioned auditors; for
+    # untimed it's ignored (the backbone has no γ input).
+    auditor_gamma: float = 1.0
 
 
 @dataclass(frozen=True)
@@ -207,6 +222,22 @@ class LogitKLFlowConfig:
 
 
 @dataclass
+class AuditorConfig:
+    """Phase F (TRAINING_PROTOCOL.md §6) — EqM auditor on cached LM features.
+
+    When ``enabled = True`` the runner builds a :class:`WikiAuditorDataModule`
+    instead of the text8 module; the EqM model's ``lambda_E_hinge`` should
+    also be > 0 so the paired-input branch in ``training_step`` fires. The
+    cache itself is produced one-time by ``scripts/cache_wiki.py``.
+    """
+
+    enabled: bool = False
+    cache_path: str = "data/wiki_cache_gpt2.pt"
+    batch_size: int = 8
+    train_frac: float = 0.8
+
+
+@dataclass
 class WandbConfig:
     """Optional Weights & Biases logging. Off by default; enable with --wandb."""
 
@@ -234,4 +265,5 @@ class Config:
     logitkl: LogitKLFlowConfig = field(default_factory=LogitKLFlowConfig)
     loader_settings: LoaderSettings = field(default_factory=LoaderSettings)
     loss: LossConfig = field(default_factory=LossConfig)
+    auditor: AuditorConfig = field(default_factory=AuditorConfig)
     wandb: WandbConfig = field(default_factory=WandbConfig)

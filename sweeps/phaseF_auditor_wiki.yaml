@@ -1,0 +1,41 @@
+# Phase F — EqM auditor on WikiText-2 cached GPT-2 features.
+#
+# MVP cell: aud_gpt2_logit only (no context conditioning, no Qwen2.5).
+# The auditor trains the standard EqM FM-regression objective on clean
+# top-K=64 log-simplex features, plus a binary discriminator hinge that
+# pushes per-sequence grad-norm² small for clean and ≥ margin² for
+# invalid. Decision (TRAINING_PROTOCOL.md §6 Phase F): F1 *passes* if
+# Seq AUROC ≥ 0.99 AND Tok AUROC ≥ 0.95 (within 1 pt of prototype).
+#
+# Pre-condition: data/wiki_cache_gpt2.pt exists (run scripts/cache_wiki.py).
+
+- name: aud_gpt2_logit
+  overrides:
+    auditor.enabled: true
+    auditor.cache_path: data/wiki_cache_gpt2.pt
+    auditor.batch_size: 16
+    auditor.train_frac: 0.8
+    training.model_name: EqM
+    training.epochs: 25
+    training.B: 16
+    training.sample_eval_every: null   # no text8 KL probe; auditor has no .sample
+    training.eval_every: 5
+    training.checkpoint_every: 1000000   # only keep epoch_final
+    text8_dataset.K: 64                  # cache feature dim (top-K logits)
+    text8_dataset.L: 64                  # cache window length
+    text8_dataset.max_train_windows: null
+    text8_dataset.max_eval_windows: null
+    transformer.d_model: 256
+    transformer.num_layers: 4
+    transformer.nhead: 4
+    transformer.d_latent: 256
+    eqm.time_conditioning: add
+    eqm.lambda_ce: 0.0          # off — token_ids are GPT-2 BPE not text8
+    eqm.lambda_bigram: 0.0
+    eqm.lambda_trigram: 0.0
+    eqm.lambda_bigram_joint: 0.0
+    eqm.lambda_E_hinge: 1.0     # auditor branch active
+    eqm.margin_energy: 2.0
+    eqm.auditor_gamma: 1.0      # evaluate energy at the data-manifold endpoint
+    eqm.gamma_power: 0.5
+    eqm.source_sigma: 0.1

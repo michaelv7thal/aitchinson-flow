@@ -7,7 +7,21 @@ from aitchinson_flow.training import DataModule
 
 
 def build_training_datamodule(cfg: Config) -> tuple[DataModule, dict[str, Any]]:
+    if getattr(cfg, "auditor", None) is not None and cfg.auditor.enabled:
+        return _build_wiki_auditor_datamodule(cfg)
     return _build_raw_text_datamodule(cfg)
+
+
+def _build_wiki_auditor_datamodule(
+    cfg: Config,
+) -> tuple[DataModule, dict[str, Any]]:
+    from aitchinson_flow.data.wiki_auditor_datamodule import WikiAuditorDataModule
+
+    dm = WikiAuditorDataModule(
+        auditor_cfg=cfg.auditor, num_workers=cfg.loader_settings.num_workers
+    )
+    meta = {"source": "wiki_auditor", **dm.meta}
+    return dm, meta
 
 
 def _build_raw_text_datamodule(cfg: Config) -> tuple[DataModule, dict[str, Any]]:

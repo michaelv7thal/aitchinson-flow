@@ -83,7 +83,7 @@ def _config_from_payload(payload: dict[str, Any]) -> Config:
     """
     cfg = Config()
     saved = payload.get("cfg") or {}
-    for section_name in ("training", "text8_dataset", "transformation", "transformer", "eqm", "dfm", "logitkl", "loss"):
+    for section_name in ("training", "text8_dataset", "transformation", "transformer", "eqm", "dfm", "logitkl", "loss", "auditor"):
         section_dict = saved.get(section_name) or {}
         if not section_dict:
             continue
@@ -141,6 +141,37 @@ def evaluate_checkpoint(
     cfg = _config_from_payload(payload)
     if overrides:
         cfg = _apply_overrides(cfg, overrides)
+
+    # Auditor checkpoints (Phase F) don't have a text8 splits attribute and
+    # don't have a meaningful unconditional-sample path, so the text8
+    # KL/entropy scorecard isn't applicable. Defer to eval_auditor_wiki.py
+    # for the proper Seq/Tok AUROC numbers; here we just emit a stub so
+    # run_sweep.py's idempotency check doesn't loop.
+    if getattr(cfg, "auditor", None) is not None and cfg.auditor.enabled:
+        return {
+            "ckpt": str(ckpt_path),
+            "model_name": cfg.training.model_name,
+            "epoch": int(payload.get("epoch", -1))
+                if not isinstance(payload.get("epoch"), str)
+                else payload.get("epoch"),
+            "global_step": int(payload.get("global_step", -1))
+                if not isinstance(payload.get("global_step"), str)
+                else payload.get("global_step"),
+            "stub_for_auditor": True,
+            "auditor_eval_hint": "scripts/eval_auditor_wiki.py",
+            "n_samples": 0,
+            "sample_steps": 0,
+            "unigram_kl": float("nan"),
+            "bigram_kl": float("nan"),
+            "trigram_kl": float("nan"),
+            "H_gen": float("nan"),
+            "H_gt": float("nan"),
+            "H_ratio": float("nan"),
+            "grad_at_gen": float("nan"),
+            "grad_at_gt": float("nan"),
+            "samples": [],
+        }
+
     device = cfg.training.device
 
     model = build_model(cfg).to(device)
