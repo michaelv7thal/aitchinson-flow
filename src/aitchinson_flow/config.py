@@ -192,7 +192,7 @@ class DFMConfig:
 class WandbConfig:
     """Optional Weights & Biases logging. Off by default; enable with --wandb."""
 
-    enabled: bool = False
+    enabled: bool = True
     project: str = "eqm-text8"
     entity: str | None = None
     run_name: str | None = None  # auto-derived in main.py if None

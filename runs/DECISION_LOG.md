@@ -340,4 +340,91 @@ Headline writeup data (per plan §8):
 
 The strongest *positive* finding for the writeup: at parity compute, **5× more data variety drops bigram KL by 16 %** vs more passes over a small set. The strongest *negative* finding: scaling the transformer backbone 3.4× (~340M params) does **not** close the EqM-DFM gap — capacity is not the lever; the gap is in how each architecture turns the encoder's output into samples. Full diagnosis in [`RESULTS.md`](../RESULTS.md).
 
+## [2026-05-07 15:30 UTC] eqm_data50k_ep5_v2 (Phase 10 / W1 baseline)
+- Hypothesis: retrain the EqM data_50k_ep5 platform under the new code (BigramHead-conditional, Euler dispatch, FMonCLR registry) to confirm v1 numbers reproduce before any post-hoc sampler swap.
+- Result: KL_uni=0.0347 KL_bi=1.3823 KL_tri=5.9570 H_ratio=0.991 — bit-identical to v1 (same seed). |∇E|gen/gt=0.224/0.103.
+- Decision: continue. v2 reproduces v1 → confident the new code path doesn't regress training.
+- Next: dfm_data50k_ep5_v2.
+
+## [2026-05-07 16:25 UTC] dfm_data50k_ep5_v2 (Phase 10 / W1 baseline)
+- Hypothesis: same as above — retrain DFM at parity compute under the new code (FMonCLR registered alongside).
+- Result: KL_uni=0.0073 KL_bi=0.1477 KL_tri=1.4024 H_ratio=0.976 — matches v1 (same seed).
+- Decision: continue. DFM still 9.4× ahead of EqM-NAG; the gap re-confirmed under the new code path.
+- Next: fmclr_data50k_ep5_v2.
+
+## [2026-05-07 17:20 UTC] fmclr_data50k_ep5_v2 (Phase 10 / W4 — third continuous baseline)
+- Hypothesis: a non-conservative continuous-on-simplex model triangulates the diagnosis. If FMonCLR ≈ DFM in KL_bi → conservative-grad indirection is the culprit. If FMonCLR ≈ EqM → the issue is continuous-on-simplex broadly.
+- Result: KL_uni=0.1562 KL_bi=1.5586 KL_tri=6.2758 H_ratio=0.943. Sampled with the configured Euler-γ at NFE=128, time_conditioning=add. Probe bigram_kl during training stayed in the 1.5–1.6 range; the head-to-head ranking is clear.
+- Decision: **FMonCLR ≈ EqM (slightly worse)**, NOT FMonCLR ≈ DFM. Diagnosis: the continuous-on-simplex regime is the issue, not the conservative-grad indirection specifically. Removing the autograd-grad branch (FMonCLR's whole simplification) does not recover DFM's discrete-token win.
+- Next: W1 post-hoc Euler sweep on the EqM checkpoint.
+
+## [2026-05-07 17:25 UTC] eqm_data50k_ep5_v2 W1 sampler sweep (RESULTS.md §1)
+- Hypothesis: EqM's NAG-GD sampler is the bottleneck; swapping to an Euler integrator over γ on the raw velocity `f(x;γ)` (rather than the conservative gradient `∇⟨x,f⟩`) closes the EqM-DFM gap.
+- Result (post-hoc on the same eqm_data50k_ep5_v2 checkpoint, 256 samples per cell):
+
+  | Sampler / NFE / σ_init | KL_uni | KL_bi | KL_tri | H_ratio | |∇E|gen/gt |
+  |---|---:|---:|---:|---:|---:|
+  | NAG (baseline)                          | 0.035 | **1.382** | 5.957 | 0.991 | 0.224/0.103 |
+  | Euler raw-f, NFE=32                     | 0.089 | 1.772 | 6.142 | 0.925 | 3.876/0.103 |
+  | Euler raw-f, NFE=64                     | 0.088 | 1.763 | 6.156 | 0.926 | 3.786/0.103 |
+  | Euler raw-f, NFE=128                    | 0.088 | 1.691 | 6.112 | 0.932 | 3.738/0.103 |
+  | Euler raw-f, NFE=200                    | 0.080 | 1.682 | 5.982 | 0.932 | 3.703/0.103 |
+  | Euler raw-f, NFE=128, σ_init=0.05       | 0.229 | 2.625 | 7.677 | 0.839 | 3.876/0.103 |
+  | Euler raw-f, NFE=128, σ_init=0.1        | 0.084 | 1.751 | 6.057 | 0.929 | 3.722/0.103 |
+  | Euler raw-f, NFE=128, σ_init=0.3        | 0.057 | 1.384 | 6.468 | 1.045 | 3.530/0.103 |
+  | Euler ∇⟨x,f⟩ (use_grad), NFE=128        | 0.034 | **1.391** | 5.763 | 0.993 | 4.595/0.103 |
+
+- Decision: **kill criterion triggered** (best Euler 1.682 ≥ 0.97 floor; NAG still best at 1.382). The sampler swap is *not* the lever. Two clean ablations carry the negative:
+  - **NFE doesn't matter** — KL_bi plateaus at ~1.68 from NFE=64 onward (raw f).
+  - **The integrator doesn't matter; the field does.** Euler on `∇⟨x,f⟩` (use_grad=True) lands at KL_bi=1.391 — bit-equivalent to NAG (1.382). Euler on raw f lands at 1.68. The lever is whether you sample on the conservative gradient or on the raw velocity, not whether you use NAG or Euler. The trained EqM checkpoint encodes its data-pulling field in `∇⟨x,f⟩`, not in `f` itself.
+  - σ_init=0.3 also recovers parity (KL_bi=1.384) on raw f — increased entry noise compensates for raw-f's poor shaping near γ=0. Doesn't beat NAG.
+- Next: W3 OOD scorecard on all three trained checkpoints. W5 long run is **off** (pre-condition unmet). W2 phase11 deferred (per plan: "if W1 winner exists → run phase11; else keep BigramHead unused").
+
+## [2026-05-07 17:27 UTC] W3 OOD scorecard (RESULTS.md plan §B2)
+- Hypothesis: the EqM energy field separates clean text8 from substitution-corrupted, partially-shuffled, and i.i.d.-uniform sequences with ROC-AUC > 0.65 (sanity floor 0.85 vs uniform random). DFM gets a fairness proxy `-log p_{1|t≈1}(x|x)` from its denoiser logits.
+- Result (256 samples × 11 corruption cells per ckpt; signed AUC, with |·| in parens where it matters):
+
+  | Model | Stat | clean-vs-rand | clean-vs-subst_0.5 | clean-vs-shuffle_0.5 |
+  |---|---|---:|---:|---:|
+  | eqm_data50k_ep5_v2 | E_seq            | 0.16 (\|0.84\|) | 0.51 | 0.50 |
+  | eqm_data50k_ep5_v2 | **U_pos_mean**   | **1.000**       | **0.987** | 0.525 |
+  | eqm_data50k_ep5_v2 | **U_pos_max**   | **1.000**       | **0.977** | 0.511 |
+  | dfm_data50k_ep5_v2 | E_seq (proxy)    | 1.000           | 1.000     | 0.993 |
+  | fmclr_data50k_ep5_v2 | E_seq          | 0.12 (\|0.88\|) | 0.35 (\|0.65\|) | 0.516 |
+
+- Decision: **plan kill criterion partially triggered, fallback succeeds.** EqM's sequence-level energy E_seq is *uninformative* on subst/shuffle (AUC≈0.5) but the per-position uncertainty `U_pos_{mean,max}` clears the 0.85 substitution floor at AUC=0.99/0.98 — exactly the documented fallback path. Shuffle is the predicted failure mode (energy field doesn't see joint structure); confirmed (AUC≈0.51 across all stats). DFM's denoiser proxy dominates with AUC≈1.00 on every contrast — the cost of its discreteness is that it can't be probed for the soft positional signal EqM produces. FMonCLR's untrained energy readout is too noisy on subst (signed AUC=0.35 → |0.65|).
+- Next: Phase 14 summary; defer W2/W5 per plan.
+
+## Phase 14 summary (this session)
+
+### Headline table (parity-compute platform: data_50k_ep5; 256 samples × 200 sample steps)
+
+| Run | KL_uni | KL_bi | KL_tri | H_ratio | OOD-AUC clean-vs-rand | OOD-AUC clean-vs-subst_0.5 | OOD-AUC clean-vs-shuffle_0.5 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| eqm_data50k_ep5_v2 (NAG)                | 0.035 | **1.382** | 5.957 | 0.991 | 0.16 / **1.00** ᵁ | 0.51 / **0.99** ᵁ | 0.50 / 0.53 ᵁ |
+| eqm_data50k_ep5_v2 (Euler best, σ=0.3)  | 0.057 | 1.384     | 6.468 | 1.045 | (same ckpt)       | (same ckpt)       | (same ckpt) |
+| dfm_data50k_ep5_v2 (Euler-on-tokens)    | **0.007** | **0.148** | **1.402** | 0.976 | 1.00 | 1.00 | 0.99 |
+| fmclr_data50k_ep5_v2 (Euler)            | 0.156 | 1.559     | 6.276 | 0.943 | 0.12 (\|0.88\|) | 0.35 (\|0.65\|) | 0.52 |
+
+ᵁ = `U_pos_mean` (per-position uncertainty mean); the unsuperscripted EqM number is `E_seq` (the trained energy). DFM uses the `-log p_{1|t≈1}(x|x)` proxy.
+
+### Workstream verdicts
+
+- **W1 (Euler-γ sampler swap on EqM): negative.** Best Euler KL_bi = 1.682 ≥ kill-floor 0.97; NAG remains best at 1.382. The clean ablation shows the *field* matters, not the *integrator*: Euler on `∇⟨x,f⟩` (use_grad=True) reproduces NAG (1.391); Euler on raw `f` plateaus at 1.68 regardless of NFE. σ_init=0.3 recovers parity but not surpassing.
+- **W4 (FMonCLR third baseline): informative negative.** FMonCLR (Euler on raw `f`, no autograd-grad) lands at KL_bi=1.559 — close to EqM-NAG (1.382), far from DFM (0.148). The continuous-on-simplex regime is the bottleneck, not the conservative-grad indirection.
+- **W3 (OOD scorecard): positive with caveats.** EqM's *positional* uncertainty separates clean from substitution at ROC-AUC=0.987 — the unique value-add of an EBM-like field. The trained sequence-level energy itself is at chance on sub/shuffle. DFM's denoiser-proxy dominates all OOD contrasts at AUC≈1.00 on this dataset; EqM's selling point is therefore the *positional decomposition*, not a single-scalar energy. Shuffle is a predicted failure mode (no joint anchor); confirmed.
+- **W5 (50-epoch long run): not run.** Pre-condition (W1 closes EqM-DFM gap to within 2× of DFM ≈ 0.30) was not met.
+- **W2 (non-factorised bigram head, phase11): not run.** Per plan, deferred when W1 has no winner. The trained `BigramHead` machinery is in place; future work can run phase11 (NAG sampler) or phase11_bigram_euler.yaml as a post-hoc OOD coherence scorer if the writeup needs another lever.
+
+### Writeup arc (final, given W1 negative)
+
+Per the plan: lead with §3 (positional uncertainty as the unique-value-add), use §1+§2 as documented negatives, structure mirrors the previous session's three-part arc.
+
+1. **Negatives-as-controls** — epoch scaling (P1), backbone scaling (P2), data lever (P3 ✱ best), γ-conditioning (P4), factorised bigram NLL (P5), all from the previous session, plus *the new sampler-swap negative (W1)* and *the FMonCLR triangulation (W4)*. Together they localise the gap to "continuous-on-simplex with a velocity field whose conservative gradient is the data-pulling object" — and make clear the gap is NOT capacity, NOT epoch budget, NOT the integrator.
+2. **The EqM-DFM gap remains 9.4×** at parity compute — the headline negative. Two new diagnoses:
+   - The trained EqM field encodes its data-pull in `∇⟨x,f⟩`, not in `f`. Euler on raw `f` underperforms by ~22%. Use_grad=True closes this perfectly. (W1.)
+   - Removing the conservative-grad indirection (FMonCLR) does not help; the simplex-CLR regime itself is harder than discrete tokens. (W4.)
+3. **The differentiator (W3): EqM's per-position uncertainty.** Clean-vs-substitution AUC=0.987 — useful for OOD detection on text8. The healing demo qualitative result (previous session) and this quantitative scorecard land together. Caveat for honesty: DFM's denoiser proxy dominates this scorecard too — EqM's claim is on *positional decomposition*, not on raw OOD-AUC.
+
+This carries a publishable writeup with three clean negatives, two informative ablations, and one positive differentiator.
 

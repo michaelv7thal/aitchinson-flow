@@ -1,0 +1,25 @@
+ckpt=eqm_data50k_ep5_v2/epoch_final.pt  model=EqM  n=256
+         E_seq       subst_0.5  AUC=0.514  |AUC|=0.486
+         E_seq     shuffle_0.5  AUC=0.499  |AUC|=0.501
+         E_seq            rand  AUC=0.164  |AUC|=0.836
+     U_pos_max       subst_0.5  AUC=0.977  |AUC|=0.977
+     U_pos_max     shuffle_0.5  AUC=0.511  |AUC|=0.511
+     U_pos_max            rand  AUC=1.000  |AUC|=1.000
+    U_pos_mean       subst_0.5  AUC=0.987  |AUC|=0.987
+    U_pos_mean     shuffle_0.5  AUC=0.525  |AUC|=0.525
+    U_pos_mean            rand  AUC=1.000  |AUC|=1.000
+wrote runs/eqm_data50k_ep5_v2/ood_eval.json
+wrote runs/eqm_data50k_ep5_v2/ood_eval.png
+ckpt=dfm_data50k_ep5_v2/epoch_final.pt  model=DFM  n=256
+         E_seq       subst_0.5  AUC=1.000  |AUC|=1.000
+         E_seq     shuffle_0.5  AUC=0.993  |AUC|=0.993
+         E_seq            rand  AUC=1.000  |AUC|=1.000
+wrote runs/dfm_data50k_ep5_v2/ood_eval.json
+wrote runs/dfm_data50k_ep5_v2/ood_eval.png
+ckpt=fmclr_data50k_ep5_v2/epoch_final.pt  model=FMonCLR  n=256
+         E_seq       subst_0.5  AUC=0.347  |AUC|=0.653
+         E_seq     shuffle_0.5  AUC=0.516  |AUC|=0.484
+         E_seq            rand  AUC=0.119  |AUC|=0.881
+wrote runs/fmclr_data50k_ep5_v2/ood_eval.json
+wrote runs/fmclr_data50k_ep5_v2/ood_eval.png
+[W3] DONE

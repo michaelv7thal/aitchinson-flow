@@ -1,0 +1,19 @@
+# Phase 11 (Euler variant) — W2 non-factorised bigram head on top of the
+# W1 Euler-sampler winner. Use this file if phase10 W1 post-hoc shows
+# Euler beats NAG by ≥30% on KL_bi; otherwise use the original
+# phase11_bigram.yaml (NAG sampler) variant.
+- name: bigram_joint_l03_ep5_euler
+  overrides:
+    training.epochs: 5
+    text8_dataset.max_train_windows: 50000
+    eqm.lambda_bigram_joint: 0.3
+    eqm.sampler: euler
+    eqm.euler_nfe: 128
+
+- name: bigram_joint_l10_ep5_euler
+  overrides:
+    training.epochs: 5
+    text8_dataset.max_train_windows: 50000
+    eqm.lambda_bigram_joint: 1.0
+    eqm.sampler: euler
+    eqm.euler_nfe: 128
