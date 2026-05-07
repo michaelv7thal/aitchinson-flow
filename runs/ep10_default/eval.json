@@ -1,0 +1,29 @@
+{
+  "ckpt": "runs/ep10_default/epoch_final.pt",
+  "epoch": 10,
+  "global_step": 1570,
+  "n_samples": 256,
+  "sample_steps": 200,
+  "unigram_kl": 0.032821327447891235,
+  "bigram_kl": 1.782936930656433,
+  "trigram_kl": 6.764214038848877,
+  "H_gen": 2.6990854740142822,
+  "H_gt": 2.8483986854553223,
+  "H_ratio": 0.947579946513993,
+  "grad_at_gen": 0.13518546521663666,
+  "grad_at_gt": 0.12903805077075958,
+  "samples": [
+    "oancimle poseseit fbrettsof eeaestu c r ",
+    "e rcrssa  vleewottemtitvsmoleosopeaoor u",
+    "e scepeg  se erset trodm oritottno  tie ",
+    "e lti k hteelitnhae gp lnmlntlt tooi ohi",
+    " elc hno eo srtshr s  het arf etiinoeenn",
+    "hsrcsna unir twl  r   y eeucmotewociaigd",
+    "ena o o tndyp einfeon elsstufa exreeihn ",
+    "eracatef pin oeehrisga mni tdt cnii hoaa"
+  ],
+  "run_name": "ep10_default",
+  "overrides": {
+    "training.epochs": 10
+  }
+}

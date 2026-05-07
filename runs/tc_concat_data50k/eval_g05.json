@@ -1,0 +1,26 @@
+{
+  "ckpt": "runs/tc_concat_data50k/epoch_final.pt",
+  "model_name": "EqM",
+  "epoch": 5,
+  "global_step": 3910,
+  "n_samples": 256,
+  "sample_steps": 200,
+  "unigram_kl": 0.8070493936538696,
+  "bigram_kl": 10.27596378326416,
+  "trigram_kl": 14.533617973327637,
+  "H_gen": 1.3508602380752563,
+  "H_gt": 2.8546600341796875,
+  "H_ratio": 0.473212299153317,
+  "grad_at_gen": 0.8359659314155579,
+  "grad_at_gt": 0.09452241659164429,
+  "samples": [
+    "i iei  n n        si a  n o nno  n  n  n",
+    "  mein s e ne     n nnt   noe     nn   n",
+    "  en    sni      ns   n     n nn   sne t",
+    " n m  n   i ei  nn  io    i  s nes  i  n",
+    " i  n    nni n   ise        e   e o n  n",
+    " n  i n nn   noio s      n      san e ie",
+    "n ie e  i   i   i n   i  n  e  n ane nni",
+    "  ne i    i nn   inis n o    s  e no   n"
+  ]
+}

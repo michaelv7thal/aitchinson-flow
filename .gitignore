@@ -3,3 +3,5 @@ project-descriptions/
 __pycache__/
 .env
 checkpoints/
+wandb/
+*.pt

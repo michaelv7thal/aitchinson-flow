@@ -1,0 +1,32 @@
+{
+  "ckpt": "runs/tc_concat_data50k/epoch_final.pt",
+  "model_name": "EqM",
+  "epoch": 5,
+  "global_step": 3910,
+  "n_samples": 256,
+  "sample_steps": 200,
+  "unigram_kl": 1.0189907550811768,
+  "bigram_kl": 12.926618576049805,
+  "trigram_kl": 17.132640838623047,
+  "H_gen": 1.037889003753662,
+  "H_gt": 2.8546600341796875,
+  "H_ratio": 0.3635770954603037,
+  "grad_at_gen": 1.6057615280151367,
+  "grad_at_gt": 0.09452241659164429,
+  "samples": [
+    "e  ene      e   n ii ie n  e en         ",
+    "i       nei i      i ne   n    eenn n  n",
+    "  ne   n     e    n  nn  eni  eie   e   ",
+    "e  en     n  n e n n  i     e   e  in   ",
+    "i ee        e ne nii  e   e ne n n   n  ",
+    "e ne            n ii ne   ii  nn    n n ",
+    "   eie n     n n ei        een  ei     e",
+    " n nn    i   ne n    ne  ni        n  i "
+  ],
+  "run_name": "tc_concat_data50k",
+  "overrides": {
+    "training.epochs": 5,
+    "text8_dataset.max_train_windows": 50000,
+    "eqm.time_conditioning": "concat"
+  }
+}

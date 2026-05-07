@@ -1,0 +1,8 @@
+# Phase 8 — DFM head-to-head at the data_50k_ep5 platform.
+# DFM is the discrete-flow baseline; this is the capstone narrative cell.
+# Same backbone, same data ceiling, same epochs as the best EqM run.
+- name: dfm_data50k_ep5
+  overrides:
+    training.model_name: DFM
+    training.epochs: 5
+    text8_dataset.max_train_windows: 50000

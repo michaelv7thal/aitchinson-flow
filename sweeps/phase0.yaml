@@ -1,0 +1,6 @@
+# Phase 0 — fresh 5-epoch baseline reproduction.
+# Default Config matches the all-fixes / patched-sampler state described in
+# §1 of TRAINING_PLAN.md. We run it under run_sweep.py so the artefacts go to
+# runs/baseline_5ep/{config.json, history.jsonl, eval.json, epoch_final.pt}.
+- name: baseline_5ep
+  overrides: {}

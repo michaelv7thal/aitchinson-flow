@@ -103,6 +103,21 @@ class EqM:
     # x1 ≈ x_γ − λ·grad_g for linear decay; CE(decode(x1_pred), token_ids).
     lambda_ce: float = 0.5
     ce_min_gamma: float = 0.5  # only apply CE where gamma >= this (signal regime)
+    # Optional n-gram likelihood terms on the same implied-x1 reconstruction.
+    # Active only at gamma >= ce_min_gamma. Set to 0 to disable. See Phase 5
+    # in TRAINING_PLAN.md.
+    lambda_bigram: float = 0.0
+    lambda_trigram: float = 0.0
+    # Optional γ time-conditioning passed to the transformer backbone.
+    # "off"     — backbone takes only x_γ (default, original behaviour).
+    # "add"     — sinusoidal γ embedding added to per-token hidden state.
+    # "concat"  — γ embedding concatenated to hidden, projected back to d_model.
+    # When time-conditioned, sample_gamma sets the fixed γ used at sample time.
+    # γ=1 is degenerate because c(γ=1)·(x0-x1)=0 ⇒ velocity ≈ 0 ⇒ flat
+    # energy field at sample time. γ=0.5 sits in the signal regime (matches
+    # ce_min_gamma).
+    time_conditioning: str = "off"
+    sample_gamma: float = 0.5
     # γ importance sampling: gamma = U(0,1)**gamma_power.
     # gamma_power=1.0 → uniform; <1 pushes mass toward γ=1 (more signal).
     gamma_power: float = 0.5

@@ -20,8 +20,10 @@ class EquilibriumFlowMatching(nn.Module):
         self.backbone = TransformerBackbone(cfg=cfg)
         self.velocity_head = VelocityHead(cfg=cfg)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.velocity_head(self.backbone(x))
+    def forward(
+        self, x: torch.Tensor, gamma: torch.Tensor | None = None
+    ) -> torch.Tensor:
+        return self.velocity_head(self.backbone(x, gamma))
 
     def training_step(self, batch: Any, step: int) -> LossDict:
         del step
@@ -57,8 +59,8 @@ class EquilibriumFlowMatching(nn.Module):
         # 3. Target gradient (data-to-noise direction).
         u_tgt = self._c_gamma(gamma) * (x0 - x1)
 
-        # 4. Forward pass.
-        v = self.forward(x_gamma)
+        # 4. Forward pass — pass γ if backbone is time-conditioned.
+        v = self.forward(x_gamma, gamma)
 
         # 5. Conservative gradient via autograd of E(x) = ⟨x, f(x)⟩.
         energy = (x_gamma * v).sum()
@@ -74,17 +76,42 @@ class EquilibriumFlowMatching(nn.Module):
         # 7. Aux CE on implied-x1 reconstruction (linear decay: x1 ≈ x_γ − λ·grad_g).
         # Anchors per-token attractors so unconditional sampling doesn't collapse to
         # the unigram mode. Only applied where γ ≥ ce_min_gamma (the signal regime).
-        if s.lambda_ce > 0.0 and token_ids is not None:
+        wants_anchor = (s.lambda_ce > 0.0 or s.lambda_bigram > 0.0 or s.lambda_trigram > 0.0)
+        if wants_anchor and token_ids is not None:
             ce_mask = gamma >= s.ce_min_gamma
             if ce_mask.any():
                 lam = s.gradient_lambda
                 pred_x1 = x_gamma[ce_mask] - lam * grad_g[ce_mask]
                 log_probs = pred_x1 - torch.logsumexp(pred_x1, dim=-1, keepdim=True)
-                ce = F.nll_loss(
-                    log_probs.reshape(-1, D), token_ids[ce_mask].reshape(-1).long()
-                )
-                total_loss = total_loss + s.lambda_ce * ce
-                out["ce"] = ce.detach()
+                ids = token_ids[ce_mask].long()  # (M, L)
+                if s.lambda_ce > 0.0:
+                    ce = F.nll_loss(log_probs.reshape(-1, D), ids.reshape(-1))
+                    total_loss = total_loss + s.lambda_ce * ce
+                    out["ce"] = ce.detach()
+                # Bigram log-prob on adjacent positions: log p(a)+log p(b) for the
+                # observed digraph. Memory: (M, L-1, D, D) at D=27 = ~3 MB at typical M.
+                if s.lambda_bigram > 0.0 and log_probs.shape[1] >= 2:
+                    log_p_bi = log_probs[:, :-1, :, None] + log_probs[:, 1:, None, :]
+                    bg_target = ids[:, :-1] * D + ids[:, 1:]
+                    bg_nll = F.nll_loss(
+                        log_p_bi.reshape(-1, D * D), bg_target.reshape(-1)
+                    )
+                    total_loss = total_loss + s.lambda_bigram * bg_nll
+                    out["bg_nll"] = bg_nll.detach()
+                # Trigram analogously: (M, L-2, D, D, D) — D³ = 19683. Reshape to
+                # (M, L-2, D³) → ~30 MB at typical M; still cheap for L=40, B=64.
+                if s.lambda_trigram > 0.0 and log_probs.shape[1] >= 3:
+                    log_p_tri = (
+                        log_probs[:, :-2, :, None, None]
+                        + log_probs[:, 1:-1, None, :, None]
+                        + log_probs[:, 2:, None, None, :]
+                    )
+                    tg_target = ids[:, :-2] * D * D + ids[:, 1:-1] * D + ids[:, 2:]
+                    tg_nll = F.nll_loss(
+                        log_p_tri.reshape(-1, D * D * D), tg_target.reshape(-1)
+                    )
+                    total_loss = total_loss + s.lambda_trigram * tg_nll
+                    out["tg_nll"] = tg_nll.detach()
 
         out[TRAINING_LOSS_KEY] = total_loss
 
@@ -213,10 +240,23 @@ class EquilibriumFlowMatching(nn.Module):
         return best_x if return_best else x
 
     def _compute_grad(self, x: torch.Tensor) -> torch.Tensor:
-        """Conservative gradient ∇_x ⟨x, f(x)⟩ — matches the training target."""
+        """Conservative gradient ∇_x ⟨x, f(x)⟩ — matches the training target.
+
+        When the backbone is time-conditioned, we evaluate at the configured
+        ``cfg.eqm.sample_gamma`` (default 0.5). γ=1 is degenerate: c(γ=1)=0
+        zeros the FM target and the model learns f(·, γ=1) ≈ 0, giving a
+        flat energy field at sample time.
+        """
+        s = self.cfg.eqm
+        time_cond = getattr(s, "time_conditioning", "off")
+        if time_cond != "off":
+            B = x.shape[0]
+            gamma = torch.full((B,), float(s.sample_gamma), device=x.device, dtype=x.dtype)
+        else:
+            gamma = None
         with torch.enable_grad():
             x_req = x.detach().requires_grad_(True)
-            energy = (x_req * self.forward(x_req)).sum()
+            energy = (x_req * self.forward(x_req, gamma)).sum()
             grad = torch.autograd.grad(energy, x_req, create_graph=False)[0]
         return grad.detach()
 

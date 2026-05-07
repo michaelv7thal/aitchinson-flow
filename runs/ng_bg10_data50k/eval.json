@@ -1,0 +1,31 @@
+{
+  "ckpt": "runs/ng_bg10_data50k/epoch_final.pt",
+  "epoch": 5,
+  "global_step": 3910,
+  "n_samples": 256,
+  "sample_steps": 200,
+  "unigram_kl": 0.12720680236816406,
+  "bigram_kl": 1.7988369464874268,
+  "trigram_kl": 6.112520217895508,
+  "H_gen": 2.6352877616882324,
+  "H_gt": 2.8546600341796875,
+  "H_ratio": 0.9231529254395108,
+  "grad_at_gen": 0.4928319454193115,
+  "grad_at_gt": 0.2624135911464691,
+  "samples": [
+    "i herloi oaneo nneilwoorninh cn vo hn g ",
+    "orh  lsnnniroos ifsyineoostys  ertnvni b",
+    " efa lsnr rsoslo  s csieannhssvdnt  evo ",
+    "syfe ln woon osrieiwtuoononrfsx ns iono ",
+    "iete luio ira torfi cure saanecn on ror ",
+    "srne lnsrn r   onnrlcuercswispnnledgn a ",
+    "neonelsn i rsthnoei ouiioo ferc nowo ior",
+    "otnsrlss ioraos d v  nnosiio rc  etiorrn"
+  ],
+  "run_name": "ng_bg10_data50k",
+  "overrides": {
+    "training.epochs": 5,
+    "text8_dataset.max_train_windows": 50000,
+    "eqm.lambda_bigram": 1.0
+  }
+}

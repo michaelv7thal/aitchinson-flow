@@ -1,0 +1,29 @@
+{
+  "ckpt": "runs/ep25_default/epoch_final.pt",
+  "epoch": 25,
+  "global_step": 3925,
+  "n_samples": 256,
+  "sample_steps": 200,
+  "unigram_kl": 0.015123982913792133,
+  "bigram_kl": 1.651108980178833,
+  "trigram_kl": 7.205417633056641,
+  "H_gen": 2.8545241355895996,
+  "H_gt": 2.8483986854553223,
+  "H_ratio": 1.0021504890328574,
+  "grad_at_gen": 0.056206412613391876,
+  "grad_at_gt": 0.08901484310626984,
+  "samples": [
+    "nhirshdfh npere erneabfeiiaaailinyesns r",
+    "yttmilcc gr auscma toowu ouoaliefcee u i",
+    "e uouhlf  napiro tczenetsniowme ia aaemc",
+    "  ofe eeefsmoeiadrlthnnahicelecrceht eyn",
+    " oolh leesotten i vietieaeiuoskc bepct o",
+    "i ifppmedcnfx dcsa otiuinhiosua lndtlssf",
+    "sbetslhaia c nreehwcoltgajt cn inetriuor",
+    "fnohrte htndsl uh otpaceh oe eeinhlinar "
+  ],
+  "run_name": "ep25_default",
+  "overrides": {
+    "training.epochs": 25
+  }
+}

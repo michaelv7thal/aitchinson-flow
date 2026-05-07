@@ -21,13 +21,35 @@ from aitchinson_flow.models import build_model, TRAINING_LOSS_KEY
 from aitchinson_flow.losses import anneal_alpha
 
 
+def _ngram_counts_flat(ids2d: torch.Tensor, K: int, n: int) -> torch.Tensor:
+    """Return flat (K**n,) counts of contiguous n-grams across rows."""
+    L = ids2d.shape[1]
+    if L < n:
+        return torch.zeros(K**n)
+    idx = torch.zeros(ids2d.shape[0], L - n + 1, dtype=torch.long)
+    for i in range(n):
+        idx = idx + ids2d[:, i : L - n + 1 + i].long() * (K ** (n - 1 - i))
+    counts = torch.zeros(K**n)
+    counts.scatter_add_(0, idx.reshape(-1), torch.ones(idx.numel()))
+    return counts
+
+
+def _kl_smoothed(gen: torch.Tensor, ref: torch.Tensor) -> float:
+    smoothing = 1e-6
+    Ksize = gen.numel()
+    gp = (gen + smoothing) / (gen.sum() + Ksize * smoothing)
+    rp = (ref + smoothing) / (ref.sum() + Ksize * smoothing)
+    return float((gp * (gp.log() - rp.log())).sum())
+
+
 def _unigram_kl_probe(
     model: nn.Module, datamodule: DataModule, cfg: Config
 ) -> dict[str, float]:
-    """Sample sequences and report unigram KL against the training corpus.
+    """Sample sequences and report unigram/bigram/trigram KL against the train corpus.
 
-    Catches mode-collapse (e.g. all-space) which the training MSE / γ-bucket
-    losses don't expose. Returns 'unigram_kl', 'H_gen', 'H_gt' (nats).
+    Catches mode-collapse (unigram) and tracks per-position joint structure
+    (bigram, trigram). Returns nats. Capped at sample_eval_n sequences /
+    sample_eval_steps NAG steps to keep the probe cheap.
     """
     if not hasattr(datamodule, "splits"):
         return {}
@@ -42,26 +64,39 @@ def _unigram_kl_probe(
     was_training = model.training
     model.eval()
     try:
-        x = sample(n, L, max_steps=steps)
-        log_probs = model.decode_to_logprobs(x)
-        ids = log_probs.argmax(-1).cpu().reshape(-1)
+        # Two API conventions: EqM uses max_steps, DFM uses nfe.
+        if hasattr(model, "decode_to_logprobs"):
+            x = sample(n, L, max_steps=steps)
+            log_probs = model.decode_to_logprobs(x)
+            ids2d = log_probs.argmax(-1).cpu()  # (n, L)
+        else:
+            x = sample(n, L, nfe=steps)
+            ids2d = x.cpu().long()
     finally:
         if was_training:
             model.train()
 
-    gen = torch.zeros(K).scatter_add_(0, ids, torch.ones_like(ids, dtype=torch.float))
-    gen = (gen + 1e-9) / (gen.sum() + K * 1e-9)
+    train_ids2d = datamodule.splits.train.long()  # (Ntrain, L)
 
-    train_ids = datamodule.splits.train.reshape(-1).long()
-    gt = torch.zeros(K).scatter_add_(
-        0, train_ids, torch.ones_like(train_ids, dtype=torch.float)
-    )
-    gt = (gt + 1e-9) / (gt.sum() + K * 1e-9)
+    gen_uni = _ngram_counts_flat(ids2d, K, 1)
+    ref_uni = _ngram_counts_flat(train_ids2d, K, 1)
+    gen_bi = _ngram_counts_flat(ids2d, K, 2)
+    ref_bi = _ngram_counts_flat(train_ids2d, K, 2)
+    gen_tri = _ngram_counts_flat(ids2d, K, 3)
+    ref_tri = _ngram_counts_flat(train_ids2d, K, 3)
+
+    # Entropies on unigram for the long-running headline number.
+    p_gen = (gen_uni + 1e-9) / (gen_uni.sum() + K * 1e-9)
+    p_ref = (ref_uni + 1e-9) / (ref_uni.sum() + K * 1e-9)
+    H_gen = float(-(p_gen * p_gen.log()).sum())
+    H_ref = float(-(p_ref * p_ref.log()).sum())
 
     return {
-        "unigram_kl": float((gen * (gen.log() - gt.log())).sum()),
-        "H_gen": float(-(gen * gen.log()).sum()),
-        "H_gt": float(-(gt * gt.log()).sum()),
+        "unigram_kl": _kl_smoothed(gen_uni, ref_uni),
+        "bigram_kl": _kl_smoothed(gen_bi, ref_bi),
+        "trigram_kl": _kl_smoothed(gen_tri, ref_tri),
+        "H_gen": H_gen,
+        "H_gt": H_ref,
     }
 
 

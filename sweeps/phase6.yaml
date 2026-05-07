@@ -1,0 +1,27 @@
+# Phase 6 — loss / γ-sampling ablations. Cheap tweaks at default config.
+# Decision rule: keep the default unless an ablation moves KL_bi by >=10 %.
+- name: abl_lambda_ce_2x
+  overrides:
+    training.epochs: 25
+    eqm.lambda_ce: 1.0
+- name: abl_lambda_ce_05x
+  overrides:
+    training.epochs: 25
+    eqm.lambda_ce: 0.25
+- name: abl_gp_uniform
+  overrides:
+    training.epochs: 25
+    eqm.gamma_power: 1.0
+- name: abl_gp_low
+  overrides:
+    training.epochs: 25
+    eqm.gamma_power: 0.25
+- name: abl_decay_truncated
+  overrides:
+    training.epochs: 25
+    eqm.decay_strategy: truncated
+    eqm.decay_a: 0.2
+- name: abl_loss_hilbert_soft
+  overrides:
+    training.epochs: 25
+    loss.mode: hilbert_soft

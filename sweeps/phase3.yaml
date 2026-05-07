@@ -1,0 +1,20 @@
+# Phase 3 — data ceiling. Compute scales linearly with max_train_windows so
+# the plan's "all at 25 epochs" sweep is infeasible on this MIG slice
+# (data_full @ 25 ep ≈ 290 GPU-hours). Adjusted to roughly parity-compute
+# vs ep25_default (~250k training samples seen):
+#   data_50k_ep5  → 5x data variety, 1/5 epochs   (~70 min, same total samples)
+#   data_50k_ep10 → 5x data variety, 2/5 epochs   (~140 min, 2x samples)
+#   data_200k_ep2 → 20x data variety, 2/25 epochs (~110 min, 1.6x samples)
+# The first cell answers "does more data variety help at parity compute?".
+- name: data_50k_ep5
+  overrides:
+    training.epochs: 5
+    text8_dataset.max_train_windows: 50000
+- name: data_50k_ep10
+  overrides:
+    training.epochs: 10
+    text8_dataset.max_train_windows: 50000
+- name: data_200k_ep2
+  overrides:
+    training.epochs: 2
+    text8_dataset.max_train_windows: 200000

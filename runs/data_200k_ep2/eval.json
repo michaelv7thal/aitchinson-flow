@@ -1,0 +1,30 @@
+{
+  "ckpt": "runs/data_200k_ep2/epoch_final.pt",
+  "epoch": 2,
+  "global_step": 6250,
+  "n_samples": 256,
+  "sample_steps": 200,
+  "unigram_kl": 0.20664098858833313,
+  "bigram_kl": 2.481541156768799,
+  "trigram_kl": 6.079989433288574,
+  "H_gen": 2.661324977874756,
+  "H_gt": 2.85292911529541,
+  "H_ratio": 0.9328395029538564,
+  "grad_at_gen": 0.6743251085281372,
+  "grad_at_gt": 0.31860095262527466,
+  "samples": [
+    "mr   iesse mldt a ime tol ibihisi a ewa ",
+    "m      ro ls dm leh emlmlo geaieb e   hc",
+    "els na sgl  imgli  kc  sho  ihrsiseg wu ",
+    "uest uwrk i ittl e id sm lmaeel lis s ak",
+    "mus  aeficeunst m inm tml   ihislsa  ea ",
+    "ii    eiil   mnietumucrm o  ih cirmt lwu",
+    "l s loei  lsutmmlmet  tm t pdi eleenulu ",
+    "uusnlu m etnuit r  st tna cedau isa iia "
+  ],
+  "run_name": "data_200k_ep2",
+  "overrides": {
+    "training.epochs": 2,
+    "text8_dataset.max_train_windows": 200000
+  }
+}

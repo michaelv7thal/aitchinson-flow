@@ -1,0 +1,13 @@
+# Phase 4 — time conditioning at the data_50k_ep5 platform.
+# tc_off control = data_50k_ep5 (already in runs/), so we only run the two
+# active variants. Sample-time uses γ=1 (data-manifold endpoint) per plan.
+- name: tc_add_data50k
+  overrides:
+    training.epochs: 5
+    text8_dataset.max_train_windows: 50000
+    eqm.time_conditioning: add
+- name: tc_concat_data50k
+  overrides:
+    training.epochs: 5
+    text8_dataset.max_train_windows: 50000
+    eqm.time_conditioning: concat
