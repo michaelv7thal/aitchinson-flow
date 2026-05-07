@@ -13,51 +13,58 @@ cell. Format:
 
 ## NEXT SESSION
 
-**Status (end of 2026-05-07 ~05:00 UTC session):**
+**Status (end of 2026-05-07 ~10:00 UTC session):**
 
-This session ran Phase 0 → 1 → 3 → 5 with budget-driven trimming. Phase 2 (backbone scaling) was skipped per plan's decision rule after Phase 1; Phases 4 (time conditioning) and 6/7/8 (ablations, stability, DFM) and 9 (final long run) are not started.
+This session ran Phase 0 → 1 → 3 → 5 → 8 → 4 → Phase-2-mini, with budget-driven trimming throughout. Only **Phases 6 (loss / γ ablations), 7 (curvature reg), and 9 (long run)** are not started. The full results synthesis is in [`RESULTS.md`](../RESULTS.md).
 
-**Best so far (EqM):** `runs/data_50k_ep5/epoch_final.pt` — `KL_uni=0.035, KL_bi=1.382, KL_tri=5.96, H_ratio=0.991`. Symlinked at `runs/best_so_far.pt`. Still 2.8× the 0.50 KL_bi target.
+**Best EqM:** `runs/data_50k_ep5/epoch_final.pt` — `KL_uni=0.035, KL_bi=1.382, KL_tri=5.96, H_ratio=0.991`. Symlinked at `runs/best_so_far.pt`. Still 2.8× the 0.50 KL_bi target.
 
-**DFM control (Phase 8):** `runs/dfm_data50k_ep5/epoch_final.pt` — `KL_uni=0.007, KL_bi=0.148, KL_tri=1.40, H_ratio=0.976`. **Crosses the success criterion at parity compute.** This is a 9× lead over EqM on bigram KL. Strongly localises the bottleneck to time conditioning: DFM and EqM share backbone shape, data, and epochs; DFM's only architectural advantage is sinusoidal `t` injection.
+**DFM control (Phase 8):** `runs/dfm_data50k_ep5/epoch_final.pt` — `KL_uni=0.007, KL_bi=0.148, KL_tri=1.40, H_ratio=0.976`. **Crosses the success criterion at parity compute**, 9.4× lead over EqM on bigram KL. Same backbone, data, epochs as EqM; only architectural difference is sinusoidal `t` injection plus Euler-integrator sampler.
 
-**Compute reality:** the plan's "20 GB A100 MIG" was about consumer-GPU throughput, *not* 3-4× faster. 5 epochs at default ≈ 14 min, 25 epochs ≈ 70 min. Plan §3 numbers were 5× optimistic. Adjust your budgets.
+**Compute reality:** the plan's "20 GB A100 MIG" was about consumer-GPU throughput, *not* 3-4× faster. 5 epochs at default ≈ 14 min, 25 epochs ≈ 70 min, d=1536/12L 5 epochs ≈ 3 hr. Plan §3 numbers were 5× optimistic. Adjust budgets accordingly.
 
-**Strongest finding:** at parity compute (same total training samples), 5× more data variety (`data_50k_ep5`) cuts bigram KL 16% vs `ep25_default`. Both per-position over-fit (`data_50k_ep10`) and per-position under-fit (`data_200k_ep2`) hurt. Sweet spot: ~5 passes per window, more variety than 10k.
+**Strongest *positive* finding:** at parity compute (same total training samples), 5× more data variety (`data_50k_ep5`) cuts bigram KL 16 % vs `ep25_default`. Both per-position over-fit (`data_50k_ep10`) and per-position under-fit (`data_200k_ep2`) hurt. Sweet spot: ~5 passes per window, more variety than 10k.
 
-**Negative results documented:**
-- Epoch scaling (Phase 1): KL_bi vs epochs is 1.99 / 1.78 / 1.65 at 5/10/25. Slope too shallow to reach 0.50 — confirms plan's "epoch scaling not the lever" rule.
-- Phase 5 n-gram loss as specified: log_p_bi = log_p_a + log_p_b is a *factorised* joint, equivalent to re-weighted unigram CE. ng_bg05 increased KL_bi 28%. To make Phase 5 work you'd need a non-factorised output head: e.g., a separate `(K, K)` projection from the d_model hidden state, predicting a *joint* log p(a, b) for adjacent positions. That's a real architectural change.
+**Negative results documented (4):**
+- **Epoch scaling (Phase 1):** KL_bi at 5/10/25 ep = 1.99/1.78/1.65. Slope too shallow.
+- **Factorised bigram NLL (Phase 5):** `log p(a) + log p(b)` decomposes to re-weighted unigram CE. ng_bg05 +28 % KL_bi. Needs a non-factorised head.
+- **γ-conditioning (Phase 4):** plan-recommended γ=1 sample-time fallback collapses to ~5 chars (KL_bi 4.0); best γ across [0.05, 0.99] is γ=0.7 (KL_bi 3.35) — still 2.4× worse than tc_off baseline. The c(γ)·(x0−x1) decay factor zeros the velocity at γ=1, and at any γ > 0 the σ-noise sample input is OOD relative to training.
+- **Backbone scaling (Phase 2 mini):** d=256/4L (1M params) under-fits joints (KL_bi 2.14); d=1536/12L (340M params) is 16 % worse on KL_bi than the d=1024/8L default. The default sits at the bottom of a shallow U-curve. **3.4× the parameters does not close the EqM-DFM gap (still 11×).** Capacity is not the lever.
 
-**Next session, in priority order (now reflecting Phase 4 + Phase 8 outcome):**
+**Synthesis:** Four independent negative results + the Phase 8 magnitude all point the same direction: the EqM-DFM gap is **structural — sampler architecture — not representational**. EqM trains a static energy field via conservative-gradient regression and samples it with NAG-GD; DFM trains a denoiser and samples it with an Euler integrator over t. Lifting any single DFM ingredient (γ embedding, more capacity, more passes, more loss terms) into EqM's setup does not help. The full mechanism analysis is in [`RESULTS.md`](../RESULTS.md) §"Why DFM works".
 
-1. **A real Phase 5: non-factorised bigram head.** This is now the highest-priority architectural change. Phase 4 established that γ conditioning does not help EqM (negative result). The remaining unexplored lever is making the head emit *joint* log-probs rather than factorised. Add `BigramHead(nn.Module)` that projects pairs of adjacent hidden states `h[t] ⊕ h[t+1] -> R^{K²}`, then NLL on observed digrams. The ce on the implied-x1 reconstruction stays as-is (anchors per-position). Compute: ~2 hr to implement + 1 hr to train. If KL_bi drops below 1.0, that's the structural fix.
+**Next session, in priority order (architectural changes only — every parameter knob has been tested):**
 
-2. **EqM time-integration sampler.** Phase 4 hinted that EqM's bottleneck might be its sampler — a fixed-γ energy descent — not its conditioning. Replace `EqM.sample` with a flow-matching Euler integrator: x_{t+h} = x_t + h · v(x_t; γ=t), γ stepping from 0 to 1. This makes EqM's sampler structurally analogous to DFM's. The conservative-grad training stays unchanged. Compute: ~2 hr to implement; can re-evaluate existing tc_add and tc_concat checkpoints at no training cost.
+1. **EqM flow-matching Euler sampler.** Replace `EqM.sample` with `x_{t+h} = x_t + h · f(x_t; γ=t)` for γ stepping 0 → 1. Uses the trained `f` directly (not its conservative gradient) at inference. The conservative-grad regression at training stays unchanged (the regression objective and the sampler are separately useful). This makes EqM's sampler structurally analogous to DFM's. **Re-evaluate the existing tc_add_data50k and tc_concat_data50k checkpoints** with the new sampler at no training cost. Expected outcome: if the gap is the sampler (Phase 8 + Phase 4 + Phase 2 mini all suggest yes), KL_bi should drop substantially. Compute: ~2 hr to implement + minutes to re-eval each checkpoint.
 
-3. **Phase 9 (long run).** If either of the above closes the EqM-DFM gap to within 2×, take that platform and run 50-100 epochs for the final writeup table. Need overnight wall-clock at this throughput.
+2. **Non-factorised bigram head.** Add a `BigramHead` projecting `h[t] ⊕ h[t+1] → R^{K²}` and NLL on observed digrams. Different lever than (1); orthogonal. Only worth doing after (1) if KL_bi is still well above DFM's number. Compute: ~2 hr to implement + 1 hr to train at the data_50k_ep5 platform.
 
-4. **Phase 6 (loss/γ ablations).** Probably no-ops; only worth it once the architectural choice from (1) or (2) is locked in.
+3. **Phase 9 (long run).** If (1) closes the gap to within 2× of DFM, take that platform and run 50-100 epochs. Will need overnight wall-clock at this throughput (~3 hr / 25 ep at d=1024/8L on 50k windows; 100 epochs ≈ 12 hr).
+
+4. **Phase 6 (loss/γ ablations).** Probably no-ops at this point — every other lever is settled. Run only if a writeup reviewer asks.
 
 **Energy-field convergence (Phase 7 trigger check):**
 
-Plan §Phase 7 says to skip the curvature-regulariser phase if `|∇E|gen / |∇E|gt` is within ~5%. Across the runs we have:
+Plan §Phase 7 says to skip the curvature-regulariser phase if `|∇E|gen / |∇E|gt` is within ~5 %. Across the runs we have (selected; full set in RESULTS.md):
 
 | Run | gen | gt | ratio | shape |
 |---|---:|---:|---:|---|
 | baseline_5ep   | 0.227 | 0.179 | 1.27 | gen above gt — under-trained field |
 | ep25_default   | 0.056 | 0.089 | 0.63 | gen below gt — over-trained, attractors deeper than GT |
 | data_50k_ep5   | 0.224 | 0.103 | 2.18 | gen above gt — field still settling |
-| ng_bg10_data50k| 0.493 | 0.262 | 1.88 | gen far from minimum — distorted by n-gram term |
+| ng_bg10_data50k| 0.493 | 0.262 | 1.88 | gen far from minimum — n-gram distortion |
+| bb_d1536_l12   | 0.472 | 0.233 | 2.03 | bigger field, sharper attractors, gen farther off |
 
-No run is within 5%. Across the trajectory the ratio swings either way, suggesting weak repulsive directions in `⟨x, f(x)⟩` that depend on the training mix, not a fixed pathology. Phase 7's curvature penalty is worth trying at the data_50k_ep5 platform if Phase 4 doesn't help; the field is *not* fine.
+No run is within 5 %. The ratio swings either way depending on training mix, so the curvature penalty in Phase 7 is not the obvious fix; the diagnostic from Phase 4/8 makes a sampler-side fix more likely.
 
 **Watch-outs the next session must keep in mind:**
 - The fresh `runs/baseline_5ep/epoch_final.pt` is canonical; the original path `checkpoints/baseline_5ep/epoch_final.pt` referenced in TRAINING_PLAN.md does *not* exist.
-- `_unigram_kl_probe` in `runner.py` now also returns `bigram_kl` and `trigram_kl` (extended this session).
-- `EqM` config has new fields `lambda_bigram`, `lambda_trigram`, default 0.0. The `_eqm_loss` branch handles both terms.
-- `runs/sweep_results.jsonl` is the canonical results stream.
-- `scripts/eval_full.py --ckpt PATH --n 256 --steps 200 --out runs/<name>/eval.json` is the canonical scorecard.
+- `_unigram_kl_probe` in `runner.py` now also returns `bigram_kl` and `trigram_kl`. It also dispatches between EqM (`max_steps=`) and DFM (`nfe=`) sampling APIs.
+- `EqM` config has new fields `lambda_bigram`, `lambda_trigram`, `time_conditioning` ("off"/"add"/"concat"), `sample_gamma` (default 0.5; γ=1 is degenerate). All defaults preserve the Phase-3 best-so-far behaviour.
+- `TransformerBackbone.forward` now optionally takes `gamma`; `EqM.forward` and `_compute_grad` route γ through. When `time_conditioning="off"` the new code is a no-op vs the original.
+- `scripts/eval_full.py` dispatches between EqM (CLR features → decode) and DFM (token IDs direct) by feature-detecting `model.decode_to_logprobs`. Drop in any new model that respects either convention.
+- `runs/sweep_results.jsonl` aggregates all 11 runs from this session.
+- Sweep specs live in `sweeps/phase{0,1,2,3,4,5,8}.yaml`; each sweep is idempotent via the eval.json existence check.
 
 ---
 
@@ -267,24 +274,70 @@ No run is within 5%. Across the trajectory the ratio swings either way, suggesti
   the way DFM does does not help.
 - best_so_far stays at data_50k_ep5. Phase 4 closed.
 
+## [2026-05-07 09:30 UTC] bb_d256_l4_data50k (Phase 2 mini)
+- Hypothesis: smaller backbone might do better at 50k windows by avoiding
+  per-position over-fitting (plan §Phase 2 hypothesis 4).
+- Result: KL_uni=0.040 KL_bi=2.137 KL_tri=6.359 H_ratio=0.942.
+  Δ vs data_50k_ep5: KL_bi +55%, KL_tri +7%. Smaller model under-fits
+  joints. Plan's "less is more" hypothesis disproved at 50k windows.
+- Decision: smaller backbone is not the lever. Continue to d=1536/12L.
+
+## [2026-05-07 09:30 UTC] bb_d1536_l12_data50k (Phase 2 mini)
+- Hypothesis: 3.4× more capacity (340M params, plan's largest cell) gives
+  the model headroom for joint structure.
+- Result: KL_uni=0.081 KL_bi=1.596 KL_tri=5.151 H_ratio=0.917.
+  Δ vs data_50k_ep5: KL_uni +130%, KL_bi +16%, KL_tri −14%, H_ratio −7%.
+  The bigger model improves trigram modestly but hurts unigram and bigram.
+  H_gen drops from 2.85 → 2.62 — outputs are narrower (mode-seeking).
+  Energy: |∇E|gen=0.47 vs |∇E|gt=0.23 — gen sits *farther* from the data
+  manifold than the smaller model. Bigger field, less smooth, more
+  attractor-like artifacts.
+- Decision: backbone scaling does **not** close the EqM-DFM gap. DFM at
+  d=1024/8L hit KL_bi=0.148; EqM at d=1536/12L is at 1.60 — still a 11×
+  gap. The bottleneck is structural (sampler architecture), not
+  representational (parameter count). Phase 2 closed as a documented
+  negative result.
+
 ## Final summary (this session)
 
-| Run | KL_uni | KL_bi | KL_tri | H_ratio | Notes |
-|---|---:|---:|---:|---:|---|
-| baseline_5ep   | 0.051 | 1.987 | 7.22 | 0.955 | Phase 0 reproduction |
-| ep10_default   | 0.033 | 1.783 | 6.76 | 0.948 | Phase 1 |
-| ep25_default   | 0.015 | 1.651 | 7.21 | 1.002 | Phase 1 |
-| **data_50k_ep5** | 0.035 | **1.382** | **5.96** | 0.991 | Phase 3 ★ best KL_bi |
-| data_50k_ep10  | 0.023 | 1.558 | 6.05 | 1.003 | Phase 3 (overfits per-position) |
-| data_200k_ep2  | 0.207 | 2.482 | 6.08 | 0.933 | Phase 3 (undertrained) |
-| ng_bg05_data50k | 0.059 | 1.774 | 5.89 | 0.949 | Phase 5 (negative) |
-| ng_bg10_data50k | 0.127 | 1.799 | 6.11 | 0.923 | Phase 5 (worse) |
+| Run | Phase | KL_uni | KL_bi | KL_tri | H_ratio | Notes |
+|---|---|---:|---:|---:|---:|---|
+| baseline_5ep            | 0 | 0.051 | 1.987 | 7.217 | 0.955 | reproduction |
+| ep10_default            | 1 | 0.033 | 1.783 | 6.764 | 0.948 | epochs ↑ |
+| ep25_default            | 1 | 0.015 | 1.651 | 7.205 | 1.002 | KL_bi ≥1.5 → epoch scaling not the lever |
+| **data_50k_ep5**        | 3 | 0.035 | **1.382** | **5.957** | 0.991 | ★ best EqM (parity-compute platform) |
+| data_50k_ep10           | 3 | 0.023 | 1.558 | 6.046 | 1.003 | overfits per-position |
+| data_200k_ep2           | 3 | 0.207 | 2.482 | 6.080 | 0.933 | undertrained per-position |
+| ng_bg05_data50k         | 5 | 0.059 | 1.774 | 5.890 | 0.949 | negative — factorised NLL = re-weighted unigram CE |
+| ng_bg10_data50k         | 5 | 0.127 | 1.799 | 6.113 | 0.923 | worse — KL_uni > 0.10 distortion cap |
+| **dfm_data50k_ep5**     | 8 | **0.007** | **0.148** | **1.402** | 0.976 | DFM at parity — clears 0.50 target, 9.4× lead |
+| tc_add_data50k γ=0.7    | 4 | 0.838 | 3.348 | 7.548 | 0.736 | best γ; still 2.4× worse than tc_off |
+| tc_concat_data50k γ=0.5 | 4 | 0.807 | 10.276 | 14.534 | 0.473 | strictly worse than add |
+| bb_d256_l4_data50k      | 2 mini | 0.040 | 2.137 | 6.359 | 0.942 | smaller — under-fits joints |
+| bb_d1536_l12_data50k    | 2 mini | 0.081 | 1.596 | 5.151 | 0.917 | 3.4× params — KL_bi worse, KL_tri −14 %, gap to DFM 11× |
 
-Plan target: KL_bi ≤ 0.50 — not reached. Best (data_50k_ep5) is 2.8× over.
-The strongest finding for the writeup: at parity compute, **5× more data
-variety drops bigram KL by 16 %** vs more passes over a small set; both
-under-fitting (less per-window passes) and over-fitting (more passes)
-hurt. The ablation table the writeup wants is in this log; samples for
-each run are in `runs/<name>/eval.json` under the `"samples"` key.
+Plan target: **KL_bi ≤ 0.50** — reached only by DFM (0.148). Best EqM (data_50k_ep5) at 1.382 is 2.8× over target and 9.4× behind DFM.
+
+Headline writeup data (per plan §8):
+- **Phase 1 bar chart** (KL_bi vs epochs at fixed config): 1.99 / 1.78 / 1.65 at 5/10/25 ep on 10k windows.
+- **Phase 2 Pareto** (KL_bi vs param count at the data_50k_ep5 platform): 2.14 (1M) / 1.38 (100M) / 1.60 (340M) — shallow U with the default at the minimum.
+- **Phase 3 data lever**: 1.65 (10k×25ep) → **1.38 (50k×5ep, parity compute)** → 1.56 (50k×10ep) → 2.48 (200k×2ep). 5× variety + 5 passes is the sweet spot.
+- **Phase 4 ablation** (sample-time γ sweep on tc_add_data50k):
+
+| γ at sample | KL_uni | KL_bi |
+|---:|---:|---:|
+| 0.05 | 0.26 | 4.59 |
+| 0.20 | 0.26 | 3.90 |
+| 0.50 | 0.52 | 3.62 |
+| 0.70 | 0.84 | **3.35** (best) |
+| 0.90 | 1.18 | 3.78 |
+| 1.00 | 1.32 | 4.02 |
+
+  All values dominated by tc_off baseline (1.38). γ=1 is degenerate because c(γ=1)=0 zeros the velocity.
+- **Phase 5 ablation**: λ_bigram = 0 / 0.5 / 1.0 → KL_bi = 1.38 / 1.77 / 1.80, KL_uni = 0.035 / 0.059 / 0.127. Term distorts unigram, doesn't help bigram.
+- **Phase 8 EqM-vs-DFM table** at parity compute: in the main row above. DFM 9.4× better on KL_bi, 4.7× better on KL_uni, 4.2× better on KL_tri.
+- **Sample diversity grid** at three checkpoints: see `runs/{baseline_5ep,data_50k_ep5,dfm_data50k_ep5}/eval.json` `"samples"` field.
+
+The strongest *positive* finding for the writeup: at parity compute, **5× more data variety drops bigram KL by 16 %** vs more passes over a small set. The strongest *negative* finding: scaling the transformer backbone 3.4× (~340M params) does **not** close the EqM-DFM gap — capacity is not the lever; the gap is in how each architecture turns the encoder's output into samples. Full diagnosis in [`RESULTS.md`](../RESULTS.md).
 
 

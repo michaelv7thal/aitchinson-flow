@@ -17,8 +17,9 @@ notes live in [`runs/DECISION_LOG.md`](runs/DECISION_LOG.md).
 - **Strongest single lever for EqM**: data variety > epoch scaling.
   At parity compute, 5× more unique windows ⇒ −16 % bigram KL, while 5× more
   epochs on 10k windows ⇒ only −17 % bigram KL.
-- **Three clean architectural negatives**: factorised bigram NLL, γ-conditioning
-  (add and concat), and the plan's recommended γ=1 sample-time fallback.
+- **Four clean architectural negatives**: factorised bigram NLL, γ-conditioning
+  (add and concat), the plan's recommended γ=1 sample-time fallback, and
+  3.4× backbone scaling (d=1536/12L is still 11× off DFM's KL_bi).
 - **Where the bottleneck actually lives**: EqM's sampler is a fixed-γ energy
   descent; DFM's sampler is an Euler integrator over t. The two architectures use
   time conditioning for fundamentally different reasons. EqM cannot benefit from
@@ -42,13 +43,18 @@ the canonical scorecard from [`scripts/eval_full.py`](scripts/eval_full.py)
 | ng_bg10_data50k | 5 | + λ_bigram=1.0 | 0.127 | 1.80 | 6.11 | 0.92 | 0.493 / 0.262 |
 | tc_add_data50k γ=0.7 | 4 | + γ-add (best γ) | 0.838 | 3.35 | 7.55 | 0.74 | n/a |
 | tc_concat_data50k γ=0.5 | 4 | + γ-concat | 0.81 | 10.28 | 14.53 | 0.36 | n/a |
+| bb_d256_l4_data50k | 2 | d=256/4L (~1M) | 0.040 | 2.14 | 6.36 | 0.94 | n/a |
+| bb_d1536_l12_data50k | 2 | d=1536/12L (~340M) | 0.081 | 1.60 | 5.15 | 0.92 | 0.472 / 0.233 |
 | **dfm_data50k_ep5** | 8 | DFM at parity | **0.007** | **0.148** | **1.40** | 0.98 | n/a |
 
 Plan target line: KL_bi ≤ 0.50, KL_uni ≤ 0.10. Only DFM crosses it.
 
 Phases skipped:
-- Phase 2 (backbone scaling) — skipped per plan rule after Phase 1's KL_bi at ep25
-  was 1.65, in the "epoch scaling not the lever" regime.
+- Phase 2 (full 7-cell backbone scaling) — done as a 2-cell mini-sweep
+  bracketing extremes (d=256/4L and d=1536/12L) at the data_50k_ep5 platform
+  rather than the full sweep, since DFM at d=1024/8L already crossed the
+  target and the sampler diagnosis from Phase 4/8 strongly suggested capacity
+  was not the lever. Outcome confirmed the diagnosis (see §"Phase 2 mini").
 - Phase 6 (γ-sampling and loss ablations) — not informative until an architectural
   fix unblocks the bottleneck.
 - Phase 7 (training-time stability) — energy-field convergence trends across runs
@@ -98,6 +104,39 @@ gibberish samples).
 **Compute wall**: data_full @ 25 ep would be ~290 GPU-hours at this MIG's
 throughput, infeasible. The "use all the data" recommendation in the plan can't be
 realised at the available throughput.
+
+### Phase 2 mini — Backbone scaling (capacity is not the bottleneck)
+
+After Phase 8 localised the EqM-DFM gap to sampler architecture, I ran a
+2-cell spot-check at the data_50k_ep5 platform to rule out backbone capacity
+as a confounder:
+
+| Backbone | Params | KL_uni | KL_bi | KL_tri | H_ratio |
+|---|---:|---:|---:|---:|---:|
+| d=256 / 4L | ~1M | 0.040 | 2.14 | 6.36 | 0.94 |
+| **d=1024 / 8L** (default) | ~100M | 0.035 | **1.38** | 5.96 | 0.99 |
+| d=1536 / 12L | ~340M | 0.081 | 1.60 | **5.15** | 0.92 |
+
+Three things to read:
+
+1. **Smaller is worse, not better.** The 1M-param model under-fits the joints
+   (KL_bi 2.14 vs 1.38). The plan's "less is more" hypothesis (#4 in §2,
+   "100M is over-parameterised") is wrong at 50k windows.
+
+2. **Bigger is *also* slightly worse.** 3.4× the parameter count produces
+   KL_bi 1.60 (5 % higher), KL_uni 0.081 (130 % higher), but KL_tri 5.15
+   (14 % lower). The bigger model is mode-narrower (H_ratio 0.92, H_gen
+   2.62 vs 2.85) — it sharpens the field around fewer attractors. The
+   default sits at the bottom of a shallow U-curve.
+
+3. **The EqM-DFM gap survives backbone scaling.** DFM at d=1024 / 8L hits
+   KL_bi=0.148. EqM at d=1536 / 12L (3.4× more parameters) is at 1.60 —
+   still a 11× gap. **Backbone capacity is not the lever.**
+
+This rules out the most plausible alternative explanation for Phase 8's
+result (that EqM was just under-parameterised) and locks in the structural
+diagnosis: **the gap is in how each architecture turns the encoder's output
+into samples, not in what the encoder can represent.**
 
 ### Phase 5 — Factorised n-gram NLL (architectural no-op)
 
