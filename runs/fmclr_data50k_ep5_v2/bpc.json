@@ -1,0 +1,9 @@
+{
+  "ckpt": "runs/fmclr_data50k_ep5_v2/epoch_final.pt",
+  "model_name": "FMonCLR",
+  "method": "implied_x1_ce_surrogate",
+  "bpc": 0.0061681357059016765,
+  "n_chunks": 256,
+  "n_mc": 8,
+  "L": 40
+}

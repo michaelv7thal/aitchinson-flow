@@ -11,6 +11,119 @@ cell. Format:
 - Next: <run-name of next experiment>
 ```
 
+## NEXT SESSION (2026-05-07 21:42 UTC — protocol session)
+
+**Status:** Phases A–E of `TRAINING_PROTOCOL.md` complete. Phase F
+(EqM auditor on WikiText-2) is the explicit next step per the
+protocol's pivot recommendation (Phase B failed → auditor track is
+the primary forward path).
+
+**This session's headline numbers:**
+
+| Phase | Cell | Result | Verdict |
+|---|---|---|---|
+| B | lkflow_data50k_ep5 | KL_bi=1.43 (NFE=64), 1.54 (NFE=32), 1.47 (NFE=128) | **failed** at protocol's KL_bi > 1.0 floor; on par with EqM/FMonCLR |
+| C | OOD valid_perm contrast | EqM `U_pos_mean` AUC=0.513 ; DFM proxy AUC=**0.999** | **DFM dominates this too**; OOD prong demoted to "no winner" per protocol |
+| E | BPC overlay | DFM=3.01 (proper ELBO), continuous surrogates 0.001–0.14 (not comparable) | DFM-only number is publication-comparable; surrogates measure trivial copy at high γ |
+
+The 4-method continuous-on-simplex cluster (EqM=1.38, FMonCLR=1.56,
+LogitKLFlow=1.43) at parity compute is now triangulated. DFM (0.148)
+remains 9.4× ahead. The W1/W4/B negatives jointly localise the gap to
+**regime-level** (continuous-on-simplex vs discrete tokens at K=27),
+not to any specific parameterisation/sampler. SE-style denoiser
+proxies (DFM, LogitKLFlow E_seq) saturate every text8 OOD contrast at
+AUC ≥ 0.96.
+
+**Next session — Phase F (EqM auditor F1 on WikiText-2):** the
+protocol's primary forward contribution. Substantial new code:
+
+1. **`src/aitchinson_flow/data/wiki.py`** — caches GPT-2 logits +
+   last-hidden-states for ~300 chunks of WikiText-2 train at L=64
+   BPE tokens. Needs span-corruption (25 % of tokens replaced with
+   random vocab IDs); cache to `data/wiki_cache_gpt2.pt`. The
+   protocol's bnb-nf4 quantisation suggestion is **unnecessary** at
+   GPT-2 scale (124M params fits in 0.5 GB at fp32) — `bitsandbytes`
+   is not installed and skipping it simplifies the code.
+2. **EqM auditor mode in `_eqm_loss`** — accept
+   `(x_clean, x_invalid)` paired inputs and add hinge terms
+   `mean_loss = E_clean² + relu(margin_E − E_invalid)` plus a variance
+   surrogate (divergence-trace via Hutchinson, 16 vectors at
+   γ ∈ {0.3, 0.5, 0.7, 0.9, 1.0}; *no second-order autograd needed* —
+   the divergence trace estimator only takes one forward + one Hutchinson
+   probe). New `cfg.eqm` fields: `lambda_E_hinge=1.0`,
+   `lambda_var_hinge=2.0`, `margin_energy=2.0`, `margin_var=0.8`.
+3. **`scripts/eval_auditor_wiki.py`** — load cache + auditor; compute
+   `E_seq`, `U_pos_*`, divergence-trace, and Spilled Energy
+   (`-log p_LM(token_i | context)` from cached logits) per sequence;
+   report Seq AUROC and Tok AUROC. **Always include the SE column**
+   per protocol §6 Phase F decision criteria — SE is the zero-train
+   baseline that 0.998 on WikiText-2.
+4. **`sweeps/phaseF_auditor_wiki.yaml`** — start with `aud_gpt2_logit`
+   only (no Qwen2.5, no context-conditioning); train 25 epochs with
+   smaller backbone (d_model=256, num_layers=4) per protocol. ~30 min.
+5. **Decision criterion**: F1 passes if Seq AUROC ≥ 0.99 AND Tok
+   AUROC ≥ 0.95 (within 1 point of the prototype's 0.999/0.996).
+
+**Code already added this session that auditor work builds on:**
+- `LogitKLFlow` model (`src/aitchinson_flow/models/logitkl_flow.py`)
+  + `LogitKLFlowConfig` in config.py (registered, eval_full.py extended).
+- `_score_logitkl` branch and `valid_perm` corruption in `eval_ood.py`.
+- `scripts/eval_bpc.py` with surrogates for all four model families.
+
+**Files modified this session:**
+- `src/aitchinson_flow/config.py` — `LogitKLFlowConfig` added.
+- `src/aitchinson_flow/models/__init__.py` — `LogitKLFlow` registered.
+- `src/aitchinson_flow/models/logitkl_flow.py` — new model.
+- `scripts/eval_full.py` — handles `logitkl` in payload deserialisation.
+- `scripts/eval_ood.py` — `valid_perm` corruption + LogitKLFlow scoring.
+- `scripts/eval_bpc.py` — new BPC eval script.
+- `sweeps/phaseB_logitkl.yaml` — Phase B sweep YAML.
+- `runs/sweep_results.jsonl` — appended 1 row (lkflow_data50k_ep5).
+- `runs/lkflow_data50k_ep5/` — new ckpt + eval + ood + bpc.
+- `runs/{eqm,dfm,fmclr}_data50k_ep5_v2/{ood_eval,bpc}.json` — re-run with valid_perm.
+
+**Phase I (SFM contingency) — DEFERRED.** Pre-condition met (Phase B
+failed at KL_bi > 1.0) but the implementation is "~3 days dev" for a
+fourth continuous-on-simplex baseline that, even at published numbers
+(BPC 1.39 vs SEDD 1.32), would not close the K=27 gap to DFM. Better
+leverage from Phase F. Revisit only if F also fails and Phase J needs
+a winner to scale.
+
+**Phase D (loss aux ablations) — DEFERRED.** Optional per protocol
+("only run if total budget allows after Phases B/C/F"). With the W1/W4/B
+negatives all triangulating the regime-level diagnosis, additional
+loss-term ablations are unlikely to move the needle. Revisit if Phase F
+fails and the writeup needs more variance ablations.
+
+**Termination check:** none of §10's stop criteria triggered yet. Best
+KL_bi remains DFM at 0.148 (clears 0.50 target). Best AUROC remains
+DFM at 0.999 across every text8 OOD contrast (already at ceiling on
+sequence-level — Phase F's value is in *per-token* / context-rich
+settings where DFM-style discrete denoising doesn't directly apply).
+
+**Watch-outs for the next session:**
+- `bitsandbytes` is not installed; do not require it. `transformers`
+  is at 5.5.4 and `torch` 2.11+cu130; full-precision GPT-2 forward
+  passes are fine for caching.
+- `WANDB_API_KEY` is not in `env`, but wandb is authenticated through
+  `~/.netrc` (Phase B run synced successfully). Keep using
+  `--wandb --wandb-project eqm-text8`; group auto-derives from the
+  sweep filename.
+- The `runs/lkflow_data50k_ep5/wandb/` directory has online-mode logs;
+  no offline sync needed.
+- `scripts/run_sweep.py` does **not** accept `--wandb-group`; the
+  group is auto-derived as `sweep:<spec_stem>`. The protocol's
+  `--wandb-group phase-X-...` flag is documented but not implemented.
+- Smoke-test convention: write a small YAML in `sweeps/` with
+  `text8_dataset.max_train_windows: 1000`, `training.epochs: 1`,
+  small `transformer.d_model`/`num_layers`, run via `run_sweep.py`,
+  inspect the printed KL_bi. Then delete the smoke YAML and the
+  `runs/<smoke_name>/` directory; **strip the smoke row from
+  `runs/sweep_results.jsonl`** (head -N redirect, see
+  this session's commit history).
+
+---
+
 ## NEXT SESSION
 
 **Status (end of 2026-05-07 ~10:00 UTC session):**
@@ -428,3 +541,143 @@ Per the plan: lead with §3 (positional uncertainty as the unique-value-add), us
 
 This carries a publishable writeup with three clean negatives, two informative ablations, and one positive differentiator.
 
+
+## [2026-05-07 21:31 UTC] lkflow_data50k_ep5 (Phase B / LogitKLFlow baseline)
+- Hypothesis: Logit-KL Flow Matching (arXiv:2411.16821) — clean-logit
+  regression in unbounded R^K plus a hybrid det+stochastic sampler — is
+  the only published non-AR method that beats DFM. If it reproduces here,
+  the writeup gets a "fixed-version-of-FMonCLR" baseline that matches DFM
+  and triangulates the continuous-on-simplex hypothesis. If it fails
+  (KL_bi > 1.0), continuous-on-simplex is broadly hard at K=27 char-level
+  regardless of parameterisation, and the protocol pivots to the auditor
+  track (Phase F–H).
+- Result (256 samples × NFE on the same epoch_5 checkpoint, B=64,
+  d_model=1024, 8 layers, 5 epochs × 50k windows):
+
+  | NFE | KL_uni | KL_bi | KL_tri | H_ratio |
+  |---:|---:|---:|---:|---:|
+  | 32  | 0.0449 | 1.5420 | 5.2501 | 0.931 |
+  | 64  | 0.0467 | **1.4325** | 4.9785 | 0.927 |
+  | 128 | 0.0418 | 1.4723 | 5.1885 | 0.935 |
+
+  Best (NFE=64) is **9.7× worse than DFM** (0.148) and slightly worse
+  than EqM-NAG (1.382) / on par with FMonCLR (1.559). NFE scaling is
+  flat — the published recipe's sweet spot is its sweet spot. Samples
+  are character-soup with vague consonant/vowel alternation and no
+  recognisable word stems (e.g. `'ni fowfscniseh errpe i e frhrt t taaceet'`).
+  Smoke test (1 ep × 1k windows) had KL_bi=16.7 → 5-ep run dropped to
+  1.43 → training is doing something sensible; the recipe just doesn't
+  close the K=27 gap to DFM.
+- Decision: **Phase B failed at the KL_bi > 1.0 threshold** (1.4325 ≫ 0.30
+  acceptable, ≫ 1.0 fail floor). Per Phase B header: writeup pivots fully
+  to the auditor track (Phase F–H) with no "matches DFM" claim. The
+  three-method continuous-on-simplex cluster (EqM=1.38, FMonCLR=1.56,
+  LogitKLFlow=1.43) is now triangulated: parameterisation/sampler-recipe
+  is *not* the lever. The DFM-vs-continuous gap is regime-level (discrete
+  tokens vs continuous-on-simplex), not method-specific. Phase I (SFM √p
+  contingency) is enabled by pre-condition but deferred — ~3 days dev for
+  a fourth continuous baseline whose published numbers (BPC 1.39 vs SEDD
+  1.32) would still leave a gap to DFM. Better leverage from Phase C
+  (cross-method OOD with the new lkflow checkpoint) and Phase F–H
+  (auditor track).
+- Next: Phase C extended OOD harness — add lkflow_data50k_ep5 to the
+  cross-method cmp table, score on valid_perm contrast (the only open
+  novelty after W3). Then Phase E (BPC overlay), then Phase F (auditor
+  on WikiText-2 — primary forward contribution per the W3 negative).
+  Phase I deferred to a NEXT SESSION block if there's slack at the end.
+- W&B: project=eqm-text8, group=sweep:phaseB_logitkl, run=lkflow_data50k_ep5
+
+## [2026-05-07 21:35 UTC] Phase C extended OOD harness (valid_perm contrast)
+- Hypothesis (TRAINING_PROTOCOL.md §6 Phase C, reframed after W3): the
+  open contrast after W3 is the *valid-permutation* control — a full
+  random per-sequence permutation that preserves the unigram histogram
+  exactly while breaking all bigram structure. Decision rule: if EqM
+  `U_pos_mean` valid_perm AUROC ≥ 0.65 AND DFM proxy valid_perm AUROC
+  < 0.55, the EqM auditor's per-position signal is uniquely informative
+  on histogram-preserving corruption (the salvageable EqM unique-value-
+  add). Else DFM dominates and the OOD prong becomes
+  "per-position complementarity, no winner".
+- Code changes (this session): extended `scripts/eval_ood.py` to
+  (a) include `valid_perm` (full permutation, RNG seed offset to avoid
+  collision with shuffle_1.0), (b) add a `_score_logitkl` branch (E_seq
+  + U_pos_{mean,max} computed from the LogitKLFlow denoiser at t=0.99
+  on a γ_l·onehot input), (c) include valid_perm in the AUC summary.
+- Result (256 val samples, seed=1234, shared corruption RNG across all
+  4 models so AUC numbers are directly comparable):
+
+  | Model | Stat | clean-vs-rand | clean-vs-subst_0.5 | clean-vs-shuffle_0.5 | **clean-vs-valid_perm** |
+  |---|---|---:|---:|---:|---:|
+  | eqm_data50k_ep5_v2     | E_seq            | 0.16 (\|0.84\|) | 0.514 | 0.499 | **0.493** |
+  | eqm_data50k_ep5_v2     | **U_pos_mean**   | **1.000**       | **0.987** | 0.525 | **0.513** |
+  | eqm_data50k_ep5_v2     | U_pos_max        | 1.000           | 0.977     | 0.511 | 0.504 |
+  | dfm_data50k_ep5_v2     | E_seq (proxy)    | 1.000           | 1.000     | 0.993 | **0.999** |
+  | fmclr_data50k_ep5_v2   | E_seq            | 0.12 (\|0.88\|) | 0.347 (\|0.653\|) | 0.516 | 0.517 |
+  | lkflow_data50k_ep5     | E_seq            | 1.000           | 0.958     | 0.496 | 0.480 |
+  | lkflow_data50k_ep5     | U_pos_mean       | 1.000           | 0.958     | 0.496 | 0.480 |
+
+- Decision: **DFM dominates valid_perm too (AUC=0.999); EqM/FMonCLR/
+  LogitKLFlow all stuck at chance (0.49–0.52).** This is the protocol's
+  "more likely outcome": the OOD prong demotes to "per-position
+  complementarity, no winner". The DFM denoiser proxy at t≈0.99 is a
+  strong, well-calibrated OOD detector across every contrast we tested
+  (random, substitution, partial shuffle, full permutation) — DFM has
+  no remaining open contrast where EqM uniquely wins on text8 K=27.
+  The salvageable EqM uniqueness hypothesis is **falsified** for the
+  text8 sequence-level scorecard.
+- Implication for the writeup: the OOD prong is now "EqM provides a
+  per-position localisation signal complementary to DFM's
+  sequence-level proxy" — a softer claim than uniqueness. Lean fully
+  on the auditor track (Phase F–H, where EqM's positional decomposition
+  is the structural advantage) and the mechanism diagnosis (W1/W4/B as
+  three-method continuous-on-simplex triangulation).
+- Cross-method note: LogitKLFlow's `E_seq` (denoiser-style proxy at
+  t≈1) tracks DFM's behaviour pattern qualitatively but is weaker on
+  every contrast (subst 0.96 vs DFM 1.00; valid_perm chance vs DFM
+  0.999). The continuous-logit denoiser doesn't recover the discrete
+  denoiser's OOD calibration on K=27.
+- Next: Phase E (BPC overlay) — quick numbers for the publication-
+  comparable table. Then Phase F (auditor F1 on WikiText-2) — the
+  primary forward contribution given B-failure + W3-negative.
+- W&B: no new W&B runs (eval-only).
+
+## [2026-05-07 21:39 UTC] Phase E BPC overlay (text8 test, 256 chunks × 8 MC)
+- Hypothesis (TRAINING_PROTOCOL.md §6 Phase E): provide
+  publication-comparable BPC numbers overlaid against the SFM/SEDD
+  benchmark (SFM=1.39, SEDD=1.32 BPC).
+- Code (this session): new `scripts/eval_bpc.py` with model-specific
+  surrogates per the protocol's prescription.
+- Result (256 chunks × 8 Monte Carlo samples; n_chunks of L=40 windows
+  drawn from the held-out test split):
+
+  | Run | Model | BPC method | BPC | Notes |
+  |---|---|---|---:|---|
+  | dfm_data50k_ep5_v2   | DFM         | discrete ELBO              | **3.0093** | upper-bound NLL via denoiser CE at random t |
+  | lkflow_data50k_ep5   | LogitKLFlow | clean-logit CE at random t | 0.1370 | dominated by easy late-t regime |
+  | eqm_data50k_ep5_v2   | EqM         | implied-x1 CE surrogate    | 0.0017 | γ-importance-sampled toward γ≈1 → trivial copy |
+  | fmclr_data50k_ep5_v2 | FMonCLR     | implied-x1 CE surrogate    | 0.0062 | same caveat |
+
+- Decision: **the BPC overlay table is informative only for DFM**; the
+  three continuous-model surrogates measure different things (per the
+  protocol's explicit caveat: "not directly comparable to AR-LM BPC").
+  EqM and FMonCLR's γ-averaged CE collapses near zero because the
+  γ-importance sampling with `gamma_power=0.5` pushes mass toward γ≈1
+  where the implied-x1 reconstruction is essentially the data itself.
+  LogitKLFlow's clean-logit CE is similarly dominated by easy late-t
+  steps (the denoiser learns to copy the input). DFM's 3.01 BPC vs the
+  published 1.32–1.39 reflects undertraining (5 ep × 50k windows ≪
+  the SFM/SEDD recipes' compute) — this writeup's numbers should be
+  framed as compute-matched parity comparisons, not absolute SOTA.
+- Implication for the writeup: keep DFM's BPC as the only
+  publication-comparable number; note the continuous surrogates as
+  "model-specific upper bounds, not comparable across families". An
+  AR-readout-head bridge (the protocol's alternative for EqM/FMonCLR)
+  would give a more meaningful continuous-model BPC at the cost of
+  ~30 min of extra training; deferred — the writeup's headline
+  comparison is KL_bi at parity compute, where DFM's 9.4× lead is
+  already established.
+- Next: Phase F (auditor F1 on WikiText-2) — the protocol's primary
+  forward contribution given the B-failure pivot and the W3-negative.
+  Phase F requires substantial new code (wiki data module with bnb-nf4
+  LM caching, EqM auditor mode with hinge losses, eval_auditor_wiki.py)
+  and ~3 hr GPU time; the most leverage of any remaining phase.
+- W&B: no new W&B runs (eval-only).

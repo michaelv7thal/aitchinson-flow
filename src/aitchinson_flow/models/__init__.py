@@ -3,6 +3,7 @@ from .factory import REGISTRY, build_model, register
 from .eqm import EquilibriumFlowMatching
 from .dfm import DiscreteFlowMatching
 from .fm_clr import FMonCLR
+from .logitkl_flow import LogitKLFlow
 
 __all__ = [
     "GenerativeTrainingModel",
@@ -14,4 +15,5 @@ __all__ = [
     "EquilibriumFlowMatching",
     "DiscreteFlowMatching",
     "FMonCLR",
+    "LogitKLFlow",
 ]

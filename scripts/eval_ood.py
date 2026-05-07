@@ -52,7 +52,14 @@ SHUFFLE_RATES = [0.25, 0.5, 0.75, 1.0]
 def _build_corruptions(
     clean_ids: torch.Tensor, *, K: int, seed: int = 1234
 ) -> dict[str, torch.Tensor]:
-    """Return a dict of {label → token_ids tensor} matching clean_ids' shape."""
+    """Return a dict of {label → token_ids tensor} matching clean_ids' shape.
+
+    Includes ``valid_perm``: a per-sequence full random permutation that
+    preserves the unigram histogram exactly while breaking bigram
+    statistics. Phase C (TRAINING_PROTOCOL.md) decision rule: per-position
+    uncertainty `U_pos_mean` valid_perm AUROC ≥ 0.65 with DFM proxy <0.55
+    is the salvageable EqM unique-value-add.
+    """
     out: dict[str, torch.Tensor] = {"clean": clean_ids.clone()}
     for r in SUBST_RATES:
         out[f"subst_{r}"] = corrupt_token_ids(
@@ -62,6 +69,11 @@ def _build_corruptions(
         out[f"shuffle_{r}"] = partially_shuffle_token_ids(
             clean_ids, shuffle_rate=r, seed=seed
         )
+    # Histogram-preserving full permutation (alias of shuffle_1.0 with a
+    # different RNG seed to avoid identical samples between rows).
+    out["valid_perm"] = partially_shuffle_token_ids(
+        clean_ids, shuffle_rate=1.0, seed=seed + 7
+    )
     out["rand"] = torch.randint(
         0, K, clean_ids.shape, device=clean_ids.device,
         generator=torch.Generator(device=clean_ids.device).manual_seed(seed),
@@ -101,6 +113,35 @@ def _score_dfm(model: Any, ids: torch.Tensor) -> dict[str, torch.Tensor]:
     log_p = logits.log_softmax(dim=-1)
     nll = -log_p.gather(-1, ids.unsqueeze(-1)).squeeze(-1).mean(dim=-1)  # (B,)
     return {"E_seq": nll.cpu()}
+
+
+@torch.no_grad()
+def _score_logitkl(model: Any, ids: torch.Tensor) -> dict[str, torch.Tensor]:
+    """LogitKLFlow fairness proxy: same idea as DFM but in continuous-logit
+    space. Form the clean-logit input ``l_t = γ_l · onehot(ids)`` (the t=1
+    end of the linear-interpolation path), query the denoiser at t≈1, and
+    report per-sequence cross-entropy of the predicted clean logits against
+    the input ids. A well-trained LogitKLFlow should assign low NLL on
+    clean text8 and higher NLL on OOD inputs.
+    """
+    B, L = ids.shape
+    device = ids.device
+    K = model.cfg.text8_dataset.K
+    gamma_l = model.cfg.logitkl.gamma_l
+    l_in = gamma_l * F.one_hot(ids.long(), K).to(
+        dtype=next(model.parameters()).dtype
+    )
+    t = torch.full((B,), 0.99, device=device, dtype=l_in.dtype)
+    v_hat = model.forward(l_in, t)  # (B, L, K) clean-logit prediction
+    log_p = v_hat.log_softmax(dim=-1)
+    nll = -log_p.gather(-1, ids.unsqueeze(-1)).squeeze(-1).mean(dim=-1)  # (B,)
+    out = {"E_seq": nll.cpu()}
+    # Per-position cross-entropy as the analog of EqM's `U_pos_*`. Higher
+    # at OOD positions in principle; included for cross-method comparability.
+    nll_pos = -log_p.gather(-1, ids.unsqueeze(-1)).squeeze(-1)  # (B, L)
+    out["U_pos_mean"] = nll_pos.mean(dim=-1).cpu()
+    out["U_pos_max"] = nll_pos.max(dim=-1).values.cpu()
+    return out
 
 
 def _roc_auc(neg: torch.Tensor, pos: torch.Tensor) -> float:
@@ -156,12 +197,14 @@ def evaluate_ood(
     corrupted = _build_corruptions(clean_ids, K=K, seed=seed)
 
     is_eqm_like = hasattr(model, "energy")
-    is_dfm = not is_eqm_like and not hasattr(model, "decode_to_logprobs")
-    scorer = _score_eqm_like if is_eqm_like else (_score_dfm if is_dfm else None)
-    if scorer is None:
+    is_logitkl = (not is_eqm_like) and (cfg.training.model_name == "LogitKLFlow")
+    is_dfm = (not is_eqm_like) and (not is_logitkl) and (
+        not hasattr(model, "decode_to_logprobs")
+    )
+    if not (is_eqm_like or is_dfm or is_logitkl):
         raise RuntimeError(
-            f"model {type(model).__name__} has neither .energy() nor a DFM-style "
-            "denoiser interface; eval_ood doesn't know how to score it."
+            f"model {type(model).__name__} has no recognised scoring interface; "
+            "eval_ood doesn't know how to score it."
         )
 
     scores: dict[str, dict[str, torch.Tensor]] = {}
@@ -170,6 +213,8 @@ def evaluate_ood(
             s = _score_eqm_like(
                 model, ids, K=K, label_smoothing=label_smoothing
             )
+        elif is_logitkl:
+            s = _score_logitkl(model, ids)
         else:
             s = _score_dfm(model, ids)
         scores[name] = s
@@ -199,7 +244,7 @@ def evaluate_ood(
 
         aucs = {}
         clean = scores["clean"][stat]
-        for contrast in ("subst_0.5", "shuffle_0.5", "rand"):
+        for contrast in ("subst_0.5", "shuffle_0.5", "valid_perm", "rand"):
             if contrast not in scores:
                 continue
             corrupt = scores[contrast][stat]

@@ -189,6 +189,24 @@ class DFMConfig:
 
 
 @dataclass
+class LogitKLFlowConfig:
+    """Logit-KL Flow Matching (arXiv:2411.16821).
+
+    Linear interpolation in logit space ``l_t = (1−t)·l_0 + t·l_1`` with
+    ``l_0 ~ source_sigma·N(0, I)`` and ``l_1 = gamma_l · one_hot(token_id)``.
+    The denoiser regresses *clean logits* ``v̂(l_t, t) ≈ E[l_1 | l_t]`` under
+    MSE. Sampling is hybrid: deterministic-ODE for ``t < sampler_split_t``,
+    stochastic re-noising for ``t ≥ sampler_split_t``.
+    """
+
+    gamma_l: float = 8.0  # clean-logit magnitude (one-hot · γ_l)
+    source_sigma: float = 0.1  # σ for the Gaussian noise source l_0
+    sampler_split_t: float = 0.28  # det → stochastic switch threshold
+    sampler_nfe: int = 64  # default Euler steps at eval time
+    sampler_noise_scale: float = 0.5  # multiplier on σ_t = sqrt(1−t²)
+
+
+@dataclass
 class WandbConfig:
     """Optional Weights & Biases logging. Off by default; enable with --wandb."""
 
@@ -213,6 +231,7 @@ class Config:
     transformer: TransformerConfig = field(default_factory=TransformerConfig)
     eqm: EqM = field(default_factory=EqM)
     dfm: DFMConfig = field(default_factory=DFMConfig)
+    logitkl: LogitKLFlowConfig = field(default_factory=LogitKLFlowConfig)
     loader_settings: LoaderSettings = field(default_factory=LoaderSettings)
     loss: LossConfig = field(default_factory=LossConfig)
     wandb: WandbConfig = field(default_factory=WandbConfig)
