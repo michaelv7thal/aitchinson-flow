@@ -11,6 +11,30 @@ cell. Format:
 - Next: <run-name of next experiment>
 ```
 
+## NEXT SESSION (2026-05-07 23:30 UTC — v2 protocol ready, start at Phase K)
+
+**Read first:**
+1. [`CAPSTONE_PLAN.md`](../CAPSTONE_PLAN.md) — strategic framing for
+   the post-Phase-H capstone work (UQ on real hallucinations +
+   continuous-FM contingency).
+2. [`TRAINING_PROTOCOL_v2.md`](../TRAINING_PROTOCOL_v2.md) — the new
+   operational protocol. **Start at Phase K** (HaluEval-QA UQ
+   baseline). Phases A–J of the v1 protocol are completed or
+   deferred; do not re-run them.
+3. [`REPORT.md`](../REPORT.md) — synthesis of what the previous
+   session established. Skim for context before executing.
+
+**The v1 protocol's auditor unification hypothesis is dead** (see the
+22:00 / 22:25 / 22:32 / 22:38 / 22:50 / 23:03 UTC entries below). The
+new v2 protocol pivots to a decomposed architecture (separate
+generator + UQ classifier) and validates it on real hallucinations.
+
+**First action in a new session**: pre-flight checks per
+`TRAINING_PROTOCOL_v2.md` §2. Then start Phase K (HaluEval-QA cache +
+SVGP/BLR UQ eval).
+
+---
+
 ## NEXT SESSION (2026-05-07 22:50 UTC — Phase H run, F3 fails)
 
 **Status:** Phases A → B → C → E → F (full sanity) → H complete.
