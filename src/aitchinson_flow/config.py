@@ -138,6 +138,26 @@ class EqM:
     # overshoots the basin around step 60 and drifts away; the trajectory
     # minimum is the right thing to return.
     sample_return_best: bool = True
+    # Sampler selection: "nag" (NAG-GD on the conservative gradient — the
+    # original behaviour) or "euler" (FM-style Euler integrator over γ on the
+    # raw velocity f, see RESULTS.md §1). Training is unaffected; only
+    # inference changes.
+    sampler: str = "nag"
+    # Number of Euler steps when sampler="euler". Maps from runner.py's
+    # max_steps so the existing eval probe wiring works untouched.
+    euler_nfe: int = 64
+    # Ablation: if True, the Euler sampler uses ∇⟨x,f⟩ (the conservative
+    # gradient) at each step instead of raw f. Lets the writeup separate
+    # "FM-style sampler" from "raw-f vs grad-of-energy".
+    euler_use_grad: bool = False
+    # Optional override of source_sigma at sample time. None ⇒ use source_sigma.
+    # The OOD-at-γ≈0 mismatch hypothesis says reducing this may help the Euler
+    # sampler that starts at γ=0 (where training sees x_γ ≈ x0 = σ-noise).
+    sample_sigma_init: float | None = None
+    # Joint-head bigram NLL weight (W2). 0 disables. Distinct from the
+    # factorised lambda_bigram above (which Phase 5 showed is a re-weighted
+    # unigram CE — kept here only for reproducibility of that negative).
+    lambda_bigram_joint: float = 0.0
 
 
 @dataclass(frozen=True)

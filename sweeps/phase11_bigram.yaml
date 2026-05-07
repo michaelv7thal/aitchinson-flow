@@ -1,0 +1,23 @@
+# Phase 11 — W2 non-factorised bigram head at the data_50k_ep5 platform.
+#
+# Run AFTER phase10 (W1 sampler swap) so the platform is the W1 winner —
+# either eqm_data50k_ep5_v2 with sampler="nag" (if Euler doesn't help) or
+# sampler="euler" (if it does). The bigram head is orthogonal to the
+# sampler change; both can compose.
+#
+# Two cells bracket the lambda_bigram_joint range. The Phase-5 distortion
+# cap (KL_uni > 0.10) is a kill criterion: if the smaller weight already
+# breaks unigram, drop the head and rely on W3 OOD eval to extract value
+# from a learned bigram-coherence scorer post-hoc.
+
+- name: bigram_joint_l03_ep5
+  overrides:
+    training.epochs: 5
+    text8_dataset.max_train_windows: 50000
+    eqm.lambda_bigram_joint: 0.3
+
+- name: bigram_joint_l10_ep5
+  overrides:
+    training.epochs: 5
+    text8_dataset.max_train_windows: 50000
+    eqm.lambda_bigram_joint: 1.0

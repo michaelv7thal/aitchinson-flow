@@ -104,16 +104,43 @@ def _config_from_payload(payload: dict[str, Any]) -> Config:
     return cfg
 
 
+def _apply_overrides(cfg: Config, overrides: dict[str, Any]) -> Config:
+    """Apply dotted overrides post-load. Lets W1 re-evaluate the same EqM
+    checkpoint under different sampler configs without re-training."""
+    from dataclasses import replace, is_dataclass
+
+    for key, value in overrides.items():
+        parts = key.split(".")
+        *parents, leaf = parts
+        obj: Any = cfg
+        for p in parents:
+            obj = getattr(obj, p)
+        if not is_dataclass(obj):
+            raise TypeError(f"override path '{key}' does not end at a dataclass")
+        new = replace(obj, **{leaf: value})
+        target: Any = cfg
+        for p in parents[:-1]:
+            target = getattr(target, p)
+        if parents:
+            setattr(target, parents[-1], new)
+        else:
+            setattr(cfg, leaf, value)
+    return cfg
+
+
 def evaluate_checkpoint(
     ckpt_path: str | Path,
     *,
     n_samples: int,
     n_steps: int,
     grad_at_n: int = 64,
+    overrides: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     cfg = Config()
     payload = torch.load(ckpt_path, map_location="cpu", weights_only=False)
     cfg = _config_from_payload(payload)
+    if overrides:
+        cfg = _apply_overrides(cfg, overrides)
     device = cfg.training.device
 
     model = build_model(cfg).to(device)
@@ -175,17 +202,52 @@ def evaluate_checkpoint(
     }
 
 
+def _parse_override(s: str) -> tuple[str, Any]:
+    """Parse `key=value` with simple type inference (bool / int / float / str)."""
+    if "=" not in s:
+        raise ValueError(f"--override expects key=value, got: {s!r}")
+    key, raw = s.split("=", 1)
+    if raw.lower() in ("true", "false"):
+        return key, raw.lower() == "true"
+    if raw.lower() in ("none", "null"):
+        return key, None
+    try:
+        return key, int(raw)
+    except ValueError:
+        pass
+    try:
+        return key, float(raw)
+    except ValueError:
+        pass
+    return key, raw
+
+
 def main(argv: list[str] | None = None) -> None:
     p = argparse.ArgumentParser()
     p.add_argument("--ckpt", required=True)
     p.add_argument("--n", type=int, default=256, dest="n_samples")
     p.add_argument("--steps", type=int, default=200, dest="n_steps")
     p.add_argument("--out", type=str, default=None)
+    p.add_argument(
+        "--override",
+        action="append",
+        default=[],
+        help="Post-load cfg override, e.g. --override eqm.sampler=euler "
+             "(repeatable). Useful for evaluating one checkpoint under "
+             "multiple sampler configs.",
+    )
     args = p.parse_args(argv)
 
+    overrides = dict(_parse_override(s) for s in args.override) if args.override else None
+
     result = evaluate_checkpoint(
-        args.ckpt, n_samples=args.n_samples, n_steps=args.n_steps
+        args.ckpt,
+        n_samples=args.n_samples,
+        n_steps=args.n_steps,
+        overrides=overrides,
     )
+    if overrides:
+        result["overrides"] = overrides
 
     print(
         f"ckpt={Path(args.ckpt).parent.name}/{Path(args.ckpt).name}  "

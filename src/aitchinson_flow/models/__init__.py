@@ -2,6 +2,7 @@ from .base import GenerativeTrainingModel, LossDict, TRAINING_LOSS_KEY
 from .factory import REGISTRY, build_model, register
 from .eqm import EquilibriumFlowMatching
 from .dfm import DiscreteFlowMatching
+from .fm_clr import FMonCLR
 
 __all__ = [
     "GenerativeTrainingModel",
@@ -12,4 +13,5 @@ __all__ = [
     "register",
     "EquilibriumFlowMatching",
     "DiscreteFlowMatching",
+    "FMonCLR",
 ]
