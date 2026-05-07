@@ -39,3 +39,106 @@
     eqm.auditor_gamma: 1.0      # evaluate energy at the data-manifold endpoint
     eqm.gamma_power: 0.5
     eqm.source_sigma: 0.1
+
+# Context-conditioned variant: the backbone sees both the top-K simplex
+# AND a learned projection of GPT-2's last hidden state. Tests whether
+# the 0.04 AUROC gap to SE is closable with richer LM context features.
+- name: aud_gpt2_ctx
+  overrides:
+    auditor.enabled: true
+    auditor.cache_path: data/wiki_cache_gpt2.pt
+    auditor.batch_size: 16
+    auditor.train_frac: 0.8
+    training.model_name: EqM
+    training.epochs: 25
+    training.B: 16
+    training.sample_eval_every: null
+    training.eval_every: 5
+    training.checkpoint_every: 1000000
+    text8_dataset.K: 64
+    text8_dataset.L: 64
+    text8_dataset.max_train_windows: null
+    text8_dataset.max_eval_windows: null
+    transformer.d_model: 256
+    transformer.num_layers: 4
+    transformer.nhead: 4
+    transformer.d_latent: 256
+    eqm.time_conditioning: add
+    eqm.lambda_ce: 0.0
+    eqm.lambda_bigram: 0.0
+    eqm.lambda_trigram: 0.0
+    eqm.lambda_bigram_joint: 0.0
+    eqm.lambda_E_hinge: 1.0
+    eqm.margin_energy: 2.0
+    eqm.auditor_gamma: 1.0
+    eqm.gamma_power: 0.5
+    eqm.source_sigma: 0.1
+    eqm.context_features: product_concat   # ★ concat(simplex, proj(h_LLM))
+    eqm.ctx_hidden: 768                    # GPT-2 small last-hidden dim
+
+# Bigger backbone, logit-only: tests whether the 0.04 gap to SE is a
+# capacity issue. d_model 256→512, num_layers 4→6 (~5× params).
+- name: aud_gpt2_logit_d512
+  overrides:
+    auditor.enabled: true
+    auditor.cache_path: data/wiki_cache_gpt2.pt
+    auditor.batch_size: 16
+    auditor.train_frac: 0.8
+    training.model_name: EqM
+    training.epochs: 25
+    training.B: 16
+    training.sample_eval_every: null
+    training.eval_every: 5
+    training.checkpoint_every: 1000000
+    text8_dataset.K: 64
+    text8_dataset.L: 64
+    text8_dataset.max_train_windows: null
+    text8_dataset.max_eval_windows: null
+    transformer.d_model: 512
+    transformer.num_layers: 6
+    transformer.nhead: 8
+    transformer.d_latent: 512
+    eqm.time_conditioning: add
+    eqm.lambda_ce: 0.0
+    eqm.lambda_bigram: 0.0
+    eqm.lambda_trigram: 0.0
+    eqm.lambda_bigram_joint: 0.0
+    eqm.lambda_E_hinge: 1.0
+    eqm.margin_energy: 2.0
+    eqm.auditor_gamma: 1.0
+    eqm.gamma_power: 0.5
+    eqm.source_sigma: 0.1
+
+# Bigger backbone + context: full prototype-like config at GPT-2 scale.
+- name: aud_gpt2_ctx_d512
+  overrides:
+    auditor.enabled: true
+    auditor.cache_path: data/wiki_cache_gpt2.pt
+    auditor.batch_size: 16
+    auditor.train_frac: 0.8
+    training.model_name: EqM
+    training.epochs: 25
+    training.B: 16
+    training.sample_eval_every: null
+    training.eval_every: 5
+    training.checkpoint_every: 1000000
+    text8_dataset.K: 64
+    text8_dataset.L: 64
+    text8_dataset.max_train_windows: null
+    text8_dataset.max_eval_windows: null
+    transformer.d_model: 512
+    transformer.num_layers: 6
+    transformer.nhead: 8
+    transformer.d_latent: 512
+    eqm.time_conditioning: add
+    eqm.lambda_ce: 0.0
+    eqm.lambda_bigram: 0.0
+    eqm.lambda_trigram: 0.0
+    eqm.lambda_bigram_joint: 0.0
+    eqm.lambda_E_hinge: 1.0
+    eqm.margin_energy: 2.0
+    eqm.auditor_gamma: 1.0
+    eqm.gamma_power: 0.5
+    eqm.source_sigma: 0.1
+    eqm.context_features: product_concat
+    eqm.ctx_hidden: 768

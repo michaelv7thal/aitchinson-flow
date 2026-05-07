@@ -16,7 +16,9 @@ class TransformerBackbone(nn.Module):
 
     Input: CLR feature coordinates, linearly projected into d_model.
     Positional encoding: learned. Optional sinusoidal γ time-conditioning
-    when ``cfg.eqm.time_conditioning`` is "add" or "concat".
+    when ``cfg.eqm.time_conditioning`` is "add" or "concat". Optional
+    LM-hidden context conditioning when ``cfg.eqm.context_features`` is
+    "hidden_only" or "product_concat" (Phase F auditor).
 
     Note: uses the standard (non-flash) attention backend so that
     create_graph=True second-order autograd works through attention.
@@ -25,7 +27,29 @@ class TransformerBackbone(nn.Module):
     def __init__(self, cfg: Config) -> None:
         super().__init__()
         d = cfg.transformer.d_model
-        self.input_proj = nn.Linear(cfg.text8_dataset.K, d)
+        K = cfg.text8_dataset.K
+        self._d_model = d
+        self._K = K
+
+        self._ctx_mode = getattr(cfg.eqm, "context_features", "off")
+        if self._ctx_mode not in ("off", "hidden_only", "product_concat"):
+            raise ValueError(
+                f"unknown eqm.context_features={self._ctx_mode!r}; "
+                "expected 'off', 'hidden_only', or 'product_concat'"
+            )
+        ctx_hidden = int(getattr(cfg.eqm, "ctx_hidden", 768))
+        ctx_proj_dim = getattr(cfg.eqm, "ctx_proj_dim", None) or (d // 2)
+
+        if self._ctx_mode == "off":
+            self.input_proj = nn.Linear(K, d)
+            self.h_proj = None
+        elif self._ctx_mode == "hidden_only":
+            self.input_proj = nn.Linear(ctx_hidden, d)
+            self.h_proj = None
+        elif self._ctx_mode == "product_concat":
+            self.h_proj = nn.Linear(ctx_hidden, ctx_proj_dim)
+            self.input_proj = nn.Linear(K + ctx_proj_dim, d)
+
         self.pos_emb = nn.Embedding(cfg.text8_dataset.L, d)
 
         self._time_mode = getattr(cfg.eqm, "time_conditioning", "off")
@@ -57,9 +81,29 @@ class TransformerBackbone(nn.Module):
             enable_nested_tensor=False,
         )
 
-    def forward(self, x: torch.Tensor, gamma: torch.Tensor | None = None) -> torch.Tensor:
-        B, L, K = x.shape
-        h = self.input_proj(x)
+    def forward(
+        self,
+        x: torch.Tensor,
+        gamma: torch.Tensor | None = None,
+        h_ctx: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        B, L, _ = x.shape
+        if self._ctx_mode == "off":
+            h = self.input_proj(x)
+        elif self._ctx_mode == "hidden_only":
+            if h_ctx is None:
+                raise ValueError(
+                    "context_features='hidden_only' requires h_ctx; got None"
+                )
+            h = self.input_proj(h_ctx.to(dtype=x.dtype))
+        else:  # "product_concat"
+            if h_ctx is None:
+                raise ValueError(
+                    "context_features='product_concat' requires h_ctx; got None"
+                )
+            h_proj = self.h_proj(h_ctx.to(dtype=x.dtype))
+            h = self.input_proj(torch.cat([x, h_proj], dim=-1))
+
         pos = torch.arange(L, device=x.device)
         h = h + self.pos_emb(pos).unsqueeze(0)
 

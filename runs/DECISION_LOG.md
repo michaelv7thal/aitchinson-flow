@@ -11,7 +11,125 @@ cell. Format:
 - Next: <run-name of next experiment>
 ```
 
-## NEXT SESSION (2026-05-07 22:00 UTC — protocol session, F MVP done)
+## NEXT SESSION (2026-05-07 22:50 UTC — Phase H run, F3 fails)
+
+**Status:** Phases A → B → C → E → F (full sanity) → H complete.
+Termination criterion §10.1 met by **DFM** (KL_bi=0.148) and by **SE**
+(Seq AUROC=0.999). Phase F1 passes the formal AUROC floor with
+context but **the auditor's contribution beyond a linear probe on
+h_LLM is inside noise**, **per-token localisation is cascade-
+contaminated**, and **Phase H (auditor-driven generation) fails** at
+all three thresholds (NLL=8.89, F3 fails ≤7.0 floor). The writeup
+arc is now final: the auditor track is a *documented negative on the
+structural-advantage hypothesis*, with the strong positive findings
+being the **three triangulating continuous-on-simplex negatives**
+(W1, W4, B at KL_bi ≈ 1.4–1.6 vs DFM 0.148) and the cross-method
+per-position complementarity table.
+
+**Phase F sanity checks reveal that the trained auditor's contribution
+beyond zero-train baselines is small** and **per-token localisation is
+contaminated by AR cascade** (see 2026-05-07 22:32 UTC entry below).
+**Phase H confirms** the energy gradient is not a useful generative
+direction (NLL of audited samples = 8.89 vs 4.07 clean / 9.03 random
+— samples are word-salad with topic coherence inherited from the
+cached LM context, not from the auditor itself). See 2026-05-07
+22:50 UTC entry.
+
+The previous "F1 passes" framing (22:25 UTC) was technically correct
+but incomplete; the 22:32 sanity entry and 22:50 H entry override it.
+
+* **DFM** KL_bi=0.148 (≤ 0.50 target) — text8 generation parity.
+* **SE** Seq AUROC=0.999 (≥ 0.99 target) — zero-train OOD baseline.
+* **`aud_gpt2_ctx`** Seq AUROC=1.000 / Tok AUROC=0.994 (≥ 0.99/0.95
+  F1 floor) — **trained EqM auditor matches the prototype's
+  prototype-level numbers** and *beats* SE on token-level. The
+  symlink `runs/best_auditor.pt → aud_gpt2_ctx/epoch_final.pt`
+  marks the headline auditor.
+
+The writeup arc now has three positives (DFM at parity compute, SE
+saturates syntactic OOD, EqM-with-ctx auditor matches SE on
+WikiText-2) plus the three triangulating negatives (W1, W4, B
+continuous-on-simplex cluster) and the per-position complementarity
+table (Phase C). **Sanity-check caveats** that the writeup must carry:
+
+* The EqM-with-ctx Tok AUROC (0.99) **matches a vanilla linear
+  probe on h_LLM** (0.988) within noise. The trained auditor's
+  contribution over a simple discriminator on the same features is
+  **inside noise** for n=950 held-out positions.
+* The trained auditor's Tok AUROC at **un**corrupted positions is
+  0.967 (cascade contamination from AR LM hidden states), versus
+  0.66 for SE. **SE is the only metric that genuinely localises the
+  corrupted token**; EqM's per-token score reflects "any position
+  inside the corruption's cascade radius".
+* The logit-only auditor (no h_LLM) has Seq AUROC=0.942 — *below* the
+  zero-train top-K-entropy baseline of 0.971. Training EqM on simplex
+  shape didn't extract more sequence-level signal than the obvious
+  entropy statistic.
+
+The honest framing for the writeup: *the auditor matches strong
+zero-train baselines on detection; its unique value-add is the
+structural one (Phase H — generation under the auditor energy, which
+the GP prototype provably cannot perform)*. F1 numbers stand; their
+interpretation is "parity with strong baselines", not "dominance".
+
+**Files added in the F1-context follow-up:**
+
+* `src/aitchinson_flow/transformer_backbone.py` — `context_features`
+  modes wired into the input projection.
+* `src/aitchinson_flow/config.py` — `eqm.context_features`,
+  `ctx_hidden`, `ctx_proj_dim`.
+* `src/aitchinson_flow/models/eqm.py` — `h_ctx` threaded through
+  `forward`, `_eqm_loss`, `_auditor_hinge`, `_grad_norm_sq`.
+* `src/aitchinson_flow/data/wiki.py` — `WikiAuditorDataset` now
+  exposes hidden states by default.
+* `scripts/eval_auditor_wiki.py` — divergence-trace (Hutchinson)
+  variance metric, hidden-state passthrough.
+* `scripts/plot_phaseF.py` — single-cell figure with per-position
+  heatmaps + ROC + violin distributions.
+* `scripts/plot_phaseF_compare.py` — multi-cell Seq+Tok AUROC bar
+  chart and ROC overlay.
+* `scripts/plot_phaseC.py` — cross-method × corruption AUROC heatmap.
+* `scripts/plot_phaseB_E.py` — KL_bi bars + BPC overlay.
+* Three new sweep cells in `sweeps/phaseF_auditor_wiki.yaml`:
+  `aud_gpt2_ctx`, `aud_gpt2_logit_d512`, `aud_gpt2_ctx_d512`.
+* `runs/{aud_gpt2_ctx,aud_gpt2_logit_d512,aud_gpt2_ctx_d512}/` —
+  trained checkpoints, auditor_eval.json, auditor_eval.png.
+* `runs/phaseF_compare.png`, `runs/phaseC_summary.png`,
+  `runs/phaseB_E_summary.png` — top-level summary figures.
+* `runs/best_auditor.pt` — symlink to the F1-passing checkpoint.
+
+**Open questions for a follow-up session (in priority order):**
+
+1. **Phase J — DFM long run** (~3 hr). DFM at 5 ep × 50 k windows already
+   clears the protocol's KL_bi target by 3×. Scaling to 50 ep / 100 ep
+   on the same platform lets the writeup show "DFM scaling curve under
+   parity compute". With Phase B/F not producing a clear EqM-family
+   winner to scale, this is the main remaining numbers-improvement
+   lever.
+
+2. **Divergence-trace at lower γ** (~10 min eval-only). The current
+   variance-metric experiment at γ=1.0 returned AUROC ≈ 0.5 (the
+   field is ≈0 on the data manifold, so its local divergence is
+   noise-dominated). Re-evaluate at γ ∈ {0.3, 0.5, 0.7} where the
+   field is non-trivial; if any γ gives AUROC > 0.6, it's a useful
+   complementary signal.
+
+3. **TriviaQA closed-book confusor pairs (Phase G)** — only if the
+   writeup needs the semantic-corruption story too. ~5 hr (cache +
+   train + eval). With F1 only passing in the "parity with linear
+   probe" sense and F3 failing, G is unlikely to surface a unique-
+   value claim — but it's the one auditor angle still untested.
+
+**Dropped** (not worth GPU time):
+- **Phase H** — done; F3 fails (NLL=8.89 ≫ 7.0 fail floor).
+- **Phase D** loss ablations (W1/W4/B negatives already triangulate
+  the regime-level diagnosis).
+- **Phase I** SFM (3-day dev for a fourth continuous-on-simplex
+  baseline that won't beat DFM).
+
+---
+
+## NEXT SESSION (2026-05-07 22:00 UTC — superseded by 22:25 UTC above)
 
 **Status:** Phases A → B → C → E → F (MVP) complete. **Termination
 criterion §10.1 met** (DFM KL_bi=0.148 ≤ 0.50; SE Seq AUROC=0.999 ≥
@@ -884,3 +1002,400 @@ sampler-specific.
   C and E re-runs.
 - `runs/sweep_results.jsonl` — 2 new rows (lkflow + aud).
 - `runs/DECISION_LOG.md` — this session's entries appended.
+
+## [2026-05-07 22:25 UTC] Phase F context + scaling sweep — F1 target REACHED
+- Hypothesis (this session, follow-up): the 0.04 Seq-AUROC gap to SE in
+  the MVP (`aud_gpt2_logit`) is *not* an EqM-architecture limit but a
+  feature-richness limit. Two follow-ups in parallel:
+  (a) `context_features: product_concat` — concat the LM's last hidden
+  state to the top-K simplex before backbone (the cache already had
+  `clean_h`/`invalid_h` but the MVP ignored them).
+  (b) Backbone scaling — d_model 256→512, num_layers 4→6 (~5× params).
+- Code (this session): EqM `cfg.eqm.context_features ∈ {off,
+  hidden_only, product_concat}` + `ctx_hidden`/`ctx_proj_dim`;
+  `TransformerBackbone` builds a separate ``h_proj`` projection in
+  product_concat mode and concatenates ``[x, h_proj(h_LLM)]`` before
+  the input projection; `EqM.forward`/`_eqm_loss`/`_auditor_hinge`
+  thread `h_ctx` through. `WikiAuditorDataset` now exposes
+  `h_clean`/`h_invalid` by default (was opt-in). Plus a divergence-
+  trace (Hutchinson) variance metric in `eval_auditor_wiki.py` and a
+  4-cell comparison plot (`scripts/plot_phaseF_compare.py`).
+- Result (n=300 cached chunks; full set, not held-out — held-out 60
+  chunks is too small for a 0.99-AUROC eval to be stable):
+
+  | Cell | Seq AUC (best stat) | Tok AUC (U_pos) | Notes |
+  |---|---:|---:|---|
+  | aud_gpt2_logit         (d256/L4) | 0.965 | 0.962 | MVP — below F1 Seq target |
+  | **aud_gpt2_ctx**       (d256/L4) | **1.000** | **0.994** | **★ F1 PASSES** (Seq ≥0.99 AND Tok ≥0.95) |
+  | aud_gpt2_logit_d512    (d512/L6) | 0.971 | 0.968 | scaling alone: +0.005 Seq, +0.006 Tok |
+  | aud_gpt2_ctx_d512      (d512/L6) | 0.998 | 0.990 | scaling + ctx: slightly worse than d256+ctx |
+  | **Spilled Energy** (zero-train, baseline) | 0.999 | 0.967 | the bar |
+
+  All best-Seq-AUC numbers above use `E_seq_grad²` or `|E_seq_signed|`
+  (signed energy is sign-flipped after context — its raw AUC is
+  0.0003/0.0037 = perfect with the opposite sign convention). The
+  trained EqM auditor with context **beats SE on token-level** (0.994
+  vs 0.967) while *matching* it on sequence-level (1.000 vs 0.999).
+
+- Decision: **Phase F1 PASSES** at the protocol's strict thresholds
+  (Seq AUROC ≥0.99 AND Tok AUROC ≥0.95). Headline cell:
+  `aud_gpt2_ctx` (d_model=256, num_layers=4, product_concat context).
+  Backbone scaling alone gives a tiny improvement; the lever is
+  **context conditioning**. Scaling beyond d=256 plateaus or slightly
+  regresses (likely undertrained at d=512 with only 25 ep × 240 chunks).
+
+- Variance metric findings: divergence-trace via Hutchinson (8 probes,
+  γ=1.0) AUROC ≈ 0.5 across all four trained cells. **Conclusion: at
+  γ=auditor_gamma=1, divergence-trace doesn't separate clean from
+  invalid** — the trained field is approximately a constant (≈0)
+  near the data manifold, so its local divergence carries little
+  signal at γ=1. Future work: (a) evaluate divergence-trace at lower
+  γ (e.g. 0.3–0.7) where the field is non-trivial, (b) explicitly
+  add a divergence-uncertainty term to training, (c) try MC-dropout
+  variance (requires retrain with dropout >0). The protocol's
+  divergence-trace as variance surrogate is *not* useful at γ=1 in
+  this setup, but the proper-evaluation regime is unexplored.
+
+- Implication for the writeup: the auditor track now has its
+  headline result. **A trained EqM auditor with cached LM context
+  matches Spilled Energy at sequence-level AUROC=0.999 and BEATS it
+  at token-level AUROC=0.994 vs 0.967** — so the auditor's value-add
+  is concrete, on top of the structural advantage that the GP
+  prototype provably can't perform Phase H auditor-driven
+  generation. Both panels of the auditor narrative now stand on
+  positive numbers.
+
+- Plots:
+  - `runs/aud_gpt2_logit/auditor_eval.png` — MVP, per-position +
+    distributions + ROC.
+  - `runs/aud_gpt2_ctx/auditor_eval.png` — context, ROC at top-left.
+  - `runs/aud_gpt2_logit_d512/auditor_eval.png` — scaled logit-only.
+  - `runs/aud_gpt2_ctx_d512/auditor_eval.png` — scaled + context.
+  - `runs/phaseF_compare.png` — 4-cell bar+ROC comparison.
+  - `runs/phaseC_summary.png` — cross-method OOD heatmap + ROC overlay.
+  - `runs/phaseB_E_summary.png` — KL_bi bars + BPC overlay.
+- W&B: project=eqm-text8, group=sweep:phaseF_auditor_wiki,
+  runs=aud_gpt2_{ctx,logit_d512,ctx_d512}.
+
+## [2026-05-07 22:32 UTC] Phase F sanity checks — caveats on the F1 numbers
+- Hypothesis (this session, follow-up): the Seq=1.000 / Tok=0.994 numbers
+  for `aud_gpt2_ctx` are suspiciously high. Run four diagnostics: (1) is
+  the eval contaminated by training data? (2) do trivial zero-train
+  baselines achieve the same AUROC? (3) does the "Tok AUROC at corrupted
+  positions" claim of localisation hold up at *uncorrupted* positions?
+  (4) does AUROC survive a different corruption RNG seed?
+- Code: `scripts/phaseF_sanity.py` runs all four checks and writes
+  `runs/phaseF_sanity{,_logit}.{md,json}`.
+- Result for `aud_gpt2_ctx` (d=256/L=4, product_concat ctx):
+
+  | Sanity check | EqM | SE / trivial baseline |
+  |---|---:|---:|
+  | (1) train Seq AUROC                        | 0.9999 | 0.9995 |
+  | (1) **val Seq AUROC** (held-out 60 chunks) | **0.9958** | 0.9986 |
+  | (1) train Tok AUROC                        | 0.9945 | 0.9674 |
+  | (1) **val Tok AUROC** (held-out)           | **0.9903** | 0.9677 |
+  | (2) val: top-K **entropy** seq (zero-train)| —     | 0.9711 |
+  | (2) val: SE seq                            | —     | 0.9986 |
+  | (2) val: linear probe on h_LLM (Tok, test) | —     | **0.9882** |
+  | (3) val Tok AUROC at **un**corrupted positions | **0.9666** | 0.6562 |
+  | (4) val Seq AUROC, re-corrupted with seed=999_999 | 0.9994 | 1.0000 |
+  | (4) val Tok AUROC, re-corrupted with seed=999_999 | 0.9921 | 0.9638 |
+
+  And for `aud_gpt2_logit` (d=256/L=4, no context — for control):
+
+  | check | logit-only EqM | best trivial |
+  |---|---:|---:|
+  | val Seq AUROC (held-out) | 0.9417 | **0.9711** (top-K entropy) |
+  | val Tok AUROC (held-out) | 0.9481 | **0.9677** (SE) |
+  | val Tok AUROC at uncorrupted positions | 0.9229 | 0.6562 (SE) |
+
+- Decision (honest reading): **the AUROC numbers are real (held-out
+  values match training, robust to seed) but their interpretation is
+  more nuanced than the headline suggests:**
+
+  1. **No leakage / no overfitting / no seed memorisation.** Train-vs-val
+     gap is ≤0.005 AUROC and AUROC holds across a new corruption seed.
+     The model genuinely generalises.
+
+  2. **Trivial baselines are very strong.**
+     - Top-K *entropy* per sequence alone hits Seq AUROC=0.971 with **no
+       training at all** — within 0.025 of the trained logit-only auditor
+       (0.942) and within 0.025 of `aud_gpt2_ctx` (0.996).
+     - A *linear probe* on the LM's last-hidden-state hits **Tok AUROC =
+       0.988** on held-out — within 0.002 of the trained context auditor
+       (0.990). The auditor's incremental contribution over a vanilla
+       linear classifier on h_LLM is **inside the noise floor of n=950
+       test positions**.
+     - **Logit-only auditor is *worse than* the zero-train top-K entropy
+       baseline** (0.942 vs 0.971 Seq AUROC). Training EqM on simplex
+       shape *did not extract more signal* than the obvious entropy
+       statistic.
+
+  3. **Per-token localisation is contaminated by AR cascade.** The
+     uncorrupted-position Tok AUROC is **0.967 for `aud_gpt2_ctx`**
+     (vs 0.66 for SE). Because GPT-2 is autoregressive, the LM's
+     hidden state at position k is influenced by the corrupted token
+     at any earlier position. The trained auditor flags positions
+     in the cascade radius even when the token at that exact position
+     is unchanged. **The "Tok AUROC at corrupted positions" reading
+     overstates the auditor's localisation skill.** The honest
+     read is "the auditor flags any position whose context has been
+     disturbed", which is a different (and weaker) claim than
+     "localises the corrupted token".
+
+  4. **SE remains a strong, locality-clean baseline.** SE's
+     uncorrupted-position AUROC drops to 0.66 (mostly chance) — it
+     uses the *local* logits at each position, so its per-token signal
+     is genuinely localised. EqM `U_pos` does not have this property.
+
+- Implication for the writeup: the auditor track's headline number
+  (Seq 1.0 / Tok 0.994) **is real** as an aggregate detection metric on
+  this task, but the writeup should:
+  - Frame F1 as **"matches a strong h_LLM linear probe and matches SE
+    at sequence level"**, not "outperforms them by a wide margin".
+  - **Explicitly include the trivial-baseline row** (top-K entropy,
+    SE, linear-probe-on-h_LLM) in any AUROC table.
+  - **Drop the per-token localisation claim** unless we re-frame it as
+    "flags any position within the cascade radius of corruption". The
+    cleaner localisation story belongs to SE.
+  - Lean on the *structural* contribution (Phase H auditor-driven
+    generation) for the unique value-add. The discriminative numbers
+    show parity, not dominance.
+- Plot: `runs/phaseF_sanity.md` and `runs/phaseF_sanity_logit.md`
+  carry the full tables; raw numbers in `runs/phaseF_sanity{,_logit}.json`.
+- W&B: no new W&B runs (eval-only).
+
+## [2026-05-07 22:38 UTC] Phase F denoising test — does −∇E point toward clean?
+- Hypothesis: a trained linear probe on h_LLM gives a *scalar score* per
+  position; it has no notion of "which way to move x to make it more
+  clean-like". The EqM auditor, by virtue of being a velocity field,
+  *does* have a gradient direction. If the auditor learned a useful
+  energy landscape (and not just a discriminator dressed in flow-matching
+  clothes), running ``x ← x − η·∇E(x)`` from an invalid simplex point
+  should reduce the L2 distance to the corresponding *clean* simplex
+  point at corrupted positions.
+- Setup: 60 held-out chunks (val split), 30 gradient-descent steps, η=0.05,
+  γ=1, h_LLM held fixed at h_invalid (the LM is *not* re-evaluated each
+  step — that's the realistic OOD-correction setting).
+- Result on `aud_gpt2_ctx` (best auditor):
+
+  | region | d_before | d_after | Δ% mean | % positions where d↓ | argmax flips → clean |
+  |---|---:|---:|---:|---:|---:|
+  | corrupted (n=950)   | 22.86 | 22.34 | +0.5% | 62% | **0 / 950** |
+  | uncorrupted (n=2890)| 11.05 | 10.60 | wild* | 67% | 0 / 2890 |
+
+  Energy *does* drop monotonically (-70 → -80 over 30 steps); descent is
+  working as gradient descent. But the L2 distance to clean barely
+  moves — corrupted positions reduce distance by ~2% (mean across
+  positions; the per-position % is dominated by outliers near the data
+  manifold where small absolute changes are large %), and uncorrupted
+  positions reduce by a similar amount. **No argmax flips toward
+  clean** in 950 corrupted positions. The descent is mostly *uniform
+  smoothing*, not localised denoising.
+
+  Result on `aud_gpt2_logit` (logit-only): even less useful direction —
+  51.9% of corrupted positions decreased distance (chance ≈ 50%); 47%
+  of uncorrupted positions decreased; argmax flips: 0/950.
+
+- Decision: **the auditor learned a discriminator, not a useful
+  denoiser.** Its energy field has the shape "small at clean, large at
+  invalid" (which gives the AUROC numbers) but its gradient direction
+  is not aligned with the simplex direction toward clean tokens. The
+  EqM auditor's *structural advantage over a linear probe is not in
+  the energy gradient itself*.
+
+- Implication for the writeup: the F1 numbers are real (matched
+  prototype, robust to seed) but the *structural* claim must shift.
+  The auditor:
+  - **Matches** strong zero-train baselines on detection (parity).
+  - **Cannot be inverted** to recover clean tokens via gradient descent
+    (the energy gradient is not a useful denoising direction).
+  - **Cannot localise** corrupted tokens any better than indirectly
+    (cascade-contaminated uncorrupted-position AUROC ≈ 0.97 close to
+    its corrupted-position AUROC ≈ 0.99).
+  The honest writeup: a trained EqM auditor reaches the discrimination
+  ceiling at GPT-2 scale and matches well-known strong baselines. The
+  protocol's stated structural advantage (Phase H — auditor-driven
+  generation under the LM-vocab constraint) is **untested by this
+  result** and remains the primary unique-value-add candidate; the
+  denoising-by-gradient-descent angle is not the path.
+- W&B: no new W&B runs (eval-only).
+
+## [2026-05-07 22:50 UTC] Phase H — auditor-driven generation
+- Hypothesis (TRAINING_PROTOCOL.md §6 Phase H): the same EqM energy that
+  scores tokens drives Euler-γ sampling under the LM-vocab constraint.
+  The GP prototype provably cannot do this on text8 (BPC ≈ 7); EqM
+  should, since it is a flow-matching velocity field. Decision criteria:
+  F3 PASS if mean LM log-prob ≥ −5.5 (NLL ≤ 5.5); PARTIAL if NLL ∈ [5.5,
+  7.0]; FAIL if character-soup. Strong negative prior from the
+  2026-05-07 22:38 UTC denoising test (−∇E doesn't point toward clean),
+  but the protocol mandates running the test to settle the question.
+- Code: `scripts/generate_audited.py` runs **conditional generation** —
+  pick a held-out chunk's `h_LLM` and `clean_topk_idx` as fixed context,
+  initialise x ~ σ·N(0,I) in (L=64, K=64), run Euler-γ for nfe steps to
+  γ=1, take argmax slot per position, map back to vocab through the
+  chunk's top-K table, re-feed through GPT-2 to score LM NLL.
+  `scripts/plot_phaseH.py` renders the verdict figure.
+- Result on `aud_gpt2_ctx` (best F1 auditor; n=32 held-out chunks,
+  nfe=64, σ=0.1, raw-velocity Euler):
+
+  | Metric | Generated | Clean | Random-slot baseline |
+  |---|---:|---:|---:|
+  | mean per-token NLL under GPT-2 | **8.89** | 4.07 | 9.03 |
+  | log-prob/token | −8.89 | −4.07 | −9.03 |
+  | vocab match to actual clean token | 0.1% | 100% | 0.3% |
+  | vocab match to LM-top-1 in clean ctx | 1.7% | n/a | 1.7% |
+  | Hamming(sample, clean argmax slot) | 97.2% | 0% | ~98% |
+  | Hamming(sample₁, sample₂) — diversity | 98.1% | n/a | n/a |
+
+  Robustness across hyperparameters (σ, nfe):
+  - σ=0.1, nfe=64:  NLL=8.89 (default)
+  - σ=0.3, nfe=128: NLL=8.97
+  - σ=0.05, nfe=32: NLL=8.80
+  - use_grad=True (conservative gradient instead of raw v): NLL=8.89 (identical)
+
+  Logit-only auditor (no h_LLM context): NLL=8.21, hamming_self=63%.
+  Slightly better NLL but much less diverse (the field has no anchor
+  variation across samples without h_LLM).
+
+- Decision: **F3 FAILS at all three protocol thresholds.** Generated
+  NLL (8.89) is above the FAIL floor of 7.0; vocabulary recovery is
+  at chance (0.1% vs random 0.3%); samples are word-salad (real
+  English words, no grammar). The auditor's energy field cannot
+  drive coherent Euler-γ sampling.
+
+  Qualitative finding: **samples have *topic coherence* from the LM
+  context** (NHL/hockey vocabulary in NHL chunks: "Anaheim", "Tampa",
+  "Oilers", "Flyers", "Cup", "season"). But within the topic, the
+  argmax-slot selection from the trained simplex is essentially
+  uniform-random across the top-64 LM candidates per position. The
+  topic coherence comes from the cached `clean_topk_idx` decoding
+  table (which encodes "the LM's top 64 predictions in the clean
+  context"), **not from anything the auditor learned**.
+
+  Compare with the protocol's "F3 partial" criterion ("samples are
+  recognisable-but-broken English"): the decoded text is recognisable
+  word-by-word but **broken at every grammatical level above token
+  identity**. NLL of 8.89 sits closer to random-slot (9.03) than to
+  partial-pass (7.0), so the strict reading is FAIL.
+
+- Implication for the writeup (the *whole* auditor track now):
+  - **F1**: matches strong zero-train baselines on detection (parity).
+  - **F2 (TriviaQA)**: not run (deferred).
+  - **F3**: fails — the EqM auditor does not generate coherent text.
+  - **Cascade-localisation caveat**: per-token AUROC overstates
+    localisation skill because of AR cascade contamination.
+  - **Energy gradient ≠ denoising direction**: the structural
+    advantage over GP — useful gradient — does not materialise.
+
+  The honest framing: **the auditor track was a documented negative
+  on the structural-advantage hypothesis.** The trained EqM auditor
+  reaches discrimination parity at GPT-2 scale and confirms what SE
+  alone already does (sequence-level OOD is solved by zero-train
+  LM-NLL). The novel contributions of the protocol are now:
+  1. The three triangulating continuous-on-simplex negatives at
+     parity compute (W1, W4, B). [Strongest finding.]
+  2. The cross-method per-position complementarity table (Phase C).
+  3. The diagnostic clarity that *trained EqM auditors at GPT-2
+     scale do not exceed strong baselines on detection AND do not
+     produce coherent samples* — a clean negative for the
+     EqM-auditor-as-replacement-for-GP-prototype claim. Phase G
+     (TriviaQA semantic confusors) is the only auditor angle that
+     could still surface a unique-value claim, but its precondition
+     (F1 passing in a non-trivial sense) is now itself questionable.
+
+- Plot: `runs/phaseH_audited.png` shows NLL bars + sample text grid.
+- W&B: no new W&B runs (eval-only).
+
+## Phase H summary (this session)
+
+The auditor track is **fully tested** and lands as a *documented
+negative* on the structural-advantage axis:
+
+| Sub-test | Result | Verdict |
+|---|---|---|
+| F1 detection (Seq AUROC ≥ 0.99) | 0.999 with context | passes the floor |
+| F1 detection vs trivial baselines | within 0.002 of linear-probe-on-h_LLM | parity, not dominance |
+| F1 per-token localisation | uncorrupted-pos AUROC=0.97 ≈ corrupted-pos AUROC=0.99 | cascade-contaminated |
+| Energy gradient denoising | 0/950 argmax flips toward clean | **does not denoise** |
+| F3 generation (NLL ≤ 5.5) | NLL=8.89, no grammatical structure | **fails** |
+
+The protocol's deliverables (§11) are produced. The writeup arc is
+final and stands on the *negative* findings as much as the positives.
+
+## [2026-05-07 23:03 UTC] Phase F+ — UQ on h_LLM features (no EqM machinery)
+- Hypothesis (user follow-up): the trained EqM auditor matches a vanilla
+  linear probe on h_LLM within noise on detection (the 22:32 UTC sanity
+  finding); can we keep the simple linear discriminator and *add
+  uncertainty quantification* on top, getting both calibrated
+  probabilities and an explicit OOD signal — without EqM machinery?
+- Code: `scripts/phaseF_uq.py` builds five methods on raw GPT-2 h_LLM
+  features (per-position 768-dim) and reports Tok AUROC + ECE on the
+  same 60 held-out chunks as the EqM auditor:
+
+  | Method | Tok AUROC | UQ score AUROC | ECE | Notes |
+  |---|---:|---:|---:|---|
+  | Linear probe (closed-form ridge)         | 0.988 | n/a   | 0.342 | mean only |
+  | Mahalanobis distance (clean train μ, Σ)   | 0.334 | n/a   | n/a   | broken — train/val distribution shift |
+  | Bayesian LR (Laplace, σ²=1, prior std)   | 0.974 | 0.215 | **0.066** | simplest principled UQ — closed-form Hessian |
+  | Deep ensemble × 5 (bootstrap)            | 0.989 | 0.327 | 0.342 | std collapses to ~0 — bagging at this n is too tight |
+  | **SVGP** (RBF kernel, 64 inducing pts)   | 0.982 | **0.993** | **0.0001** | **best UQ + dramatically best calibration** |
+  | EqM ctx auditor (reference, Phase F)     | 0.990 | n/a   | n/a*  | trained discriminator |
+  | Spilled Energy (reference)               | 0.967 | n/a   | n/a   | zero-train |
+
+  *EqM auditor produces grad-norm² scores, not probabilities — no
+  natural ECE. Calibration of the trained auditor is **not part of the
+  protocol's setup**; this is an additional limitation.
+
+- Decision: **YES — a UQ-equipped linear classifier on h_LLM is a
+  drop-in replacement for the trained EqM auditor on detection.** The
+  SVGP variant gives (a) within-noise detection AUROC (0.982 vs 0.990
+  for EqM ctx); (b) **3400× better calibration** (ECE 0.0001 vs 0.34
+  for the linear probe); (c) a **separate UQ channel that achieves
+  AUROC 0.993** on the same task — *higher* than the predictive mean
+  itself. Bayesian LR with Laplace approximation gives the same
+  benefits at much lower implementation cost (~20 lines, no GP
+  framework needed): ECE 0.066 (5× better than linear probe), and a
+  usable variance signal (sign-flipped: lower std at OOD because
+  that's where the classifier was trained).
+
+  **The simpler thing wins.** The user's intuition is correct: keep
+  the simple linear discriminator on h_LLM, add a Bayesian/SVGP layer
+  on top for UQ. The EqM auditor's structural advantage doesn't add
+  value here because:
+  - The data manifold of "clean h_LLM at corrupted positions" vs
+    "invalid h_LLM at the same positions" is already linearly
+    separable at AUROC 0.99.
+  - The trained auditor doesn't denoise (Phase F denoising test).
+  - The trained auditor doesn't generate (Phase H, NLL=8.89).
+  - SVGP's RBF kernel naturally captures the missing piece —
+    *distance from training-data inducing points* — which the linear
+    probe can't represent and which gives the best UQ AUROC of any
+    method tested.
+
+  **Caveats reproducing across all methods:**
+  - Cascade contamination is *not* solved by switching to UQ. SVGP
+    mean and std both have AUROC ≈ 0.98 at *uncorrupted* positions
+    in invalid sequences — the cascade still bleeds in via h_LLM.
+    Per-token localisation needs a non-cascading feature like SE.
+  - Mahalanobis on clean training μ/Σ is broken (AUROC 0.33) because
+    the "clean training set" mixes corrupted-position h_clean with
+    uncorrupt-position h_clean, which have systematically different
+    distributions — train/val distribution shift dominates.
+
+- Implication for the writeup:
+  - Clear constructive proposal: **EqM auditor → linear probe + SVGP
+    on h_LLM**. Comparable detection, dramatically better calibration,
+    explicit UQ channel, no EqM machinery to maintain.
+  - The trained auditor's *only* surviving claim is the *structural*
+    one (Phase H), which fails. With UQ-equipped baselines also
+    matching detection, the protocol's positive auditor narrative
+    collapses entirely. The auditor track is now best framed as a
+    documented *negative on the structural-advantage hypothesis*.
+  - The protocol's Phase G (TriviaQA semantic confusors) might still
+    surface a unique-value claim, but the prior is now lower given
+    that the simpler UQ baseline reaches AUROC parity.
+
+- Plot: `runs/phaseF_uq.png` — Tok-AUROC bar comparison + ECE bar
+  chart. `runs/phaseF_uq.{md,json}` carry the full numbers.
+- W&B: no new W&B runs (eval-only).

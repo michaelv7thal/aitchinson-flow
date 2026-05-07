@@ -60,7 +60,7 @@ class WikiAuditorDataset(Dataset[dict[str, torch.Tensor]]):
         }
     """
 
-    def __init__(self, cache: dict[str, Any], *, with_hidden: bool = False) -> None:
+    def __init__(self, cache: dict[str, Any], *, with_hidden: bool = True) -> None:
         self.cache = cache
         self.with_hidden = with_hidden and "clean_h" in cache
         self.n = int(cache["clean_clr"].shape[0])

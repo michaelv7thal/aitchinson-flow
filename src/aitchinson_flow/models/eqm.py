@@ -57,18 +57,28 @@ class EquilibriumFlowMatching(nn.Module):
             self.bigram_head = None
 
     def forward(
-        self, x: torch.Tensor, gamma: torch.Tensor | None = None
+        self,
+        x: torch.Tensor,
+        gamma: torch.Tensor | None = None,
+        h_ctx: torch.Tensor | None = None,
     ) -> torch.Tensor:
-        return self.velocity_head(self.backbone(x, gamma))
+        return self.velocity_head(self.backbone(x, gamma, h_ctx))
 
     def training_step(self, batch: Any, step: int) -> LossDict:
         del step
-        out = self._eqm_loss(batch["x"], token_ids=batch.get("token_ids"))
+        h_clean = batch.get("h_clean")
+        h_invalid = batch.get("h_invalid")
+        out = self._eqm_loss(
+            batch["x"], token_ids=batch.get("token_ids"), h_ctx=h_clean
+        )
         if (
             getattr(self.cfg.eqm, "lambda_E_hinge", 0.0) > 0.0
             and "x_invalid" in batch
         ):
-            aux = self._auditor_hinge(batch["x"], batch["x_invalid"])
+            aux = self._auditor_hinge(
+                batch["x"], batch["x_invalid"],
+                h_clean=h_clean, h_invalid=h_invalid,
+            )
             out[TRAINING_LOSS_KEY] = out[TRAINING_LOSS_KEY] + (
                 self.cfg.eqm.lambda_E_hinge * aux["hinge_loss"]
             )
@@ -82,12 +92,19 @@ class EquilibriumFlowMatching(nn.Module):
         # Eval mirrors training_step structure but skips the FM regression's
         # second-order autograd path when no aux losses need it. We still
         # need autograd for grad-norm computation, so don't wrap in no_grad.
-        out = self._eqm_loss(batch["x"], token_ids=batch.get("token_ids"))
+        h_clean = batch.get("h_clean")
+        h_invalid = batch.get("h_invalid")
+        out = self._eqm_loss(
+            batch["x"], token_ids=batch.get("token_ids"), h_ctx=h_clean
+        )
         if (
             getattr(self.cfg.eqm, "lambda_E_hinge", 0.0) > 0.0
             and "x_invalid" in batch
         ):
-            aux = self._auditor_hinge(batch["x"], batch["x_invalid"])
+            aux = self._auditor_hinge(
+                batch["x"], batch["x_invalid"],
+                h_clean=h_clean, h_invalid=h_invalid,
+            )
             out["hinge_loss"] = aux["hinge_loss"].detach()
             out["E_grad_clean"] = aux["E_grad_clean"]
             out["E_grad_invalid"] = aux["E_grad_invalid"]
@@ -100,11 +117,16 @@ class EquilibriumFlowMatching(nn.Module):
 
     @torch.enable_grad()
     def _auditor_hinge(
-        self, x_clean: torch.Tensor, x_invalid: torch.Tensor
+        self,
+        x_clean: torch.Tensor,
+        x_invalid: torch.Tensor,
+        *,
+        h_clean: torch.Tensor | None = None,
+        h_invalid: torch.Tensor | None = None,
     ) -> LossDict:
         """Compute the binary-discriminator hinge loss on grad-norm².
 
-        Per-sequence grad-norm² is ``Σ_{l,k} (∇⟨x,f(x;γ_aud)⟩)²`` evaluated
+        Per-sequence grad-norm² is ``Σ_{l,k} (∇⟨x,f(x;γ_aud,h)⟩)²`` evaluated
         at ``γ = cfg.eqm.auditor_gamma`` (default 1.0, the data-manifold
         endpoint). The hinge biases the trained field so that this
         quantity is small on clean and at least ``margin²`` on invalid.
@@ -115,8 +137,12 @@ class EquilibriumFlowMatching(nn.Module):
         """
         s = self.cfg.eqm
         margin = float(s.margin_energy)
-        e_clean = self._grad_norm_sq(x_clean, gamma_value=s.auditor_gamma)
-        e_invalid = self._grad_norm_sq(x_invalid, gamma_value=s.auditor_gamma)
+        e_clean = self._grad_norm_sq(
+            x_clean, gamma_value=s.auditor_gamma, h_ctx=h_clean
+        )
+        e_invalid = self._grad_norm_sq(
+            x_invalid, gamma_value=s.auditor_gamma, h_ctx=h_invalid
+        )
         hinge_clean = e_clean.mean()
         hinge_invalid = torch.relu(margin * margin - e_invalid).mean()
         hinge_total = hinge_clean + hinge_invalid
@@ -127,9 +153,13 @@ class EquilibriumFlowMatching(nn.Module):
         }
 
     def _grad_norm_sq(
-        self, x: torch.Tensor, *, gamma_value: float
+        self,
+        x: torch.Tensor,
+        *,
+        gamma_value: float,
+        h_ctx: torch.Tensor | None = None,
     ) -> torch.Tensor:
-        """Per-sequence ``Σ_{l,k} (∇_x ⟨x, f(x;γ)⟩)²`` with create_graph=True
+        """Per-sequence ``Σ_{l,k} (∇_x ⟨x, f(x;γ,h)⟩)²`` with create_graph=True
         so the discriminator hinge can back-prop through the gradient.
 
         Returns (B,) tensor.
@@ -143,7 +173,7 @@ class EquilibriumFlowMatching(nn.Module):
             )
         else:
             gamma = None
-        v = self.forward(x_req, gamma)
+        v = self.forward(x_req, gamma, h_ctx)
         energy = (x_req * v).sum()
         grad = torch.autograd.grad(
             energy, x_req, create_graph=self.training, retain_graph=True
@@ -152,7 +182,11 @@ class EquilibriumFlowMatching(nn.Module):
 
     @torch.enable_grad()
     def _eqm_loss(
-        self, x1: torch.Tensor, *, token_ids: torch.Tensor | None = None
+        self,
+        x1: torch.Tensor,
+        *,
+        token_ids: torch.Tensor | None = None,
+        h_ctx: torch.Tensor | None = None,
     ) -> LossDict:
         B, L, D = x1.shape
         device, dt = x1.device, x1.dtype
@@ -171,16 +205,16 @@ class EquilibriumFlowMatching(nn.Module):
         # 3. Target gradient (data-to-noise direction).
         u_tgt = self._c_gamma(gamma) * (x0 - x1)
 
-        # 4. Forward pass — pass γ if backbone is time-conditioned. When the
-        # bigram joint head is active we run backbone+velocity_head
-        # separately so we can also feed the encoder hiddens into BigramHead
-        # in a single encoder pass.
+        # 4. Forward pass — pass γ if backbone is time-conditioned, and h_ctx
+        # if context-conditioned. When the bigram joint head is active we run
+        # backbone+velocity_head separately so we can also feed the encoder
+        # hiddens into BigramHead in a single encoder pass.
         if self.bigram_head is not None:
-            h_enc = self.backbone(x_gamma, gamma)  # (B, L, d_model)
+            h_enc = self.backbone(x_gamma, gamma, h_ctx)  # (B, L, d_model)
             v = self.velocity_head(h_enc)
         else:
             h_enc = None
-            v = self.forward(x_gamma, gamma)
+            v = self.forward(x_gamma, gamma, h_ctx)
 
         # 5. Conservative gradient via autograd of E(x) = ⟨x, f(x)⟩.
         energy = (x_gamma * v).sum()

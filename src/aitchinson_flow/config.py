@@ -173,6 +173,23 @@ class EqM:
     # clean inputs. Use γ=1.0 for time-conditioned auditors; for
     # untimed it's ignored (the backbone has no γ input).
     auditor_gamma: float = 1.0
+    # Context conditioning mode for the auditor backbone.
+    # "off"             — backbone sees only the K-dim simplex (default).
+    # "hidden_only"     — backbone sees only the LM's last-hidden state
+    #                     (the simplex is dropped). Auditor decides
+    #                     purely from the LM's representation.
+    # "product_concat"  — concat the K-dim simplex with a learned
+    #                     projection of the LM hidden state, then
+    #                     project to d_model. Both signals are visible.
+    # Activates when the batch carries ``h_clean`` / ``h_invalid``.
+    context_features: str = "off"
+    # LM hidden-state dim. GPT-2 small=768, GPT-2 medium=1024,
+    # Qwen2.5-1.5B=1536. Set to match the cache producer.
+    ctx_hidden: int = 768
+    # Width of the learned projection applied to ``h_LLM`` before it is
+    # concatenated to the simplex input in "product_concat" mode. None
+    # defaults to d_model // 2.
+    ctx_proj_dim: int | None = None
 
 
 @dataclass(frozen=True)

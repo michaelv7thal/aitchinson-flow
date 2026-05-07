@@ -46,8 +46,13 @@ from aitchinson_flow.models import build_model  # noqa: E402
 from scripts.eval_full import _config_from_payload  # noqa: E402
 
 
-def _grad_norm_per_pos(model, x: torch.Tensor, gamma_value: float) -> torch.Tensor:
-    """Return (B, L) per-position grad-norm of ⟨x, f(x; γ)⟩ at γ=gamma_value."""
+def _grad_norm_per_pos(
+    model,
+    x: torch.Tensor,
+    gamma_value: float,
+    h_ctx: torch.Tensor | None = None,
+) -> torch.Tensor:
+    """Return (B, L) per-position grad-norm of ⟨x, f(x; γ, h)⟩ at γ=gamma_value."""
     time_cond = getattr(model.cfg.eqm, "time_conditioning", "off")
     B = x.shape[0]
     x_req = x.detach().requires_grad_(True)
@@ -55,14 +60,19 @@ def _grad_norm_per_pos(model, x: torch.Tensor, gamma_value: float) -> torch.Tens
         gamma = torch.full((B,), float(gamma_value), device=x.device, dtype=x.dtype)
     else:
         gamma = None
-    v = model.forward(x_req, gamma)
+    v = model.forward(x_req, gamma, h_ctx)
     energy = (x_req * v).sum()
     grad = torch.autograd.grad(energy, x_req, create_graph=False)[0].detach()
     return grad.norm(dim=-1)  # (B, L)
 
 
-def _signed_energy(model, x: torch.Tensor, gamma_value: float) -> torch.Tensor:
-    """Return (B,) signed energy E(x) = Σ ⟨x, f(x; γ)⟩."""
+def _signed_energy(
+    model,
+    x: torch.Tensor,
+    gamma_value: float,
+    h_ctx: torch.Tensor | None = None,
+) -> torch.Tensor:
+    """Return (B,) signed energy E(x) = Σ ⟨x, f(x; γ, h)⟩."""
     with torch.no_grad():
         time_cond = getattr(model.cfg.eqm, "time_conditioning", "off")
         B = x.shape[0]
@@ -70,8 +80,46 @@ def _signed_energy(model, x: torch.Tensor, gamma_value: float) -> torch.Tensor:
             gamma = torch.full((B,), float(gamma_value), device=x.device, dtype=x.dtype)
         else:
             gamma = None
-        v = model.forward(x, gamma)
+        v = model.forward(x, gamma, h_ctx)
         return (x * v).sum(dim=(-1, -2))
+
+
+def _divergence_trace(
+    model,
+    x: torch.Tensor,
+    gamma_value: float,
+    h_ctx: torch.Tensor | None = None,
+    *,
+    n_probes: int = 16,
+) -> torch.Tensor:
+    """Hutchinson estimator of tr(∂v/∂x) at (γ, h).
+
+    For ξ ~ N(0, I), ``E[ξ^T (∂v/∂x) ξ] = tr(∂v/∂x)``. We average over
+    ``n_probes`` random ξ to reduce variance. Returns a (B,) tensor.
+
+    The divergence is the protocol's *variance surrogate* (TRAINING_PROTOCOL.md
+    §6 Phase C, "since EqM has no posterior variance like SVGP"): high
+    |div v| at OOD points means the field is *expanding* or *contracting*
+    locally, which is a different signal than grad-norm² (alignment of x
+    with f). Applies to any FM velocity (EqM/FMonCLR/LogitKLFlow), so it
+    becomes the variance leg of a cross-method comparison.
+    """
+    time_cond = getattr(model.cfg.eqm, "time_conditioning", "off")
+    B = x.shape[0]
+    if time_cond != "off":
+        gamma = torch.full((B,), float(gamma_value), device=x.device, dtype=x.dtype)
+    else:
+        gamma = None
+    div_acc = torch.zeros(B, device=x.device, dtype=x.dtype)
+    for _ in range(n_probes):
+        xi = torch.randn_like(x)
+        with torch.enable_grad():
+            x_req = x.detach().requires_grad_(True)
+            v = model.forward(x_req, gamma, h_ctx)
+            scalar = (v * xi).sum()
+            grad = torch.autograd.grad(scalar, x_req, create_graph=False)[0]
+        div_acc = div_acc + (grad * xi).sum(dim=(-1, -2)).detach()
+    return div_acc / n_probes
 
 
 def _roc_auc(neg: torch.Tensor, pos: torch.Tensor) -> float:
@@ -104,7 +152,9 @@ def evaluate_auditor(
     model.eval()
 
     cache = load_wiki_cache(cache_path)
-    ds = WikiAuditorDataset(cache)
+    ctx_mode = getattr(cfg.eqm, "context_features", "off")
+    needs_h = ctx_mode != "off"
+    ds = WikiAuditorDataset(cache, with_hidden=needs_h)
     n_total = len(ds)
     n = n_total if n_eval is None else min(n_eval, n_total)
 
@@ -116,6 +166,8 @@ def evaluate_auditor(
     grad_norm_invalid: list[torch.Tensor] = []
     signed_clean: list[torch.Tensor] = []
     signed_invalid: list[torch.Tensor] = []
+    div_clean: list[torch.Tensor] = []
+    div_invalid: list[torch.Tensor] = []
     SE_clean: list[torch.Tensor] = []
     SE_invalid: list[torch.Tensor] = []
     SE_pos_clean: list[torch.Tensor] = []
@@ -128,11 +180,18 @@ def evaluate_auditor(
         x_clean = torch.stack([it["x"] for it in items]).to(device)
         x_invalid = torch.stack([it["x_invalid"] for it in items]).to(device)
         mask = torch.stack([it["mask_corrupt"] for it in items])
+        if needs_h:
+            h_c = torch.stack([it["h_clean"] for it in items]).to(device)
+            h_i = torch.stack([it["h_invalid"] for it in items]).to(device)
+        else:
+            h_c = h_i = None
 
-        gn_c = _grad_norm_per_pos(model, x_clean, gamma).cpu()
-        gn_i = _grad_norm_per_pos(model, x_invalid, gamma).cpu()
-        sg_c = _signed_energy(model, x_clean, gamma).cpu()
-        sg_i = _signed_energy(model, x_invalid, gamma).cpu()
+        gn_c = _grad_norm_per_pos(model, x_clean, gamma, h_c).cpu()
+        gn_i = _grad_norm_per_pos(model, x_invalid, gamma, h_i).cpu()
+        sg_c = _signed_energy(model, x_clean, gamma, h_c).cpu()
+        sg_i = _signed_energy(model, x_invalid, gamma, h_i).cpu()
+        dv_c = _divergence_trace(model, x_clean, gamma, h_c, n_probes=8).cpu()
+        dv_i = _divergence_trace(model, x_invalid, gamma, h_i, n_probes=8).cpu()
 
         se_c = torch.stack([it["SE_pos_clean"] for it in items])
         se_i = torch.stack([it["SE_pos_invalid"] for it in items])
@@ -141,6 +200,8 @@ def evaluate_auditor(
         grad_norm_invalid.append(gn_i)
         signed_clean.append(sg_c)
         signed_invalid.append(sg_i)
+        div_clean.append(dv_c)
+        div_invalid.append(dv_i)
         SE_clean.append(se_c.sum(dim=-1))
         SE_invalid.append(se_i.sum(dim=-1))
         SE_pos_clean.append(se_c)
@@ -151,6 +212,8 @@ def evaluate_auditor(
     GN_invalid = torch.cat(grad_norm_invalid, dim=0)  # (n, L)
     SGN_clean = torch.cat(signed_clean, dim=0)  # (n,)
     SGN_invalid = torch.cat(signed_invalid, dim=0)  # (n,)
+    DV_clean = torch.cat(div_clean, dim=0)  # (n,)
+    DV_invalid = torch.cat(div_invalid, dim=0)  # (n,)
     SE_seq_clean = torch.cat(SE_clean, dim=0)  # (n,)
     SE_seq_invalid = torch.cat(SE_invalid, dim=0)  # (n,)
     SE_pos_clean_t = torch.cat(SE_pos_clean, dim=0)  # (n, L)
@@ -165,11 +228,17 @@ def evaluate_auditor(
     U_max_clean = GN_clean.max(dim=-1).values
     U_max_invalid = GN_invalid.max(dim=-1).values
 
+    # Divergence-trace as variance metric: |div v(x)|. Larger on OOD.
+    DivAbs_clean = DV_clean.abs()
+    DivAbs_invalid = DV_invalid.abs()
+
     seq_auc = {
         "E_seq_grad_sq": _roc_auc(E_seq_clean, E_seq_invalid),
         "E_seq_signed":  _roc_auc(SGN_clean, SGN_invalid),
         "U_pos_mean":    _roc_auc(U_mean_clean, U_mean_invalid),
         "U_pos_max":     _roc_auc(U_max_clean, U_max_invalid),
+        "Div_trace_abs": _roc_auc(DivAbs_clean, DivAbs_invalid),
+        "Div_trace_signed": _roc_auc(DV_clean, DV_invalid),
         "SE_seq":        _roc_auc(SE_seq_clean, SE_seq_invalid),
     }
 
@@ -210,6 +279,10 @@ def evaluate_auditor(
             "SE_seq_invalid": _agg(SE_seq_invalid),
             "Signed_clean":  _agg(SGN_clean),
             "Signed_invalid": _agg(SGN_invalid),
+            "DivTrace_clean":   _agg(DV_clean),
+            "DivTrace_invalid": _agg(DV_invalid),
+            "DivTraceAbs_clean":   _agg(DivAbs_clean),
+            "DivTraceAbs_invalid": _agg(DivAbs_invalid),
         },
     }
     return summary
