@@ -127,7 +127,9 @@ class EqM:
     sample_eta: float = 0.1  # step size η
     sample_mu: float = 0.9  # NAG look-ahead factor μ
     sample_g_min: float = 0.01  # gradient-norm stopping threshold
-    sample_max_steps: int = 200  # hard cap on iterations (no benefit beyond ~150 once clipped)
+    sample_max_steps: int = (
+        200  # hard cap on iterations (no benefit beyond ~150 once clipped)
+    )
     # Per-position L2 clip on ∇E during sampling. Kills the cold-start gradient
     # spike (||∇E||_pos ≈ 4.6 → 9.7 at step 1) that NAG amplifies into a basin
     # overshoot. None disables clipping. See SAMPLER_FINDINGS.md.
@@ -167,6 +169,23 @@ class DFMConfig:
 
 
 @dataclass
+class WandbConfig:
+    """Optional Weights & Biases logging. Off by default; enable with --wandb."""
+
+    enabled: bool = False
+    project: str = "eqm-text8"
+    entity: str | None = None
+    run_name: str | None = None  # auto-derived in main.py if None
+    group: str | None = None  # set by run_sweep.py to "sweep:<spec_stem>"
+    tags: tuple[str, ...] = ()
+    mode: str = "online"  # online | offline | disabled
+    log_artifacts: bool = True  # upload epoch_final.pt
+    log_samples: bool = True  # decoded text Table at each probe
+    sample_count: int = 8
+    step_log_every: int = 1  # throttle per-step wandb.log() calls
+
+
+@dataclass
 class Config:
     training: TrainingConfigs = field(default_factory=TrainingConfigs)
     text8_dataset: Text8DataConfig = field(default_factory=Text8DataConfig)
@@ -176,3 +195,4 @@ class Config:
     dfm: DFMConfig = field(default_factory=DFMConfig)
     loader_settings: LoaderSettings = field(default_factory=LoaderSettings)
     loss: LossConfig = field(default_factory=LossConfig)
+    wandb: WandbConfig = field(default_factory=WandbConfig)

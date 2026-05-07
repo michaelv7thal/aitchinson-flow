@@ -6,6 +6,7 @@ from .optim import build_optimizer, build_scheduler
 from .checkpoint import load_checkpoint, save_checkpoint
 from .loops import train_epoch, evaluate
 from .data_sources import build_training_datamodule
+from .wandb_logger import WandbLogger, build_wandb_logger
 from .runner import fit
 
 __all__ = [
@@ -22,5 +23,7 @@ __all__ = [
     "build_optimizer",
     "build_scheduler",
     "build_training_datamodule",
+    "WandbLogger",
+    "build_wandb_logger",
     "fit",
 ]

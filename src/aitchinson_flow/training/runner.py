@@ -16,9 +16,19 @@ from aitchinson_flow.training import (
     train_epoch,
     evaluate,
     save_checkpoint,
+    WandbLogger,
 )
 from aitchinson_flow.models import build_model, TRAINING_LOSS_KEY
 from aitchinson_flow.losses import anneal_alpha
+from aitchinson_flow.data.char_window_dataset import CHAR2ID
+
+# Same idiom as scripts/eval_full.py for ID→char decoding.
+_ALPHABET = "".join(sorted(CHAR2ID, key=CHAR2ID.__getitem__))
+
+
+def _decode_ids(ids2d: torch.Tensor, max_rows: int) -> list[str]:
+    rows = ids2d[:max_rows].cpu().long()
+    return ["".join(_ALPHABET[int(i)] for i in row) for row in rows]
 
 
 def _ngram_counts_flat(ids2d: torch.Tensor, K: int, n: int) -> torch.Tensor:
@@ -44,18 +54,19 @@ def _kl_smoothed(gen: torch.Tensor, ref: torch.Tensor) -> float:
 
 def _unigram_kl_probe(
     model: nn.Module, datamodule: DataModule, cfg: Config
-) -> dict[str, float]:
+) -> tuple[dict[str, float], torch.Tensor | None]:
     """Sample sequences and report unigram/bigram/trigram KL against the train corpus.
 
     Catches mode-collapse (unigram) and tracks per-position joint structure
-    (bigram, trigram). Returns nats. Capped at sample_eval_n sequences /
-    sample_eval_steps NAG steps to keep the probe cheap.
+    (bigram, trigram). Returns (metrics_dict_in_nats, sampled_ids_2d_or_None).
+    Capped at sample_eval_n sequences / sample_eval_steps NAG steps to keep
+    the probe cheap.
     """
     if not hasattr(datamodule, "splits"):
-        return {}
+        return {}, None
     sample = getattr(model, "sample", None)
     if sample is None:
-        return {}
+        return {}, None
     K = cfg.text8_dataset.K
     L = cfg.text8_dataset.L
     n = cfg.training.sample_eval_n
@@ -91,13 +102,14 @@ def _unigram_kl_probe(
     H_gen = float(-(p_gen * p_gen.log()).sum())
     H_ref = float(-(p_ref * p_ref.log()).sum())
 
-    return {
+    metrics = {
         "unigram_kl": _kl_smoothed(gen_uni, ref_uni),
         "bigram_kl": _kl_smoothed(gen_bi, ref_bi),
         "trigram_kl": _kl_smoothed(gen_tri, ref_tri),
         "H_gen": H_gen,
         "H_gt": H_ref,
     }
+    return metrics, ids2d
 
 
 def fit(
@@ -107,6 +119,7 @@ def fit(
     model: nn.Module | None = None,
     resume_from: str | Path | None = None,
     history_out: list[dict[str, float]] | None = None,
+    wandb_logger: WandbLogger | None = None,
 ) -> nn.Module:
 
     seed_all(cfg.training.seed)
@@ -144,9 +157,38 @@ def fit(
     )
     prev_train_loss: float | None = None
 
+    wb_enabled = wandb_logger is not None and wandb_logger.enabled
+    step_log_every = max(1, int(cfg.wandb.step_log_every))
+    log_samples = cfg.wandb.log_samples
+
+    # Mutable closure context — updated at the top of each epoch so the
+    # per-step callback can attach the *current* lr / alpha.
+    cb_ctx = {"lr": float("nan"), "alpha": float("nan")}
+
+    def _step_cb(step: int, m: dict[str, float]) -> None:
+        if not wb_enabled:
+            return
+        if step % step_log_every != 0:
+            return
+        payload = {f"train/{k}": float(v) for k, v in m.items()}
+        payload["train/lr"] = cb_ctx["lr"]
+        payload["train/alpha"] = cb_ctx["alpha"]
+        wandb_logger.log_step(step, payload)
+
+    exit_code = 0
     try:
         for epoch in epoch_pbar:
             current_alpha = anneal_alpha(model, cfg, epoch)
+
+            current_lr = (
+                float(optimizer.param_groups[0]["lr"])
+                if optimizer.param_groups
+                else float("nan")
+            )
+            cb_ctx["lr"] = current_lr
+            cb_ctx["alpha"] = (
+                float(current_alpha) if current_alpha is not None else float("nan")
+            )
 
             metrics, global_step = train_epoch(
                 model,
@@ -156,6 +198,7 @@ def fit(
                 epoch=epoch,
                 global_step=global_step,
                 grad_clip_norm=cfg.training.grad_clip_norm,
+                step_callback=_step_cb if wb_enabled else None,
             )
 
             epoch_entry: dict[str, float] = {k: float(v) for k, v in metrics.items()}
@@ -202,14 +245,21 @@ def fit(
                     epoch_entry[f"val_{k}"] = float(v)
 
             sev = cfg.training.sample_eval_every
+            probe_ids2d: torch.Tensor | None = None
             if sev is not None and sev > 0 and (epoch + 1) % sev == 0:
-                probe = _unigram_kl_probe(model, datamodule, cfg)
+                probe, probe_ids2d = _unigram_kl_probe(model, datamodule, cfg)
                 for k, v in probe.items():
                     epoch_entry[k] = v
                     postfix[k] = f"{v:.4f}"
 
             if history_out is not None:
                 history_out.append(epoch_entry)
+
+            if wb_enabled:
+                wandb_logger.log_epoch(epoch + 1, epoch_entry)
+                if log_samples and probe_ids2d is not None:
+                    decodes = _decode_ids(probe_ids2d, cfg.wandb.sample_count)
+                    wandb_logger.log_samples(epoch + 1, decodes)
 
             if postfix:
                 epoch_pbar.set_postfix(postfix, refresh=True)
@@ -229,16 +279,28 @@ def fit(
                     global_step=global_step,
                 )
 
-    except Exception as e:
-        raise e
+        final_path = ckpt_dir / "epoch_final.pt"
+        save_checkpoint(
+            final_path,
+            model=model,
+            cfg=cfg,
+            optimizer=None,  # final ckpt is for inference only — strip optimizer state
+            epoch=len(epoch_pbar),
+            global_step=global_step,
+        )
+        if wb_enabled and cfg.wandb.log_artifacts:
+            artifact_name = wandb_logger.run_name or cfg.training.model_name
+            wandb_logger.log_artifact(
+                final_path,
+                name=f"model_{artifact_name}",
+                type_="model",
+            )
 
-    save_checkpoint(
-        ckpt_dir / "epoch_final.pt",
-        model=model,
-        cfg=cfg,
-        optimizer=None,  # final ckpt is for inference only — strip optimizer state
-        epoch=len(epoch_pbar),
-        global_step=global_step,
-    )
+    except Exception:
+        exit_code = 1
+        raise
+    finally:
+        if wandb_logger is not None:
+            wandb_logger.finish(exit_code=exit_code)
 
     return model

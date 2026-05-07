@@ -42,7 +42,12 @@ import yaml  # noqa: E402
 
 import aitchinson_flow.models  # noqa: E402,F401 — populate registry
 from aitchinson_flow.config import Config  # noqa: E402
-from aitchinson_flow.training import build_training_datamodule, fit, seed_all  # noqa: E402
+from aitchinson_flow.training import (  # noqa: E402
+    build_training_datamodule,
+    build_wandb_logger,
+    fit,
+    seed_all,
+)
 
 from scripts.eval_full import evaluate_checkpoint  # noqa: E402
 
@@ -59,11 +64,17 @@ def _set_dotted(cfg: Config, key: str, value: Any) -> None:
     if not is_dataclass(obj):
         raise TypeError(f"override path '{key}' does not end at a dataclass field")
     if leaf not in {f.name for f in fields(obj)}:
-        raise KeyError(f"unknown override field '{key}' (no '{leaf}' in {type(obj).__name__})")
+        raise KeyError(
+            f"unknown override field '{key}' (no '{leaf}' in {type(obj).__name__})"
+        )
     new = replace(obj, **{leaf: value})
     # Walk back up replacing each parent so we don't mutate frozen instances.
     for parent, name in reversed(parent_chain):
-        new = replace(parent, **{name: new}) if is_dataclass(parent) and parent is not cfg else new
+        new = (
+            replace(parent, **{name: new})
+            if is_dataclass(parent) and parent is not cfg
+            else new
+        )
         if parent is cfg:
             setattr(cfg, name, new)
             return
@@ -87,7 +98,19 @@ def _build_cfg(overrides: dict[str, Any]) -> Config:
     return cfg
 
 
-def _run_one(name: str, overrides: dict[str, Any], runs_root: Path, *, eval_n: int, eval_steps: int, redo_eval: bool) -> dict[str, Any]:
+def _run_one(
+    name: str,
+    overrides: dict[str, Any],
+    runs_root: Path,
+    *,
+    eval_n: int,
+    eval_steps: int,
+    redo_eval: bool,
+    wandb_enabled: bool = False,
+    wandb_project: str | None = None,
+    wandb_entity: str | None = None,
+    wandb_group: str | None = None,
+) -> dict[str, Any]:
     run_dir = runs_root / name
     eval_path = run_dir / "eval.json"
     if eval_path.exists() and not redo_eval:
@@ -101,6 +124,19 @@ def _run_one(name: str, overrides: dict[str, Any], runs_root: Path, *, eval_n: i
     # Disable per-epoch checkpointing — only keep epoch_final.pt.
     cfg.training = replace(cfg.training, checkpoint_every=10**9)
 
+    if wandb_enabled:
+        wandb_overrides: dict[str, Any] = {
+            "enabled": True,
+            "run_name": name,
+            "group": wandb_group,
+            "tags": tuple(t for t in ("sweep", wandb_group) if t),
+        }
+        if wandb_project is not None:
+            wandb_overrides["project"] = wandb_project
+        if wandb_entity is not None:
+            wandb_overrides["entity"] = wandb_entity
+        cfg.wandb = replace(cfg.wandb, **wandb_overrides)
+
     (run_dir / "config.json").write_text(json.dumps(_config_to_dict(cfg), indent=2))
 
     print(f"[run] {name}: {overrides}")
@@ -110,8 +146,11 @@ def _run_one(name: str, overrides: dict[str, Any], runs_root: Path, *, eval_n: i
     final_ckpt = run_dir / "epoch_final.pt"
     if not final_ckpt.exists():
         history: list[dict[str, float]] = []
-        fit(cfg=cfg, datamodule=dm, history_out=history)
-        (run_dir / "history.jsonl").write_text("\n".join(json.dumps(h) for h in history))
+        wandb_logger = build_wandb_logger(cfg, run_dir=run_dir)
+        fit(cfg=cfg, datamodule=dm, history_out=history, wandb_logger=wandb_logger)
+        (run_dir / "history.jsonl").write_text(
+            "\n".join(json.dumps(h) for h in history)
+        )
     else:
         print(f"  reusing existing {final_ckpt}")
 
@@ -138,12 +177,23 @@ def _run_one(name: str, overrides: dict[str, Any], runs_root: Path, *, eval_n: i
 
 def main(argv: list[str] | None = None) -> None:
     p = argparse.ArgumentParser()
-    p.add_argument("--sweep", required=True, help="YAML or JSON list of {name, overrides}")
+    p.add_argument(
+        "--sweep", required=True, help="YAML or JSON list of {name, overrides}"
+    )
     p.add_argument("--only", default=None, help="comma-separated subset of run names")
     p.add_argument("--runs-root", default="runs")
     p.add_argument("--n", type=int, default=256, dest="eval_n")
     p.add_argument("--steps", type=int, default=200, dest="eval_steps")
-    p.add_argument("--redo-eval", action="store_true", help="rerun eval.json even if it exists")
+    p.add_argument(
+        "--redo-eval", action="store_true", help="rerun eval.json even if it exists"
+    )
+    p.add_argument(
+        "--wandb",
+        action="store_true",
+        help="enable W&B logging (one run per sweep entry)",
+    )
+    p.add_argument("--wandb-project", type=str, default=None)
+    p.add_argument("--wandb-entity", type=str, default=None)
     args = p.parse_args(argv)
 
     text = Path(args.sweep).read_text()
@@ -154,6 +204,8 @@ def main(argv: list[str] | None = None) -> None:
     only = set(args.only.split(",")) if args.only else None
     runs_root = Path(args.runs_root)
     runs_root.mkdir(parents=True, exist_ok=True)
+
+    wandb_group = f"sweep:{Path(args.sweep).stem}" if args.wandb else None
 
     for entry in spec:
         name = entry["name"]
@@ -168,6 +220,10 @@ def main(argv: list[str] | None = None) -> None:
                 eval_n=args.eval_n,
                 eval_steps=args.eval_steps,
                 redo_eval=args.redo_eval,
+                wandb_enabled=args.wandb,
+                wandb_project=args.wandb_project,
+                wandb_entity=args.wandb_entity,
+                wandb_group=wandb_group,
             )
         except Exception as e:
             err_path = runs_root / name / "error.txt"

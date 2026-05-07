@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from dataclasses import replace
+from datetime import datetime
 from pathlib import Path
 
 
@@ -28,6 +30,7 @@ from aitchinson_flow.training import (
     seed_all,
     fit,
     evaluate,
+    build_wandb_logger,
 )
 
 
@@ -36,6 +39,19 @@ def _build_argparser() -> argparse.ArgumentParser:
     p.add_argument("--out-dir", type=str, default="checkpoints")
     p.add_argument("--epochs", type=int, default=None)
     p.add_argument("--lr", type=float, default=None)
+    p.add_argument(
+        "--wandb",
+        action="store_true",
+        help="enable W&B logging (also enabled if WANDB_PROJECT env is set)",
+    )
+    p.add_argument("--wandb-project", type=str, default=None)
+    p.add_argument("--wandb-name", type=str, default=None)
+    p.add_argument(
+        "--wandb-tags",
+        type=str,
+        default=None,
+        help="comma-separated tags",
+    )
     return p
 
 
@@ -50,11 +66,29 @@ def main(argv: list[str] | None = None):
         overrides["lr"] = args.lr
     cfg.training = replace(cfg.training, **overrides)
 
+    wandb_enabled = args.wandb or bool(os.environ.get("WANDB_PROJECT"))
+    if wandb_enabled:
+        run_name = (
+            args.wandb_name
+            or os.environ.get("WANDB_NAME")
+            or f"{cfg.training.model_name}_{datetime.now():%Y%m%d-%H%M%S}"
+        )
+        tags = (
+            tuple(t.strip() for t in args.wandb_tags.split(",") if t.strip())
+            if args.wandb_tags
+            else ()
+        )
+        wandb_overrides = {"enabled": True, "run_name": run_name, "tags": tags}
+        if args.wandb_project is not None:
+            wandb_overrides["project"] = args.wandb_project
+        cfg.wandb = replace(cfg.wandb, **wandb_overrides)
+
     Path(cfg.training.checkpoint_dir).mkdir(parents=True, exist_ok=True)
     seed_all(cfg.training.seed)
 
     datamodule, _ = build_training_datamodule(cfg)
-    model = fit(cfg=cfg, datamodule=datamodule)
+    wandb_logger = build_wandb_logger(cfg, run_dir=Path(cfg.training.checkpoint_dir))
+    model = fit(cfg=cfg, datamodule=datamodule, wandb_logger=wandb_logger)
 
     val_loader = datamodule.val_dataloader()
     if val_loader is not None:
