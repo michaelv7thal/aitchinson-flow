@@ -1,0 +1,9 @@
+2026-05-07 23:59 UTC started
+[cache] lm=gpt2, max_n=10000, L=256, include_knowledge=False
+[cache] loading HaluEval-QA …
+  rows: 10000
+  sample question: "Which magazine was started first Arthur's Magazine or First for Women?"
+  sample right:    "Arthur's Magazine"
+  sample halluc:   'First for Women was started first.'
+[cache] loading gpt2 …
+Loading weights:   0%|          | 0/148 [00:00<?, ?it/s]Loading weights: 100%|██████████| 148/148 [00:00<00:00, 4042.78it/s]
