@@ -1,0 +1,22 @@
+{
+  "t_start": 0.5,
+  "n_steps": 25,
+  "M": 4,
+  "n_batches": 8,
+  "batch_size": 64,
+  "n_total": 32768,
+  "n_errors": 8833,
+  "auroc": {
+    "U_spread (raw \u2014 should be < 0.5)": 0.5003252729056399,
+    "-U_spread  (flipped: low spread = uncertain)": 0.49967455208548966,
+    "U_traj": 0.6715848857704095,
+    "L_excess": 0.5156660301940912,
+    "U_ensemble": 0.728178715085346
+  },
+  "signal_means": {
+    "U_spread": 7.8588714599609375,
+    "U_traj": 0.05609067529439926,
+    "L_excess": 0.004365239758044481,
+    "U_ensemble": 6.32804012298584
+  }
+}

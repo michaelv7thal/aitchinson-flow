@@ -1,0 +1,54 @@
+# Phase 14 — Hilbert-loss FM regression for EqM at the data_50k_ep5 platform.
+#
+# Hypothesis (user-driven): MSE on CLR features is geometrically wrong for
+# the simplex. CLR coordinates blow up near corners (where data lives), so
+# MSE optimises predominantly to match the *mode coordinate* per position
+# and underweights the K−1 directions that carry joint structure between
+# adjacent positions. Switching to the Nielsen-soft Hilbert metric (a
+# scale-invariant variation seminorm on log-ratio differences) makes all
+# coordinates contribute symmetrically and is the natural geometry for
+# probability-cone contraction (Birkhoff).
+#
+# Two cells, parity compute, only `loss.mode` differs between them:
+#   • mse control       — reproduces the previous-session 1.38 KL_bi number
+#                         (no checkpoint persisted locally; need to retrain)
+#   • hilbert_soft test — the experiment.
+#
+# Decision criteria:
+#   STRONG POSITIVE: hilbert_soft KL_bi ≤ 0.50 (clears DFM target).
+#   POSITIVE:        hilbert_soft KL_bi ≤ 0.97 (≥ 30 % drop vs MSE control).
+#   PARTIAL:         KL_bi ∈ (0.97, 1.30) (modest but defensible).
+#   NEGATIVE:        KL_bi ≥ 1.30 (no signal beyond noise).
+
+- name: eqm_data50k_ep5_mse_v3
+  overrides:
+    training.model_name: EqM
+    training.epochs: 5
+    text8_dataset.max_train_windows: 50000
+    loss.mode: mse
+    # gamma_power=1.0 → uniform γ on [0,1]. The default 0.5 concentrates γ
+    # near 1 where the FM target c(γ)·(x0-x1) ≈ 0 (linear-decay c(1)=0),
+    # so most training samples have trivially-small targets and the loss
+    # collapses within tens of steps without learning the signal regime.
+    eqm.gamma_power: 1.0
+
+- name: eqm_data50k_ep5_hilbert_soft
+  overrides:
+    training.model_name: EqM
+    training.epochs: 5
+    text8_dataset.max_train_windows: 50000
+    loss.mode: hilbert_soft
+    # α=1.0 chosen via 1-ep × 1k-window probe over α ∈ {0.5, 1, 2, 5}.
+    # The α-independent CE proxy gave 0.0019 / 0.0021 / 0.0029 / 0.0047 —
+    # α=5 (the previous default) is 2.5× worse on per-position learning.
+    # α=1.0 sits clearly in the Hilbert regime (LSE max-term dominates by
+    # ~60×) without collapsing toward α-scaled MSE.
+    loss.hilbert_alpha: 1.0
+    loss.hilbert_alpha_start: 1.0
+    # gamma_power=1.0 — see MSE cell comment.
+    eqm.gamma_power: 1.0
+    # B=32 to leave room for the MSE control cell running in parallel on
+    # the same 8 GB Blackwell. Adam is robust to batch-size in this range
+    # at 5 epochs; document the deviation in the DECISION_LOG entry.
+    # loader_settings is the field the DataLoader actually reads.
+    loader_settings.batch_size: 32

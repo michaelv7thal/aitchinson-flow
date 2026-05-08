@@ -67,19 +67,30 @@ def _tokenize_pair(
 def _lm_forward_batch(
     model, ids: torch.Tensor, attn: torch.Tensor, *, batch_size: int
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    """Run the LM in batches; return (logits, last-hidden) on CPU."""
+    """Run the LM in batches; return (SE_pos, last-hidden) on CPU.
+
+    Computes Spilled Energy (per-position NLL of the actually-placed token
+    under the LM) inside the batch loop and discards the full ``(B, L, V)``
+    logits before the next iteration. Otherwise the accumulator would hold
+    ``2n × L × V`` float32 entries — at ``n=10000, L=160, V=50257`` that's
+    ~640 GB, which OOM-killed earlier runs (exit 137 in
+    ``runs/phaseK_cache.log`` lineage).
+    """
     device = next(model.parameters()).device
     n = ids.shape[0]
-    out_logits: list[torch.Tensor] = []
+    out_se: list[torch.Tensor] = []
     out_hidden: list[torch.Tensor] = []
     for s in range(0, n, batch_size):
         e = min(s + batch_size, n)
         ids_b = ids[s:e].to(device)
         attn_b = attn[s:e].to(device)
         out = model(ids_b, attention_mask=attn_b, output_hidden_states=True)
-        out_logits.append(out.logits.cpu().float())
+        # Per-batch SE so we never aggregate (B, L, V) on the CPU.
+        se_b = _spilled_energy_per_pos(out.logits, ids_b)  # (B, L)
+        out_se.append(se_b.cpu().float())
         out_hidden.append(out.hidden_states[-1].cpu().float())
-    return torch.cat(out_logits, dim=0), torch.cat(out_hidden, dim=0)
+        del out  # release GPU memory before next batch
+    return torch.cat(out_se, dim=0), torch.cat(out_hidden, dim=0)
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -158,13 +169,11 @@ def main(argv: list[str] | None = None) -> None:
     print(f"  answer-span tokens (mean per row): {answer_mask.float().sum(dim=-1).mean().item():.1f}")
 
     print(f"[cache] LM forward on {full_ids.shape[0]} sequences …")
-    logits, hidden_states = _lm_forward_batch(
+    SE_pos, hidden_states = _lm_forward_batch(
         model, full_ids, attn_mask, batch_size=args.lm_batch_size
     )
-    print(f"  logits: {tuple(logits.shape)}  hidden_states: {tuple(hidden_states.shape)}")
+    print(f"  SE_pos: {tuple(SE_pos.shape)}  hidden_states: {tuple(hidden_states.shape)}")
 
-    print("[cache] computing AR-shifted Spilled Energy …")
-    SE_pos = _spilled_energy_per_pos(logits, full_ids)  # (2n, L)
     # Zero out SE at pad positions (no signal there).
     SE_pos = SE_pos * attn_mask.float()
 

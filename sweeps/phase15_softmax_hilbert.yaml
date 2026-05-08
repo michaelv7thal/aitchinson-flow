@@ -1,0 +1,35 @@
+# Phase 15 — softmax-then-Hilbert FM regression for EqM at the
+# data_50k_ep5 platform. User-driven extension of Phase 14: forces
+# pred and target onto the K-simplex via softmax before computing the
+# Nielsen soft-Hilbert distance.
+#
+# Mathematical note: log-softmax preserves the variation seminorm
+# (additive constants cancel), so log_softmax+Hilbert ≡ raw Hilbert.
+# But *raw* softmax (probability vectors in [0,1]) gives a literally
+# bounded geometry.
+#
+# First attempt with α=200 + lr=1.5e-3 collapsed to a single global
+# mode (epoch-1 H_gen=0.0; the entire output was one repeated
+# character). Diagnosed as: aggressive lr + sharp α together caused
+# the model to lock in the trivial "always predict the most-probable
+# token's coordinate" solution before joint structure could form.
+#
+# First retry tried α=1 + default lr — flow_loss saturated at 0 from
+# batch 14 because at small α the soft-Hilbert reduces to α·var(diff)
+# (Taylor) which is below Adam's effective noise floor.
+#
+# Third attempt: α=50 (gradient flows through 5-10 coords per position
+# per CPU probe data, well above noise floor) with default lr=3e-4.
+# Middle-ground between the collapse (α=200, lr=1.5e-3) and no-signal
+# (α=1) extremes.
+
+- name: eqm_data50k_ep5_hilbert_softmax
+  overrides:
+    training.model_name: EqM
+    training.epochs: 5
+    text8_dataset.max_train_windows: 50000
+    loss.mode: hilbert_soft_softmax
+    loss.hilbert_alpha: 50.0
+    loss.hilbert_alpha_start: 50.0
+    eqm.gamma_power: 1.0       # uniform γ — see Phase 14 YAML
+    loader_settings.batch_size: 32  # parity with hilbert_soft cell

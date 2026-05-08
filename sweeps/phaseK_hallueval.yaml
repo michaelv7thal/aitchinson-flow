@@ -1,0 +1,40 @@
+# Phase K — UQ on HaluEval-QA. The cache is built once via
+# scripts/cache_hallueval.py; the cells below differ only in the
+# pooling method used by scripts/eval_uq.py. The UQ training itself is
+# CPU-light closed-form math (linear / Mahalanobis / BLR-Laplace /
+# ensemble) plus one short SVGP optimisation, so cells are cheap.
+#
+# These cells are *eval-only*: training.epochs=0 disables the standard
+# fit() loop. The sweep runner still creates run_dir/{config.json,
+# eval.json, history.jsonl}; the actual UQ JSON lives at
+# runs/<name>/uq_eval.json (written by scripts/eval_uq.py invoked
+# manually — see the protocol §5 Phase K "Run pattern").
+#
+# Decision criteria (Protocol v2 §5 Phase K):
+#   PASS    = SVGP per-question AUROC ≥ 0.85 AND ECE ≤ 0.10
+#   PARTIAL = AUROC ∈ [0.65, 0.85] OR ECE > 0.10
+#   FAIL    = AUROC < 0.65
+
+- name: hal_gpt2_qa_meanpool
+  overrides:
+    auditor.enabled: true
+    auditor.cache_path: data/hallueval_cache_gpt2.pt
+    auditor.batch_size: 16
+    training.model_name: EqM
+    training.epochs: 0
+    text8_dataset.K: 0
+    text8_dataset.L: 0
+
+- name: hal_gpt2_qa_lasttoken
+  overrides:
+    auditor.enabled: true
+    auditor.cache_path: data/hallueval_cache_gpt2.pt
+    auditor.batch_size: 16
+    training.model_name: EqM
+    training.epochs: 0
+    text8_dataset.K: 0
+    text8_dataset.L: 0
+# Note: pooling is selected at eval time via `scripts/eval_uq.py --pool {meanpool,lasttoken,maxpool}`.
+# `auditor.pool` is not a Config field (Config.AuditorConfig has only
+# enabled/cache_path/batch_size/train_frac); the cell name is the
+# convention to remember which pool to pass.

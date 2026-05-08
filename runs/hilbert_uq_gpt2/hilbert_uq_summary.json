@@ -1,0 +1,78 @@
+{
+  "config": {
+    "base": "data/hallueval_cache_gpt2.pt",
+    "topk": "data/hallueval_topk_gpt2.pt",
+    "out": "runs/hilbert_uq_gpt2/",
+    "max_pairs": 2000,
+    "val_frac": 0.2,
+    "n_steps": 5000,
+    "batch_size": 256,
+    "lr": 0.0003,
+    "K_topk": 32,
+    "n_traj_steps": 25,
+    "ensemble_M": 4,
+    "seed": 0
+  },
+  "n_train_tokens": 3628,
+  "n_val_tokens": 6390,
+  "n_val_rows": 800,
+  "token_auroc": {
+    "paper \u0394E (E^\u2113 \u2212 E^m)": {
+      "raw": 0.4755562634583068,
+      "best": 0.5244437365416932,
+      "direction": "\u2192clean"
+    },
+    "U_spread (Hilbert FM)": {
+      "raw": 0.5905899756738873,
+      "best": 0.5905899756738873,
+      "direction": "\u2192halluc"
+    },
+    "U_traj   (Hilbert FM)": {
+      "raw": 0.5603328853181675,
+      "best": 0.5603328853181675,
+      "direction": "\u2192halluc"
+    },
+    "L_excess (Hilbert FM)": {
+      "raw": 0.45691873999304966,
+      "best": 0.5430812600069503,
+      "direction": "\u2192clean"
+    },
+    "U_ensemble (Hilbert FM)": {
+      "raw": 0.5510088672092569,
+      "best": 0.5510088672092569,
+      "direction": "\u2192halluc"
+    }
+  },
+  "row_auroc": {
+    "paper \u0394E (E^\u2113 \u2212 E^m)": {
+      "raw": 0.28875625,
+      "best": 0.71124375,
+      "direction": "\u2192clean"
+    },
+    "U_spread (Hilbert FM)": {
+      "raw": 0.494875,
+      "best": 0.505125,
+      "direction": "\u2192clean"
+    },
+    "U_traj   (Hilbert FM)": {
+      "raw": 0.4960125,
+      "best": 0.5039875,
+      "direction": "\u2192clean"
+    },
+    "L_excess (Hilbert FM)": {
+      "raw": 0.48250625,
+      "best": 0.51749375,
+      "direction": "\u2192clean"
+    },
+    "U_ensemble (Hilbert FM)": {
+      "raw": 0.46115,
+      "best": 0.53885,
+      "direction": "\u2192clean"
+    },
+    "\u0394E + spread + traj (z-sum)": {
+      "raw": 0.50720625,
+      "best": 0.50720625,
+      "direction": "\u2192halluc"
+    }
+  }
+}

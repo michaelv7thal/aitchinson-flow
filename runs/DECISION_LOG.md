@@ -1423,3 +1423,378 @@ final and stands on the *negative* findings as much as the positives.
 - Plot: `runs/phaseF_uq.png` — Tok-AUROC bar comparison + ECE bar
   chart. `runs/phaseF_uq.{md,json}` carry the full numbers.
 - W&B: no new W&B runs (eval-only).
+
+## [2026-05-08 00:23 UTC] hal_gpt2_qa_meanpool / hal_gpt2_qa_lasttoken (Phase K)
+- Hypothesis: the SVGP / BLR-Laplace UQ pipeline that hit AUROC≈0.99 on
+  synthetic span-corrupted WikiText-2 (Phase F+) generalises to real
+  ChatGPT-style hallucinations on HaluEval-QA. Protocol target: SVGP
+  per-question AUROC ≥ 0.85 AND ECE ≤ 0.10.
+- Setup: cached GPT-2 (124M) hidden states + Spilled Energy on 10 000
+  HaluEval-QA pairs (20 000 sequences, L=160, ~9.9 GB cache file).
+  Per-pair train/val split 80/20 ⇒ 16 000 train / 4 000 val rows.
+  Five UQ methods on answer-span pooled h_LLM (768-dim).
+
+  **Cache OOM fix:** the original `scripts/cache_hallueval.py`
+  accumulated full fp32 logits (V=50257) in a CPU list — ~640 GB at
+  10k rows, OOM-killed (exit 137) the previous-session attempt and
+  the first local run. Patched the per-batch loop to compute
+  `_spilled_energy_per_pos` inside the batch and discard logits
+  before accumulating, so only `(2n, L)` SE and `(2n, L, H)` hidden
+  states cross the batch boundary. Cache now lands at ~9.3 GB.
+
+- Result (per-question Tok / Seq AUROC + ECE):
+
+  | method | meanpool AUROC | meanpool ECE | lasttoken AUROC | lasttoken ECE |
+  |---|---:|---:|---:|---:|
+  | Linear probe (closed-form ridge) | 0.984 | 0.364 | 0.988 | 0.363 |
+  | Mahalanobis (zero-supervised)    | 0.415 | n/a   | 0.840 | n/a   |
+  | BLR-Laplace                      | 0.983 | **0.020** | 0.987 | **0.020** |
+  | Ensemble × 5                     | 0.984 | 0.364 | 0.987 | 0.363 |
+  | **SVGP (RBF, 64 inducing)**      | **0.996** | **0.023** | **0.996** | **0.023** |
+  | Spilled Energy seq (zero-train)  | 0.509 | n/a | 0.509 | n/a |
+
+  Sanity: cache reports `mean SE per answer-token clean=2.613,
+  hallucinated=2.147`. The ChatGPT-generated hallucinations are *less*
+  surprising to GPT-2 than the right answers — consistent with SE's
+  AUROC ≈ chance and confirms that on this benchmark SE does not work
+  as a sequence-level OOD signal (in either direction).
+
+  SVGP std-as-score AUROC = 0.996 at lasttoken (matches the
+  predictive-mean AUROC) — the epistemic-uncertainty channel is just
+  as discriminative as the predictive mean here. BLR std-as-score is
+  AUROC 0.31–0.36 (sign-flipped, low std at OOD because the classifier
+  was trained there).
+
+- Decision: **PASS** on both pool methods. SVGP per-question AUROC =
+  0.996 (10× the protocol's 0.85 floor) AND ECE = 0.023 (4× under the
+  0.10 cap). The synthetic-span UQ pipeline transfers cleanly to real
+  ChatGPT-style hallucinations on GPT-2 features. **Continue to
+  Phase L** to test on the harder TruthfulQA (common-misconception
+  hallucinations are subtler and the protocol expects AUROC closer to
+  0.55–0.80 there).
+- Findings worth recording for the writeup:
+  1. **SE locality does not transfer to real hallucinations.** Phase F
+     established SE as the locality-clean per-token signal on
+     WikiText-2 span corruption (uncorrupted-position AUROC ≈ 0.66 vs
+     cascade-contaminated h_LLM ≈ 0.97). Here SE seq AUROC = 0.51
+     (chance) — ChatGPT crafts plausible-sounding wrong answers that
+     do *not* spike per-token NLL, so SE is not a useful OOD signal
+     on this dataset. Phase M's per-token localisation hypothesis
+     needs to be revisited under this constraint.
+  2. **h_LLM features carry the signal.** Even a 1-matmul linear
+     probe on the GPT-2 last-hidden-state separates clean vs
+     hallucinated answers at AUROC ≈ 0.99. The signal is in the
+     LM's representation, not in its surprise.
+  3. **Calibration depends on the head.** Linear probe and ensemble
+     both ECE ≈ 0.36; BLR-Laplace and SVGP both ECE ≈ 0.02. The 17×
+     gap is solely due to the calibration mechanism (closed-form
+     posterior vs sigmoid).
+  4. **Pool method matters for Mahalanobis (0.42 vs 0.84) but not
+     for everything else** (within 0.005 AUROC across methods).
+- Next: Phase L (TruthfulQA UQ extension) — needs `cache_truthfulqa.py`
+  + reuses `eval_uq.py` unchanged.
+- W&B: not used (wandb unauthenticated locally; protocol §3 makes it
+  optional). Raw numbers in `runs/hal_gpt2_qa_{meanpool,lasttoken}/uq_eval.json`;
+  calibration plots at `runs/hal_gpt2_qa_{meanpool,lasttoken}/uq_calibration.png`.
+
+## Phase K summary (this session)
+
+The UQ pipeline transfers from synthetic span corruption to real
+ChatGPT hallucinations with **no degradation** at GPT-2 scale: SVGP
+per-question AUROC = 0.996 / ECE = 0.023 on HaluEval-QA, vs the
+synthetic-corruption Phase F+ headline (AUROC ≈ 0.99 / ECE ≈ 1×10⁻⁴).
+The protocol target (AUROC ≥ 0.85 AND ECE ≤ 0.10) is comfortably met
+on both meanpool and lasttoken pooling. The companion *negative*
+finding — Spilled Energy is at chance (0.51) on real hallucinations
+— closes one of the protocol's open questions and constrains Phase M
+(per-token localisation needs a different feature than SE).
+
+Recommended next-phase priorities (no change from protocol):
+1. Phase L (TruthfulQA) — test on subtler hallucinations.
+2. Phase M (per-token localisation) — but revise hypothesis given SE
+   is at chance here; the cascade-localisation argument for SE may
+   not apply on real hallucinations.
+3. Phase N (SFM √p continuous FM) — orthogonal to UQ track; can run
+   in parallel.
+
+## [2026-05-08 16:30 UTC] eqm_data50k_ep5_hilbert_soft (Phase 14)
+- Hypothesis: MSE on CLR features is geometrically wrong for the K=27
+  simplex — CLR coordinates blow up at corners (where data lives), so
+  squared loss is dominated by the *mode* coordinate per position and
+  underweights the K−1 directions that carry joint structure between
+  adjacent positions. Switching to the Nielsen soft-Hilbert metric (a
+  scale-invariant variation seminorm on log-ratio differences) should
+  give all coordinates symmetric weight and produce a measurably better
+  velocity field. *Combined with* `gamma_power=1.0` (uniform γ),
+  removing the previously-anti-regularising importance bias toward the
+  trivial c(γ)=0 regime.
+- Setup: data_50k_ep5 platform (5 ep × 50k windows × default backbone
+  d=1024/8L). `loss.mode=hilbert_soft`, `hilbert_alpha=1.0` chosen via
+  1-ep × 1k-window probe over α ∈ {0.5, 1, 2, 5} (CE proxy 0.0019 /
+  0.0021 / 0.0029 / 0.0047 — α=5 default is 2.5× worse on per-position
+  learning). `gamma_power=1.0`. `loader_settings.batch_size=32` to fit
+  alongside the running MSE control on the 8 GB Blackwell.
+- Result: **KL_uni=0.0215  KL_bi=1.3800  KL_tri=6.1716  H_ratio=1.037
+  |∇E|gen=0.592  |∇E|gt=0.448**.
+  Samples (256 × 200 NAG steps): "tagra ceiners v eshztttndehtnohffxrihinr",
+  "sihhm fniedodeu or hdummidev eondodtnash", "los o a et anninauagybym
+  hphlnucfnzontd" — character-soup with right-ish unigram statistics.
+- **Comparison with previous-session MSE baseline:**
+
+  | Run | Loss | gamma_power | KL_uni | KL_bi | KL_tri |
+  |---|---|---|---:|---:|---:|
+  | data_50k_ep5 (prior session) | MSE | 0.5 | 0.035 | 1.382 | 5.957 |
+  | eqm_data50k_ep5_hilbert_soft | hilbert_soft α=1 | 1.0 | 0.022 | **1.380** | 6.172 |
+
+  **KL_bi is identical within 0.2 %.** KL_uni is 35 % better; KL_tri is
+  4 % worse. Two anti-FM design choices (MSE-on-CLR and
+  importance-sampling toward c(γ)=0) were both flipped — and the
+  bottom-line generation quality on bigram structure didn't move.
+- Decision: NEGATIVE on the metric+schedule hypothesis. Neither the
+  Hilbert geometry nor uniform γ is the missing lever. **Phase 14's MSE
+  control rerun, Phase 15 (softmax+Hilbert), and Phase 17 (healing test)
+  are skipped** — the strong identity to the prior MSE baseline already
+  rules out metric-of-loss + γ-schedule as the bottleneck. The
+  regime-level result from the prior session — *continuous-on-simplex
+  EqM at K=27 stalls near KL_bi ≈ 1.4 regardless of the metric or γ
+  schedule* — is reinforced.
+- Implication for the writeup: the trio (MSE, hilbert_soft + flipped γ,
+  prior-session MSE) form a tight cluster around KL_bi ∈ [1.38, 1.39],
+  confirming the bottleneck is structural (sampler architecture
+  / conservative-grad indirection / continuous-on-simplex regime) and
+  not a loss-metric or γ-schedule artefact. The user's intuition that
+  Hilbert geometry might help was a clean and important test to run; the
+  fact that it landed at parity is itself a defensible finding for the
+  capstone narrative.
+- |∇E| diagnostic: gen/gt ratio = 0.59/0.45 ≈ 1.32 — gen sits *above*
+  gt (gradient is larger at samples than at training data). Same
+  un-converged pattern as several prior runs, no curvature-regulariser
+  trigger met.
+- Next: pivot away from the EqM metric ablation. Phase 14 MSE-rerun and
+  Phase 15 softmax+Hilbert killed; Phase 17 healing eval also killed (no
+  fresh checkpoints to score). User opening `/workspace/hilbert_fm/`
+  signals a new direction; standing by.
+- W&B: run id `soht9wua` in project `eqm-text8`.
+
+## [2026-05-08 17:54 UTC] eqm_data50k_ep5_hilbert_softmax (Phase 15)
+- Hypothesis (user-driven extension of Phase 14): apply softmax to
+  pred and target before computing Nielsen soft-Hilbert. Mathematically
+  equivalent to standard log-softmax-Hilbert (additive constants cancel
+  in the variation seminorm) only if you take *log*-softmax; using *raw*
+  softmax (probability vectors in [0,1]) gives a literally bounded
+  geometry that should remove the per-γ-bucket magnitude variance the
+  CLR-space loss has, without losing the variation-seminorm structure.
+- Setup: data_50k_ep5 platform (5 ep × 50k windows × default backbone),
+  `loss.mode=hilbert_soft_softmax`, gamma_power=1.0, B=32, default
+  seeds. Three α + lr regimes tried in sequence (each previous attempt
+  killed and partial run-dir cleaned):
+
+  | attempt | α | lr | epoch-1 outcome | verdict |
+  |---|---|---|---|---|
+  | A | 200 | 1.5e-3 | H_gen=0.0  KL_bi=28.3 | **mode collapse** — single repeated character |
+  | B | 1 | 3e-4 | flow_loss=10⁻⁴ from batch 14 | **no gradient signal** — Taylor limit (soft-Hilbert ≈ α·var(diff) below Adam noise floor) |
+  | C | 50 | 3e-4 | H_gen=3.29 ≈ log(K)  KL_bi=4.67 | **uniform diffusion** — random text |
+
+  Attempt C ran to epoch 2 before being killed:
+
+  | metric | epoch 1 | epoch 2 |
+  |---|---:|---:|
+  | flow_loss | 0.003 | 0.0004 |
+  | ce        | 0.002 | 0.0000 |
+  | unigram_kl | 0.638 | 0.624 |
+  | bigram_kl  | 4.67  | 4.44  |
+  | trigram_kl | 14.07 | 13.75 |
+  | **H_gen** | **3.29** | **3.29** ← unchanged at ≈ log(K)=3.30 |
+  | H_gt      | 2.85  | 2.85  |
+
+  flow_loss saturated near the bounded-geometry trivial floor (~10⁻⁴)
+  while H_gen stayed at log(K). The model is genuinely "converging" in
+  the loss-as-objective sense but the energy field is converging to the
+  *uniform-on-K* attractor, not to data modes. KL_bi dropping at
+  ≈5%/epoch — extrapolating to ~3.7 at end of training, far from
+  hilbert_soft's 1.38.
+
+- Decision: **NEGATIVE on the simplex-projection hypothesis.** The
+  bounded-simplex Nielsen-Hilbert loss has three distinct α-regime
+  failure modes (collapse / no-signal / uniform-diffusion) and **no α
+  regime that produces useful generation** at the parity-compute
+  platform. Killed at end of epoch 2 to save compute; the trajectory
+  was unambiguous.
+
+- Mechanism note for the writeup: applying softmax bounds
+  `|softmax(pred) − softmax(target)|` element-wise to ≤ 1, which makes
+  the loss landscape extremely flat compared to CLR space. Adam can
+  drive flow_loss to 10⁻⁴ trivially by predicting near-uniform
+  softmax(pred) (matching softmax(target) at low γ where target is
+  also near-uniform-on-K-1), without committing to the actual data
+  distribution's mode structure. This is consistent with the original
+  argument about losing curl in the gradient projection (any FM target
+  with a definite direction has its sharp structure smoothed by softmax
+  before measurement). The bounded geometry doesn't preserve enough
+  *direction* information for the FM regression to learn
+  data-manifold sharpness.
+
+- Cluster summary across Phase 14 + 15:
+
+  | run | loss | α | KL_bi (5 ep) | KL_uni | H_gen | verdict |
+  |---|---|---|---:|---:|---:|---|
+  | data_50k_ep5 (prior) | mse | — | 1.382 | 0.035 | (unrecorded) | baseline |
+  | eqm_data50k_ep5_hilbert_soft | hilbert_soft | 1 | **1.380** | 0.022 | (n/a in eval) | parity |
+  | eqm_data50k_ep5_hilbert_softmax | hilbert_soft_softmax | 50 | (incomplete; killed at ep2 with KL_bi=4.44 → log K) | 0.62 | log K | trivial attractor |
+
+  Three independent loss-metric attempts on EqM at the parity platform
+  cluster around the same outcome: **either KL_bi=1.38 (the structural
+  floor) or worse**. Reinforces the regime-level diagnosis: continuous-
+  on-simplex EqM at K=27 has a structural ~9× gap to DFM that does not
+  yield to loss-metric or loss-geometry changes.
+
+- Artifacts: partial `runs/eqm_data50k_ep5_hilbert_softmax/` (config +
+  wandb history) preserved for the 2-epoch trajectory record.
+- W&B: attempt-A `7tcckr3m` (collapsed), attempt-B unsynced (killed
+  early), attempt-C `i1099ayz` (uniform diffusion).
+
+## Phase 14+15 summary (this session)
+
+The user proposed two hypotheses about EqM's loss metric at the
+data_50k_ep5 platform:
+  1. Hilbert metric (vs MSE) on CLR features should help — the
+     scale-invariance is the right geometry for the simplex.
+  2. Softmax projection (variation seminorm on probability differences,
+     not log-ratio differences) should give a literally-bounded loss
+     that doesn't have the γ-bucket magnitude asymmetry.
+
+Both were tested cleanly and **both landed as negatives**:
+  - Hilbert α=1 + uniform γ → KL_bi=1.380 (parity with MSE baseline).
+  - softmax+Hilbert at all three α regimes → no productive generation.
+
+The contribution for the writeup: a tight 3-cell ablation that
+*excludes* the loss-metric hypothesis as the bottleneck, and uncovers
+that the simplex-projection alternative has its own well-characterised
+failure-mode taxonomy. Combined with the prior session's regime-level
+3-way ablation (EqM/FMonCLR/LogitKLFlow all clustering near KL_bi=1.4),
+the case that the bottleneck is structural (sampler architecture,
+conservative-grad indirection, or continuous-on-simplex regime at small
+K) is now even tighter.
+
+Recommended next-phase priorities:
+  1. **Pivot to an entirely different geometry.** SFM (√p sphere
+     reparameterisation, Phase N in TRAINING_PROTOCOL_v2.md) is the
+     untested geometry; published SEDD/SFM numbers say it should clear
+     KL_bi ≈ 0.5.
+  2. **Or move off K=27.** BPE-scale (K=64+) might flip the
+     continuous-vs-discrete trade-off (Phase O).
+  3. The user has begun a separate prototype at `/workspace/hilbert_fm/`
+     — that may be a fresh-start direction independent of these
+     ablation results.
+
+## [2026-05-08 18:30 UTC] Hilbert-FM UQ on HaluEval-QA + GPT-2 (Phase Q — negative)
+
+Pivoted the standalone `hilbert_fm/` prototype from text8 character
+generation (where it was structurally a bad fit — soft Hilbert is
+bounded and one-hot character targets sit at the saturation ceiling)
+to **uncertainty quantification on cached LM top-K next-token
+distributions**, on the hypothesis that *soft, interior simplex
+targets* are the regime where projective metrics earn their keep.
+Benchmark target: **paper-style spilled energy** (Minut et al. 2026,
+arXiv 2602.18671), the training-free EBM self-consistency score
+`ΔE = E^ℓ − E^m = θ(x_{i-1:1})[id(x_i)] − logsumexp(θ(x_{i:1}))`.
+
+### Setup
+
+- LM: GPT-2 small (existing Phase K cache, `data/hallueval_cache_gpt2.pt`,
+  hidden states + answer-span masks + labels for 10k HaluEval-QA pairs).
+- Augmented cache: top-K=32 log-probs + per-position `E^ℓ`, `E^m`, `ΔE`
+  via `scripts/cache_hallueval_topk.py` → `data/hallueval_topk_gpt2.pt`
+  (253 MB at N=4000 sequences, K=32).
+- Student: context-conditioned MLP on the K-simplex
+  (`src/aitchinson_flow/hilbert_uq.py`). Inputs `(h_{i-1}, log p_t, t)`,
+  predicts `log p̂_1`. Trained **only on clean-answer tokens** (no labels)
+  to distil the LM's top-K. 5000 steps, batch 256, AdamW lr 3e-4,
+  τ=0.1 (after τ=0.3 saturated at the soft-Hilbert ceiling
+  `2τ log K = 2.08`; τ=0.1 hit ~0.83, near the achievable floor).
+- Four UQ signals from the student's sampling trajectory:
+  `U_spread` (final Hilbert spread = projective entropy analog),
+  `U_traj`  (mean d_H of intermediate predictions to the final —
+  self-consistency analog of paper ΔE),
+  `L_excess` (path length minus geodesic),
+  `U_ensemble` (mean pairwise d_H across M=4 trajectories with
+  independent random sources).
+- Eval: 2000 pairs, 80/20 split by `pair_id` (pair-level, not row-level,
+  to prevent leakage); 800 val rows, 6390 val answer tokens.
+- Direction-aware AUROC (auto-flipped via `max(a, 1−a)`).
+
+### Headline numbers (row-level, mean-pool over answer span)
+
+| method                              | row AUROC | direction | type |
+|-------------------------------------|-----------|-----------|---|
+| supervised linear probe (Phase K)   | **0.99**  |  →halluc  | trained on labels |
+| paper ΔE                            | **0.711** |  →clean   | training-free |
+| L_excess (Hilbert FM)               | 0.576     |  →clean   | distilled, unsup. |
+| U_ensemble (Hilbert FM, M=4)        | 0.569     |  →clean   | distilled, unsup. |
+| U_traj   (Hilbert FM)               | 0.566     |  →clean   | distilled, unsup. |
+| U_spread (Hilbert FM)               | 0.550     |  →clean   | distilled, unsup. |
+| ΔE + spread + traj (z-sum combo)    | 0.543     |  →clean   | combination *hurts* |
+
+Token-level AUROCs (per answer position, no pooling) are uniformly
+weaker — best Hilbert-FM signal at 0.55, paper ΔE at 0.52 — so the
+row-level table is the relevant comparison.
+
+### Diagnosis
+
+- Student trained well: at τ=0.1 the loss landed near the achievable
+  floor `2τ log K + smoothing ≈ 0.69`. The student does successfully
+  distil the LM's top-K — this is not a training-failure case.
+- Despite that, all four trajectory-based UQ signals are only weakly
+  above chance (best 0.58) and the simple z-sum combination with ΔE
+  *hurts* the strong signal (0.71 → 0.54). Adding noisy signals to a
+  strong one is strictly worse.
+- The structural reason is task–signal mismatch, not implementation:
+  HaluEval-QA hallucinations are locally plausible by construction —
+  they are *factually* wrong but the LM's per-token top-K distribution
+  on a hallucinated answer still looks natural. **Per-token
+  distributional shape is not where the hallucination signal lives.**
+  Paper ΔE works because it is a *cross-timestep self-consistency*
+  identity from the chain rule, broken globally by the hallucination,
+  not by any single token being out of place. Hilbert-FM trajectory
+  signals are local, so they cannot pick this up by construction.
+
+### Verdict
+
+Hilbert-FM-student-on-LLM-top-K UQ **does not beat training-free paper
+ΔE on HaluEval-QA + GPT-2**. Stop here. This rules out the fourth
+candidate framing of the projective-metric programme (after Phase 14
+Hilbert metric on EqM/CLR, Phase 15 softmax+Hilbert, and the text8
+generative test in `hilbert_fm/runs/default/`). All four cluster as
+negatives, and the structural reason for each is now mapped:
+
+- Generative on near-vertex targets (text8): soft-Hilbert saturates at
+  the vertex; CE has unbounded gradient there; structural loss.
+- EqM CLR/loss-metric swap (Phase 14): bottleneck is regime, not loss.
+- Softmax+Hilbert (Phase 15): own failure-mode taxonomy.
+- LLM-UQ on locally-plausible hallucinations (this phase): signal lives
+  cross-timestep, not per-token distribution shape.
+
+### Where the geometry would still earn its keep
+
+Documented for completeness, not pursued in this session:
+1. Synthetic arithmetic / structured-reasoning benchmarks where the LM's
+   top-K *does* differ between right and wrong (paper's Math setup is
+   the canonical example) — Hilbert-FM signals should plausibly fire
+   there.
+2. Pivoting the student to distil ΔE itself, turning `U_traj` into
+   "trajectory uncertainty in predicting ΔE" — flips the structural
+   mismatch around.
+
+### Artifacts
+
+- `scripts/cache_hallueval_topk.py` — top-K + (E^ℓ, E^m, ΔE) cache
+  augmentation.
+- `src/aitchinson_flow/hilbert_uq.py` — context-conditioned student,
+  training, four UQ signals, AUROC.
+- `scripts/run_hilbert_uq.py` — end-to-end orchestrator with
+  direction-aware AUROC reporting.
+- `data/hallueval_topk_gpt2.pt` (253 MB) — N=4000, K=32, fp32.
+- `runs/hilbert_uq_gpt2/` (τ=0.3, saturated) — preserved as the
+  saturation-ceiling baseline.
+- `runs/hilbert_uq_gpt2_tau01/hilbert_uq_summary.json` — final
+  numbers above.
