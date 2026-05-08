@@ -74,11 +74,33 @@ class Text8DataModule(DataModule):
         loader_settings: LoaderSettings,
     ) -> None:
         K = dataset_cfg.K
+        alphabet = getattr(dataset_cfg, "alphabet", "full")
 
-        if K != VOCAB_SIZE:
-            raise ValueError(f"Text8DataModule expects K == {VOCAB_SIZE}, got K={K}")
+        if alphabet == "full":
+            if K != VOCAB_SIZE:
+                raise ValueError(
+                    f"Text8DataModule expects K == {VOCAB_SIZE} when alphabet='full', got K={K}"
+                )
+        elif alphabet == "binary":
+            if K != 2:
+                raise ValueError(
+                    f"Text8DataModule expects K == 2 when alphabet='binary', got K={K}"
+                )
+        else:
+            raise ValueError(f"Unknown alphabet={alphabet!r}; expected 'full' or 'binary'")
 
-        train, val, test = _load_or_compute_splits(dataset_cfg)
+        # Always load the full K=27 windows from cache; remap to K=2 after
+        # the load if alphabet=='binary'. This way the expensive splits
+        # cache (one HF download + window slicing) is shared across both
+        # alphabets — only the post-mapping changes.
+        from dataclasses import replace as _replace
+        load_cfg = _replace(dataset_cfg, K=VOCAB_SIZE) if alphabet == "binary" else dataset_cfg
+        train, val, test = _load_or_compute_splits(load_cfg)
+        if alphabet == "binary":
+            from aitchinson_flow.data.text8_binary import windows_to_binary
+            train = windows_to_binary(train)
+            val = windows_to_binary(val)
+            test = windows_to_binary(test)
 
         self._splits = _Text8Splits(train=train, val=val, test=test)
         self._loader_settings = loader_settings

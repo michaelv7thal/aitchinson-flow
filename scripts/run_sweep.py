@@ -106,6 +106,10 @@ def _run_one(
     eval_n: int,
     eval_steps: int,
     redo_eval: bool,
+    eval_only: bool = False,
+    eval_only_ckpt: str | Path | None = None,
+    sample_kwargs: dict[str, Any] | None = None,
+    eval_steps_override: int | None = None,
     wandb_enabled: bool = False,
     wandb_project: str | None = None,
     wandb_entity: str | None = None,
@@ -116,6 +120,38 @@ def _run_one(
     if eval_path.exists() and not redo_eval:
         print(f"[skip] {name}: eval.json exists")
         return json.loads(eval_path.read_text())
+
+    # Eval-only branch (Phase R): skip training, evaluate the supplied ckpt
+    # directly with the given sample_kwargs. eval_steps may be overridden
+    # per-cell (the SDE sweep mixes 128 and 64 NFE).
+    if eval_only:
+        if eval_only_ckpt is None:
+            raise ValueError(f"eval_only row {name!r} requires a 'ckpt' field")
+        run_dir.mkdir(parents=True, exist_ok=True)
+        nstep = eval_steps_override if eval_steps_override is not None else eval_steps
+        print(f"[eval-only] {name}: ckpt={eval_only_ckpt} kwargs={sample_kwargs}")
+        result = evaluate_checkpoint(
+            eval_only_ckpt,
+            n_samples=eval_n,
+            n_steps=nstep,
+            sample_kwargs=sample_kwargs or None,
+            overrides=overrides or None,
+        )
+        result["run_name"] = name
+        result["eval_only"] = True
+        result["overrides"] = overrides
+        eval_path.write_text(json.dumps(result, indent=2))
+        sweep_results = runs_root / "sweep_results.jsonl"
+        with sweep_results.open("a") as fh:
+            fh.write(json.dumps(result) + "\n")
+        summary = (
+            f"{name}: KL_uni={result['unigram_kl']:.4f} "
+            f"KL_bi={result['bigram_kl']:.4f} "
+            f"KL_tri={result['trigram_kl']:.4f} "
+            f"H_ratio={result['H_ratio']:.3f}"
+        )
+        print(summary)
+        return result
 
     run_dir.mkdir(parents=True, exist_ok=True)
 
@@ -212,6 +248,10 @@ def main(argv: list[str] | None = None) -> None:
         if only is not None and name not in only:
             continue
         overrides = entry.get("overrides") or {}
+        eval_only = bool(entry.get("eval_only", False))
+        eval_only_ckpt = entry.get("ckpt")
+        sample_kwargs = entry.get("sample_kwargs")
+        eval_steps_override = entry.get("eval_steps")
         try:
             _run_one(
                 name,
@@ -220,6 +260,10 @@ def main(argv: list[str] | None = None) -> None:
                 eval_n=args.eval_n,
                 eval_steps=args.eval_steps,
                 redo_eval=args.redo_eval,
+                eval_only=eval_only,
+                eval_only_ckpt=eval_only_ckpt,
+                sample_kwargs=sample_kwargs,
+                eval_steps_override=eval_steps_override,
                 wandb_enabled=args.wandb,
                 wandb_project=args.wandb_project,
                 wandb_entity=args.wandb_entity,

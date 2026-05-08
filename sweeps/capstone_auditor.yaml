@@ -1,0 +1,25 @@
+# Train the EqM auditor required by Phase U (cascade audit).
+# Mirrors the original aud_gpt2_ctx config: 25 ep, B=16, hinge loss on
+# grad-norm² with margin 2.0, GPT-2 context conditioning.
+#
+# Pre-condition: data/wiki_cache_gpt2.pt must exist (built by
+#   python scripts/cache_wiki.py --lm gpt2 --n 300 --L 64 --K 64 \
+#       --out data/wiki_cache_gpt2.pt
+# ).
+
+- name: aud_gpt2_ctx
+  overrides:
+    training.model_name: EqM
+    training.B: 16
+    training.epochs: 25
+    training.eval_every: 5
+    training.sample_eval_every: null
+    auditor.enabled: true
+    auditor.cache_path: data/wiki_cache_gpt2.pt
+    auditor.batch_size: 16
+    eqm.lambda_E_hinge: 1.0
+    eqm.margin_energy: 2.0
+    eqm.auditor_gamma: 1.0
+    eqm.time_conditioning: add
+    eqm.context_features: product_concat
+    eqm.ctx_hidden: 768

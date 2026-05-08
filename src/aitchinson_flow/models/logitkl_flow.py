@@ -107,6 +107,9 @@ class LogitKLFlow(nn.Module):
         L: int,
         *,
         nfe: int | None = None,
+        method: str | None = None,
+        alpha: float | None = None,
+        use_grad: bool | None = None,  # noqa: ARG002 — kept for sample API parity
     ) -> torch.Tensor:
         """Hybrid det-then-stochastic sampler. Returns (B, L) long token IDs.
 
@@ -127,6 +130,16 @@ class LogitKLFlow(nn.Module):
         l = c.source_sigma * torch.randn(B, L, K, device=device, dtype=dtype)
         t_grid = torch.linspace(0.0, 1.0, nfe + 1, device=device, dtype=dtype)
 
+        # Phase R "method=sde" branch: the published recipe already injects
+        # noise after t≥split_t. Phase R wants a tunable diffusion knob that
+        # behaves like additive Langevin at every step (so α=0 is the
+        # deterministic-Euler control). We override the published noise
+        # schedule with sqrt(2·α·h) ξ at every step when method="sde".
+        sde_mode = method == "sde"
+        sde_alpha = float(alpha) if (sde_mode and alpha is not None) else 0.0
+        h_step = 1.0 / float(nfe)
+        sde_noise = float((2.0 * sde_alpha * h_step) ** 0.5) if sde_mode else 0.0
+
         v_hat = None
         for i in range(nfe):
             t_curr = t_grid[i]
@@ -144,8 +157,11 @@ class LogitKLFlow(nn.Module):
             # Project to t_next.
             l = (1.0 - t_next) * z_t + t_next * v_hat
 
-            # Stochastic re-noising in the second phase.
-            if t_curr.item() >= c.sampler_split_t:
+            if sde_mode:
+                if sde_noise > 0.0:
+                    l = l + sde_noise * torch.randn_like(l)
+            elif t_curr.item() >= c.sampler_split_t:
+                # Original published stochastic re-noising path.
                 sigma_next = (
                     (1.0 - t_next * t_next).clamp(min=0.0).sqrt()
                     * c.sampler_noise_scale

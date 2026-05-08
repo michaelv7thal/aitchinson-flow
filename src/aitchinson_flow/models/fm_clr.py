@@ -120,10 +120,19 @@ class FMonCLR(nn.Module):
         max_steps: int | None = None,
         nfe: int | None = None,
         x_init: torch.Tensor | None = None,
+        method: str | None = None,
+        alpha: float | None = None,
+        use_grad: bool | None = None,
     ) -> torch.Tensor:
-        """Euler-γ sampler. Honours either ``max_steps`` (EqM convention used
-        by ``runner._unigram_kl_probe`` and ``scripts/eval_full.py``) or
-        ``nfe`` for symmetry with DFM."""
+        """Euler-γ sampler (deterministic) or SDE Euler-γ (Phase R).
+
+        Honours either ``max_steps`` (EqM convention used by
+        ``runner._unigram_kl_probe`` and ``scripts/eval_full.py``) or
+        ``nfe`` for symmetry with DFM. ``method="sde"`` routes to the
+        Langevin Euler sampler with diffusion coefficient ``alpha``.
+        ``use_grad`` selects raw f vs. ∇⟨x,f⟩ — FMonCLR's training target
+        is raw f, so the natural choice is False (the default).
+        """
         s = self.cfg.eqm
         steps = max_steps if max_steps is not None else (
             nfe if nfe is not None else s.euler_nfe
@@ -137,6 +146,18 @@ class FMonCLR(nn.Module):
         else:
             x = sigma * torch.randn(B, L, K, device=device)
             x = x - x.mean(dim=-1, keepdim=True)
+
+        if method == "sde":
+            from aitchinson_flow.sampling.sde import sde_flow_sample
+            return sde_flow_sample(
+                self,
+                x,
+                n_steps=steps,
+                use_grad=bool(use_grad) if use_grad is not None else False,
+                alpha=float(alpha) if alpha is not None else 0.0,
+                time_conditioned=True,
+                project_zero_mean=True,
+            )
 
         gammas = torch.linspace(0.0, 1.0, steps + 1, device=device)[:-1]
         h = 1.0 / steps

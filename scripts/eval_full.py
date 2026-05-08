@@ -31,14 +31,19 @@ from aitchinson_flow.models import build_model  # noqa: E402
 from aitchinson_flow.training import build_training_datamodule  # noqa: E402
 
 ALPHABET = "".join(sorted(CHAR2ID, key=CHAR2ID.__getitem__))
-K = VOCAB_SIZE
 
 
-def ids_to_text(ids: torch.Tensor) -> list[str]:
-    return ["".join(ALPHABET[int(i)] for i in row) for row in ids.cpu()]
+def ids_to_text(ids: torch.Tensor, *, K: int = VOCAB_SIZE) -> list[str]:
+    if K == VOCAB_SIZE:
+        return ["".join(ALPHABET[int(i)] for i in row) for row in ids.cpu()]
+    # Phase S K=2 alphabet: 0=vowel, 1=consonant/space.
+    binary = "VC"
+    return ["".join(binary[int(i) % 2] for i in row) for row in ids.cpu()]
 
 
-def unigram_kl(gen_ids: torch.Tensor, ref_ids: torch.Tensor) -> tuple[float, float, float]:
+def unigram_kl(
+    gen_ids: torch.Tensor, ref_ids: torch.Tensor, *, K: int = VOCAB_SIZE
+) -> tuple[float, float, float]:
     gen = torch.zeros(K).scatter_add_(
         0, gen_ids.reshape(-1), torch.ones_like(gen_ids.reshape(-1), dtype=torch.float)
     )
@@ -53,7 +58,7 @@ def unigram_kl(gen_ids: torch.Tensor, ref_ids: torch.Tensor) -> tuple[float, flo
     return kl, H_gen, H_ref
 
 
-def _ngram_counts(ids: torch.Tensor, n: int) -> torch.Tensor:
+def _ngram_counts(ids: torch.Tensor, n: int, *, K: int = VOCAB_SIZE) -> torch.Tensor:
     """Return a flat (K**n,) count tensor over all length-n contiguous windows."""
     flat = ids.reshape(-1, ids.shape[-1])
     L = flat.shape[1]
@@ -67,9 +72,11 @@ def _ngram_counts(ids: torch.Tensor, n: int) -> torch.Tensor:
     return counts
 
 
-def ngram_kl(gen_ids: torch.Tensor, ref_ids: torch.Tensor, n: int) -> float:
-    gc = _ngram_counts(gen_ids, n)
-    rc = _ngram_counts(ref_ids, n)
+def ngram_kl(
+    gen_ids: torch.Tensor, ref_ids: torch.Tensor, n: int, *, K: int = VOCAB_SIZE
+) -> float:
+    gc = _ngram_counts(gen_ids, n, K=K)
+    rc = _ngram_counts(ref_ids, n, K=K)
     smoothing = 1e-6
     gp = (gc + smoothing) / (gc.sum() + (K**n) * smoothing)
     rp = (rc + smoothing) / (rc.sum() + (K**n) * smoothing)
@@ -135,6 +142,7 @@ def evaluate_checkpoint(
     n_steps: int,
     grad_at_n: int = 64,
     overrides: dict[str, Any] | None = None,
+    sample_kwargs: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     cfg = Config()
     payload = torch.load(ckpt_path, map_location="cpu", weights_only=False)
@@ -183,23 +191,25 @@ def evaluate_checkpoint(
     train_ids = dm.splits.train.long()
 
     L = cfg.text8_dataset.L
+    K_eval = int(cfg.text8_dataset.K)
     model_name = cfg.training.model_name
 
     # Sample. Two API conventions in the repo:
-    # - EqM: model.sample(B, L, max_steps=...) returns (B, L, K) CLR features.
-    # - DFM: model.sample(B, L, nfe=...)        returns (B, L) long token IDs.
+    # - EqM/FMonCLR: model.sample(B, L, max_steps=...) returns (B, L, K) CLR features.
+    # - DFM/LogitKLFlow: model.sample(B, L, nfe=...) returns (B, L) long token IDs.
+    sk = dict(sample_kwargs or {})
     with torch.no_grad():
         if hasattr(model, "decode_to_logprobs"):
-            x = model.sample(n_samples, L, max_steps=n_steps)
+            x = model.sample(n_samples, L, max_steps=n_steps, **sk)
             log_probs = model.decode_to_logprobs(x)
             gen_ids = log_probs.argmax(-1).cpu()
         else:
-            x = model.sample(n_samples, L, nfe=n_steps)
+            x = model.sample(n_samples, L, nfe=n_steps, **sk)
             gen_ids = x.cpu().long()
 
-    kl_u, H_gen, H_ref = unigram_kl(gen_ids, train_ids)
-    kl_b = ngram_kl(gen_ids, train_ids, 2)
-    kl_t = ngram_kl(gen_ids, train_ids, 3)
+    kl_u, H_gen, H_ref = unigram_kl(gen_ids, train_ids, K=K_eval)
+    kl_b = ngram_kl(gen_ids, train_ids, 2, K=K_eval)
+    kl_t = ngram_kl(gen_ids, train_ids, 3, K=K_eval)
 
     # Gradient norms only meaningful for energy-based models (EqM).
     if hasattr(model, "position_uncertainty"):
@@ -212,7 +222,7 @@ def evaluate_checkpoint(
         grad_gt = float("nan")
         grad_gen = float("nan")
 
-    samples = ids_to_text(gen_ids[:8])
+    samples = ids_to_text(gen_ids[:8], K=K_eval)
 
     return {
         "ckpt": str(ckpt_path),
@@ -221,6 +231,7 @@ def evaluate_checkpoint(
         "global_step": int(payload.get("global_step", -1)) if not isinstance(payload.get("global_step"), str) else payload.get("global_step"),
         "n_samples": n_samples,
         "sample_steps": n_steps,
+        "sample_kwargs": sk,
         "unigram_kl": kl_u,
         "bigram_kl": kl_b,
         "trigram_kl": kl_t,
@@ -267,15 +278,45 @@ def main(argv: list[str] | None = None) -> None:
              "(repeatable). Useful for evaluating one checkpoint under "
              "multiple sampler configs.",
     )
+    p.add_argument(
+        "--sample-method",
+        type=str,
+        default=None,
+        choices=[None, "nag", "euler", "sde"],
+        help="Phase R: route model.sample() to a specific sampler. "
+             "Persisted in the eval.json under sample_kwargs.",
+    )
+    p.add_argument(
+        "--sample-alpha",
+        type=float,
+        default=None,
+        help="Phase R Langevin diffusion coefficient. Used only with "
+             "--sample-method=sde.",
+    )
+    p.add_argument(
+        "--sample-use-grad",
+        action="store_true",
+        help="Phase R: use ∇⟨x,f⟩ (conservative gradient) at each step "
+             "instead of raw f. Only meaningful for EqM-style fields.",
+    )
     args = p.parse_args(argv)
 
     overrides = dict(_parse_override(s) for s in args.override) if args.override else None
+
+    sample_kwargs: dict[str, Any] = {}
+    if args.sample_method is not None:
+        sample_kwargs["method"] = args.sample_method
+    if args.sample_alpha is not None:
+        sample_kwargs["alpha"] = float(args.sample_alpha)
+    if args.sample_use_grad:
+        sample_kwargs["use_grad"] = True
 
     result = evaluate_checkpoint(
         args.ckpt,
         n_samples=args.n_samples,
         n_steps=args.n_steps,
         overrides=overrides,
+        sample_kwargs=sample_kwargs or None,
     )
     if overrides:
         result["overrides"] = overrides

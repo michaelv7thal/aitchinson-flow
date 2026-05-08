@@ -4,6 +4,7 @@ from .eqm import EquilibriumFlowMatching
 from .dfm import DiscreteFlowMatching
 from .fm_clr import FMonCLR
 from .logitkl_flow import LogitKLFlow
+from .eqm_consgrad import EqMConsGrad
 
 __all__ = [
     "GenerativeTrainingModel",
@@ -16,4 +17,5 @@ __all__ = [
     "DiscreteFlowMatching",
     "FMonCLR",
     "LogitKLFlow",
+    "EqMConsGrad",
 ]

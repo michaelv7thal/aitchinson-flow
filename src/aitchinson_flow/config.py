@@ -62,6 +62,11 @@ class Text8DataConfig:
     max_train_windows: int | None = 10_000
     max_eval_windows: int | None = 5_000
     corruption_seed: int = 1234
+    # Phase S — alphabet collapse to K=2 (vowel/consonant). When set to
+    # "binary" the windows are post-processed by
+    # data/text8_binary.py::char_id_to_binary_class. The user is responsible
+    # for also setting K=2 (training.K and text8_dataset.K).
+    alphabet: str = "full"  # "full" | "binary"
 
     provider: str = "huggingface"
     source_ref: str = "afmck/text8"
@@ -117,10 +122,10 @@ class EqM:
     # energy field at sample time. γ=0.5 sits in the signal regime (matches
     # ce_min_gamma).
     time_conditioning: str = "off"
-    sample_gamma: float = 0.5
+    sample_gamma: float = 1.5
     # γ importance sampling: gamma = U(0,1)**gamma_power.
     # gamma_power=1.0 → uniform; <1 pushes mass toward γ=1 (more signal).
-    gamma_power: float = 0.5
+    gamma_power: float = 1.5
     # x0 source noise scale (used at both train and inference for distribution match).
     source_sigma: float = 0.1
     # NAG-GD sampling hyperparameters (Algorithm 2)

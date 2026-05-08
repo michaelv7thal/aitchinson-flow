@@ -356,6 +356,9 @@ class EquilibriumFlowMatching(nn.Module):
         x_init: torch.Tensor | None = None,
         grad_clip: float | None = None,
         return_best: bool | None = None,
+        method: str | None = None,
+        alpha: float | None = None,
+        use_grad: bool | None = None,
     ) -> torch.Tensor:
         """Dispatch to NAG-GD or Euler-γ sampler per cfg.eqm.sampler.
 
@@ -381,13 +384,26 @@ class EquilibriumFlowMatching(nn.Module):
                 the best iterate is what should leave the sampler.
         """
         s = self.cfg.eqm
-        if getattr(s, "sampler", "nag") == "euler":
+        # Method dispatch: explicit kwarg > cfg.eqm.sampler.
+        chosen = method if method is not None else getattr(s, "sampler", "nag")
+        if chosen == "sde":
+            nfe = max_steps if max_steps is not None else s.euler_nfe
+            return self._sample_sde(
+                B,
+                L,
+                nfe=nfe,
+                alpha=float(alpha) if alpha is not None else 0.0,
+                use_grad=use_grad if use_grad is not None else s.euler_use_grad,
+                sigma_init=s.sample_sigma_init,
+                x_init=x_init,
+            )
+        if chosen == "euler":
             nfe = max_steps if max_steps is not None else s.euler_nfe
             return self.sample_euler(
                 B,
                 L,
                 nfe=nfe,
-                use_grad=s.euler_use_grad,
+                use_grad=use_grad if use_grad is not None else s.euler_use_grad,
                 sigma_init=s.sample_sigma_init,
                 x_init=x_init,
             )
@@ -455,6 +471,42 @@ class EquilibriumFlowMatching(nn.Module):
             energy = (x_req * self.forward(x_req, gamma)).sum()
             grad = torch.autograd.grad(energy, x_req, create_graph=False)[0]
         return grad.detach()
+
+    def _sample_sde(
+        self,
+        B: int,
+        L: int,
+        *,
+        nfe: int,
+        alpha: float,
+        use_grad: bool,
+        sigma_init: float | None,
+        x_init: torch.Tensor | None,
+    ) -> torch.Tensor:
+        """SDE sampler entry point — Phase R (CAPSTONE_EXPERIMENTS.md §4)."""
+        from aitchinson_flow.sampling.sde import sde_flow_sample
+
+        s = self.cfg.eqm
+        device = next(self.parameters()).device
+        K = self.cfg.text8_dataset.K
+        sigma = sigma_init if sigma_init is not None else s.source_sigma
+
+        if x_init is not None:
+            x0 = x_init.to(device).detach()
+        else:
+            x0 = sigma * torch.randn(B, L, K, device=device)
+            x0 = x0 - x0.mean(dim=-1, keepdim=True)
+
+        time_cond = getattr(s, "time_conditioning", "off") != "off"
+        return sde_flow_sample(
+            self,
+            x0,
+            n_steps=nfe,
+            use_grad=use_grad,
+            alpha=alpha,
+            time_conditioned=time_cond,
+            project_zero_mean=True,
+        )
 
     @torch.no_grad()
     def sample_euler(

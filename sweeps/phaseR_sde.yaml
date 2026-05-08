@@ -1,0 +1,87 @@
+# Phase R — SDE sampling on continuous methods (eval-only).
+#
+# Each cell is an *eval-only* run: it loads an existing checkpoint and
+# evaluates with method=sde at a specific α. Implemented via the
+# eval_only=true marker; run_sweep.py treats those rows as "skip
+# training, write eval.json directly using the supplied ckpt path".
+#
+# Decision criteria in CAPSTONE_EXPERIMENTS.md §4: PASS if best-α
+# KL_bi ≤ 0.40 (within 3× of DFM 0.148).
+
+- name: eqm_sde_a0p00_grad
+  eval_only: true
+  ckpt: runs/capstone/checkpoints/eqm_data50k_ep5_v2/epoch_final.pt
+  eval_steps: 128
+  sample_kwargs: {method: sde, alpha: 0.0,  use_grad: true}
+
+- name: eqm_sde_a0p01_grad
+  eval_only: true
+  ckpt: runs/capstone/checkpoints/eqm_data50k_ep5_v2/epoch_final.pt
+  eval_steps: 128
+  sample_kwargs: {method: sde, alpha: 0.01, use_grad: true}
+
+- name: eqm_sde_a0p03_grad
+  eval_only: true
+  ckpt: runs/capstone/checkpoints/eqm_data50k_ep5_v2/epoch_final.pt
+  eval_steps: 128
+  sample_kwargs: {method: sde, alpha: 0.03, use_grad: true}
+
+- name: eqm_sde_a0p10_grad
+  eval_only: true
+  ckpt: runs/capstone/checkpoints/eqm_data50k_ep5_v2/epoch_final.pt
+  eval_steps: 128
+  sample_kwargs: {method: sde, alpha: 0.10, use_grad: true}
+
+- name: eqm_sde_a0p30_grad
+  eval_only: true
+  ckpt: runs/capstone/checkpoints/eqm_data50k_ep5_v2/epoch_final.pt
+  eval_steps: 128
+  sample_kwargs: {method: sde, alpha: 0.30, use_grad: true}
+
+- name: eqm_sde_a1p00_grad
+  eval_only: true
+  ckpt: runs/capstone/checkpoints/eqm_data50k_ep5_v2/epoch_final.pt
+  eval_steps: 128
+  sample_kwargs: {method: sde, alpha: 1.00, use_grad: true}
+
+- name: eqm_sde_a0p10_grad_n64
+  eval_only: true
+  ckpt: runs/capstone/checkpoints/eqm_data50k_ep5_v2/epoch_final.pt
+  eval_steps: 64
+  sample_kwargs: {method: sde, alpha: 0.10, use_grad: true}
+
+- name: fmclr_sde_a0p00
+  eval_only: true
+  ckpt: runs/capstone/checkpoints/fmclr_data50k_ep5_v2/epoch_final.pt
+  eval_steps: 128
+  sample_kwargs: {method: sde, alpha: 0.00}
+
+- name: fmclr_sde_a0p10
+  eval_only: true
+  ckpt: runs/capstone/checkpoints/fmclr_data50k_ep5_v2/epoch_final.pt
+  eval_steps: 128
+  sample_kwargs: {method: sde, alpha: 0.10}
+
+- name: fmclr_sde_a0p30
+  eval_only: true
+  ckpt: runs/capstone/checkpoints/fmclr_data50k_ep5_v2/epoch_final.pt
+  eval_steps: 128
+  sample_kwargs: {method: sde, alpha: 0.30}
+
+- name: lkflow_sde_a0p00
+  eval_only: true
+  ckpt: runs/capstone/checkpoints/lkflow_data50k_ep5/epoch_final.pt
+  eval_steps: 128
+  sample_kwargs: {method: sde, alpha: 0.00}
+
+- name: lkflow_sde_a0p10
+  eval_only: true
+  ckpt: runs/capstone/checkpoints/lkflow_data50k_ep5/epoch_final.pt
+  eval_steps: 128
+  sample_kwargs: {method: sde, alpha: 0.10}
+
+- name: lkflow_sde_a0p30
+  eval_only: true
+  ckpt: runs/capstone/checkpoints/lkflow_data50k_ep5/epoch_final.pt
+  eval_steps: 128
+  sample_kwargs: {method: sde, alpha: 0.30}
