@@ -1,0 +1,38 @@
+{
+  "ckpt": "runs/capstone/S/eqm_K2_data50k_ep5/epoch_final.pt",
+  "model_name": "EqM",
+  "epoch": 5,
+  "global_step": 3910,
+  "n_samples": 256,
+  "sample_steps": 200,
+  "sample_kwargs": {},
+  "unigram_kl": 0.03371179848909378,
+  "bigram_kl": 0.12481728196144104,
+  "trigram_kl": 0.26675719022750854,
+  "H_gen": 0.5146803259849548,
+  "H_gt": 0.6325935125350952,
+  "H_ratio": 0.813603547596295,
+  "grad_at_gen": 0.22462411224842072,
+  "grad_at_gt": 0.06955208629369736,
+  "samples": [
+    "CVCCCVVCCCCCCCCCCCCCCVCCCCCCVCCCCCVCCCCC",
+    "CVCCCCCCVCCCCCCCCCVVCVCVCCCCCCCCCCCVCCCC",
+    "CCCCCCVCVCCCCCCCCCCCCCCCCVCCCCCCVVVCCCVC",
+    "VVVCCCCCCCCCCVCVCCCVCCCCCCVCVCCVCCCVCVCC",
+    "CCCCCCCCVVCVCCCCCCVCCCCCCCCCCCCCVCVCCCCC",
+    "CCCCCCCCVVCCCVCCVCVCCCCCVCCVCCCCCCCCCCCC",
+    "CCCVCVCVVCVCCVCVCVCVVVVCCCCCCVVCVVVCCVVC",
+    "CCCCVVCCCVCCVCCCCCCCCCCCVCCCCVCCVCCCVCCC"
+  ],
+  "run_name": "eqm_K2_data50k_ep5",
+  "overrides": {
+    "training.model_name": "EqM",
+    "training.K": 2,
+    "training.B": 64,
+    "training.epochs": 5,
+    "text8_dataset.K": 2,
+    "text8_dataset.alphabet": "binary",
+    "text8_dataset.batch_size": 64,
+    "text8_dataset.max_train_windows": 50000
+  }
+}

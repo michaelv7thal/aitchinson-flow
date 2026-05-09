@@ -49,6 +49,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
+sys.path.insert(0, str(ROOT))
 
 import numpy as np  # noqa: E402
 import torch  # noqa: E402
@@ -217,8 +218,8 @@ def _train_svgp_proxy(
     y_cln = torch.zeros(h_cln.shape[0])
     h_all = torch.cat([h_inv, h_cln], 0).to(device)
     y_all = torch.cat([y_inv, y_cln], 0).to(device)
-    g = torch.Generator(device=device).manual_seed(0)
-    Z = h_all[torch.randperm(h_all.shape[0], generator=g)[:M]].clone()  # inducing points
+    g = torch.Generator().manual_seed(0)
+    Z = h_all[torch.randperm(h_all.shape[0], generator=g).to(device)[:M]].clone()  # inducing points
     # Closed-form ridge regression in the kernel feature map
     # k(h, z) = exp(-‖h - z‖² / (2·sigma²)) — RBF.
     sigma = float(h_all.std().item())

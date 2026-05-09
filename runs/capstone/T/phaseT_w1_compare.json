@@ -1,0 +1,210 @@
+[
+  {
+    "family": "eqm",
+    "label": "Euler on f",
+    "result": {
+      "ckpt": "runs/capstone/checkpoints/eqm_data50k_ep5_v2/epoch_final.pt",
+      "model_name": "EqM",
+      "epoch": 5,
+      "global_step": 3910,
+      "n_samples": 256,
+      "sample_steps": 128,
+      "sample_kwargs": {
+        "method": "euler",
+        "use_grad": false
+      },
+      "unigram_kl": 0.08504161238670349,
+      "bigram_kl": 1.647157907485962,
+      "trigram_kl": 5.923849105834961,
+      "H_gen": 2.6543705463409424,
+      "H_gt": 2.8546600341796875,
+      "H_ratio": 0.9298377090649604,
+      "grad_at_gen": 3.7191758155822754,
+      "grad_at_gt": 0.10298943519592285,
+      "samples": [
+        "io nirlm fona i eieohuerehnitptrl ece an",
+        "oe ears geeno i  ii hhalnhaasemtp o zsbn",
+        "ni iarem neno y anifntlsdhos nmrta  eaon",
+        "na ea y  oeao cneitehhaa hnilemraa nn st",
+        "ha laote chnn y  iiiehilnhte lmo wo tano",
+        "ne ie ei nene yncns edonnhiaefmr me dt n",
+        "hg irotmcnan  ynnionhhe ahas emt  faoo t",
+        "ig ner a ohtn y onieotit hoe dtrtcn asm "
+      ],
+      "cell_label": "Euler on f"
+    }
+  },
+  {
+    "family": "eqm",
+    "label": "Euler on grad",
+    "result": {
+      "ckpt": "runs/capstone/checkpoints/eqm_data50k_ep5_v2/epoch_final.pt",
+      "model_name": "EqM",
+      "epoch": 5,
+      "global_step": 3910,
+      "n_samples": 256,
+      "sample_steps": 128,
+      "sample_kwargs": {
+        "method": "euler",
+        "use_grad": true
+      },
+      "unigram_kl": 0.026883259415626526,
+      "bigram_kl": 1.3989248275756836,
+      "trigram_kl": 5.778164386749268,
+      "H_gen": 2.823249578475952,
+      "H_gt": 2.8546600341796875,
+      "H_ratio": 0.9889967788361316,
+      "grad_at_gen": 4.585084438323975,
+      "grad_at_gt": 0.10298943519592285,
+      "samples": [
+        " ewasmieztaootwdsbe  heofy fefegi n tlao",
+        "nl hobea fhn  y licgthnmahae  vueutrenia",
+        "hatahiknuggle y  widghe ihba fmreko t an",
+        "pn ee dmtrino s nvos eaagtfaeeurerlfia  ",
+        "co nor er oneny iiirmlt  nvertfrtwa seal",
+        "hta arilioiy n  l ishnlf hweefog af  osi",
+        "hpeewazena noew  ioielot haatffrndefissc",
+        "ha uolr  eevenynowgt le yhil nacsfocan l"
+      ],
+      "cell_label": "Euler on grad"
+    }
+  },
+  {
+    "family": "eqm",
+    "label": "NAG",
+    "result": {
+      "ckpt": "runs/capstone/checkpoints/eqm_data50k_ep5_v2/epoch_final.pt",
+      "model_name": "EqM",
+      "epoch": 5,
+      "global_step": 3910,
+      "n_samples": 256,
+      "sample_steps": 200,
+      "sample_kwargs": {
+        "method": "nag"
+      },
+      "unigram_kl": 0.034285835921764374,
+      "bigram_kl": 1.4791775941848755,
+      "trigram_kl": 5.806060791015625,
+      "H_gen": 2.8077335357666016,
+      "H_gt": 2.8546600341796875,
+      "H_ratio": 0.9835614406439922,
+      "grad_at_gen": 0.20766639709472656,
+      "grad_at_gt": 0.10298943519592285,
+      "samples": [
+        " ieceitetlont czosinhglnchms tneadtctonr",
+        "er ifioarn se y ctesi dieaomloir   ebtti",
+        "eaene yececnnrgloaaahhyn hleutaogoe ea s",
+        "o  nein t  nt si naya n ehneunfrt o btlo",
+        "li nar  ofimu y oeieese ahli purfe  tuno",
+        "li eeeen ene wy eiirhan deii nfra angt e",
+        "is atito ceot cnincohhe thwa imgtmmaaskc",
+        "conegrtgeioimlytuleehyaw htm  pg  i osan"
+      ],
+      "cell_label": "NAG"
+    }
+  },
+  {
+    "family": "consgrad",
+    "label": "Euler on output",
+    "result": {
+      "ckpt": "runs/capstone/T/eqm_consgrad_data50k_ep5/epoch_final.pt",
+      "model_name": "EqMConsGrad",
+      "epoch": 5,
+      "global_step": 3910,
+      "n_samples": 256,
+      "sample_steps": 128,
+      "sample_kwargs": {
+        "method": "euler",
+        "use_grad": false
+      },
+      "unigram_kl": 0.008489006198942661,
+      "bigram_kl": 0.4078197181224823,
+      "trigram_kl": 2.5540714263916016,
+      "H_gen": 2.820458173751831,
+      "H_gt": 2.8546600341796875,
+      "H_ratio": 0.9880189374502226,
+      "grad_at_gen": NaN,
+      "grad_at_gt": NaN,
+      "samples": [
+        "mol t dot dus met he  ve t sisnar derm t",
+        "n cod rn m ohued sies thtkenereds gio bo",
+        "len terinrigit es ig isstoded toortithee",
+        "shirik eds chnpe  aned tod tusun reun bu",
+        "of tcraluourad ats ef rsyte pesld wys an",
+        "rt orssas a  s buastcsacr tispaalus fsd ",
+        "megddteue ch veve ts ngh nt onsouearice ",
+        "hiy at d ola rme ta trypet fkithcoboep o"
+      ],
+      "cell_label": "Euler on output"
+    }
+  },
+  {
+    "family": "consgrad",
+    "label": "Euler on output (use_grad)",
+    "result": {
+      "ckpt": "runs/capstone/T/eqm_consgrad_data50k_ep5/epoch_final.pt",
+      "model_name": "EqMConsGrad",
+      "epoch": 5,
+      "global_step": 3910,
+      "n_samples": 256,
+      "sample_steps": 128,
+      "sample_kwargs": {
+        "method": "euler",
+        "use_grad": true
+      },
+      "unigram_kl": 0.01090721134096384,
+      "bigram_kl": 0.4135855436325073,
+      "trigram_kl": 2.5435218811035156,
+      "H_gen": 2.8089077472686768,
+      "H_gt": 2.8546600341796875,
+      "H_ratio": 0.9839727721118434,
+      "grad_at_gen": NaN,
+      "grad_at_gt": NaN,
+      "samples": [
+        "ses two cawerer uorsshaliodd ntu fthesea",
+        "ronal salhy ascdaod apn tyend re moteby ",
+        " fooral or luvoncahtrnpucon tasdwrhily o",
+        " s eofrdrbgiteite ns eresncerrdel tue to",
+        "erorroslxtahy ber te sesicher whe sor un",
+        "titl rrns leseats ibovei bond uncont ot ",
+        "en ef nrr ie neriavescrcel taad ndie ho ",
+        "aedtforfrebliein tracieery hf cccrum mf "
+      ],
+      "cell_label": "Euler on output (use_grad)"
+    }
+  },
+  {
+    "family": "consgrad",
+    "label": "NAG",
+    "result": {
+      "ckpt": "runs/capstone/T/eqm_consgrad_data50k_ep5/epoch_final.pt",
+      "model_name": "EqMConsGrad",
+      "epoch": 5,
+      "global_step": 3910,
+      "n_samples": 256,
+      "sample_steps": 200,
+      "sample_kwargs": {
+        "method": "nag"
+      },
+      "unigram_kl": 0.2767360806465149,
+      "bigram_kl": 3.60819673538208,
+      "trigram_kl": 7.407796382904053,
+      "H_gen": 2.4768295288085938,
+      "H_gt": 2.8546600341796875,
+      "H_ratio": 0.8676443076067841,
+      "grad_at_gen": NaN,
+      "grad_at_gt": NaN,
+      "samples": [
+        " hn  bn  unc   n   g npn  t t r pqa fn  ",
+        " rb r z t du  a qh n  th trdq un urpfu n",
+        "s  d ewe ore z  al   haes fuep qt a dn q",
+        "u t  n    qc  tn r   nngm t p  c  plon  ",
+        "ohr   qrntq ong  wr n cr n   trwr bton p",
+        "denn e bn ne nten  r nre cre op gnp e v ",
+        " an  tqbem appv ane ht lev ap e   oii  b",
+        "nineone be  rna  iostati ag toerecpe  e "
+      ],
+      "cell_label": "NAG"
+    }
+  }
+]

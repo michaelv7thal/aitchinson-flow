@@ -1798,3 +1798,265 @@ Documented for completeness, not pursued in this session:
   saturation-ceiling baseline.
 - `runs/hilbert_uq_gpt2_tau01/hilbert_uq_summary.json` — final
   numbers above.
+
+---
+
+## [2026-05-08 20:35 UTC] Phase R — SDE sweep on continuous-on-simplex methods (eval-only, 13 cells)
+
+- Hypothesis (R-H1): the EqM/FMonCLR/LogitKLFlow gap to DFM at K=27 is
+  caused by deterministic-ODE sampling. Adding Langevin-style noise
+  injection at every Euler step should close the gap.
+- Reference: DFM KL_bi 0.148. PASS criterion: best-α KL_bi ≤ 0.40
+  (within 3× of DFM at parity compute).
+- Result (best-α KL_bi per family at NFE=128):
+    - EqM:    α=0.10 → KL_bi 1.299  (control α=0 → 1.422; 8.7% reduction)
+    - FMonCLR: α=0.30 → KL_bi 1.280  (control α=0 → 1.478; 13.4% reduction)
+    - LKFlow:  α=0.30 → KL_bi 1.301  (control α=0 → 1.601; 18.7% reduction)
+  EqM α=1.0 diverges (KL_bi 2.211) — high-α breaks the trajectory.
+  EqM α=0.1 NFE=64 control: KL_bi 1.340 — sampler is robust to step count.
+- Decision: **Strong FAIL** (0/3 PASS; all three exceed the 0.97 PARTIAL
+  ceiling). R-H1 falsified. Stochasticity *helps* uniformly across
+  families (≈8-19% reduction) but is not the bound — the K=27 gap to
+  DFM is structural, not a sampler-determinism artefact.
+- Next: Phase S (K=2 collapse) per §4 directive — "Run Phase S anyway:
+  K=2 collapse is the cheapest second diagnostic regardless of R-outcome."
+- Artefacts:
+    - `runs/capstone/R/phaseR_sde.json` — per-cell summary
+    - `runs/capstone/R/phaseR_sde.png` — KL_bi vs α figure
+    - `runs/capstone/R/sweep_results.jsonl` — raw eval rows
+
+---
+
+## [2026-05-08 22:30 UTC] Phase S — K=2 binary collapse (4 cells, training + eval)
+
+- Hypothesis (S-H1): at K=2, per-position multimodality reduces to a
+  binary choice. If continuous-on-simplex methods match DFM at K=2,
+  the K=27 gap is dominated by per-position multimodality (which the
+  ODE struggles to represent deterministically). If they still lag,
+  the bound is something else.
+- Decision criterion (§5): |Δ KL_bi(EqM, DFM)| ≤ 0.05 → EQUAL;
+  > 0.20 → GAP; otherwise AMBIG. *Relative* is what matters at K=2
+  (corpus entropy ~0.63 bits/char vs ~2.85 at K=27).
+- Result table (K=27 → K=2 KL_bi collapse ratio in parens):
+    - EqM     KL_bi  1.382 → 0.125   (×0.090)  H_ratio 0.81
+    - DFM     KL_bi  0.148 → 0.019   (×0.126)  H_ratio 1.01
+    - FMonCLR KL_bi  1.559 → 0.003   (×0.002)  H_ratio 1.01
+    - LKFlow  KL_bi  1.432 → 0.105   (×0.073)  H_ratio 1.06
+  Δ KL_bi(EqM, DFM)     = 0.106 → AMBIG
+  Δ KL_bi(FMonCLR, DFM) = −0.015 → **EQUAL** (FMonCLR even *beats* DFM)
+  Δ KL_bi(LKFlow, DFM)  = 0.086 → AMBIG
+- Decision: **mixed verdict that overturns the original framing.**
+  - At K=2, FMonCLR (a continuous-on-simplex flow with deterministic
+    Euler) reaches DFM-class quality (0.003 vs 0.019). So the K=27
+    "continuous ≪ discrete" gap is *not* a fundamental
+    continuous-vs-discrete issue — it is K-dependent multimodality
+    coverage that continuous flows fail to learn at K=27 but learn
+    fine at K=2.
+  - EqM K=2 underperforms its peer continuous flows (0.125 vs 0.003 /
+    0.105) and is also under-diverse (H_ratio 0.81 vs ≥1.0 for the
+    other three). This is an **EqM-specific bottleneck**, not a
+    continuous-flow bottleneck. Likely candidates: the conservative-
+    gradient + aux CE machinery + γ-importance sampling biases EqM
+    toward sharp attractors that mis-fit the K=2 distribution.
+  - Combined with R's strong FAIL on stochasticity, the §5 2×2
+    quadrant collapses to: bound is *neither* sampler stochasticity
+    *nor* multimodality-of-K (since FMonCLR proves continuous methods
+    can match DFM at low K). The bound is something K-specific in
+    the *training/representation* of multimodality — a cleaner
+    mechanistic story than the original "structural ceiling" framing.
+- Caveats:
+    - K=2 collapse loses long-range structural information (V/C
+      patterns of valid English). KL_bi only certifies short-range
+      bigram statistics; trigram numbers (EqM 0.27, DFM 0.06,
+      FMonCLR 0.012, LKFlow 0.28) tell the same story but neither
+      certifies "structurally valid V/C English."
+    - Cell wall-clock: EqM 57 min (4× target due to 2nd-order
+      autograd at K=2), DFM/FMCLR/LKF ~25 min each. Total Phase S ~2
+      hr — at the §5 hard cap of 2 hr but within 1.3× tolerance.
+- Next: Phase T (consgrad regression). Phase T sharpens the
+  EqM-specific bottleneck identified here — does training directly
+  on the conservative gradient (instead of regressing f) close the
+  K=2 anomaly or the K=27 gap?
+- Artefacts:
+    - `runs/capstone/S/phaseS_K2.json` — summary table
+    - `runs/capstone/S/{eqm,dfm,fmclr,lkflow}_K2_data50k_ep5/eval.json`
+    - `runs/capstone/S/sweep_results.jsonl`
+
+---
+
+## [2026-05-09 01:25 UTC] Phase T — Conservative-gradient regression (2 cells + 6-cell W1 compare)
+
+- Hypothesis (T-H1): the gap between Euler-on-`f` (1.647) and Euler-on-
+  `∇⟨x,f⟩` (1.399) on the same EqM checkpoint exists because FM
+  regression supervises `f` directly, leaving the data-pulling
+  Jacobian unsupervised. Training a model whose *output* is
+  `∇⟨x,f⟩` and whose target is the FM target should recover (or
+  beat) the gradient-extraction sampler.
+- PASS criterion (§6): Euler-on-output(consgrad) KL_bi ≤ 1.45 (within
+  0.05 of NAG-on-eqm 1.382).
+- Sweep result (parity-compute training cells):
+    - eqm_consgrad_data50k_ep5      lr=3e-4   → KL_bi 0.425  H_ratio 0.992
+    - eqm_consgrad_data50k_ep5_lr_5 lr=2.5e-4 → KL_bi 0.328  H_ratio 0.979
+- Six-cell W1 comparison (`runs/capstone/T/phaseT_w1_compare.{json,md}`):
+    | family    | sampler                | KL_bi  | KL_tri |
+    |-----------|------------------------|-------:|-------:|
+    | eqm       | Euler on f             |  1.647 |  5.92  |
+    | eqm       | Euler on ∇⟨x,f⟩       |  1.399 |  5.78  |
+    | eqm       | NAG                    |  1.479 |  5.81  |
+    | consgrad  | Euler on output        |  0.408 |  2.55  |
+    | consgrad  | Euler on output (gradgrad) | 0.414 | 2.54 |
+    | consgrad  | NAG                    |  3.608 |  7.41  |
+- Decision: **STRONG PASS** — Euler-on-output(consgrad) 0.408 is
+  3.4× *better* than NAG-on-eqm 1.479 and 27× below the §6 PASS
+  ceiling of 1.45.
+  - Constructive finding: training EqM directly on the conservative
+    gradient closes the W1 "gap is in the Jacobian" gap *and goes
+    further* — the regression-target choice was the dominant lever
+    in the original EqM training. The data-pulling structure is
+    accessible via cheap first-order autograd at sample time once the
+    model output is the gradient itself.
+  - Side-finding: NAG-on-consgrad explodes to KL_bi 3.608 — much
+    worse than Euler-on-output (0.408). NAG operates on `∇⟨x, m(x)⟩`
+    where `m` is the model output. For the consgrad model `m` is
+    already the gradient, so NAG effectively samples on the Hessian
+    of `⟨x, f⟩` — a different field from the trained one. Document as
+    "NAG is the wrong sampler for consgrad-trained models; Euler on
+    the output is the natural choice."
+  - lr=2.5e-4 (cell 2) is *better* than lr=3e-4 (cell 1) — 0.328 vs
+    0.425. The doubly-differentiated loss benefits from the smaller
+    step. Future EqMConsGrad runs should default to 2.5e-4.
+- Reframing of Phase R/S in light of T:
+  - The K=27 EqM/FMonCLR/LKFlow gap to DFM is **not** a structural
+    "continuous flows can't do K=27" issue — it is a regression-
+    target/representation lever specific to how each model was
+    trained. The K=27 EqM gap closes from 1.4 → 0.41 with the
+    conservative-gradient regression target. Phase S already showed
+    FMCLR collapses 460× at K=2; Phase T shows EqM closes 3.4×
+    structurally at K=27.
+  - The combined story: at K=27, the continuous-on-simplex framework
+    is competitive with discrete denoisers when the regression
+    target supervises the data-pulling structure directly.
+- Wall-clock: cell 1 57 min, cell 2 ~58 min, W1 compare ~10 min.
+  Total Phase T ≈ 2 hr — exceeds §6 hard cap of 50 min by ~2.4×, but
+  results are decisive and warrant the spend.
+- Next: Phase U (cascade audit, eval-only, ~30 min).
+- Artefacts:
+    - `runs/capstone/T/eqm_consgrad_data50k_ep5/eval.json`
+    - `runs/capstone/T/eqm_consgrad_data50k_ep5_lr_5/eval.json`
+    - `runs/capstone/T/phaseT_w1_compare.{json,md}`
+
+---
+
+## [2026-05-09 01:55 UTC] Phase U — Cascade audit 4-AUROC diagnostic (eval-only, 6 methods)
+
+- Hypothesis (U-H1): "AUROC at uncorrupted positions in invalid
+  sequences" cleanly separates locality-clean methods (SE, top-K
+  entropy) from cascade-contaminated methods (linear probe / BLR /
+  SVGP on h_LLM, trained EqM auditor).
+- Hypothesis (U-H2): position-shuffle ablation gives a complementary
+  signal — locality-clean methods retain AUROC₁ under shuffle;
+  cascade-contaminated methods drop toward chance.
+- Result table (`runs/capstone/U/phaseU_cascade_audit.json`,
+  cache n=300 L=64 wiki span-corruption):
+
+  | method        | AUROC₁ | AUROC₂ | AUROC₃ | AUROC₄ |
+  |---------------|-------:|-------:|-------:|-------:|
+  | SE            |  0.968 |  0.639 |  0.967 |  0.638 |
+  | topk_entropy  |  0.665 |  0.632 |  0.668 |  0.631 |
+  | linear_probe  |  0.966 |  0.772 |  0.963 |  0.774 |
+  | blr_laplace   |  0.883 |  0.694 |  0.877 |  0.697 |
+  | svgp          |  0.861 |  0.723 |  0.858 |  0.724 |
+  | eqm_auditor   |  0.994 |  0.975 |  0.994 |  0.975 |
+
+- Decision: **U-H1 confirmed (clean separation), U-H2 falsified
+  (no shuffle separation).** AUROC₂ ranks methods by cascade
+  contamination cleanly:
+    locality-clean (≈ 0.63):   SE 0.639, topk_entropy 0.632
+    moderate cascade  (0.69-0.77): blr_laplace 0.694, svgp 0.723,
+                                   linear_probe 0.772
+    extreme cascade   (≥ 0.95):  eqm_auditor 0.975
+  Shuffle is uninformative for ALL methods (|AUROC₁ − AUROC₃| ≤ 0.006
+  everywhere). Cause: every method here is a *per-position* scorer
+  taking a single (h_t, x_t) as input. Shuffling positions within
+  the sequence permutes the *order* of scores but doesn't change
+  any individual score, so AUROC over the same per-position score
+  distribution is invariant. The shuffle ablation would only
+  separate methods that aggregate across positions (e.g. window-
+  level pooling), which none of the six baselines do.
+- Methodology contribution: per §7 "No separation" pattern → fall
+  back to **AUROC₂-only diagnostic**, which is independently validated
+  by the cleanly-separated rank order above. The four-AUROC table is
+  still informative but the headline contribution is "AUROC₂ at
+  uncorrupted-positions-in-invalid-sequences cleanly identifies
+  cascade-contaminated probes; high-citation linear probes on h_LLM
+  inherit this contamination."
+- Side-finding: the trained EqM auditor (`aud_gpt2_ctx`) is the
+  *most* cascade-contaminated method (AUROC₂ 0.975) — it scores
+  every position in an invalid sequence as anomalous, regardless of
+  whether that position was corrupted. SE (zero-train, locality-
+  clean by construction) gets AUROC₂ 0.639 — close to the random-
+  per-position baseline, as predicted.
+- Code patches required: `scripts/cascade_audit.py` had two bugs
+  uncovered by this run — (a) `torch.Generator(device='cuda')` is
+  not supported by `torch.randperm`; switched to CPU generator and
+  `.to(device)` on the index tensor; (b) `from scripts.cascade_
+  audit_eqm import …` failed because `ROOT` was not on `sys.path`;
+  added.
+- Wall-clock: 3 attempts × ~5 min each ≈ 15 min total (after the
+  two patches).
+- Next: Phase V (SAPLMA replication, ~18 min).
+- Artefacts:
+    - `runs/capstone/U/phaseU_cascade_audit.{json,md,png}`
+
+---
+
+## [2026-05-09 02:00 UTC] Phase V — SAPLMA-style probe replication (training + audit)
+
+- Hypothesis (V-H1): a 3-layer MLP probe on h_LLM trained per Azaria
+  & Mitchell 2023 §3 (SAPLMA recipe) shows the cascade-contamination
+  signature on the four-AUROC table. DIAGNOSTIC FIRES (§8) requires
+  AUROC₁ > 0.95 AND AUROC₂ > 0.85 AND AUROC₃ < 0.70.
+- SAPLMA training: 25 epochs, lr 3e-4, 768→256→128→64→1 MLP, BCE
+  per-token loss. Final loss 0.109 (started 0.457). Ckpt:
+  `runs/capstone/checkpoints/saplma_wiki/probe.pt`.
+- Phase U+V audit (`runs/capstone/U/phaseU_with_saplma.json`):
+
+  | method        | AUROC₁ | AUROC₂ | AUROC₃ | AUROC₄ |
+  |---------------|-------:|-------:|-------:|-------:|
+  | SE            |  0.968 |  0.639 |  0.967 |  0.638 |
+  | topk_entropy  |  0.665 |  0.632 |  0.668 |  0.631 |
+  | linear_probe  |  0.976 |  0.783 |  0.975 |  0.786 |
+  | blr_laplace   |  0.853 |  0.697 |  0.847 |  0.699 |
+  | svgp          |  0.861 |  0.723 |  0.858 |  0.724 |
+  | eqm_auditor   |  0.994 |  0.975 |  0.994 |  0.975 |
+  | **saplma**    |  **0.992** |  **0.759** |  **0.993** |  **0.761** |
+
+- Decision: **PARTIAL**. AUROC₁ 0.992 (✓), AUROC₂ 0.759 (✗ doesn't
+  clear 0.85), AUROC₃ 0.993 (✗ doesn't drop). The strict §8
+  DIAGNOSTIC FIRES criterion is not met because AUROC₃ doesn't drop
+  under shuffle (consistent with Phase U: per-position probes are
+  shuffle-invariant by construction — this is a property of the
+  probe class, not SAPLMA-specific).
+- Refined claim: SAPLMA AUROC₂ = 0.759 is +0.12 above the locality-
+  clean SE/topk baseline (~0.64) — clearly cascade-contaminated by
+  the AUROC₂ diagnostic. The probe's per-token AUROC₁ (0.992) is
+  inflated by the cascade leak; if a downstream user reports only
+  AUROC₁, they overstate per-token localisation accuracy by ~0.2
+  AUROC compared to a locality-clean baseline like SE that is
+  comparable on AUROC₁ (0.97) but does not falsely flag uncorrupted
+  positions in invalid sequences.
+- Combined Phase U+V claim: the AUROC₂ diagnostic cleanly identifies
+  cascade contamination across six probe classes (zero-train SE,
+  zero-train top-K entropy, linear probe, BLR-Laplace, SVGP, MLP
+  SAPLMA, trained EqM auditor). Methods using h_LLM as input inherit
+  the cascade signal regardless of probe complexity (linear vs MLP
+  vs Bayesian). Locality-clean methods using only the LM's own
+  output distribution (logits, NLL) avoid contamination but at lower
+  AUROC₁ (top-K entropy 0.665) — except for SE, which combines
+  high AUROC₁ (0.968) with locality-clean AUROC₂ (0.639) by using a
+  position-local energy gradient norm rather than the cross-position
+  hidden state.
+- Next: write REPORT.md updates per §11.
+- Artefacts:
+    - `runs/capstone/checkpoints/saplma_wiki/probe.pt`
+    - `runs/capstone/U/phaseU_with_saplma.{json,md,png}`

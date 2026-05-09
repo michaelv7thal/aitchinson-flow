@@ -1,0 +1,34 @@
+{
+  "ckpt": "runs/capstone/checkpoints/eqm_data50k_ep5_v2/epoch_final.pt",
+  "model_name": "EqM",
+  "epoch": 5,
+  "global_step": 3910,
+  "n_samples": 256,
+  "sample_steps": 128,
+  "sample_kwargs": {
+    "method": "sde",
+    "alpha": 0.03,
+    "use_grad": true
+  },
+  "unigram_kl": 0.02687341347336769,
+  "bigram_kl": 1.3499618768692017,
+  "trigram_kl": 5.916504859924316,
+  "H_gen": 2.8560433387756348,
+  "H_gt": 2.8546600341796875,
+  "H_ratio": 1.0004845777008067,
+  "grad_at_gen": 4.63838529586792,
+  "grad_at_gt": 0.10298943519592285,
+  "samples": [
+    "hanhcraluniof   eeiethg  hcllgonmr ags n",
+    "reeozane tioi sfbi ahhea hts gmnsinlodam",
+    "hgnoal ealen t clii  torevissa r oenaene",
+    "a  eocieoainmtmfuno uheaciulsfmoto nnonn",
+    "aeaiuayt n roem ne klortetiiirmwod  osnr",
+    "legoamte nrrt pgcc thhtntitssfarcvocosas",
+    "cahafrnicooneuw bturo arohtel trnoaloaoa",
+    "neecgrobrt nolyileiniptm htclnfn weaatla"
+  ],
+  "run_name": "eqm_sde_a0p03_grad",
+  "eval_only": true,
+  "overrides": {}
+}

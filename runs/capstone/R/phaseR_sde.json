@@ -1,0 +1,119 @@
+[
+  {
+    "name": "eqm_sde_a0p00_grad",
+    "family": "eqm",
+    "alpha": 0.0,
+    "use_grad": true,
+    "kl_bi": 1.4222266674041748,
+    "kl_uni": 0.03110099397599697,
+    "n_steps": 128
+  },
+  {
+    "name": "eqm_sde_a0p01_grad",
+    "family": "eqm",
+    "alpha": 0.01,
+    "use_grad": true,
+    "kl_bi": 1.4224398136138916,
+    "kl_uni": 0.027198022231459618,
+    "n_steps": 128
+  },
+  {
+    "name": "eqm_sde_a0p03_grad",
+    "family": "eqm",
+    "alpha": 0.03,
+    "use_grad": true,
+    "kl_bi": 1.3499618768692017,
+    "kl_uni": 0.02687341347336769,
+    "n_steps": 128
+  },
+  {
+    "name": "eqm_sde_a0p10_grad",
+    "family": "eqm",
+    "alpha": 0.1,
+    "use_grad": true,
+    "kl_bi": 1.2985659837722778,
+    "kl_uni": 0.03451574966311455,
+    "n_steps": 128
+  },
+  {
+    "name": "eqm_sde_a0p10_grad_n64",
+    "family": "eqm",
+    "alpha": 0.1,
+    "use_grad": true,
+    "kl_bi": 1.3403440713882446,
+    "kl_uni": 0.03198874741792679,
+    "n_steps": 64
+  },
+  {
+    "name": "eqm_sde_a0p30_grad",
+    "family": "eqm",
+    "alpha": 0.3,
+    "use_grad": true,
+    "kl_bi": 1.4741363525390625,
+    "kl_uni": 0.06290744245052338,
+    "n_steps": 128
+  },
+  {
+    "name": "eqm_sde_a1p00_grad",
+    "family": "eqm",
+    "alpha": 1.0,
+    "use_grad": true,
+    "kl_bi": 2.211244583129883,
+    "kl_uni": 0.20432238280773163,
+    "n_steps": 128
+  },
+  {
+    "name": "fmclr_sde_a0p00",
+    "family": "fmclr",
+    "alpha": 0.0,
+    "use_grad": false,
+    "kl_bi": 1.4783309698104858,
+    "kl_uni": 0.15229199826717377,
+    "n_steps": 128
+  },
+  {
+    "name": "fmclr_sde_a0p10",
+    "family": "fmclr",
+    "alpha": 0.1,
+    "use_grad": false,
+    "kl_bi": 1.3509902954101562,
+    "kl_uni": 0.13857555389404297,
+    "n_steps": 128
+  },
+  {
+    "name": "fmclr_sde_a0p30",
+    "family": "fmclr",
+    "alpha": 0.3,
+    "use_grad": false,
+    "kl_bi": 1.2801867723464966,
+    "kl_uni": 0.15085510909557343,
+    "n_steps": 128
+  },
+  {
+    "name": "lkflow_sde_a0p00",
+    "family": "lkflow",
+    "alpha": 0.0,
+    "use_grad": false,
+    "kl_bi": 1.601393461227417,
+    "kl_uni": 0.032915450632572174,
+    "n_steps": 128
+  },
+  {
+    "name": "lkflow_sde_a0p10",
+    "family": "lkflow",
+    "alpha": 0.1,
+    "use_grad": false,
+    "kl_bi": 1.4018726348876953,
+    "kl_uni": 0.027586452662944794,
+    "n_steps": 128
+  },
+  {
+    "name": "lkflow_sde_a0p30",
+    "family": "lkflow",
+    "alpha": 0.3,
+    "use_grad": false,
+    "kl_bi": 1.3007231950759888,
+    "kl_uni": 0.02146988734602928,
+    "n_steps": 128
+  }
+]

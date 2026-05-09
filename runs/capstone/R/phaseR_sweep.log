@@ -1,0 +1,29 @@
+[eval-only] eqm_sde_a0p00_grad: ckpt=runs/capstone/checkpoints/eqm_data50k_ep5_v2/epoch_final.pt kwargs={'method': 'sde', 'alpha': 0.0, 'use_grad': True}
+Generating train split:   0%|          | 0/1 [00:00<?, ? examples/s]Generating train split: 100%|██████████| 1/1 [00:00<00:00,  2.46 examples/s]Generating train split: 100%|██████████| 1/1 [00:00<00:00,  2.40 examples/s]
+Generating validation split:   0%|          | 0/1 [00:00<?, ? examples/s]Generating validation split: 100%|██████████| 1/1 [00:00<00:00, 41.80 examples/s]
+Generating test split:   0%|          | 0/1 [00:00<?, ? examples/s]Generating test split: 100%|██████████| 1/1 [00:00<00:00, 61.59 examples/s]
+eqm_sde_a0p00_grad: KL_uni=0.0311 KL_bi=1.4222 KL_tri=5.8448 H_ratio=0.991
+[eval-only] eqm_sde_a0p01_grad: ckpt=runs/capstone/checkpoints/eqm_data50k_ep5_v2/epoch_final.pt kwargs={'method': 'sde', 'alpha': 0.01, 'use_grad': True}
+eqm_sde_a0p01_grad: KL_uni=0.0272 KL_bi=1.4224 KL_tri=5.8327 H_ratio=0.996
+[eval-only] eqm_sde_a0p03_grad: ckpt=runs/capstone/checkpoints/eqm_data50k_ep5_v2/epoch_final.pt kwargs={'method': 'sde', 'alpha': 0.03, 'use_grad': True}
+eqm_sde_a0p03_grad: KL_uni=0.0269 KL_bi=1.3500 KL_tri=5.9165 H_ratio=1.000
+[eval-only] eqm_sde_a0p10_grad: ckpt=runs/capstone/checkpoints/eqm_data50k_ep5_v2/epoch_final.pt kwargs={'method': 'sde', 'alpha': 0.1, 'use_grad': True}
+eqm_sde_a0p10_grad: KL_uni=0.0345 KL_bi=1.2986 KL_tri=5.8708 H_ratio=1.014
+[eval-only] eqm_sde_a0p30_grad: ckpt=runs/capstone/checkpoints/eqm_data50k_ep5_v2/epoch_final.pt kwargs={'method': 'sde', 'alpha': 0.3, 'use_grad': True}
+eqm_sde_a0p30_grad: KL_uni=0.0629 KL_bi=1.4741 KL_tri=6.8082 H_ratio=1.055
+[eval-only] eqm_sde_a1p00_grad: ckpt=runs/capstone/checkpoints/eqm_data50k_ep5_v2/epoch_final.pt kwargs={'method': 'sde', 'alpha': 1.0, 'use_grad': True}
+eqm_sde_a1p00_grad: KL_uni=0.2043 KL_bi=2.2112 KL_tri=8.8792 H_ratio=1.112
+[eval-only] eqm_sde_a0p10_grad_n64: ckpt=runs/capstone/checkpoints/eqm_data50k_ep5_v2/epoch_final.pt kwargs={'method': 'sde', 'alpha': 0.1, 'use_grad': True}
+eqm_sde_a0p10_grad_n64: KL_uni=0.0320 KL_bi=1.3403 KL_tri=6.0106 H_ratio=1.016
+[eval-only] fmclr_sde_a0p00: ckpt=runs/capstone/checkpoints/fmclr_data50k_ep5_v2/epoch_final.pt kwargs={'method': 'sde', 'alpha': 0.0}
+fmclr_sde_a0p00: KL_uni=0.1523 KL_bi=1.4783 KL_tri=6.2920 H_ratio=0.945
+[eval-only] fmclr_sde_a0p10: ckpt=runs/capstone/checkpoints/fmclr_data50k_ep5_v2/epoch_final.pt kwargs={'method': 'sde', 'alpha': 0.1}
+fmclr_sde_a0p10: KL_uni=0.1386 KL_bi=1.3510 KL_tri=6.1361 H_ratio=0.948
+[eval-only] fmclr_sde_a0p30: ckpt=runs/capstone/checkpoints/fmclr_data50k_ep5_v2/epoch_final.pt kwargs={'method': 'sde', 'alpha': 0.3}
+fmclr_sde_a0p30: KL_uni=0.1509 KL_bi=1.2802 KL_tri=6.2258 H_ratio=0.950
+[eval-only] lkflow_sde_a0p00: ckpt=runs/capstone/checkpoints/lkflow_data50k_ep5/epoch_final.pt kwargs={'method': 'sde', 'alpha': 0.0}
+lkflow_sde_a0p00: KL_uni=0.0329 KL_bi=1.6014 KL_tri=5.7500 H_ratio=0.975
+[eval-only] lkflow_sde_a0p10: ckpt=runs/capstone/checkpoints/lkflow_data50k_ep5/epoch_final.pt kwargs={'method': 'sde', 'alpha': 0.1}
+lkflow_sde_a0p10: KL_uni=0.0276 KL_bi=1.4019 KL_tri=5.8669 H_ratio=0.995
+[eval-only] lkflow_sde_a0p30: ckpt=runs/capstone/checkpoints/lkflow_data50k_ep5/epoch_final.pt kwargs={'method': 'sde', 'alpha': 0.3}
+lkflow_sde_a0p30: KL_uni=0.0215 KL_bi=1.3007 KL_tri=5.5610 H_ratio=0.995
