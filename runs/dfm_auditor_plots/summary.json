@@ -1,0 +1,38 @@
+{
+  "figures": [
+    "fig1_auroc_locality.png",
+    "fig2_score_distributions.png",
+    "fig3_position_trace.png",
+    "fig4_token_heatmaps.png"
+  ],
+  "auroc_table": [
+    {
+      "label": "paper \u0394E",
+      "auc_row": 0.7129125000000001,
+      "auc_tok_ans": 0.5246431941782521,
+      "auc_tok_non": 0.5463600437065879,
+      "auc_within_row": 0.5365146886677331
+    },
+    {
+      "label": "DFM EBM (slot only)",
+      "auc_row": 0.81131875,
+      "auc_tok_ans": 0.6308980258652883,
+      "auc_tok_non": 0.5283325222989118,
+      "auc_within_row": 0.6315639133958125
+    },
+    {
+      "label": "Arch B (Transformer)",
+      "auc_row": 0.98534375,
+      "auc_tok_ans": 0.9697477457116322,
+      "auc_tok_non": 0.9786189070740707,
+      "auc_within_row": 0.6793937107225966
+    },
+    {
+      "label": "Arch B (MLP)",
+      "auc_row": 0.9786875,
+      "auc_tok_ans": 0.9039187460850706,
+      "auc_tok_non": 0.5578619577666359,
+      "auc_within_row": 0.7186835025173448
+    }
+  ]
+}

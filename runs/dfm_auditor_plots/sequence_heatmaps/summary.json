@@ -1,0 +1,70 @@
+[
+  {
+    "arch": "transformer",
+    "out_path": "runs/dfm_auditor_plots/sequence_heatmaps/sequence_heatmaps_transformer.png",
+    "window_size": 50,
+    "alignment": "per-row, answer-span start at relative offset 12",
+    "clean_rows": [
+      24,
+      454,
+      8,
+      574,
+      770,
+      226,
+      656,
+      162,
+      600,
+      394
+    ],
+    "halluc_rows": [
+      667,
+      653,
+      501,
+      403,
+      213,
+      31,
+      13,
+      245,
+      139,
+      57
+    ],
+    "E_vmin": -4.226991176605225,
+    "E_vmax": 4.226991176605225,
+    "V_vmin": -0.05450407788157463,
+    "V_vmax": 0.05450407788157463
+  },
+  {
+    "arch": "mlp",
+    "out_path": "runs/dfm_auditor_plots/sequence_heatmaps/sequence_heatmaps_mlp.png",
+    "window_size": 50,
+    "alignment": "per-row, answer-span start at relative offset 12",
+    "clean_rows": [
+      24,
+      454,
+      8,
+      574,
+      770,
+      226,
+      656,
+      162,
+      600,
+      394
+    ],
+    "halluc_rows": [
+      667,
+      653,
+      501,
+      403,
+      213,
+      31,
+      13,
+      245,
+      139,
+      57
+    ],
+    "E_vmin": -4.022984981536865,
+    "E_vmax": 4.022984981536865,
+    "V_vmin": -0.07049381732940674,
+    "V_vmax": 0.07049381732940674
+  }
+]

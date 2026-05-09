@@ -226,6 +226,54 @@ class DFMConfig:
 
 
 @dataclass
+class DirichletFMConfig:
+    """Dirichlet Flow Matching (Stark et al. 2024, arXiv:2402.05841).
+
+    Conditional probability path on the K-1 simplex:
+        p_{t|1}(x | x_1) = Dir(x; β(t, x_1))   with β_i = α(t) if i=x_1 else 1
+    α is parameterized directly as t ∈ [1, t_max]. The path goes from
+    Dir(1,...,1) (uniform on the simplex, t=1) to a Dirichlet concentrated
+    at the vertex e_{x_1} as t grows. The denoiser predicts p(x_1 | x_t, t)
+    under cross-entropy. Sampling integrates the marginal vector field
+    derived in Theorem 3.1 of the paper.
+    """
+
+    t_max: float = 8.0  # paper default for moderate K; α_max in the paper
+    dropout: float = 0.1
+    sample_nfe: int = 100  # Euler steps for sampling (Stark uses 100)
+    # If True, add small Gaussian noise to the input each step for stability
+    # (the paper's stochastic variant). Off by default — pure ODE.
+    sample_stochastic: bool = False
+    # Auditor extension: condition the denoiser on a per-position context vector
+    # (the LM's last hidden state h_LLM). "off" disables; "product_concat" mirrors
+    # EqM's mode and concats h_proj(h_LLM) onto x before the input projection.
+    context_features: str = "off"  # "off" | "hidden_only" | "product_concat"
+    ctx_hidden: int = 768  # raw context dim (GPT-2 small = 768)
+    ctx_proj_dim: int = 64  # projection size before concat
+    # EBM-eval-time t (where the closed-form mixture-of-Dirichlets log p_t is
+    # evaluated for UQ). Closer to t_max ⇒ peakier prior; closer to 1 ⇒ uniform.
+    energy_t: float = 4.0
+    # Architecture B (dual-head joint training): when ``joint_halluc=True`` the
+    # encoder grows a second head that emits a scalar hallucination logit per
+    # position; the training step combines slot-CE on clean rows with BCE on
+    # all rows. Encoder learns features useful for both objectives.
+    joint_halluc: bool = False
+    lambda_slot: float = 1.0
+    lambda_halluc: float = 1.0
+    # Per-row pos:neg imbalance in HaluEval-QA answer-mask positions is ~6:1
+    # (hallucinated answers are systematically longer than clean ones). Use a
+    # pos_weight in BCE to compensate; auto-computed in the runner if <= 0.
+    halluc_pos_weight: float = 0.0
+    # Encoder architecture. ``"transformer"`` is the default cross-positional
+    # attention model. ``"mlp"`` is a weight-shared per-position MLP — same
+    # input/output API but with NO cross-positional information flow. The MLP
+    # backbone is cascade-clean by construction (tok(non-ans) AUROC ≈ 0.50)
+    # and is the principled choice when locality matters more than
+    # row-level discrimination via cross-position cues.
+    backbone_kind: str = "transformer"  # "transformer" | "mlp"
+
+
+@dataclass
 class LogitKLFlowConfig:
     """Logit-KL Flow Matching (arXiv:2411.16821).
 
@@ -260,6 +308,35 @@ class AuditorConfig:
 
 
 @dataclass
+class HalluevalDFMAuditorConfig:
+    """DirichletFM auditor on cached HaluEval-QA top-K + h_LLM features.
+
+    Pairs two caches produced for Phase K / Phase Q:
+      * `topk_cache_path`   — `(topk_logp, topk_idx, E_logit, E_marg, ΔE)` per
+        position; K=32, L=160 (from `scripts/cache_hallueval_topk.py`).
+      * `hidden_cache_path` — `(full_ids, hidden_states, answer_mask, label,
+        pair_id)` (from `scripts/cache_hallueval.py`); 20000 rows of which
+        the first 4000 align with the topk cache.
+
+    The auditor trains its denoiser only on **clean** rows (label=False). At
+    eval time the closed-form mixture-of-Dirichlets EBM `−log p_t(x_LM | h)`
+    is evaluated at the LM's actual top-K simplex distribution; AUROC vs the
+    per-pair label is the headline number.
+    """
+
+    enabled: bool = False
+    topk_cache_path: str = "data/hallueval_topk_gpt2.pt"
+    hidden_cache_path: str = "data/hallueval_cache_gpt2.pt"
+    batch_size: int = 16
+    # Pair-level train/val split (prevents leakage across the clean/halluc
+    # halves of the same prompt).
+    train_frac: float = 0.8
+    # Subset cap on rows used (a) for fast smoke runs and (b) when the topk
+    # cache is smaller than the hidden cache (default 4000-row topk subset).
+    max_rows: int = 4000
+
+
+@dataclass
 class WandbConfig:
     """Optional Weights & Biases logging. Off by default; enable with --wandb."""
 
@@ -284,8 +361,12 @@ class Config:
     transformer: TransformerConfig = field(default_factory=TransformerConfig)
     eqm: EqM = field(default_factory=EqM)
     dfm: DFMConfig = field(default_factory=DFMConfig)
+    dirichlet_fm: DirichletFMConfig = field(default_factory=DirichletFMConfig)
     logitkl: LogitKLFlowConfig = field(default_factory=LogitKLFlowConfig)
     loader_settings: LoaderSettings = field(default_factory=LoaderSettings)
     loss: LossConfig = field(default_factory=LossConfig)
     auditor: AuditorConfig = field(default_factory=AuditorConfig)
+    hallueval_dfm_auditor: HalluevalDFMAuditorConfig = field(
+        default_factory=HalluevalDFMAuditorConfig
+    )
     wandb: WandbConfig = field(default_factory=WandbConfig)

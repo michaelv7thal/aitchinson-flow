@@ -1,0 +1,44 @@
+{
+  "history": [
+    {
+      "epoch": 1,
+      "train_ce": 3.4029556395960787,
+      "auc_E_seq_mean": 0.8328402366863905,
+      "auc_E_seq_max": 0.5384615384615384,
+      "auc_DeltaE_seq": 0.7248520710059172,
+      "ece_E_seq_mean": 0.2442794665694237,
+      "n_val": 52
+    },
+    {
+      "epoch": 2,
+      "train_ce": 3.208155678767784,
+      "auc_E_seq_mean": 0.8239644970414202,
+      "auc_E_seq_max": 0.5428994082840237,
+      "auc_DeltaE_seq": 0.7248520710059172,
+      "ece_E_seq_mean": 0.24427252377455058,
+      "n_val": 52
+    }
+  ],
+  "cfg": {
+    "epochs": 2,
+    "lr": 0.0003,
+    "batch_size": 16,
+    "max_rows": 256,
+    "d_model": 96,
+    "num_layers": 2,
+    "nhead": 4,
+    "energy_t": 4.0,
+    "t_max": 8.0,
+    "context_features": "hidden_only",
+    "ctx_proj_dim": 64,
+    "n_params_million": 0.307104
+  },
+  "data": {
+    "K": 32,
+    "L": 160,
+    "H": 768,
+    "n_total_rows": 256,
+    "n_train_rows": 204,
+    "n_val_rows": 52
+  }
+}

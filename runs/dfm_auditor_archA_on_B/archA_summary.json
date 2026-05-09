@@ -1,0 +1,14 @@
+{
+  "ckpt": "runs/dfm_auditor_archB_d512/best.pt",
+  "energy_t": 4.0,
+  "n_inducing": 128,
+  "iters": 400,
+  "n_train_pos": 21665,
+  "n_train_neg": 3607,
+  "auc_token_answer_span": 0.9628005936099372,
+  "auc_token_non_answer": 0.9764149190353579,
+  "auc_token_std_answer": 0.7022172812934291,
+  "auc_row_pool_mean": 0.98215,
+  "ece_token_answer_span": 0.009824803711841074,
+  "ece_row_pool_mean": 0.049587642410770065
+}

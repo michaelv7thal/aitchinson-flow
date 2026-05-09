@@ -1,0 +1,20 @@
+{
+  "n_samples": 32,
+  "nfe": 64,
+  "mean_nll": {
+    "generated": 6.0594635009765625,
+    "random_slot": 6.692485332489014,
+    "clean": 3.197908639907837
+  },
+  "vocab_match": {
+    "generated": 0.0,
+    "random_slot": 0.01315789483487606
+  },
+  "slot_diversity_pairwise_hamming": 0.8506770824392637,
+  "phaseH_threshold": {
+    "PASS_le": 5.5,
+    "PARTIAL_le": 7.0,
+    "FAIL_gt": 7.0
+  },
+  "ckpt": "runs/dfm_auditor_d512_hidden/best.pt"
+}
