@@ -1,0 +1,525 @@
+# Latent-EqM (learned-embedding) sweep — pivot from the simplex framing.
+#
+# Background: simplex CLR + Dirichlet sampling (RESULTS_DIRICHLET.md) showed
+# that the *representation* — not the metric on it — is the bottleneck.
+# Phase 3 with default hypers produced uniform-ish samples; Phase 4 retune
+# fixed the regression but exposed a sampler artefact (return_best yanks
+# back to the noise init when the energy field is shallow at γ=0).
+#
+# This sweep tests the embedding-based pivot: nn.Embedding(K, d) trained
+# jointly with the EqM flow model, with a tied output decoder. Same
+# backbone, same NAG-GD sampler, same conservative-gradient parameterisation.
+
+# ─── Latent-Phase 2 — sanity ───────────────────────────────────────────────
+# 1 epoch only; verify training is stable, embeddings differentiate
+# (embed.pairwise_min stays positive), decoded samples are letters.
+
+- name: latent_phase2_sanity_d32
+  overrides:
+    training.model_name: EqMLatent
+    training.epochs: 1
+    text8_dataset.max_train_windows: 10000
+    embedding.enabled: true
+    embedding.d_embed: 32
+    eqm.sample_return_best: false
+
+# ─── Latent-Phase 4 — headline at calibrated config ────────────────────────
+# 5 epochs at d=32 with the same compute budget as baseline_5ep /
+# dphase3_mse_dirichlet. Multiple seeds for variance estimates.
+
+- name: latent_d32_seed42
+  overrides:
+    training.model_name: EqMLatent
+    training.epochs: 5
+    training.seed: 42
+    text8_dataset.max_train_windows: 10000
+    embedding.enabled: true
+    embedding.d_embed: 32
+    eqm.sample_return_best: false
+
+- name: latent_d32_seed43
+  overrides:
+    training.model_name: EqMLatent
+    training.epochs: 5
+    training.seed: 43
+    text8_dataset.max_train_windows: 10000
+    embedding.enabled: true
+    embedding.d_embed: 32
+    eqm.sample_return_best: false
+
+- name: latent_d32_seed44
+  overrides:
+    training.model_name: EqMLatent
+    training.epochs: 5
+    training.seed: 44
+    text8_dataset.max_train_windows: 10000
+    embedding.enabled: true
+    embedding.d_embed: 32
+    eqm.sample_return_best: false
+
+# ─── Latent-Phase 5 — d_embed sweep ─────────────────────────────────────────
+# After the headline lands, characterise the d_embed tradeoff.
+
+- name: latent_d8
+  overrides:
+    training.model_name: EqMLatent
+    training.epochs: 5
+    text8_dataset.max_train_windows: 10000
+    embedding.enabled: true
+    embedding.d_embed: 8
+    eqm.sample_return_best: false
+
+- name: latent_d16
+  overrides:
+    training.model_name: EqMLatent
+    training.epochs: 5
+    text8_dataset.max_train_windows: 10000
+    embedding.enabled: true
+    embedding.d_embed: 16
+    eqm.sample_return_best: false
+
+- name: latent_d64
+  overrides:
+    training.model_name: EqMLatent
+    training.epochs: 5
+    text8_dataset.max_train_windows: 10000
+    embedding.enabled: true
+    embedding.d_embed: 64
+    eqm.sample_return_best: false
+
+- name: latent_d128
+  overrides:
+    training.model_name: EqMLatent
+    training.epochs: 5
+    text8_dataset.max_train_windows: 10000
+    embedding.enabled: true
+    embedding.d_embed: 128
+    eqm.sample_return_best: false
+
+# Untied decoder ablation (Phase 5.2) at d=32.
+- name: latent_d32_untied
+  overrides:
+    training.model_name: EqMLatent
+    training.epochs: 5
+    text8_dataset.max_train_windows: 10000
+    embedding.enabled: true
+    embedding.d_embed: 32
+    eqm.sample_return_best: false
+    embedding.tie_decoder: false
+
+# Phase 3 — break the trivial-CE-shortcut. The default tied + ce_min_gamma=0.5
+# allows the embedding alone to satisfy CE via self-similarity at γ≈1. Phase 4
+# headline showed KL_bi monotonically *regressing* over 5 epochs (1.93 →
+# 3.46) despite flow & CE both dropping — exactly that failure mode.
+# Two cells testing the structural fixes in combination.
+
+- name: latent_d32_untied_ce0
+  overrides:
+    training.model_name: EqMLatent
+    training.epochs: 5
+    text8_dataset.max_train_windows: 10000
+    embedding.enabled: true
+    embedding.d_embed: 32
+    eqm.sample_return_best: false
+    embedding.tie_decoder: false
+    eqm.ce_min_gamma: 0.0     # CE at every γ — forces grad_g to navigate from noise
+    eqm.lambda_ce: 1.0        # weight CE more strongly relative to flow
+
+# Tied + ce_min_gamma=0 — keeps the tying (so the embedding still receives
+# direct CE pull) but spreads CE over all γ. Tests whether (2) alone fixes it
+# without (1).
+- name: latent_d32_tied_ce0
+  overrides:
+    training.model_name: EqMLatent
+    training.epochs: 5
+    text8_dataset.max_train_windows: 10000
+    embedding.enabled: true
+    embedding.d_embed: 32
+    eqm.sample_return_best: false
+    embedding.tie_decoder: true
+    eqm.ce_min_gamma: 0.0
+    eqm.lambda_ce: 1.0
+
+# ─── Phase 3 follow-up — extended training + hyperparameter sweep ──────────
+# After untied_ce0 showed monotonic KL_bi improvement (2.32 → 1.667 over 5
+# epochs, dropping below the unigram floor at epoch 4), test whether
+# (a) the trend continues with more epochs, and (b) a couple of nearby
+# hypers move the needle.
+
+- name: latent_d32_untied_ce0_ep8
+  overrides:
+    training.model_name: EqMLatent
+    training.epochs: 8
+    text8_dataset.max_train_windows: 10000
+    embedding.enabled: true
+    embedding.d_embed: 32
+    eqm.sample_return_best: false
+    embedding.tie_decoder: false
+    eqm.ce_min_gamma: 0.0
+    eqm.lambda_ce: 1.0
+
+# Push CE harder — ensure it dominates. With ~5× weight, the regression has
+# to bend toward whatever embedding configuration solves CE.
+- name: latent_d32_untied_ce0_lam5
+  overrides:
+    training.model_name: EqMLatent
+    training.epochs: 5
+    text8_dataset.max_train_windows: 10000
+    embedding.enabled: true
+    embedding.d_embed: 32
+    eqm.sample_return_best: false
+    embedding.tie_decoder: false
+    eqm.ce_min_gamma: 0.0
+    eqm.lambda_ce: 5.0
+
+# Uniform γ. The default gamma_power=1.5 concentrates samples near γ=1.
+# With ce_min_gamma=0 the model now has to do work at γ=0 too, so spread
+# the γ load uniformly.
+- name: latent_d32_untied_ce0_gamuniform
+  overrides:
+    training.model_name: EqMLatent
+    training.epochs: 5
+    text8_dataset.max_train_windows: 10000
+    embedding.enabled: true
+    embedding.d_embed: 32
+    eqm.sample_return_best: false
+    embedding.tie_decoder: false
+    eqm.ce_min_gamma: 0.0
+    eqm.lambda_ce: 1.0
+    eqm.gamma_power: 1.0
+
+# σ matched to embedding L2 norm (~1 after a few epochs). Default σ=0.1 is
+# small relative to the data scale, which biases NAG sampling to start very
+# close to origin. σ=0.5 is a more centred starting point.
+- name: latent_d32_untied_ce0_sigma05
+  overrides:
+    training.model_name: EqMLatent
+    training.epochs: 5
+    text8_dataset.max_train_windows: 10000
+    embedding.enabled: true
+    embedding.d_embed: 32
+    eqm.sample_return_best: false
+    embedding.tie_decoder: false
+    eqm.ce_min_gamma: 0.0
+    eqm.lambda_ce: 1.0
+    eqm.source_sigma: 0.5
+
+# ─── Fixed-embedding variant (PPMI-SVD pre-trained) ───────────────────────
+# Eliminates the moving-target failure mode by pre-computing token
+# embeddings via PPMI-SVD on the text8 corpus and freezing them. With fixed
+# x_1 = embed(token), the FM regression has a stable target field and the
+# trivial-CE shortcut (embedding moves to satisfy CE via self-similarity)
+# is structurally impossible. Pre-built by:
+#   python scripts/learn_ppmi_svd_embeddings.py --out data/ppmi_svd_d27.pt --d 27
+
+- name: latent_fixed_ppmi_d27_tied
+  overrides:
+    training.model_name: EqMLatent
+    training.epochs: 5
+    text8_dataset.max_train_windows: 10000
+    embedding.enabled: true
+    embedding.d_embed: 27
+    embedding.fixed_path: data/ppmi_svd_d27.pt
+    embedding.tie_decoder: true
+    eqm.sample_return_best: false
+    eqm.ce_min_gamma: 0.0
+    eqm.lambda_ce: 1.0
+
+# With fixed PPMI-SVD embeddings, untied makes the decoder learnable from
+# scratch — useful to compare "decoder must learn inverse mapping" vs
+# "decoder is the embedding itself".
+- name: latent_fixed_ppmi_d27_untied
+  overrides:
+    training.model_name: EqMLatent
+    training.epochs: 5
+    text8_dataset.max_train_windows: 10000
+    embedding.enabled: true
+    embedding.d_embed: 27
+    embedding.fixed_path: data/ppmi_svd_d27.pt
+    embedding.tie_decoder: false
+    eqm.sample_return_best: false
+    eqm.ce_min_gamma: 0.0
+    eqm.lambda_ce: 1.0
+
+# Smaller d to test rank tradeoff.
+- name: latent_fixed_ppmi_d16_tied
+  overrides:
+    training.model_name: EqMLatent
+    training.epochs: 5
+    text8_dataset.max_train_windows: 10000
+    embedding.enabled: true
+    embedding.d_embed: 16
+    embedding.fixed_path: data/ppmi_svd_d16.pt
+    embedding.tie_decoder: true
+    eqm.sample_return_best: false
+    eqm.ce_min_gamma: 0.0
+    eqm.lambda_ce: 1.0
+
+# Skip-gram pre-trained embeddings — alternative to PPMI-SVD. Trained via
+# scripts/learn_skipgram_embeddings.py (3 epochs over text8 char pairs in a
+# window of 5). Skip-gram is the standard word2vec recipe; comparison with
+# PPMI-SVD is informative because the two methods give different geometry
+# (skip-gram has larger norm and more spread for K=27 chars).
+
+- name: latent_fixed_skipgram_d27_tied
+  overrides:
+    training.model_name: EqMLatent
+    training.epochs: 5
+    text8_dataset.max_train_windows: 10000
+    embedding.enabled: true
+    embedding.d_embed: 27
+    embedding.fixed_path: data/skipgram_d27.pt
+    embedding.tie_decoder: true
+    eqm.sample_return_best: false
+    eqm.ce_min_gamma: 0.0
+    eqm.lambda_ce: 1.0
+
+- name: latent_fixed_skipgram_d27_untied
+  overrides:
+    training.model_name: EqMLatent
+    training.epochs: 5
+    text8_dataset.max_train_windows: 10000
+    embedding.enabled: true
+    embedding.d_embed: 27
+    embedding.fixed_path: data/skipgram_d27.pt
+    embedding.tie_decoder: false
+    eqm.sample_return_best: false
+    eqm.ce_min_gamma: 0.0
+    eqm.lambda_ce: 1.0
+
+- name: latent_fixed_skipgram_d32_tied
+  overrides:
+    training.model_name: EqMLatent
+    training.epochs: 5
+    text8_dataset.max_train_windows: 10000
+    embedding.enabled: true
+    embedding.d_embed: 32
+    embedding.fixed_path: data/skipgram_d32.pt
+    embedding.tie_decoder: true
+    eqm.sample_return_best: false
+    eqm.ce_min_gamma: 0.0
+    eqm.lambda_ce: 1.0
+
+# ─── Long-training variants — 20 epochs, LR floor ─────────────────────────
+# 5-epoch flow_loss never plateaued; cosine schedule decays lr from 3e-4 to
+# ~3e-5 too fast to converge. Run 20 epochs with cosine_eta_min=1e-4 so the
+# late-training lr stays meaningful, plus 8-epoch ep8-style runs at fixed
+# t_max so the 5-epoch headline schedule is reused as a "warmup window".
+#
+# Pre-condition: data/ppmi_svd_d27.pt and data/skipgram_d27.pt exist.
+
+- name: latent_d32_untied_ce0_ep20
+  overrides:
+    training.model_name: EqMLatent
+    training.epochs: 20
+    training.cosine_eta_min: 1.0e-4
+    text8_dataset.max_train_windows: 10000
+    embedding.enabled: true
+    embedding.d_embed: 32
+    eqm.sample_return_best: false
+    embedding.tie_decoder: false
+    eqm.ce_min_gamma: 0.0
+    eqm.lambda_ce: 1.0
+
+- name: latent_fixed_ppmi_d27_tied_ep20
+  overrides:
+    training.model_name: EqMLatent
+    training.epochs: 20
+    training.cosine_eta_min: 1.0e-4
+    text8_dataset.max_train_windows: 10000
+    embedding.enabled: true
+    embedding.d_embed: 27
+    embedding.fixed_path: data/ppmi_svd_d27.pt
+    embedding.tie_decoder: true
+    eqm.sample_return_best: false
+    eqm.ce_min_gamma: 0.0
+    eqm.lambda_ce: 1.0
+
+- name: latent_fixed_skipgram_d27_tied_ep20
+  overrides:
+    training.model_name: EqMLatent
+    training.epochs: 20
+    training.cosine_eta_min: 1.0e-4
+    text8_dataset.max_train_windows: 10000
+    embedding.enabled: true
+    embedding.d_embed: 27
+    embedding.fixed_path: data/skipgram_d27.pt
+    embedding.tie_decoder: true
+    eqm.sample_return_best: false
+    eqm.ce_min_gamma: 0.0
+    eqm.lambda_ce: 1.0
+
+# Pure flow matching — no CE — for fixed-embedding cells. With tied decoder
+# AND fixed embeddings, the decoder is fixed too, so CE has no trainable
+# target it can shape. It's just a redundant regularizer that competes with
+# the flow regression — drop it.
+
+- name: latent_fixed_ppmi_d27_tied_pureFM
+  overrides:
+    training.model_name: EqMLatent
+    training.epochs: 5
+    text8_dataset.max_train_windows: 10000
+    embedding.enabled: true
+    embedding.d_embed: 27
+    embedding.fixed_path: data/ppmi_svd_d27.pt
+    embedding.tie_decoder: true
+    eqm.sample_return_best: false
+    eqm.lambda_ce: 0.0
+
+- name: latent_fixed_skipgram_d27_tied_pureFM
+  overrides:
+    training.model_name: EqMLatent
+    training.epochs: 5
+    text8_dataset.max_train_windows: 10000
+    embedding.enabled: true
+    embedding.d_embed: 27
+    embedding.fixed_path: data/skipgram_d27.pt
+    embedding.tie_decoder: true
+    eqm.sample_return_best: false
+    eqm.lambda_ce: 0.0
+
+- name: latent_fixed_ppmi_d27_tied_pureFM_ep20
+  overrides:
+    training.model_name: EqMLatent
+    training.epochs: 20
+    training.cosine_eta_min: 1.0e-4
+    text8_dataset.max_train_windows: 10000
+    embedding.enabled: true
+    embedding.d_embed: 27
+    embedding.fixed_path: data/ppmi_svd_d27.pt
+    embedding.tie_decoder: true
+    eqm.sample_return_best: false
+    eqm.lambda_ce: 0.0
+
+- name: latent_fixed_skipgram_d27_tied_pureFM_ep20
+  overrides:
+    training.model_name: EqMLatent
+    training.epochs: 20
+    training.cosine_eta_min: 1.0e-4
+    text8_dataset.max_train_windows: 10000
+    embedding.enabled: true
+    embedding.d_embed: 27
+    embedding.fixed_path: data/skipgram_d27.pt
+    embedding.tie_decoder: true
+    eqm.sample_return_best: false
+    eqm.lambda_ce: 0.0
+
+# Same recipe as the d=128 trainable run but with a 180× smaller transformer
+# backbone (d_model=128, 2 layers, ~0.5M vs 90M params). Hypothesis: with
+# 90M params the model satisfies CE trivially via embedding self-similarity
+# and the FM gradient signal is overwhelmed; a smaller model forces CE and
+# FM to share gradient bandwidth from epoch 1. Should also train 10× faster
+# so we can run more epochs at fixed wall-clock.
+- name: latent_d128_trainable_tied_ce0_smallmodel_ep20
+  overrides:
+    training.model_name: EqMLatent
+    training.epochs: 20
+    training.cosine_eta_min: 1.0e-4
+    text8_dataset.max_train_windows: 10000
+    embedding.enabled: true
+    embedding.d_embed: 128
+    embedding.tie_decoder: true
+    eqm.lambda_ce: 1.0
+    eqm.ce_min_gamma: 0.0
+    eqm.time_conditioning: add
+    eqm.sampler: euler
+    eqm.euler_nfe: 200
+    eqm.sample_return_best: false
+    transformer.d_model: 128
+    transformer.num_layers: 2
+    transformer.nhead: 4
+    transformer.d_latent: 128
+
+- name: latent_d128_trainable_tied_ce0_midmodel_ep20
+  overrides:
+    training.model_name: EqMLatent
+    training.epochs: 20
+    training.cosine_eta_min: 1.0e-4
+    text8_dataset.max_train_windows: 10000
+    embedding.enabled: true
+    embedding.d_embed: 128
+    embedding.tie_decoder: true
+    eqm.lambda_ce: 1.0
+    eqm.ce_min_gamma: 0.0
+    eqm.time_conditioning: add
+    eqm.sampler: euler
+    eqm.euler_nfe: 200
+    eqm.sample_return_best: false
+    transformer.d_model: 256
+    transformer.num_layers: 4
+    transformer.nhead: 4
+    transformer.d_latent: 256
+
+# Trainable embeddings + tied decoder + CE-at-all-γ + time-conditioning +
+# Euler sampler (corrected to use ∇⟨x, f⟩). 20-epoch headline cell —
+# combines what worked (tied_ce0 hit KL_bi=1.539 at 5ep, slightly better
+# than untied 1.597) with the EqM best-practice sampling stack and longer
+# training so cosine eta floor doesn't kill the late-training signal.
+- name: latent_d128_trainable_tied_ce0_ep20
+  overrides:
+    training.model_name: EqMLatent
+    training.epochs: 20
+    training.cosine_eta_min: 1.0e-4
+    text8_dataset.max_train_windows: 10000
+    embedding.enabled: true
+    embedding.d_embed: 128
+    embedding.tie_decoder: true
+    eqm.lambda_ce: 1.0
+    eqm.ce_min_gamma: 0.0
+    eqm.time_conditioning: add
+    eqm.sampler: euler
+    eqm.euler_nfe: 200
+    eqm.sample_return_best: false
+
+# Image-EqM-style recipe on text — d=128 skipgram + time-conditioning +
+# Euler sampler + no CE. The reference EqM code (raywang4/EqM) actually
+# *does* use time-conditioning (TimestepEmbedder + AdaLN-Zero) and walks
+# `t` during sampling; the paper's "time-invariant gradient field" claim
+# describes the equilibrium training condition, not the sampling procedure.
+# We mirror that here. Source noise N(0, σ²·I) ≠ data centroid (skipgram
+# centroid_norm=1.08, noise norm at σ=0.1 ≈ 1.13 in d=128) so the symmetric-
+# balance centroid trap does not apply structurally.
+- name: latent_skipgram_d128_timecond_euler_ep20
+  overrides:
+    training.model_name: EqMLatent
+    training.epochs: 20
+    training.cosine_eta_min: 1.0e-4
+    text8_dataset.max_train_windows: 10000
+    embedding.enabled: true
+    embedding.d_embed: 128
+    embedding.fixed_path: data/skipgram_d128.pt
+    embedding.tie_decoder: true
+    eqm.lambda_ce: 0.0
+    eqm.time_conditioning: add
+    eqm.sampler: euler
+    eqm.euler_nfe: 200
+    eqm.sample_return_best: false
+
+# σ=0.5 was clearly under-converged at 5 epochs (KL_bi 4.64 → 1.99) but the
+# generations were starting to look valid. Run 20 epochs with the same LR
+# floor to see if the larger source-noise scale is actually the right
+# choice given enough training.
+- name: latent_d32_untied_ce0_sigma05_ep20
+  overrides:
+    training.model_name: EqMLatent
+    training.epochs: 20
+    training.cosine_eta_min: 1.0e-4
+    text8_dataset.max_train_windows: 10000
+    embedding.enabled: true
+    embedding.d_embed: 32
+    eqm.sample_return_best: false
+    embedding.tie_decoder: false
+    eqm.ce_min_gamma: 0.0
+    eqm.lambda_ce: 1.0
+    eqm.source_sigma: 0.5
+
+# Frozen-embedding control (Phase 5.4) at d=32.
+- name: latent_d32_frozen
+  overrides:
+    training.model_name: EqMLatent
+    training.epochs: 5
+    text8_dataset.max_train_windows: 10000
+    embedding.enabled: true
+    embedding.d_embed: 32
+    eqm.sample_return_best: false
+    embedding.freeze_steps: 1000000  # never thaw → frozen control

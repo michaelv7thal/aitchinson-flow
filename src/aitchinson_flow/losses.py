@@ -40,8 +40,6 @@ class SoftHilbertLoss(nn.Module):
         # You may optionally subtract this constant if you want loss=0 at optimum.
         # vocab_size = pred_log.size(-1)
         # loss = loss - (2.0 / self.T) * torch.log(torch.tensor(vocab_size))
-        vocab_size = pred.size(-1)
-        loss = loss - (2.0 / self.alpha) * torch.log(torch.tensor(vocab_size))
 
         return loss.mean()
 

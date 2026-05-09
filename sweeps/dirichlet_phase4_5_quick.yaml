@@ -1,0 +1,40 @@
+# Quick Phase 4 + Phase 5 follow-on after Phase 3.
+#
+# Phase 3 (dphase3_mse_dirichlet) showed that with default hyperparameters,
+# Dirichlet data alone doesn't beat baseline_5ep — the FM target magnitude
+# grew ~3× (per Phase 0 diagnostics: |x_1| went from 12.27 → 34.18, target
+# from 5.83 → 16.24) while the optimizer/lr stayed the same, so the
+# regression is harder to fit at matched compute.
+#
+# Two cells testing the two most promising knobs:
+#   • dphase4_lambda_recalib — gradient_lambda raised to 3.0 to bring the
+#     FM target magnitude back to baseline-equivalent (ratio 16.24/5.83 ≈
+#     2.78). MSE on a smaller target should converge faster.
+#   • dphase5_hilbert_dirichlet — same data + hilbert_soft loss. Hilbert is
+#     logarithmic in coordinate differences (LSE-based) so the magnitude
+#     blow-up affects it less than MSE does.
+#
+# Run after dphase3 with:
+#   python scripts/run_sweep.py --sweep sweeps/dirichlet_phase4_5_quick.yaml --runs-root runs
+
+- name: dphase4_lambda_recalib
+  overrides:
+    training.model_name: EqM
+    training.epochs: 5
+    text8_dataset.max_train_windows: 10000
+    loss.mode: mse
+    transformation.dirichlet_sampling: true
+    transformation.dirichlet_alpha_peak: 10.0
+    eqm.gradient_lambda: 3.0
+
+- name: dphase5_hilbert_dirichlet
+  overrides:
+    training.model_name: EqM
+    training.epochs: 5
+    text8_dataset.max_train_windows: 10000
+    loss.mode: hilbert_soft
+    loss.hilbert_alpha: 1.0
+    loss.hilbert_alpha_start: 1.0
+    transformation.dirichlet_sampling: true
+    transformation.dirichlet_alpha_peak: 10.0
+    eqm.gamma_power: 1.0

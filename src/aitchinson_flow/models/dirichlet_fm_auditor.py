@@ -37,6 +37,7 @@ from __future__ import annotations
 
 from typing import Any
 
+import gpytorch
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -294,6 +295,201 @@ class _PerPositionMLPBackbone(nn.Module):
         return self.head(self._encode_features(x, t, h_ctx))
 
 
+class _SVGPHead(nn.Module):
+    """Sparse variational GP head over encoder features.
+
+    First-class sibling of :class:`_AuditorBackbone` and
+    :class:`_PerPositionMLPBackbone` — same module status, but used post-hoc
+    rather than during the main FM training step. Wraps the same gpytorch
+    recipe used by ``scripts/phaseF_uq.train_svgp``: ``ApproximateGP`` with
+    a ``CholeskyVariationalDistribution`` + ``VariationalStrategy``,
+    ScaleKernel(RBFKernel), Bernoulli likelihood, ``VariationalELBO``.
+
+    Lifecycle:
+
+      * ``__init__`` builds the GP eagerly with random inducing points so
+        the state_dict is well-formed from the start. SVGP parameters are
+        marked ``requires_grad=False`` until ``fit()`` opts them in, so the
+        main optimizer (which sees ``model.parameters()``) does not touch
+        them during FM training.
+      * ``fit(features, labels, ...)`` re-seeds inducing points from the
+        empirical training distribution, toggles grads on, optimises
+        ``-ELBO`` for ``n_iters`` steps, then toggles grads off again.
+      * ``forward(features)`` returns ``(prob, latent_mean, latent_std)``
+        per leading-position; runs under ``no_grad`` and standardises by
+        the registered ``_mu``/``_sigma`` buffers from the last fit.
+
+    Inputs to ``forward`` may be (..., d_model); the leading dims are
+    flattened internally (so (B, L, d_model) → (B, L)).
+    """
+
+    def __init__(
+        self,
+        d_model: int,
+        *,
+        n_inducing: int = 128,
+        kernel: str = "rbf",
+    ) -> None:
+        super().__init__()
+        if kernel != "rbf":
+            raise ValueError(f"unsupported kernel: {kernel!r}")
+        self.d_model = d_model
+        self.n_inducing = n_inducing
+        # Standardisation buffers, populated by fit().
+        self.register_buffer("_mu", torch.zeros(d_model))
+        self.register_buffer("_sigma", torch.ones(d_model))
+        self.register_buffer("_fitted", torch.tensor(False))
+        # Build the gpytorch components eagerly so state_dict is stable.
+        # Random inducing points are placeholders until fit() reseeds them.
+        ip0 = torch.randn(n_inducing, d_model)
+        self.gp = _build_svgp_module(ip0)
+        self.likelihood = gpytorch.likelihoods.BernoulliLikelihood()
+        # Don't include SVGP params in the main FM optimizer's update.
+        for p in self.gp.parameters():
+            p.requires_grad_(False)
+        for p in self.likelihood.parameters():
+            p.requires_grad_(False)
+
+    def fit(
+        self,
+        features: torch.Tensor,
+        labels: torch.Tensor,
+        *,
+        n_iters: int = 200,
+        lr: float = 0.01,
+        seed: int = 0,
+        verbose: bool = False,
+    ) -> float:
+        """Train the variational params on ``(N, d_model)`` features.
+
+        ``labels`` is (N,) binary (0/1, float). Returns the final ELBO loss.
+        Re-seeds inducing points from a random subset of the standardised
+        training set; updates the ``_mu``/``_sigma`` standardisation
+        buffers; toggles SVGP param grads on for the duration of the fit
+        and back off afterwards (so the main optimizer remains unaware).
+        """
+        torch.manual_seed(seed)
+        device = features.device
+        if features.dim() != 2 or features.shape[1] != self.d_model:
+            raise ValueError(
+                f"expected features (N, {self.d_model}); got {tuple(features.shape)}"
+            )
+        if labels.dim() != 1 or labels.shape[0] != features.shape[0]:
+            raise ValueError(
+                f"labels shape mismatch: {tuple(labels.shape)} vs {features.shape[0]}"
+            )
+
+        mu = features.mean(0)
+        sigma = features.std(0).clamp_min(1e-6)
+        Xs = (features - mu) / sigma
+        # Re-seed inducing points from data and rebuild the gp module so
+        # variational distribution dims line up.
+        perm = torch.randperm(Xs.shape[0], device=device)[: self.n_inducing]
+        ip = Xs[perm].detach().clone()
+        self.gp = _build_svgp_module(ip).to(device)
+        self.likelihood = gpytorch.likelihoods.BernoulliLikelihood().to(device)
+        self._mu = mu.detach()
+        self._sigma = sigma.detach()
+
+        # Opt-in grads for the fit window only.
+        for p in self.gp.parameters():
+            p.requires_grad_(True)
+        for p in self.likelihood.parameters():
+            p.requires_grad_(True)
+
+        self.gp.train()
+        self.likelihood.train()
+        opt = torch.optim.Adam(
+            list(self.gp.parameters()) + list(self.likelihood.parameters()),
+            lr=lr,
+        )
+        mll = gpytorch.mlls.VariationalELBO(
+            self.likelihood, self.gp, num_data=Xs.shape[0]
+        )
+        y = labels.to(device).float()
+        last_loss = float("nan")
+        for it in range(n_iters):
+            opt.zero_grad()
+            out = self.gp(Xs)
+            loss = -mll(out, y)
+            loss.backward()
+            opt.step()
+            last_loss = float(loss.item())
+            if verbose and (it + 1) % max(1, n_iters // 5) == 0:
+                print(f"    [SVGP] iter {it + 1}/{n_iters}  loss={last_loss:.4f}")
+        self.gp.eval()
+        self.likelihood.eval()
+
+        # Lock grads back off so the main optimizer ignores SVGP params.
+        for p in self.gp.parameters():
+            p.requires_grad_(False)
+        for p in self.likelihood.parameters():
+            p.requires_grad_(False)
+        self._fitted = torch.tensor(True)
+        return last_loss
+
+    @torch.no_grad()
+    def forward(
+        self,
+        features: torch.Tensor,
+        *,
+        batch_size: int = 512,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Predict per-position posterior on (..., d_model) features.
+
+        Returns ``(prob, mean, std)`` with the same leading shape as input
+        (without the trailing d_model). All three are on the same device as
+        the input and share dtype with the GP's parameters.
+        """
+        if not bool(self._fitted.item()):
+            raise RuntimeError("_SVGPHead.forward called before fit()")
+        orig_shape = features.shape[:-1]
+        device = next(self.gp.parameters()).device
+        Xs = (features - self._mu.to(features.device)) / self._sigma.to(features.device)
+        Xs = Xs.reshape(-1, self.d_model).to(device)
+        means, stds, probs = [], [], []
+        with gpytorch.settings.fast_pred_var():
+            for s in range(0, Xs.shape[0], batch_size):
+                e = min(s + batch_size, Xs.shape[0])
+                f_dist = self.gp(Xs[s:e])
+                means.append(f_dist.mean)
+                stds.append(f_dist.variance.clamp_min(1e-12).sqrt())
+                probs.append(self.likelihood(f_dist).mean)
+        out_dev = features.device
+        prob = torch.cat(probs).reshape(*orig_shape).to(out_dev)
+        mean = torch.cat(means).reshape(*orig_shape).to(out_dev)
+        std = torch.cat(stds).reshape(*orig_shape).to(out_dev)
+        return prob, mean, std
+
+
+def _build_svgp_module(inducing_points: torch.Tensor) -> gpytorch.models.ApproximateGP:
+    """Internal: gpytorch SVGP module factory. RBF + ConstantMean.
+
+    Split out so ``_SVGPHead.fit`` can rebuild the module fresh after
+    re-seeding inducing points (``CholeskyVariationalDistribution``
+    bakes the inducing-set size into its parameter shapes).
+    """
+
+    class _SVGP(gpytorch.models.ApproximateGP):
+        def __init__(self, ip: torch.Tensor) -> None:
+            vd = gpytorch.variational.CholeskyVariationalDistribution(ip.size(0))
+            vs = gpytorch.variational.VariationalStrategy(
+                self, ip, vd, learn_inducing_locations=True
+            )
+            super().__init__(vs)
+            self.mean_module = gpytorch.means.ConstantMean()
+            self.covar_module = gpytorch.kernels.ScaleKernel(
+                gpytorch.kernels.RBFKernel()
+            )
+
+        def forward(self, x: torch.Tensor):  # noqa: D401
+            return gpytorch.distributions.MultivariateNormal(
+                self.mean_module(x), self.covar_module(x)
+            )
+
+    return _SVGP(inducing_points)
+
+
 def _dirichlet_logp_mixture(
     x: torch.Tensor,
     posterior_logits: torch.Tensor,
@@ -387,6 +583,20 @@ class DirichletFMAuditor(nn.Module):
             )
         else:
             self.halluc_head = None
+        # Architecture A: optional sparse variational GP head over encoder
+        # features. Same conditional-instantiation pattern as halluc_head so
+        # checkpoints remain state_dict-compatible across the on/off setting.
+        # Trained post-hoc via ``fit_svgp(loader)``; queried via
+        # ``svgp_score_at_lm(batch)``. Its parameters live in the model but
+        # carry ``requires_grad=False`` outside ``fit()``, so the main FM
+        # optimizer ignores them.
+        if cfg.dirichlet_fm.svgp_head:
+            self.svgp_head: _SVGPHead | None = _SVGPHead(
+                d_model=cfg.transformer.d_model,
+                n_inducing=cfg.dirichlet_fm.svgp_n_inducing,
+            )
+        else:
+            self.svgp_head = None
 
     def set_dims(self, K: int, L: int) -> None:
         """Re-instantiate the backbone with the actual cache dims.
@@ -456,8 +666,15 @@ class DirichletFMAuditor(nn.Module):
         hidden_all = batch["hidden"].float()            # (B, L, H)
         answer_all = batch["answer_mask"]               # (B, L)
 
-        # ---------- slot-prediction CE on CLEAN rows ----------
-        clean_mask = ~labels
+        # ---------- slot-prediction CE on CLEAN rows (or all rows) ----------
+        # ``train_clean_only=True`` (default) is the one-class density recipe:
+        # the slot head only sees label==0 rows, so the EBM models "what
+        # normal looks like." Setting it False is the strictly self-
+        # supervised variant — slot CE on every row, no label inspection.
+        if self.cfg.dirichlet_fm.train_clean_only:
+            clean_mask = ~labels
+        else:
+            clean_mask = torch.ones_like(labels)
         slot_loss = torch.zeros((), device=device, dtype=hidden_all.dtype)
         slot_logits_clean: torch.Tensor | None = None
         z_clean: torch.Tensor | None = None
@@ -679,6 +896,140 @@ class DirichletFMAuditor(nn.Module):
         return {
             "prob_pos": prob_pos,
             "logit_pos": logits_pos,
+            "prob_seq": prob_seq,
+            "answer_mask": answer_mask,
+            "label": label,
+        }
+
+    def attach_svgp_head(
+        self,
+        *,
+        n_inducing: int | None = None,
+    ) -> None:
+        """Bolt an :class:`_SVGPHead` onto the model post-construction.
+
+        Use this when loading a legacy checkpoint that was trained without
+        the SVGP head — building it at constructor time and then calling
+        ``load_state_dict`` triggers a gpytorch upstream hook that crashes
+        on empty submodule dicts. Building it after the load avoids that
+        path. After attach, call :meth:`fit_svgp` to populate variational
+        params.
+        """
+        if self.svgp_head is not None:
+            return  # already attached; idempotent
+        if n_inducing is None:
+            n_inducing = self.cfg.dirichlet_fm.svgp_n_inducing
+        self.svgp_head = _SVGPHead(
+            d_model=self.cfg.transformer.d_model,
+            n_inducing=n_inducing,
+        ).to(next(self.parameters()).device)
+
+    def fit_svgp(
+        self,
+        loader: Any,
+        *,
+        device: torch.device | str | None = None,
+        n_iters: int | None = None,
+        lr: float | None = None,
+        seed: int = 0,
+        verbose: bool = False,
+    ) -> float:
+        """Fit the SVGP head on encoder features over the given loader.
+
+        Gathers encoder features at the LM's actual top-K simplex (the same
+        score-time geometry used by ``energy_at_lm_distribution``) over all
+        answer-mask positions in ``loader``, with the per-row label
+        broadcast over those positions. Then trains the SVGP variational
+        params for ``n_iters`` steps. Defaults read from
+        ``cfg.dirichlet_fm.svgp_n_iters`` / ``svgp_lr``.
+
+        Returns the final ELBO loss.
+        """
+        if self.svgp_head is None:
+            raise RuntimeError(
+                "fit_svgp requires svgp_head=True in cfg.dirichlet_fm"
+            )
+        if device is None:
+            device = next(self.parameters()).device
+        device = torch.device(device)
+        n_iters = n_iters if n_iters is not None else self.cfg.dirichlet_fm.svgp_n_iters
+        lr = lr if lr is not None else self.cfg.dirichlet_fm.svgp_lr
+
+        feats: list[torch.Tensor] = []
+        labs: list[torch.Tensor] = []
+        was_training = self.training
+        self.eval()
+        with torch.no_grad():
+            for batch in loader:
+                for k, v in batch.items():
+                    if isinstance(v, torch.Tensor):
+                        batch[k] = v.to(device)
+                topk_logp = batch["topk_logp"].float()
+                hidden = batch["hidden"].float()
+                answer_mask = batch["answer_mask"].bool()
+                label = batch["label"].bool()
+                x = topk_logp.exp()
+                x = x / x.sum(dim=-1, keepdim=True).clamp_min(1e-12)
+                B, L, _ = x.shape
+                t_batch = torch.full(
+                    (B,), float(self.cfg.dirichlet_fm.energy_t),
+                    device=device, dtype=x.dtype,
+                )
+                z = self.forward_features(x, t_batch, h_ctx=hidden)  # (B, L, d)
+                lab_pos = label.unsqueeze(-1).expand(B, L)
+                feats.append(z[answer_mask].detach().cpu())
+                labs.append(lab_pos[answer_mask].detach().cpu().long())
+        if was_training:
+            self.train()
+        if not feats:
+            raise RuntimeError("fit_svgp: no answer-mask positions found in loader")
+        X = torch.cat(feats, dim=0).to(device)
+        y = torch.cat(labs, dim=0).to(device).float()
+        return self.svgp_head.fit(
+            X, y, n_iters=n_iters, lr=lr, seed=seed, verbose=verbose,
+        )
+
+    @torch.no_grad()
+    def svgp_score_at_lm(
+        self,
+        batch: Any,
+        *,
+        t: float | None = None,
+    ) -> dict[str, torch.Tensor]:
+        """Architecture-A per-position SVGP posterior at the LM's distribution.
+
+        Evaluated at the same simplex point and time as
+        ``energy_at_lm_distribution`` and ``halluc_score_at_lm`` so the
+        three readouts can be compared directly. Returns ``prob_pos``
+        (Bernoulli posterior mean), ``mean_pos`` and ``std_pos`` (latent
+        Gaussian posterior), plus row-level pooled ``prob_seq`` over the
+        answer mask. Requires ``svgp_head=True`` and a prior call to
+        ``fit_svgp(loader)``.
+        """
+        if self.svgp_head is None:
+            raise RuntimeError(
+                "svgp_score_at_lm requires svgp_head=True"
+            )
+        if t is None:
+            t = float(self.cfg.dirichlet_fm.energy_t)
+        topk_logp = batch["topk_logp"].float()
+        hidden = batch["hidden"].float()
+        answer_mask = batch["answer_mask"].bool()
+        label = batch["label"].bool()
+        x = topk_logp.exp()
+        x = x / x.sum(dim=-1, keepdim=True).clamp_min(1e-12)
+        B, L, _ = x.shape
+        device = x.device
+        t_batch = torch.full((B,), float(t), device=device, dtype=x.dtype)
+        z = self.forward_features(x, t_batch, h_ctx=hidden)  # (B, L, d)
+        prob_pos, mean_pos, std_pos = self.svgp_head(z)
+        denom = answer_mask.sum(dim=-1).clamp_min(1).to(prob_pos.dtype)
+        masked = torch.where(answer_mask, prob_pos, torch.zeros_like(prob_pos))
+        prob_seq = masked.sum(dim=-1) / denom
+        return {
+            "prob_pos": prob_pos,
+            "mean_pos": mean_pos,
+            "std_pos": std_pos,
             "prob_seq": prob_seq,
             "answer_mask": answer_mask,
             "label": label,

@@ -90,7 +90,7 @@ def _config_from_payload(payload: dict[str, Any]) -> Config:
     """
     cfg = Config()
     saved = payload.get("cfg") or {}
-    for section_name in ("training", "text8_dataset", "transformation", "transformer", "eqm", "dfm", "logitkl", "loss", "auditor"):
+    for section_name in ("training", "text8_dataset", "transformation", "transformer", "eqm", "dfm", "logitkl", "loss", "auditor", "embedding"):
         section_dict = saved.get(section_name) or {}
         if not section_dict:
             continue
@@ -211,9 +211,17 @@ def evaluate_checkpoint(
     kl_b = ngram_kl(gen_ids, train_ids, 2, K=K_eval)
     kl_t = ngram_kl(gen_ids, train_ids, 3, K=K_eval)
 
-    # Gradient norms only meaningful for energy-based models (EqM).
+    # Gradient norms only meaningful for energy-based models (EqM, EqMLatent).
     if hasattr(model, "position_uncertainty"):
-        val_features = dm._val_ds._features[: min(grad_at_n, len(dm._val_ds))].to(device)
+        n_grad = min(grad_at_n, len(dm._val_ds))
+        # EqMLatent works in embedding space — encode the val token_ids into
+        # the latent space; the simplex EqM uses the precomputed CLR features.
+        if cfg.training.model_name == "EqMLatent" and hasattr(model, "encode"):
+            val_token_ids = dm._val_ds._windows[:n_grad].to(device)
+            with torch.no_grad():
+                val_features = model.encode(val_token_ids)
+        else:
+            val_features = dm._val_ds._features[:n_grad].to(device)
         grad_gt = float(model.position_uncertainty(val_features).mean().item())
         grad_gen = float(
             model.position_uncertainty(x[: min(grad_at_n, x.shape[0])]).mean().item()

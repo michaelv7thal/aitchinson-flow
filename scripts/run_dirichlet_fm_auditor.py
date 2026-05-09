@@ -179,6 +179,11 @@ def main(argv: list[str] | None = None) -> None:
              "model; `mlp` is a weight-shared per-position MLP with no "
              "cross-positional information flow (cascade-clean by construction)",
     )
+    parser.add_argument(
+        "--train-on-all", action="store_true",
+        help="strictly self-supervised: train slot CE on ALL rows without "
+             "inspecting labels (vs. default one-class clean-only filter)",
+    )
     args = parser.parse_args(argv)
 
     torch.manual_seed(args.seed)
@@ -211,6 +216,7 @@ def main(argv: list[str] | None = None) -> None:
         ctx_proj_dim=args.ctx_proj_dim,
         dropout=0.0,
         backbone_kind=args.backbone,
+        train_clean_only=not args.train_on_all,
     )
     he = cfg.hallueval_dfm_auditor
     cfg.hallueval_dfm_auditor = replace(

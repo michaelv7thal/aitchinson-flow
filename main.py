@@ -40,6 +40,33 @@ def _build_argparser() -> argparse.ArgumentParser:
     p.add_argument("--epochs", type=int, default=None)
     p.add_argument("--lr", type=float, default=None)
     p.add_argument(
+        "--dirichlet",
+        action="store_true",
+        help="train with Dirichlet-sampled CLR data (Phase 1+).",
+    )
+    p.add_argument("--alpha-peak", type=float, default=None,
+                   help="Dirichlet target-class concentration (override config default).")
+    p.add_argument("--alpha-base", type=float, default=None,
+                   help="Dirichlet off-target concentration (override config default).")
+    p.add_argument(
+        "--latent",
+        action="store_true",
+        help="train EqMLatent (learned-embedding EqM) instead of simplex EqM.",
+    )
+    p.add_argument("--d-embed", type=int, default=None,
+                   help="EqMLatent embedding dim (overrides cfg.embedding.d_embed).")
+    p.add_argument("--loss-mode", type=str, default=None,
+                   choices=("mse", "hilbert", "hilbert_soft", "hilbert_soft_softmax"),
+                   help="Override cfg.loss.mode (Phase 5 ablation).")
+    p.add_argument("--gradient-lambda", type=float, default=None,
+                   help="Override cfg.eqm.gradient_lambda (Phase 4 retune).")
+    p.add_argument("--gamma-power", type=float, default=None,
+                   help="Override cfg.eqm.gamma_power (Phase 4 retune).")
+    p.add_argument("--decay-strategy", type=str, default=None,
+                   choices=("linear", "truncated", "piecewise"),
+                   help="Override cfg.eqm.decay_strategy (Phase 4 retune).")
+    p.add_argument("--seed", type=int, default=None)
+    p.add_argument(
         "--wandb",
         action="store_true",
         help="enable W&B logging (also enabled if WANDB_PROJECT env is set)",
@@ -64,7 +91,39 @@ def main(argv: list[str] | None = None):
         overrides["epochs"] = args.epochs
     if args.lr is not None:
         overrides["lr"] = args.lr
+    if args.seed is not None:
+        overrides["seed"] = args.seed
     cfg.training = replace(cfg.training, **overrides)
+
+    transform_overrides: dict[str, object] = {}
+    if args.dirichlet:
+        transform_overrides["dirichlet_sampling"] = True
+    if args.alpha_peak is not None:
+        transform_overrides["dirichlet_alpha_peak"] = args.alpha_peak
+    if args.alpha_base is not None:
+        transform_overrides["dirichlet_alpha_base"] = args.alpha_base
+    if transform_overrides:
+        cfg.transformation = replace(cfg.transformation, **transform_overrides)
+
+    if args.loss_mode is not None:
+        cfg.loss = replace(cfg.loss, mode=args.loss_mode)
+
+    if args.latent:
+        cfg.training = replace(cfg.training, model_name="EqMLatent")
+        embed_overrides: dict[str, object] = {"enabled": True}
+        if args.d_embed is not None:
+            embed_overrides["d_embed"] = args.d_embed
+        cfg.embedding = replace(cfg.embedding, **embed_overrides)
+
+    eqm_overrides: dict[str, object] = {}
+    if args.gradient_lambda is not None:
+        eqm_overrides["gradient_lambda"] = args.gradient_lambda
+    if args.gamma_power is not None:
+        eqm_overrides["gamma_power"] = args.gamma_power
+    if args.decay_strategy is not None:
+        eqm_overrides["decay_strategy"] = args.decay_strategy
+    if eqm_overrides:
+        cfg.eqm = replace(cfg.eqm, **eqm_overrides)
 
     wandb_enabled = args.wandb or bool(os.environ.get("WANDB_PROJECT"))
     if wandb_enabled:

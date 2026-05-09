@@ -111,6 +111,10 @@ class Text8DataModule(DataModule):
         self._val_ds = CharWindowDataset(val, K=K, label_smoothing=ls)
         self._test_ds = CharWindowDataset(test, K=K, label_smoothing=ls)
 
+        dirichlet = bool(getattr(transform_cfg, "dirichlet_sampling", False))
+        alpha_peak = float(getattr(transform_cfg, "dirichlet_alpha_peak", 50.0))
+        alpha_base = float(getattr(transform_cfg, "dirichlet_alpha_base", 0.1))
+
         self._train_collate = CorruptingCollate(
             K=K,
             corrupt_rate=dataset_cfg.train_corrupt_rate,
@@ -118,6 +122,9 @@ class Text8DataModule(DataModule):
             order_mix_prob=dataset_cfg.order_mix_prob,
             seed=dataset_cfg.corruption_seed,
             label_smoothing=ls,
+            dirichlet_sampling=dirichlet,
+            dirichlet_alpha_peak=alpha_peak,
+            dirichlet_alpha_base=alpha_base,
         )
         self._eval_collate = CorruptingCollate(
             K=K,
@@ -126,6 +133,9 @@ class Text8DataModule(DataModule):
             order_mix_prob=dataset_cfg.order_mix_prob,
             seed=dataset_cfg.corruption_seed + 10_000,
             label_smoothing=ls,
+            dirichlet_sampling=dirichlet,
+            dirichlet_alpha_peak=alpha_peak,
+            dirichlet_alpha_base=alpha_base,
         )
 
     @property

@@ -1,0 +1,26 @@
+{
+  "ckpt": null,
+  "model": "unigram_baseline",
+  "epoch": null,
+  "global_step": null,
+  "n_samples": 256,
+  "sample_steps": null,
+  "unigram_kl": 0.0008761965436860919,
+  "bigram_kl": 1.6916877031326294,
+  "trigram_kl": 7.158139228820801,
+  "H_gen": 2.834491491317749,
+  "H_gt": 2.8483986854553223,
+  "H_ratio": 0.9951175394762724,
+  "samples": [
+    " tn sueiphneirnmlesuesdoeopstewreen onvi",
+    "gation a  tfe uiotapoae rel dwuvltafeene",
+    "elielorloem  ateeesre son n  etnoesannvh",
+    "ita a hrabsdn hcetoodtsscogctrb usptlo s",
+    "i ti s eanchr nrhtrehueegl dh otibrnt  s",
+    "odryotle kee hheli  eeelei ievb ho thlpt",
+    "etrndd isohalgy  aaielss     o cohoe teo",
+    "crlddlutsr iswelktourfhcarilale  oiognl "
+  ],
+  "run_name": "unigram_baseline",
+  "overrides": {}
+}

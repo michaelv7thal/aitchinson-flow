@@ -84,6 +84,22 @@ class Text8DataConfig:
 @dataclass
 class TransformationConfig:
     label_smoothing: float = 1e-4
+    # Dirichlet-sampled data encoding (Stark-FM-style smoothing of the per-token
+    # one-hot). When ``True``, batch["x"] is replaced in CorruptingCollate with
+    # a fresh draw from Dir(α_base + α_peak·e_token) → CLR each step. The
+    # deterministic ``token_ids_to_features`` is still used for label_smoothing-
+    # only paths (e.g. EqM.bpd reconstruction). Default False reproduces the
+    # original deterministic-CLR pipeline.
+    dirichlet_sampling: bool = False
+    # Concentration on the target class. Larger ⇒ sharper peak at e_token,
+    # closer to the deterministic limit. Calibrated via Phase 2 of
+    # scripts/check_dirichlet_data.py: at α_base=0.1 the smallest α_peak
+    # giving stable ≥99.5% argmax recovery across seeds is 10.
+    dirichlet_alpha_peak: float = 10.0
+    # Concentration on each off-target class. Smaller ⇒ heavier-tailed off-
+    # target spread (more aggressive smoothing); too small and the simplex
+    # samples become bimodal/unstable.
+    dirichlet_alpha_base: float = 0.1
 
 
 @dataclass
@@ -271,6 +287,23 @@ class DirichletFMConfig:
     # and is the principled choice when locality matters more than
     # row-level discrimination via cross-position cues.
     backbone_kind: str = "transformer"  # "transformer" | "mlp"
+    # Slot-CE training data filter. When True (default) the slot head sees
+    # only clean rows — the original "one-class density on clean" recipe.
+    # When False, slot CE is trained on **all** rows without inspecting the
+    # halluc label, accepting label-noise contamination from halluc rows.
+    # This is the strictly self-supervised / unsupervised variant.
+    train_clean_only: bool = True
+    # Architecture A (post-hoc SVGP head): when ``svgp_head=True`` the
+    # auditor exposes a sparse variational GP over encoder features
+    # (gpytorch ApproximateGP + RBF + Bernoulli likelihood). It is **not**
+    # jointly trained with the encoder — main optimizer ignores its
+    # parameters; it is fitted post-hoc via ``model.fit_svgp(loader)`` and
+    # queried via ``model.svgp_score_at_lm(batch)`` for per-position mean +
+    # variance. Same gpytorch recipe used by ``scripts/phaseF_uq.train_svgp``.
+    svgp_head: bool = False
+    svgp_n_inducing: int = 128
+    svgp_n_iters: int = 200
+    svgp_lr: float = 0.01
 
 
 @dataclass
@@ -337,6 +370,43 @@ class HalluevalDFMAuditorConfig:
 
 
 @dataclass
+class EmbeddingConfig:
+    """Latent-EqM (`EqMLatent` model). Replaces the deterministic CLR-on-simplex
+    representation with a learnable ``nn.Embedding(K, d_embed)`` + tied output
+    decoder. The flow runs in plain ``R^{d_embed}`` (no V_d projection); the
+    model jointly trains embeddings to be flow-friendly *and* linearly
+    separable for the CE auxiliary.
+
+    Phase 0-3 of the simplex pipeline (Dirichlet-sampled CLR data + Hilbert vs
+    Aitchison) demonstrated that the simplex *representation* — not the metric
+    on it — is the bottleneck (RESULTS_DIRICHLET.md). This config feeds the
+    pivot to learned embeddings.
+    """
+
+    enabled: bool = False
+    d_embed: int = 32
+    init_std_factor: float = 1.0  # final init std = init_std_factor / sqrt(d)
+    # If > 0, freeze the embedding rows for the first N optimizer steps so the
+    # flow field finds a sensible starting energy landscape before the
+    # embedding rows start moving. Phase 2-3 calibration knob.
+    freeze_steps: int = 0
+    # Optional separate learning rate multiplier for the embedding rows.
+    # ``None`` ⇒ same lr as the rest of the model (no param-group split).
+    embed_lr_mult: float | None = None
+    # Untied vs tied output decoder. Tied (default) shares ``embed.weight`` with
+    # the readout linear layer; untied trains a separate ``nn.Linear(d, K)``.
+    tie_decoder: bool = True
+    # Pre-computed fixed embedding source. When set, EqMLatent loads the
+    # ``embeddings`` tensor from this ``torch.save``-d file (produced by
+    # ``scripts/learn_ppmi_svd_embeddings.py``) and **freezes** the embedding
+    # layer (``requires_grad_(False)``). This eliminates the moving-target
+    # failure mode of jointly training embeddings — x_1 = embed(token) is
+    # constant throughout training, so the flow regression has a fixed
+    # target field.
+    fixed_path: str | None = None
+
+
+@dataclass
 class WandbConfig:
     """Optional Weights & Biases logging. Off by default; enable with --wandb."""
 
@@ -369,4 +439,5 @@ class Config:
     hallueval_dfm_auditor: HalluevalDFMAuditorConfig = field(
         default_factory=HalluevalDFMAuditorConfig
     )
+    embedding: EmbeddingConfig = field(default_factory=EmbeddingConfig)
     wandb: WandbConfig = field(default_factory=WandbConfig)
