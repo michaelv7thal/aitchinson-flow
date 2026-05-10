@@ -1,0 +1,47 @@
+{
+  "rows": [
+    {
+      "gamma": 0.0,
+      "f_norm_mean": 1.3595070838928223,
+      "grad_E_norm_mean": 1.3623108863830566,
+      "cos_target": 0.09481784701347351,
+      "cos_centroid": 0.2247176170349121,
+      "direction_collapse_score": 0.10302276909351349
+    },
+    {
+      "gamma": 0.25,
+      "f_norm_mean": 1.914154291152954,
+      "grad_E_norm_mean": 3.493436813354492,
+      "cos_target": 0.9368027448654175,
+      "cos_centroid": 0.651883602142334,
+      "direction_collapse_score": 0.17197231948375702
+    },
+    {
+      "gamma": 0.5,
+      "f_norm_mean": 1.2209017276763916,
+      "grad_E_norm_mean": 2.3055319786071777,
+      "cos_target": 0.9310881495475769,
+      "cos_centroid": 0.8391231298446655,
+      "direction_collapse_score": 0.14362066984176636
+    },
+    {
+      "gamma": 0.75,
+      "f_norm_mean": 0.4967092275619507,
+      "grad_E_norm_mean": 1.0026772022247314,
+      "cos_target": 0.887270987033844,
+      "cos_centroid": 0.5024845600128174,
+      "direction_collapse_score": 0.11437999457120895
+    },
+    {
+      "gamma": 1.0,
+      "f_norm_mean": 0.3721535801887512,
+      "grad_E_norm_mean": 0.6844561100006104,
+      "cos_target": 0.8349918127059937,
+      "cos_centroid": 0.38048696517944336,
+      "direction_collapse_score": 0.10792972147464752
+    }
+  ],
+  "K": 27,
+  "L": 128,
+  "d": 256
+}

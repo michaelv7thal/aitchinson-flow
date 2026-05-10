@@ -1,0 +1,12 @@
+/home/renku/work/aitchinson-flow/scripts/learn_skipgram_embeddings.py:121: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+Consider using tensor.detach() first. (Triggered internally at /pytorch/torch/csrc/autograd/generated/python_variable_methods.cpp:836.)
+  total_loss += float(loss)
+corpus: (10000, 40), K=27
+pairs: 3,700,000
+epoch 1/5: loss=2.8451
+epoch 2/5: loss=2.8410
+epoch 3/5: loss=2.8414
+epoch 4/5: loss=2.8420
+epoch 5/5: loss=2.8420
+embed: shape=(27, 256), norm_mean=1.8568, pairwise_min=1.1670
+wrote data/skipgram_d256.pt

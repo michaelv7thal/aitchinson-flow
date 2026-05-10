@@ -107,9 +107,9 @@ def main() -> int:
         # Simplex EqM: use the data-feature L2 norm as the perturbation scale.
         # Compute on a held-out batch.
         from aitchinson_flow.data.transforms import token_ids_to_features
+
         ls = cfg.transformation.label_smoothing
-        sample_z = token_ids_to_features(val_ids[:64].to(device), K,
-                                          label_smoothing=ls)
+        sample_z = token_ids_to_features(val_ids[:64].to(device), K, label_smoothing=ls)
         embed_norm = sample_z.norm(dim=-1).mean().item()
         embed = None
 
@@ -135,18 +135,31 @@ def main() -> int:
     kl_t = _kl_smoothed(gen_tri, ref_tri)
     p = (gen_uni + 1e-9) / (gen_uni.sum() + K * 1e-9)
     H_gen = float(-(p * p.log()).sum())
-    print(f"  KL_uni={kl_u:.4f}  KL_bi={kl_b:.4f}  KL_tri={kl_t:.4f}  H_gen={H_gen:.4f}")
+    print(
+        f"  KL_uni={kl_u:.4f}  KL_bi={kl_b:.4f}  KL_tri={kl_t:.4f}  H_gen={H_gen:.4f}"
+    )
     print(f"  sample[0]: {''.join(ALPHABET[int(i)] for i in ids[0])!r}")
     print(f"  sample[1]: {''.join(ALPHABET[int(i)] for i in ids[1])!r}")
-    rows.append({
-        "mode": "unconditional", "alpha": None,
-        "KL_uni": kl_u, "KL_bi": kl_b, "KL_tri": kl_t, "H_gen": H_gen,
-        "samples": ["".join(ALPHABET[int(i)] for i in ids[s]) for s in range(min(4, args.n))],
-    })
+    rows.append(
+        {
+            "mode": "unconditional",
+            "alpha": None,
+            "KL_uni": kl_u,
+            "KL_bi": kl_b,
+            "KL_tri": kl_t,
+            "H_gen": H_gen,
+            "samples": [
+                "".join(ALPHABET[int(i)] for i in ids[s]) for s in range(min(4, args.n))
+            ],
+        }
+    )
 
     # ─── (B) Recovery ─────────────────────────────────────────────────────
     print("\n=== Recovery from perturbation ===")
     print(f"  embed_norm_mean={embed_norm:.4f}  σ_source={sigma:.4f}")
+    print(
+        f"{'α':>5} {'σ_perturb':>10} {'KL_bi':>8} {'tok_acc':>8}  sample[0]: gt / pt / rc"
+    )
     val_pick = val_ids[: args.n].to(device)
     # Encode token_ids → data tensor. EqMLatent has model.encode; simplex EqM
     # uses CLR features via token_ids_to_features.
@@ -154,6 +167,7 @@ def main() -> int:
         z_clean = model.encode(val_pick)
     else:
         from aitchinson_flow.data.transforms import token_ids_to_features
+
         ls = cfg.transformation.label_smoothing
         z_clean = token_ids_to_features(val_pick, K, label_smoothing=ls)
     alphas = [float(a) for a in args.alphas.split(",") if a.strip()]
@@ -162,12 +176,12 @@ def main() -> int:
         sig_perturb = alpha * embed_norm
         z_init = z_clean + sig_perturb * torch.randn_like(z_clean)
 
-        # Decode the *perturbed* point directly (no sampling) so we see what
-        # the corruption actually looks like before the EBM has a chance to
-        # heal it.
+        # Decode the perturbed (sampler-input) latents too. Argmax-decoding
+        # `z_init` shows what tokens the noisy embedding nearest-neighbours.
         with torch.no_grad():
-            log_probs_perturbed = model.decode_to_logprobs(z_init)
-            ids_perturbed = log_probs_perturbed.argmax(-1).cpu()
+            log_probs_pt = model.decode_to_logprobs(z_init)
+            ids_pt = log_probs_pt.argmax(-1).cpu()
+
             x = model.sample(args.n, L, max_steps=args.steps, x_init=z_init)
             log_probs = model.decode_to_logprobs(x)
             ids = log_probs.argmax(-1).cpu()
@@ -176,29 +190,28 @@ def main() -> int:
         gen_bi = _ngram_counts_flat(ids, K, 2)
         kl_b = _kl_smoothed(gen_bi, ref_uni if False else ref_bi)
         token_acc = float((ids == val_pick.cpu()).float().mean())
-        token_acc_perturbed = float(
-            (ids_perturbed == val_pick.cpu()).float().mean()
-        )
+        token_acc_pt = float((ids_pt == val_pick.cpu()).float().mean())
         sample_gt = "".join(ALPHABET[int(i)] for i in val_pick[0].cpu())
-        sample_pt = "".join(ALPHABET[int(i)] for i in ids_perturbed[0])
+        sample_pt = "".join(ALPHABET[int(i)] for i in ids_pt[0])
         sample_rc = "".join(ALPHABET[int(i)] for i in ids[0])
-        print()
-        print(f"  α={alpha:.2f}  σ_perturb={sig_perturb:.3f}  "
-              f"KL_bi={kl_b:.4f}  "
-              f"token_acc_perturbed={token_acc_perturbed:.4f}  "
-              f"token_acc_recovered={token_acc:.4f}")
-        print(f"     gt: {sample_gt!r}")
-        print(f"  noise: {sample_pt!r}")
-        print(f"  recov: {sample_rc!r}")
-        rows.append({
-            "mode": "recovery", "alpha": alpha, "sigma_perturb": sig_perturb,
-            "KL_bi": kl_b,
-            "token_acc_perturbed": token_acc_perturbed,
-            "token_acc": token_acc,
-            "gt_sample0": sample_gt,
-            "perturbed_sample0": sample_pt,
-            "rc_sample0": sample_rc,
-        })
+        print(
+            f"{alpha:>5.2f} {sig_perturb:>10.3f} {kl_b:>8.4f} {token_acc:>8.4f}  "
+            f"gt={sample_gt!r}\n{'':>34}pt={sample_pt!r}  (pt_acc={token_acc_pt:.3f})"
+            f"\n{'':>34}rc={sample_rc!r}"
+        )
+        rows.append(
+            {
+                "mode": "recovery",
+                "alpha": alpha,
+                "sigma_perturb": sig_perturb,
+                "KL_bi": kl_b,
+                "token_acc": token_acc,
+                "token_acc_perturbed": token_acc_pt,
+                "gt_sample0": sample_gt,
+                "perturbed_sample0": sample_pt,
+                "rc_sample0": sample_rc,
+            }
+        )
 
     if args.out:
         Path(args.out).parent.mkdir(parents=True, exist_ok=True)
