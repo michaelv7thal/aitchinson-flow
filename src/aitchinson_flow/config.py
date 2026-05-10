@@ -100,6 +100,16 @@ class TransformationConfig:
     # target spread (more aggressive smoothing); too small and the simplex
     # samples become bimodal/unstable.
     dirichlet_alpha_base: float = 0.1
+    # Stochastic-interpolant noise on the FM path (Albergo, Boffi,
+    # Vanden-Eijnden 2023, arXiv:2303.08797). When >0, replaces the
+    # deterministic linear interpolant with
+    #     x_γ = (1-γ)·x_0 + γ·x_1 + σ(γ)·z,   z ~ N(0, I)|_{V_d},
+    # and adds the σ'(γ)·z term to the FM target. σ(γ) = σ_max·sin(πγ)
+    # vanishes at γ=0 and γ=1 (so endpoint marginals are preserved) and
+    # peaks at γ=0.5 — creating a per-(x_γ,γ) variance floor in the path
+    # interior without requiring Dirichlet thickening of x_1.
+    sigma_interpolant_max: float = 0.0
+    sigma_interpolant_schedule: str = "sin"
 
 
 @dataclass

@@ -147,3 +147,69 @@
     loss.hilbert_alpha_start: 1.0
     transformation.dirichlet_sampling: false
     eqm.gamma_power: 1.0
+
+# ─── Stochastic-interpolant variant ───────────────────────────────────────
+# Albergo, Boffi, Vanden-Eijnden 2023 (arXiv:2303.08797). Replaces the
+# Dirichlet thickening of x_1 with a stochastic-interpolant noise term
+# σ(γ)·z added to the FM path:
+#     x_γ = (1−γ)·x_0 + γ·x_1 + σ(γ)·z,   z ~ N(0, I)|_{V_d},
+# σ(γ) = σ_max·sin(πγ) — vanishes at the endpoints (so ρ_0, ρ_1 are
+# preserved) and peaks at γ=0.5. Creates a per-(x_γ,γ) variance floor
+# in the path interior *without* requiring Dirichlet thickening of x_1
+# (so x_1 is the deterministic label-smoothed CLR — no per-step Dirichlet
+# sample, no α_peak/α_base tuning).
+#
+# Hypothesis: the proposal's anti-spike-basin mechanism depends only on
+# the *existence* of a per-step variance floor at γ < 1, not on Dirichlet
+# specifically. If true, this cell matches Compositional MSE on Δ@.50
+# while using a simpler data pipeline. See FINDINGS_GAMMA_BUCKETS.md §8.5.
+
+- name: comp_stoch_smoke
+  overrides:
+    training.model_name: EqM
+    training.epochs: 1
+    training.B: 32
+    text8_dataset.batch_size: 32
+    text8_dataset.max_train_windows: 1024
+    text8_dataset.max_eval_windows: 256
+    transformer.d_model: 128
+    transformer.nhead: 4
+    transformer.num_layers: 2
+    transformer.d_latent: 128
+    loss.mode: mse
+    transformation.dirichlet_sampling: false
+    transformation.sigma_interpolant_max: 2.0
+    transformation.sigma_interpolant_schedule: sin
+
+- name: comp_stoch_seed42
+  overrides:
+    training.model_name: EqM
+    training.epochs: 5
+    training.seed: 42
+    text8_dataset.max_train_windows: 10000
+    loss.mode: mse
+    transformation.dirichlet_sampling: false
+    transformation.sigma_interpolant_max: 2.0
+    transformation.sigma_interpolant_schedule: sin
+
+- name: comp_stoch_seed43
+  overrides:
+    training.model_name: EqM
+    training.epochs: 5
+    training.seed: 43
+    text8_dataset.max_train_windows: 10000
+    loss.mode: mse
+    transformation.dirichlet_sampling: false
+    transformation.sigma_interpolant_max: 2.0
+    transformation.sigma_interpolant_schedule: sin
+
+- name: comp_stoch_seed44
+  overrides:
+    training.model_name: EqM
+    training.epochs: 5
+    training.seed: 44
+    text8_dataset.max_train_windows: 10000
+    loss.mode: mse
+    transformation.dirichlet_sampling: false
+    transformation.sigma_interpolant_max: 2.0
+    transformation.sigma_interpolant_schedule: sin

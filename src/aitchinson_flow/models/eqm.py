@@ -200,10 +200,30 @@ class EquilibriumFlowMatching(nn.Module):
         gamma = torch.rand(B, device=device, dtype=dt).pow(s.gamma_power)
         x_gamma = (1.0 - gamma[:, None, None]) * x0 + gamma[:, None, None] * x1
 
-        x_gamma.requires_grad_(True)
-
         # 3. Target gradient (data-to-noise direction).
         u_tgt = self._c_gamma(gamma) * (x0 - x1)
+
+        # 3b. Optional stochastic-interpolant noise (Albergo et al. 2023). Adds
+        # σ(γ)·z to x_γ and σ'(γ)·z to u_tgt. σ(γ)=σ_max·sin(πγ) vanishes at
+        # the endpoints so ρ_0, ρ_1 are preserved; peaks at γ=0.5. Provides a
+        # per-(x_γ,γ) variance floor in the path interior — an alternative to
+        # Dirichlet thickening of x_1.
+        sig_max = self.cfg.transformation.sigma_interpolant_max
+        if sig_max > 0.0:
+            z = torch.randn(B, L, D, device=device, dtype=dt)
+            z = z - z.mean(dim=-1, keepdim=True)  # project to V_d
+            sched = self.cfg.transformation.sigma_interpolant_schedule
+            if sched == "sin":
+                sigma_g = sig_max * torch.sin(torch.pi * gamma)
+                sigma_prime_g = sig_max * torch.pi * torch.cos(torch.pi * gamma)
+            else:
+                raise ValueError(
+                    f"Unknown transformation.sigma_interpolant_schedule={sched!r}"
+                )
+            x_gamma = x_gamma + sigma_g[:, None, None] * z
+            u_tgt = u_tgt + sigma_prime_g[:, None, None] * z
+
+        x_gamma.requires_grad_(True)
 
         # 4. Forward pass — pass γ if backbone is time-conditioned, and h_ctx
         # if context-conditioned. When the bigram joint head is active we run
