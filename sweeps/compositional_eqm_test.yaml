@@ -1,0 +1,149 @@
+# Compositional EqM — MSE vs Hilbert ablation on text8.
+#
+# Recipe (PROPOSAL_COMPOSITIONAL_EQM.md §2): per-step Dirichlet-thickened CLR
+# data + EqM conservative-gradient parameterisation + NAG-GD sampling. Holds
+# everything constant across cells *except* the regression loss
+# (loss.mode = mse | hilbert_soft) so the only signal is the MSE-vs-Hilbert
+# difference.
+#
+# 3 seeds per condition so the 2-3 % effect predicted in §4.2 has a variance
+# estimate. Seed range 42-44 matches the existing dphase5_*_seed{0,1,2} cells
+# in dirichlet_capstone.yaml, so cross-comparison is clean.
+#
+# Optional reference cells: deterministic-CLR (one-hot + label-smoothing) at
+# the same loss × 1 seed so the binary on/off of "does Dirichlet thicken
+# matter" is visible in the same eval table.
+#
+# Compute: ~30-50 min/cell on a single A100 (5 ep × 10k windows × default
+# d=1024 / 8 layers). 7 cells ≈ 4-6 h end-to-end.
+
+# ─── Smoke test ────────────────────────────────────────────────────────────
+# Tiny config (1 ep, 1k windows, d=128, 2 layers) that exercises the full
+# pipeline including Dirichlet collate, Hilbert loss, NAG sampling, and
+# checkpoint serialization. Runs in ~2 min on an A100. Skip if fails.
+
+- name: comp_smoke
+  overrides:
+    training.model_name: EqM
+    training.epochs: 1
+    training.B: 32
+    text8_dataset.batch_size: 32
+    text8_dataset.max_train_windows: 1024
+    text8_dataset.max_eval_windows: 256
+    transformer.d_model: 128
+    transformer.nhead: 4
+    transformer.num_layers: 2
+    transformer.d_latent: 128
+    loss.mode: hilbert_soft
+    loss.hilbert_alpha: 1.0
+    loss.hilbert_alpha_start: 1.0
+    transformation.dirichlet_sampling: true
+    transformation.dirichlet_alpha_peak: 10.0
+    transformation.dirichlet_alpha_base: 0.1
+
+# ─── Compositional EqM + MSE — 3 seeds ─────────────────────────────────────
+
+- name: comp_mse_seed42
+  overrides:
+    training.model_name: EqM
+    training.epochs: 5
+    training.seed: 42
+    text8_dataset.max_train_windows: 10000
+    loss.mode: mse
+    transformation.dirichlet_sampling: true
+    transformation.dirichlet_alpha_peak: 10.0
+    transformation.dirichlet_alpha_base: 0.1
+
+- name: comp_mse_seed43
+  overrides:
+    training.model_name: EqM
+    training.epochs: 5
+    training.seed: 43
+    text8_dataset.max_train_windows: 10000
+    loss.mode: mse
+    transformation.dirichlet_sampling: true
+    transformation.dirichlet_alpha_peak: 10.0
+    transformation.dirichlet_alpha_base: 0.1
+
+- name: comp_mse_seed44
+  overrides:
+    training.model_name: EqM
+    training.epochs: 5
+    training.seed: 44
+    text8_dataset.max_train_windows: 10000
+    loss.mode: mse
+    transformation.dirichlet_sampling: true
+    transformation.dirichlet_alpha_peak: 10.0
+    transformation.dirichlet_alpha_base: 0.1
+
+# ─── Compositional EqM + Hilbert (soft variation seminorm) — 3 seeds ──────
+# eqm.gamma_power: 1.0 mirrors the existing dphase5_hilbert_* cells. Default
+# 1.5 over-weights γ ≈ 1, which underuses the variance-floor signal that
+# the Hilbert metric is supposed to exploit.
+
+- name: comp_hilbert_seed42
+  overrides:
+    training.model_name: EqM
+    training.epochs: 5
+    training.seed: 42
+    text8_dataset.max_train_windows: 10000
+    loss.mode: hilbert_soft
+    loss.hilbert_alpha: 1.0
+    loss.hilbert_alpha_start: 1.0
+    transformation.dirichlet_sampling: true
+    transformation.dirichlet_alpha_peak: 10.0
+    transformation.dirichlet_alpha_base: 0.1
+    eqm.gamma_power: 1.0
+
+- name: comp_hilbert_seed43
+  overrides:
+    training.model_name: EqM
+    training.epochs: 5
+    training.seed: 43
+    text8_dataset.max_train_windows: 10000
+    loss.mode: hilbert_soft
+    loss.hilbert_alpha: 1.0
+    loss.hilbert_alpha_start: 1.0
+    transformation.dirichlet_sampling: true
+    transformation.dirichlet_alpha_peak: 10.0
+    transformation.dirichlet_alpha_base: 0.1
+    eqm.gamma_power: 1.0
+
+- name: comp_hilbert_seed44
+  overrides:
+    training.model_name: EqM
+    training.epochs: 5
+    training.seed: 44
+    text8_dataset.max_train_windows: 10000
+    loss.mode: hilbert_soft
+    loss.hilbert_alpha: 1.0
+    loss.hilbert_alpha_start: 1.0
+    transformation.dirichlet_sampling: true
+    transformation.dirichlet_alpha_peak: 10.0
+    transformation.dirichlet_alpha_base: 0.1
+    eqm.gamma_power: 1.0
+
+# ─── Reference cells: deterministic-CLR at each loss (1 seed each) ────────
+# Establishes the "without Dirichlet thickening" baseline so the data-variance
+# row of the proposal's §4.2 table is reproducible in the same sweep.
+
+- name: comp_ref_det_mse
+  overrides:
+    training.model_name: EqM
+    training.epochs: 5
+    training.seed: 42
+    text8_dataset.max_train_windows: 10000
+    loss.mode: mse
+    transformation.dirichlet_sampling: false
+
+- name: comp_ref_det_hilbert
+  overrides:
+    training.model_name: EqM
+    training.epochs: 5
+    training.seed: 42
+    text8_dataset.max_train_windows: 10000
+    loss.mode: hilbert_soft
+    loss.hilbert_alpha: 1.0
+    loss.hilbert_alpha_start: 1.0
+    transformation.dirichlet_sampling: false
+    eqm.gamma_power: 1.0

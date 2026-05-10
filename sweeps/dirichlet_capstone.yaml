@@ -162,3 +162,17 @@
     transformation.dirichlet_sampling: true
     transformation.dirichlet_alpha_peak: 10.0
     eqm.gamma_power: 1.0
+
+# Hilbert + deterministic (one-hot CLR) — completes the 2x2 design with the
+# existing dphase3_mse_deterministic_v2 (MSE + one-hot CLR). Used for the
+# simplex recovery diagnostic comparison vs MSE.
+- name: hilbert_deterministic_5ep
+  overrides:
+    training.model_name: EqM
+    training.epochs: 5
+    text8_dataset.max_train_windows: 10000
+    loss.mode: hilbert_soft
+    loss.hilbert_alpha: 1.0
+    loss.hilbert_alpha_start: 1.0
+    transformation.dirichlet_sampling: false  # one-hot CLR
+    eqm.gamma_power: 1.0

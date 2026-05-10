@@ -100,8 +100,18 @@ def main() -> int:
     K = cfg.text8_dataset.K
     L = cfg.text8_dataset.L
     sigma = cfg.eqm.source_sigma
-    embed = model.embed.weight.detach().to(device)
-    embed_norm = embed.norm(dim=-1).mean().item()
+    if hasattr(model, "embed"):
+        embed = model.embed.weight.detach().to(device)
+        embed_norm = embed.norm(dim=-1).mean().item()
+    else:
+        # Simplex EqM: use the data-feature L2 norm as the perturbation scale.
+        # Compute on a held-out batch.
+        from aitchinson_flow.data.transforms import token_ids_to_features
+        ls = cfg.transformation.label_smoothing
+        sample_z = token_ids_to_features(val_ids[:64].to(device), K,
+                                          label_smoothing=ls)
+        embed_norm = sample_z.norm(dim=-1).mean().item()
+        embed = None
 
     ref_uni = _ngram_counts_flat(train_ids, K, 1)
     ref_bi = _ngram_counts_flat(train_ids, K, 2)
@@ -137,16 +147,27 @@ def main() -> int:
     # ─── (B) Recovery ─────────────────────────────────────────────────────
     print("\n=== Recovery from perturbation ===")
     print(f"  embed_norm_mean={embed_norm:.4f}  σ_source={sigma:.4f}")
-    print(f"{'α (× embed_norm)':>17} {'σ_perturb':>10} {'KL_bi':>8} {'token_acc':>10} {'sample[0] ↔ gt':>}")
     val_pick = val_ids[: args.n].to(device)
-    z_clean = model.encode(val_pick)
+    # Encode token_ids → data tensor. EqMLatent has model.encode; simplex EqM
+    # uses CLR features via token_ids_to_features.
+    if hasattr(model, "encode"):
+        z_clean = model.encode(val_pick)
+    else:
+        from aitchinson_flow.data.transforms import token_ids_to_features
+        ls = cfg.transformation.label_smoothing
+        z_clean = token_ids_to_features(val_pick, K, label_smoothing=ls)
     alphas = [float(a) for a in args.alphas.split(",") if a.strip()]
     for alpha in alphas:
         torch.manual_seed(args.seed + int(alpha * 1000))
         sig_perturb = alpha * embed_norm
         z_init = z_clean + sig_perturb * torch.randn_like(z_clean)
 
+        # Decode the *perturbed* point directly (no sampling) so we see what
+        # the corruption actually looks like before the EBM has a chance to
+        # heal it.
         with torch.no_grad():
+            log_probs_perturbed = model.decode_to_logprobs(z_init)
+            ids_perturbed = log_probs_perturbed.argmax(-1).cpu()
             x = model.sample(args.n, L, max_steps=args.steps, x_init=z_init)
             log_probs = model.decode_to_logprobs(x)
             ids = log_probs.argmax(-1).cpu()
@@ -155,14 +176,28 @@ def main() -> int:
         gen_bi = _ngram_counts_flat(ids, K, 2)
         kl_b = _kl_smoothed(gen_bi, ref_uni if False else ref_bi)
         token_acc = float((ids == val_pick.cpu()).float().mean())
+        token_acc_perturbed = float(
+            (ids_perturbed == val_pick.cpu()).float().mean()
+        )
         sample_gt = "".join(ALPHABET[int(i)] for i in val_pick[0].cpu())
+        sample_pt = "".join(ALPHABET[int(i)] for i in ids_perturbed[0])
         sample_rc = "".join(ALPHABET[int(i)] for i in ids[0])
-        print(f"{alpha:>17.2f} {sig_perturb:>10.3f} {kl_b:>8.4f} {token_acc:>10.4f}  "
-              f"gt={sample_gt!r}\n{'':>40}rc={sample_rc!r}")
+        print()
+        print(f"  α={alpha:.2f}  σ_perturb={sig_perturb:.3f}  "
+              f"KL_bi={kl_b:.4f}  "
+              f"token_acc_perturbed={token_acc_perturbed:.4f}  "
+              f"token_acc_recovered={token_acc:.4f}")
+        print(f"     gt: {sample_gt!r}")
+        print(f"  noise: {sample_pt!r}")
+        print(f"  recov: {sample_rc!r}")
         rows.append({
             "mode": "recovery", "alpha": alpha, "sigma_perturb": sig_perturb,
-            "KL_bi": kl_b, "token_acc": token_acc,
-            "gt_sample0": sample_gt, "rc_sample0": sample_rc,
+            "KL_bi": kl_b,
+            "token_acc_perturbed": token_acc_perturbed,
+            "token_acc": token_acc,
+            "gt_sample0": sample_gt,
+            "perturbed_sample0": sample_pt,
+            "rc_sample0": sample_rc,
         })
 
     if args.out:

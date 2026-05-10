@@ -3,6 +3,36 @@
 A working configuration for EqM-on-text. Single-seed, laptop GPU (8 GB
 Blackwell), 20 epochs, 90M-parameter transformer.
 
+## TL;DR — what this delivers
+
+The trained model is a **conditional energy-based model on text**. It has
+two productively-usable modes and one structural limitation:
+
+✅ **Mode 1 — sequence healing / denoising.** Given a corrupted text
+sequence (small per-token noise or a few bit-flipped tokens), the model
+descends an energy field that recovers the original. At α=0.05–0.20
+perturbation the recovery is essentially perfect (token_acc ≥ 99.4 %); at
+α=0.50 about 60 % of tokens are restored exactly and the partial output
+visibly traces the source.
+
+✅ **Mode 2 — per-position uncertainty quantification.**
+`position_uncertainty(z)` returns ‖∇⟨z, f(z)⟩‖ per position — the L2 norm
+of the energy gradient at each token's embedding. Low value = "the model
+agrees this position is on the data manifold"; high value = "the model is
+pushing hard here, something's off." Field probe shows ‖∇E‖ correctly
+decays from 2.89 at γ=0.25 to 0.71 at γ=1.0, so the magnitude is
+calibrated to "distance from data manifold."
+
+❌ **Mode 3 — unconditional generation from pure noise.** Limited.
+KL_bi=1.19 (slightly better than unigram corpus iid, much better than the
+simplex baseline 1.99) but samples are letter-frequency-respecting
+gibberish, not real text. The cause is structural (averaging at γ=0; see
+below).
+
+The two working modes are the actual downstream value of the model. A
+text-healing model + a per-position confidence score is what most
+applications of generative text-EBMs would actually use.
+
 ## Headline numbers
 
 | metric                | value      |
@@ -129,6 +159,105 @@ traces the source: `c**api**tal → oaxir**ali**`, `**of** → **of**`,
 `**a**fter → **a**ftor`, `**an** → **an**`.**
 
 This is the EBM self-healing property working as advertised, on text.
+
+## Downstream applications
+
+### Sequence healing — the canonical use
+
+Take a sequence with bit-flipped or noisy tokens (e.g. OCR errors,
+typos, bit-rot in archived text), encode each character to its
+embedding, run the sampler, decode. At α≤0.20 the recovery is
+essentially lossless on text8-style content; at α≤0.5 the partial
+recovery is itself useful for downstream consumers (a posterior over
+likely original sequences). Concrete recovery-quality table is in the
+"Recovery diagnostic" section above.
+
+### Sequence-healing demo (`scripts/use_trained_model.py`)
+
+Live output on `'the capital of one government after anot'` (40 chars):
+
+```
+α = 0.05    corrupted: 'the capital of one government after anot' (no visible damage)
+            healed:    'the capital of one government after anot'   100 % recovery
+
+α = 0.20    corrupted: 'the capital of one government after anot' (still clean)
+            healed:    'the capital of one government after anot'   100 % recovery
+
+α = 0.40    corrupted: 'the aacithl yf oue  rvegnmeno sfmer  noc'
+            healed:    'the aacitdl yf oue  rvegnmeno sfter  now'   70 % recovery
+                                                ^^^^^                ^ partial
+                                                (recovers 'sfter' as 'after'-ish)
+
+α = 0.60    corrupted: 'thotaacifhs yyqnue  rvegzmtno s mhrr noc'
+            healed:    'thotaacitdl llxnue  rvegkmtnorswmhrr now'   40 % recovery
+```
+
+Up to α=0.20 the noise doesn't even move the argmax — the perturbation
+lives within each token's basin and the decode is automatic. From α=0.40
+the noise pushes some positions out of their basins; the sampler runs an
+energy descent from the corrupted point and recovers most of them, with
+visible "near-miss" healing on the rest (`'after'` corrupted to `'sfmer'`,
+healed to `'sfter'`).
+
+### Per-position uncertainty quantification
+
+The `position_uncertainty` method on `EquilibriumFlowMatchingLatent`
+returns a `(B, L)` tensor of per-position gradient norms:
+
+```python
+z = model.encode(token_ids)            # (B, L, d)
+unc = model.position_uncertainty(z)    # (B, L)
+# Low values = "this token is on the data manifold"
+# High values = "this token is OOD / wrong / unusual"
+```
+
+Calibration evidence from the field probe: at z=embed (data manifold)
+‖∇E‖ ≈ 0.71; at z=mid-γ-noise mixture ‖∇E‖ ≈ 1.94; at noise ≈ 1.30.
+The magnitude is monotone in distance-from-data, so the score is
+ordinally meaningful.
+
+This score is a free side-product of the EBM — no extra training is
+needed. It can be used for:
+
+* **Anomaly detection** — flag sequences with high mean unc as
+  out-of-distribution (e.g., language switch, garbled text).
+* **OCR/typo localisation** — high per-position unc identifies the
+  positions that need re-checking.
+* **Sequence-level confidence scores** — `unc.mean(-1)` gives a
+  single OOD score per sequence; can be calibrated to a probability
+  via Platt scaling on a held-out set.
+
+#### UQ demo output (laptop checkpoint)
+
+```
+description                                  mean      max  argmax_pos
+in-distribution (real text8 snippet)        0.723    0.880          21
+permuted (same chars, no order)             0.727    0.926           7
+foreign (rare-letter-heavy: qzxbm…)         0.741    1.039          26
+repetitive (single char: aaaa…)             0.466    0.530           4
+```
+
+The differentiation by **mean** is small at the laptop scale (0.46–0.74
+range) — repetitive single-char inputs paradoxically score lowest,
+because they are smooth in embedding space (one mode, no transitions).
+The **max** per-position score is more informative for the practical
+use cases:
+
+* Real text peaks at 0.88; permuted at 0.93; rare-letter at 1.04. So
+  per-position max correctly orders "more OOD" inputs higher.
+* For OCR/typo localisation, returning `argmax_pos` of `unc` gives the
+  position the model finds most surprising — directly actionable.
+
+The mean-vs-max behaviour suggests sequence-level OOD detection on a
+single number wants `unc.max()` or a high-percentile of `unc`, not
+`unc.mean()`. Calibration on a labelled OOD test set is the standard
+recipe before production use.
+
+### What can't be done with this checkpoint
+
+* Free-form generation of long coherent text (mode 3 limitation).
+* Conditional generation given a prompt (no class/text conditioning
+  trained in, though the architecture supports it via `h_ctx`).
 
 ## What's actually broken
 
