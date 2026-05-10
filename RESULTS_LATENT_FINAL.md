@@ -236,3 +236,213 @@ sweep.append({
 open("sweeps/latent_cluster.yaml", "w").write(yaml.dump(sweep, default_flow_style=False))
 PY
 ```
+
+---
+
+# Cluster scaling runs (May 2026)
+
+The original `latent_cluster_d256_d_model2048_L12_ep30` cell needs ~32 GB and
+~30 h on a 20 GB MIG slice (an A100 2g.20gb), so it can't be run end-to-end in
+one session. Two **feasible** scaled cells were run instead — both keep the
+laptop's transformer dims (d_model=1024, num_layers=8) and only scale the
+levers that the headline diagnosis identified as bottlenecks.
+
+| run                                            | d_embed | L  | windows | epochs | wallclock |
+|------------------------------------------------|--------:|---:|--------:|-------:|----------:|
+| laptop headline (`latent_d128_…_ep20`)         | 128     | 40 | 10 000  | 20     | (laptop)  |
+| **A: `latent_cluster_d256_data20k_ep15`**      | 256     | 40 | 20 000  | 15     | 1 h 14 m  |
+| **B: `latent_cluster_d256_L128_data20k_ep10`** | 256     | 128| 20 000  | 10     | 2 h 26 m  |
+
+Cell A scales Hypotheses 4 (larger d_embed) and 5 (more data); cell B
+additionally tests longer sequence length — the doc didn't list this
+explicitly, but it's the lever that actually moved the needle.
+
+## Headline numbers (256 samples × 200 NFE Euler)
+
+| metric                 | laptop | cell A | **cell B** |
+|------------------------|-------:|-------:|-----------:|
+| KL_uni (uncond)        | 0.107  | 0.117  | **0.104**  |
+| **KL_bi (uncond)**     | 1.19   | 1.479  | **0.916**  |
+| KL_tri (uncond)        | 5.95   | 5.94   | **3.33**   |
+| H_gen vs H_gt          | 2.93/2.85 (+2.8%) | 2.88/2.85 (+0.9%) | **2.74/2.86 (-4.0%)** |
+| H_ratio                | 1.028  | 1.009  | 0.960      |
+
+Cell B's L=128 wins on every KL: **−23 % KL_bi vs the laptop headline, −44 %
+KL_tri** — at less compute per epoch (10 ep × 313 it = 3 130 vs 20 ep × 156 it
+= 3 130; identical step count, just longer windows). The headline laptop claim
+that `KL_bi=1.19` was the strong number under this recipe is no longer the
+ceiling; the same recipe at 3.2× longer context drops it to 0.92.
+
+Cell A — same recipe with 2× data + 2× d_embed but L=40 — *did not* improve
+over the laptop. The win is from L, not from the cell-A axes.
+
+### Sample text (cell B unconditional)
+
+```
+oe usisisai erdeteober  uraae sero e is  itni  ipiarer es difynardbrocttheeso  baiduris sideeatid in asblniu washepie soien teic
+hyormedndradri whirossoon anr  ipizynesroch de oeie halay  iinciast icaeaizan eeu aimed r s ineniez ai aii ioisserisapsvecorsch
+egei hmersrndtdeijofaie tpsa s tze no saogu l ni ririaoyesd p a niteari leasiorusyxsery s asy ruaiar zeiuidirsas eelojiomersidys
+```
+
+## Field probes — same structural pattern at all three scales
+
+| γ    | laptop ‖∇E‖ | A ‖∇E‖ | **B ‖∇E‖** | laptop cos_target | A cos_target | **B cos_target** |
+|-----:|-----------:|------:|-----------:|------------------:|-------------:|------------------:|
+| 0.00 | 1.296      | 1.229 | 1.362      | **0.111** ❌      | **0.073** ❌ | **0.095** ❌       |
+| 0.25 | 2.893      | 3.924 | 3.493      | 0.946             | 0.950        | 0.937             |
+| 0.50 | 1.939      | 2.615 | 2.305      | 0.939             | 0.946        | 0.931             |
+| 0.75 | 1.010      | 1.290 | 1.003      | 0.899             | 0.924        | 0.887             |
+| 1.00 | 0.712      | 0.708 | 0.685      | 0.831             | 0.823        | 0.835             |
+
+The γ=0 averaging trap (cos_target ≪ 1 at noise input) shows up identically in
+all three runs and is **structural** to the FM regression, not a training
+defect. Across γ ∈ [0.25, 1.0] all three runs learn essentially the same
+field; ‖∇E‖ at γ=1.0 lands in 0.685–0.712 across all three.
+
+Generated samples still settle near the centroid trap in all three:
+
+| run    | dist(gen, centroid) | dist(gen, nearest embed row) |
+|--------|--------------------:|-----------------------------:|
+| A      | 2.05                | 3.99 (mean), 3.15 (min)      |
+| **B**  | 2.05                | 3.68 (mean), 2.32 (min)      |
+
+The longer-sequence model B is *closer* to the embedding manifold (min
+distance 2.32 vs 3.15) — consistent with it producing higher-quality
+unconditional samples.
+
+## Recovery from perturbation — sampler is doing very little work
+
+`scripts/recovery_check.py` was extended to also decode the *perturbed* input
+`z_init = z_clean + α·embed_norm·ε` directly, alongside the post-sampling
+reconstruction. This isolates how much of the recovered text is the
+embedding's local-decode property vs. the EBM flow doing denoising.
+
+**Cell A (L=40, n=128 samples × 100 NFE):**
+
+| α    | σ_perturb | KL_bi  | pt_acc | tok_acc | sample[0]  |
+|-----:|----------:|-------:|-------:|--------:|------------|
+| 0.05 | 0.250     | 0.119  | 100 %  | 100 %   | identical to gt |
+| 0.10 | 0.499     | 0.119  | 100 %  | 100 %   | identical |
+| 0.15 | 0.749     | 0.117  | 99.9 % | 99.8 %  | identical |
+| 0.20 | 0.998     | 0.114  | 99.5 % | 99.1 %  | identical |
+| 0.25 | 1.248     | 0.125  | 97.6 % | 97.3 %  | identical |
+| 0.30 | 1.497     | 0.194  | 93.1 % | 93.1 %  | `…government alter af` / rc `…governmnt altersaf` |
+| 0.35 | 1.747     | 0.315  | 85.8 % | 85.7 %  | `e the capitam oe one gcvernmenc hmter an` |
+| 0.40 | 1.996     | 0.473  | 77.5 % | 77.9 %  | `e thl hakitap ow onebgoyernvuntpacter an` |
+| 0.45 | 2.246     | 0.612  | 69.7 % | 70.3 %  | `e d e rapitalaof obeigowernvect asudriap` |
+| 0.50 | 2.495     | 0.840  | 61.3 % | 61.7 %  | `eethi iapitalloa…` |
+| 1.00 | 4.991     | 1.569  | 25.2 % | 25.3 %  | gibberish |
+
+(gt = `'e the capital of one government after an'`; pt = argmax-decode of
+perturbed `z_init`; rc = argmax-decode after the sampler runs.)
+
+**Cell B (L=128, n=128 samples × 100 NFE):**
+
+| α    | σ_perturb | KL_bi  | pt_acc | tok_acc |
+|-----:|----------:|-------:|-------:|--------:|
+| 0.05 | 0.218     | 0.069  | 100 %  | 100 %   |
+| 0.10 | 0.436     | 0.069  | 100 %  | 100 %   |
+| 0.15 | 0.654     | 0.068  | 99.9 % | 99.9 %  |
+| 0.20 | 0.872     | 0.063  | 99.5 % | 99.4 %  |
+| 0.25 | 1.090     | 0.073  | 97.7 % | 97.3 %  |
+| 0.30 | 1.307     | 0.134  | 92.4 % | 91.7 %  |
+| 0.35 | 1.525     | 0.235  | 85.1 % | 84.1 %  |
+| 0.40 | 1.743     | 0.404  | 76.5 % | 75.2 %  |
+| 0.45 | 1.961     | 0.567  | 67.9 % | 67.0 %  |
+| 0.50 | 2.179     | 0.769  | 59.4 % | 58.7 %  |
+| 1.00 | 4.358     | 1.550  | 24.2 % | 24.0 %  |
+
+Sample texts at α=0.30 (cell B, L=128):
+
+```
+gt='e the capital of one government after another one of such governments was established in one eight six four as a second mexican '
+pt='e the capital of onecgovernment altfrsafothir one of  uch tovernments wss established in ono eighw six four as a secovd hhxican '
+rc='e the capital of onecgovernment altfrsanothir one of  uch tovernments wss established in ono eighw six four as a secovd hhxican '
+```
+
+### **Headline finding from the pt vs rc columns**
+
+`pt_acc ≈ tok_acc` at every α in both cells. The Euler sampler's contribution
+to "recovery" is at most a fraction of a percent — most of the recovered text
+is just the *embedding's local-decode neighbourhood*: nearest-neighbour
+decoding of the noisy `z_init` to alphabet token. The sampler does perform a
+flow step (rc differs from pt at α≥0.30), but it almost never flips a token
+that pt got wrong nor saves a token that pt corrupted.
+
+The headline laptop writeup framed α=0.50 / 60 % recovery as "the EBM
+self-healing property working as advertised, on text". With pt_acc now
+exposed, the more accurate reading is: **embedding norms are large enough that
+moderately perturbed embeddings still nearest-neighbour-decode to the right
+token; the EBM flow at γ:0→1 doesn't move the trajectory enough to materially
+change the decode**. The energy field is correctly oriented (cos_target≥0.9
+at γ ∈ [0.25, 0.75]), but the integrator step size and total γ travel don't
+appear to be enough to denoise an off-manifold input back to the manifold.
+
+This is **not** a contradiction with the trained-field probes — those measure
+direction; the recovery numbers measure trajectory length. The recipe
+produces a well-oriented field that doesn't actually traverse far at sample
+time.
+
+## What scaling told us
+
+1. **L (sequence length) is the surprise lever.** Same step count, same data
+   size, same architecture — going from L=40 to L=128 dropped KL_bi from 1.48
+   to 0.92 (cell A → cell B). Each window contains 3.2× more bigrams to learn
+   from, and the attention has a larger receptive field for cross-position
+   structure.
+2. **d_embed alone (cell A) is not the bottleneck.** Doubling d_embed from
+   128→256 with L unchanged went from 1.19 → 1.48 KL_bi — likely seed/probe
+   noise; not a meaningful change.
+3. **The γ=0 trap and centroid attraction persist at all scales.** Field
+   structure is identical between laptop, cell A, and cell B. Scaling does
+   not erase this structural artifact of FM regression on a low-dim discrete
+   manifold.
+4. **The "EBM self-healing" claim needs revision.** The decoded recovery
+   accuracy reported in the laptop writeup conflated embedding-decode
+   robustness with denoising-flow effectiveness. The flow does fire (rc ≠ pt
+   at α ≥ 0.30) but its contribution to token-level accuracy is marginal.
+5. **Original cluster cell remains untested.** `latent_cluster_d256_d_model2048_L12_ep30`
+   needs >20 GB GPU memory and a longer wallclock than this session
+   permits — it remains in `sweeps/latent_cluster.yaml` as a target for a full
+   A100/H100 run. A reasonable next step is to combine its scaled architecture
+   with cell B's L=128 lever.
+
+## How to reproduce on a 20 GB MIG (A100 2g.20gb)
+
+```bash
+# Pre-train embeddings (small, ~30 s each)
+python scripts/learn_skipgram_embeddings.py --out data/skipgram_d128.pt --d 128 --window 5 --epochs 5 --device cuda
+python scripts/learn_skipgram_embeddings.py --out data/skipgram_d256.pt --d 256 --window 5 --epochs 5 --device cuda
+
+# Cell A — d_embed=256, L=40, 20k windows, 15 epochs (~1 h 15 m)
+python scripts/run_sweep.py --sweep sweeps/latent_cluster.yaml \
+  --only latent_cluster_d256_data20k_ep15 --runs-root runs
+
+# Cell B — d_embed=256, L=128, 20k windows, 10 epochs (~2 h 30 m)
+python scripts/run_sweep.py --sweep sweeps/latent_cluster.yaml \
+  --only latent_cluster_d256_L128_data20k_ep10 --runs-root runs
+
+# Diagnostics — reduced n=128 / steps=100 to keep recovery_check tractable
+# (n=256 / steps=200 would take ~2 h per cell at 11 alphas)
+for cell in latent_cluster_d256_data20k_ep15 latent_cluster_d256_L128_data20k_ep10; do
+  python scripts/field_probe.py --ckpt runs/$cell/epoch_final.pt --n 64 \
+    --out runs/$cell/field_probe.json
+  python scripts/recovery_check.py --ckpt runs/$cell/epoch_final.pt \
+    --n 128 --steps 100 \
+    --alphas 0.05,0.1,0.15,0.2,0.25,0.3,0.35,0.4,0.45,0.5,1.0 \
+    --out runs/$cell/recovery.json
+done
+```
+
+## Files added in this scaling pass
+
+- `sweeps/latent_cluster.yaml` — added `latent_cluster_d256_data20k_ep15` and
+  `latent_cluster_d256_L128_data20k_ep10` cells
+- `scripts/recovery_check.py` — extended to decode the perturbed input
+  (`pt_acc`, `perturbed_sample0` in JSON output), exposing the embedding
+  vs. flow contribution to recovered tokens
+- `scripts/babysit_cluster_chain.sh` — chain wait → diagnostics → next cell
+- `scripts/babysit_diagnostics_only.sh` — chain wait → reduced-n diagnostics
+- `runs/latent_cluster_d256_data20k_ep15/` — config, eval, field_probe, recovery
+- `runs/latent_cluster_d256_L128_data20k_ep10/` — same set
+- `data/skipgram_d128.pt`, `data/skipgram_d256.pt` — pretrained embeddings

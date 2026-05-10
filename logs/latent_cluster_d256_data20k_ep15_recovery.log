@@ -1,0 +1,43 @@
+=== Unconditional generation ===
+  KL_uni=0.1235  KL_bi=1.5436  KL_tri=6.1653  H_gen=2.8533
+  sample[0]: 'of u isi acyerieueofpc  uasul fwro ulis '
+  sample[1]: ' isns mipwa er fs d f nanubrocsthefs d g'
+
+=== Recovery from perturbation ===
+  embed_norm_mean=4.9909  σ_source=0.1000
+    α  σ_perturb    KL_bi  tok_acc  sample[0]: gt / pt / rc
+ 0.05      0.250   0.1189   1.0000  gt='e the capital of one government after an'
+                                  pt='e the capital of one government after an'  (pt_acc=1.000)
+                                  rc='e the capital of one government after an'
+ 0.10      0.499   0.1189   1.0000  gt='e the capital of one government after an'
+                                  pt='e the capital of one government after an'  (pt_acc=1.000)
+                                  rc='e the capital of one government after an'
+ 0.15      0.749   0.1174   0.9977  gt='e the capital of one government after an'
+                                  pt='e the capital of one government after an'  (pt_acc=0.999)
+                                  rc='e the capital of one government after an'
+ 0.20      0.998   0.1141   0.9914  gt='e the capital of one government after an'
+                                  pt='e the capital of one government after an'  (pt_acc=0.995)
+                                  rc='e the capital of one government after an'
+ 0.25      1.248   0.1246   0.9725  gt='e the capital of one government after an'
+                                  pt='e the capital of one government after an'  (pt_acc=0.976)
+                                  rc='e the capital of one government after an'
+ 0.30      1.497   0.1935   0.9305  gt='e the capital of one government after an'
+                                  pt='e the capital of one government alter af'  (pt_acc=0.931)
+                                  rc='e the capital of one government altersaf'
+ 0.35      1.747   0.3146   0.8568  gt='e the capital of one government after an'
+                                  pt='e the capitam oe one gcvernmenc hmter an'  (pt_acc=0.858)
+                                  rc='e the capital oe one gceernmenc bfter an'
+ 0.40      1.996   0.4734   0.7787  gt='e the capital of one government after an'
+                                  pt='e thl hakitap ow onebgoyernvuntpacter an'  (pt_acc=0.775)
+                                  rc='e thl takitap ow one goyernvuntpacter an'
+ 0.45      2.246   0.6120   0.7029  gt='e the capital of one government after an'
+                                  pt='e d e rapitalaof obeigowernvect asudriap'  (pt_acc=0.697)
+                                  rc='e d e rapitalaos odeigomernvect asfdr at'
+ 0.50      2.495   0.8399   0.6172  gt='e the capital of one government after an'
+                                  pt='eethi iapitalloaaoneduogfgementaiiger an'  (pt_acc=0.613)
+                                  rc='eethi iapitalloaaoneduomfrementaiiher an'
+ 1.00      4.991   1.5686   0.2529  gt='e the capital of one government after an'
+                                  pt='edphmfc ei hl afdtma wssllndentucdhbocam'  (pt_acc=0.252)
+                                  rc='edphmfc ei hl afdtma isslundentucdhbocam'
+
+Wrote runs/latent_cluster_d256_data20k_ep15/recovery.json

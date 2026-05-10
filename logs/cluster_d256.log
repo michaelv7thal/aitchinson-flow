@@ -1,0 +1,36 @@
+[run] latent_cluster_d256_d_model2048_L12_ep30: {'training.model_name': 'EqMLatent', 'training.epochs': 30, 'training.cosine_eta_min': 0.0001, 'text8_dataset.max_train_windows': 50000, 'embedding.enabled': True, 'embedding.d_embed': 256, 'embedding.tie_decoder': True, 'eqm.lambda_ce': 1.0, 'eqm.ce_min_gamma': 0.0, 'eqm.time_conditioning': 'add', 'eqm.sampler': 'euler', 'eqm.euler_nfe': 200, 'eqm.sample_return_best': False, 'transformer.d_model': 2048, 'transformer.num_layers': 12, 'transformer.nhead': 16, 'transformer.d_latent': 2048}
+wandb: [wandb.login()] Loaded credentials for https://api.wandb.ai from /home/renku/.netrc.
+wandb: Currently logged in as: michael-vonsiebenthal (michael-vonsiebenthal-eth-z-rich) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: WARNING Using a boolean value for 'reinit' is deprecated. Use 'return_previous' or 'finish_previous' instead.
+wandb: Tracking run with wandb version 0.26.1
+wandb: Run data is saved locally in runs/latent_cluster_d256_d_model2048_L12_ep30/wandb/run-20260509_212617-mfr9hwwq
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run hopeful-terrain-54
+wandb: ⭐️ View project at https://wandb.ai/michael-vonsiebenthal-eth-z-rich/eqm-text8
+wandb: 🚀 View run at https://wandb.ai/michael-vonsiebenthal-eth-z-rich/eqm-text8/runs/mfr9hwwq
+epochs:   0%|          | 0/30 [00:00<?, ?epoch/s]
+train epoch: 1:   0%|          | 0/782 [00:00<?, ?it/s][A
+train epoch: 1:   0%|          | 0/782 [00:05<?, ?it/s, total_loss=3.4583, flow_loss=0.3360, ce=3.1224, g<.33=0.3413, g<.66=0.3320, g<1=0.3280][A
+train epoch: 1:   0%|          | 1/782 [00:05<1:10:24,  5.41s/it, total_loss=3.4583, flow_loss=0.3360, ce=3.1224, g<.33=0.3413, g<.66=0.3320, g<1=0.3280][A
+train epoch: 1:   0%|          | 1/782 [00:09<1:10:24,  5.41s/it, total_loss=8.2250, flow_loss=1.3372, ce=6.8878, g<.33=1.3374, g<.66=1.3362, g<1=1.3376][A
+train epoch: 1:   0%|          | 2/782 [00:09<1:03:25,  4.88s/it, total_loss=8.2250, flow_loss=1.3372, ce=6.8878, g<.33=1.3374, g<.66=1.3362, g<1=1.3376][A
+train epoch: 1:   0%|          | 2/782 [00:14<1:03:25,  4.88s/it, total_loss=6.4000, flow_loss=1.0454, ce=5.3546, g<.33=1.0482, g<.66=1.0414, g<1=1.0393][A
+train epoch: 1:   0%|          | 3/782 [00:14<1:01:08,  4.71s/it, total_loss=6.4000, flow_loss=1.0454, ce=5.3546, g<.33=1.0482, g<.66=1.0414, g<1=1.0393][A
+train epoch: 1:   0%|          | 3/782 [00:18<1:01:08,  4.71s/it, total_loss=5.2355, flow_loss=0.6949, ce=4.5406, g<.33=0.7005, g<.66=0.6924, g<1=0.6887][A
+train epoch: 1:   1%|          | 4/782 [00:18<1:00:01,  4.63s/it, total_loss=5.2355, flow_loss=0.6949, ce=4.5406, g<.33=0.7005, g<.66=0.6924, g<1=0.6887][A
+train epoch: 1:   1%|          | 4/782 [00:23<1:00:01,  4.63s/it, total_loss=4.1866, flow_loss=0.3679, ce=3.8187, g<.33=0.3734, g<.66=0.3660, g<1=0.3613][A
+train epoch: 1:   1%|          | 5/782 [00:23<59:22,  4.58s/it, total_loss=4.1866, flow_loss=0.3679, ce=3.8187, g<.33=0.3734, g<.66=0.3660, g<1=0.3613]  [A
+train epoch: 1:   1%|          | 5/782 [00:27<59:22,  4.58s/it, total_loss=3.0536, flow_loss=0.1949, ce=2.8586, g<.33=0.1997, g<.66=0.1930, g<1=0.1909][A
+train epoch: 1:   1%|          | 6/782 [00:27<58:57,  4.56s/it, total_loss=3.0536, flow_loss=0.1949, ce=2.8586, g<.33=0.1997, g<.66=0.1930, g<1=0.1909][A
+train epoch: 1:   1%|          | 6/782 [00:32<58:57,  4.56s/it, total_loss=3.9420, flow_loss=0.2160, ce=3.7260, g<.33=0.2183, g<.66=0.2145, g<1=0.2142][A
+train epoch: 1:   1%|          | 7/782 [00:32<58:40,  4.54s/it, total_loss=3.9420, flow_loss=0.2160, ce=3.7260, g<.33=0.2183, g<.66=0.2145, g<1=0.2142][A
+train epoch: 1:   1%|          | 7/782 [00:36<58:40,  4.54s/it, total_loss=3.9629, flow_loss=0.2784, ce=3.6846, g<.33=0.2799, g<.66=0.2769, g<1=0.2775][A
+train epoch: 1:   1%|          | 8/782 [00:36<58:26,  4.53s/it, total_loss=3.9629, flow_loss=0.2784, ce=3.6846, g<.33=0.2799, g<.66=0.2769, g<1=0.2775][A
+train epoch: 1:   1%|          | 8/782 [00:41<58:26,  4.53s/it, total_loss=3.6266, flow_loss=0.3236, ce=3.3031, g<.33=0.3252, g<.66=0.3221, g<1=0.3223][A
+train epoch: 1:   1%|          | 9/782 [00:41<58:16,  4.52s/it, total_loss=3.6266, flow_loss=0.3236, ce=3.3031, g<.33=0.3252, g<.66=0.3221, g<1=0.3223][A
+train epoch: 1:   1%|          | 9/782 [00:45<58:16,  4.52s/it, total_loss=3.4102, flow_loss=0.3034, ce=3.1068, g<.33=0.3057, g<.66=0.3017, g<1=0.3021][A
+train epoch: 1:   1%|▏         | 10/782 [00:45<58:08,  4.52s/it, total_loss=3.4102, flow_loss=0.3034, ce=3.1068, g<.33=0.3057, g<.66=0.3017, g<1=0.3021][A
+train epoch: 1:   1%|▏         | 10/782 [00:50<58:08,  4.52s/it, total_loss=3.2239, flow_loss=0.2427, ce=2.9812, g<.33=0.2447, g<.66=0.2408, g<1=0.2406][A
+train epoch: 1:   1%|▏         | 11/782 [00:50<58:01,  4.51s/it, total_loss=3.2239, flow_loss=0.2427, ce=2.9812, g<.33=0.2447, g<.66=0.2408, g<1=0.2406][A
+train epoch: 1:   1%|▏         | 11/782 [00:54<58:01,  4.51s/it, total_loss=2.9758, flow_loss=0.1668, ce=2.8090, g<.33=0.1691, g<.66=0.1650, g<1=0.1640][A
+train epoch: 1:   2%|▏         | 12/782 [00:54<57:53,  4.51s/it, total_loss=2.9758, flow_loss=0.1668, ce=2.8090, g<.33=0.1691, g<.66=0.1650, g<1=0.1640][A

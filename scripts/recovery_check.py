@@ -137,7 +137,7 @@ def main() -> int:
     # ─── (B) Recovery ─────────────────────────────────────────────────────
     print("\n=== Recovery from perturbation ===")
     print(f"  embed_norm_mean={embed_norm:.4f}  σ_source={sigma:.4f}")
-    print(f"{'α (× embed_norm)':>17} {'σ_perturb':>10} {'KL_bi':>8} {'token_acc':>10} {'sample[0] ↔ gt':>}")
+    print(f"{'α':>5} {'σ_perturb':>10} {'KL_bi':>8} {'tok_acc':>8}  sample[0]: gt / pt / rc")
     val_pick = val_ids[: args.n].to(device)
     z_clean = model.encode(val_pick)
     alphas = [float(a) for a in args.alphas.split(",") if a.strip()]
@@ -146,7 +146,12 @@ def main() -> int:
         sig_perturb = alpha * embed_norm
         z_init = z_clean + sig_perturb * torch.randn_like(z_clean)
 
+        # Decode the perturbed (sampler-input) latents too. Argmax-decoding
+        # `z_init` shows what tokens the noisy embedding nearest-neighbours.
         with torch.no_grad():
+            log_probs_pt = model.decode_to_logprobs(z_init)
+            ids_pt = log_probs_pt.argmax(-1).cpu()
+
             x = model.sample(args.n, L, max_steps=args.steps, x_init=z_init)
             log_probs = model.decode_to_logprobs(x)
             ids = log_probs.argmax(-1).cpu()
@@ -155,14 +160,21 @@ def main() -> int:
         gen_bi = _ngram_counts_flat(ids, K, 2)
         kl_b = _kl_smoothed(gen_bi, ref_uni if False else ref_bi)
         token_acc = float((ids == val_pick.cpu()).float().mean())
+        token_acc_pt = float((ids_pt == val_pick.cpu()).float().mean())
         sample_gt = "".join(ALPHABET[int(i)] for i in val_pick[0].cpu())
+        sample_pt = "".join(ALPHABET[int(i)] for i in ids_pt[0])
         sample_rc = "".join(ALPHABET[int(i)] for i in ids[0])
-        print(f"{alpha:>17.2f} {sig_perturb:>10.3f} {kl_b:>8.4f} {token_acc:>10.4f}  "
-              f"gt={sample_gt!r}\n{'':>40}rc={sample_rc!r}")
+        print(f"{alpha:>5.2f} {sig_perturb:>10.3f} {kl_b:>8.4f} {token_acc:>8.4f}  "
+              f"gt={sample_gt!r}\n{'':>34}pt={sample_pt!r}  (pt_acc={token_acc_pt:.3f})"
+              f"\n{'':>34}rc={sample_rc!r}")
         rows.append({
             "mode": "recovery", "alpha": alpha, "sigma_perturb": sig_perturb,
-            "KL_bi": kl_b, "token_acc": token_acc,
-            "gt_sample0": sample_gt, "rc_sample0": sample_rc,
+            "KL_bi": kl_b,
+            "token_acc": token_acc,
+            "token_acc_perturbed": token_acc_pt,
+            "gt_sample0": sample_gt,
+            "perturbed_sample0": sample_pt,
+            "rc_sample0": sample_rc,
         })
 
     if args.out:

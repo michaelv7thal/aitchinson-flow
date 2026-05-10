@@ -1,0 +1,139 @@
+{
+  "rows": [
+    {
+      "mode": "unconditional",
+      "alpha": null,
+      "KL_uni": 0.1034168004989624,
+      "KL_bi": 0.961493968963623,
+      "KL_tri": 3.534970998764038,
+      "H_gen": 2.7322592735290527,
+      "samples": [
+        "oe usisisai erdeteober  uraae sero e is  itni  ipiarer es difynardbrocttheeso  baiduris sideeatid in asblniu washepie soien teic",
+        " hyormedndradri whirossoon anr  ipizynesroch de oeie halay  iinciast icaeaizan eeu aimed r s ineniez ai aii ioisserisapsvecorsch",
+        " ipeeiaeiinsi racn ed hisatred   fues ynes oe   iiiospoelound resabep eiadoriarosaneearr diems iannsteip nnrocbceoion susitescho",
+        "eresie teinisr  ooteac mech c tenobrissagiuiddiamiod i o e isicistoi lfexs aiokgoeis knlirrvoeopazarrijn ts eiae itide wai e nog"
+      ]
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.05,
+      "sigma_perturb": 0.21790382862091065,
+      "KL_bi": 0.06906207650899887,
+      "token_acc": 0.9998779296875,
+      "token_acc_perturbed": 1.0,
+      "gt_sample0": "e the capital of one government after another one of such governments was established in one eight six four as a second mexican ",
+      "perturbed_sample0": "e the capital of one government after another one of such governments was established in one eight six four as a second mexican ",
+      "rc_sample0": "e the capital of one government after another one of such governments was established in one eight six four as a second mexican "
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.1,
+      "sigma_perturb": 0.4358076572418213,
+      "KL_bi": 0.06906207650899887,
+      "token_acc": 0.9998779296875,
+      "token_acc_perturbed": 1.0,
+      "gt_sample0": "e the capital of one government after another one of such governments was established in one eight six four as a second mexican ",
+      "perturbed_sample0": "e the capital of one government after another one of such governments was established in one eight six four as a second mexican ",
+      "rc_sample0": "e the capital of one government after another one of such governments was established in one eight six four as a second mexican "
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.15,
+      "sigma_perturb": 0.6537114858627319,
+      "KL_bi": 0.06841740012168884,
+      "token_acc": 0.99871826171875,
+      "token_acc_perturbed": 0.99884033203125,
+      "gt_sample0": "e the capital of one government after another one of such governments was established in one eight six four as a second mexican ",
+      "perturbed_sample0": "e the capital of one government after another one of such governments was established in one eight six four as a second mexican ",
+      "rc_sample0": "e the capital of one government after another one of such governments was established in one eight sin four as a second mexican "
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.2,
+      "sigma_perturb": 0.8716153144836426,
+      "KL_bi": 0.06270452588796616,
+      "token_acc": 0.99365234375,
+      "token_acc_perturbed": 0.99481201171875,
+      "gt_sample0": "e the capital of one government after another one of such governments was established in one eight six four as a second mexican ",
+      "perturbed_sample0": "e the capital of one government after another one of such governments was established in one eight six four as a second megican ",
+      "rc_sample0": "e the capital of one government after another one of such governments was established in one eight six four as a second megican "
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.25,
+      "sigma_perturb": 1.0895191431045532,
+      "KL_bi": 0.07300528883934021,
+      "token_acc": 0.97320556640625,
+      "token_acc_perturbed": 0.9765625,
+      "gt_sample0": "e the capital of one government after another one of such governments was established in one eight six four as a second mexican ",
+      "perturbed_sample0": "e tht capital of one government after anothev one of such governments was established in one eight sip four as a second mevican ",
+      "rc_sample0": "e tht capital of one government after another one of such governments was establisced in one eight sip four as a second meoican "
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.3,
+      "sigma_perturb": 1.3074229717254637,
+      "KL_bi": 0.1335040032863617,
+      "token_acc": 0.91705322265625,
+      "token_acc_perturbed": 0.9237060546875,
+      "gt_sample0": "e the capital of one government after another one of such governments was established in one eight six four as a second mexican ",
+      "perturbed_sample0": "e the capital of onecgovernment altfrsafothir one of  uch tovernments wss established in ono eighw six four as a secovd hhxican ",
+      "rc_sample0": "e the capital of onecgovernment altfrsanothir one of  uch tovernments wss established in ono eighw six four as a secovd hhxican "
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.35,
+      "sigma_perturb": 1.5253268003463745,
+      "KL_bi": 0.2351101189851761,
+      "token_acc": 0.84136962890625,
+      "token_acc_perturbed": 0.85137939453125,
+      "gt_sample0": "e the capital of one government after another one of such governments was established in one eight six four as a second mexican ",
+      "perturbed_sample0": "e the capital oe one gmvernmenb hmter anothercone of suhhtgovernments was established indone eigtt six foun as a smcond meiican ",
+      "rc_sample0": "e the capital oe one gmvdrnmenc hmter anothercone of suhhtgovernments was established indone eigtt six foun as a smcond meiican "
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.4,
+      "sigma_perturb": 1.7432306289672852,
+      "KL_bi": 0.40416574478149414,
+      "token_acc": 0.75164794921875,
+      "token_acc_perturbed": 0.76458740234375,
+      "gt_sample0": "e the capital of one government after another one of such governments was established in one eight six four as a second mexican ",
+      "perturbed_sample0": "e the takwtap sf onebgoyrrnm ntpaftearanovher one df soct  olwrnments zas established iy onh eight hbv focr as a  lvord mwrican ",
+      "rc_sample0": "e the tkkwtap sf onebgoyrrnm ntpactearanother one sf soct  olwrnments was established iy onh eight hbp focr as a  lfond mwrican "
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.45,
+      "sigma_perturb": 1.961134457588196,
+      "KL_bi": 0.5671692490577698,
+      "token_acc": 0.6700439453125,
+      "token_acc_perturbed": 0.6793212890625,
+      "gt_sample0": "e the capital of one government after another one of such governments was established in one eight six four as a second mexican ",
+      "perturbed_sample0": "e d e wapitalaof odeigowezneent asunriauother ureiof sfca wvmernments was lstablissed inoonv aisht six foar vs f svconw mkeivan ",
+      "rc_sample0": "e d e wapitalaof odeigowerndent asunriapother ureiof sfca wpmernments was lstablissfd inoone aiuht six foarrds f svconw mee van "
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.5,
+      "sigma_perturb": 2.1790382862091064,
+      "KL_bi": 0.7690457701683044,
+      "token_acc": 0.58660888671875,
+      "token_acc_perturbed": 0.59417724609375,
+      "gt_sample0": "e the capital of one government after another one of such governments was established in one eight six four as a second mexican ",
+      "perturbed_sample0": "kethi ialitalxoa onedeocfrementauigen anorhtrnoye ofmsuch irvebnbentyluayfessamnished intmne eigst six fohmyas a rtctnd mexechth",
+      "rc_sample0": "kethi ialitalxoaaonedeocfrdmentauigen anorhtrnoye ofmsuch irvernbentsluayfessamnished intmne eigsi sis fohryas n rtctnd mexechth"
+    },
+    {
+      "mode": "recovery",
+      "alpha": 1.0,
+      "sigma_perturb": 4.358076572418213,
+      "KL_bi": 1.5503928661346436,
+      "token_acc": 0.2401123046875,
+      "token_acc_perturbed": 0.24237060546875,
+      "gt_sample0": "e the capital of one government after another one of such governments was established in one eight six four as a second mexican ",
+      "perturbed_sample0": "edmhcfciepehl afntmh issltndentucdhsokazutufyouodeisovarfirovarnmvnbaalitoescfecryhenaob omepmfgitgufioiolr csaa sraonfpsigisyg ",
+      "rc_sample0": "ldmhgfciapyhl ofntmh issltndentucdhsokazutuoyouodeismvarfirovarnmvnbaalitoescaecryhenaob omepmfgitgufimiolr csaa sraonfppigisygb"
+    }
+  ]
+}

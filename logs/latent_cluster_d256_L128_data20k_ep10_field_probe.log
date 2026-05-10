@@ -1,0 +1,24 @@
+K=27  L=128  d=256  σ=0.1  embed.norm=4.358  centroid.norm=0.648  pairwise_min=3.252
+time_conditioning='add'
+
+    γ   ||f(x)||     ||∇E||  cos(∇E, x0−x1)   cos(f, c−x)  col_score
+--------------------------------------------------------------------------------
+ 0.00     1.3595     1.3623          0.0948        0.2247     0.1030
+ 0.25     1.9142     3.4934          0.9368        0.6519     0.1720
+ 0.50     1.2209     2.3055          0.9311        0.8391     0.1436
+ 0.75     0.4967     1.0027          0.8873        0.5025     0.1144
+ 1.00     0.3722     0.6845          0.8350        0.3805     0.1079
+
+=== Where does the model actually sample to? ===
+  generated point norm_mean: 1.8569
+  centroid norm: 0.6477
+  distance(generated, centroid): 2.0496
+  distance(generated, nearest embed row): mean=3.6768, min=2.3177
+  top-5 sampled tokens (out of 27):
+    'e': 1185 (14.5%)
+    ' ': 1114 (13.6%)
+    'i': 1089 (13.3%)
+    's': 626 (7.6%)
+    'a': 533 (6.5%)
+
+Wrote runs/latent_cluster_d256_L128_data20k_ep10/field_probe.json
