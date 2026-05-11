@@ -1,0 +1,32 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+=== Unconditional generation ===
+  KL_uni=0.0401  KL_bi=1.3476  KL_tri=5.3893  H_gen=2.6365
+  sample[0]: ' ltrestt  ltwtaob  sntpah epan  opaelwa '
+  sample[1]: ' ssrtcaro rs onlc neavnie ct ifa sere r '
+
+=== Recovery from perturbation ===
+  embed_norm_mean=12.2723  σ_source=0.1000
+    α  σ_perturb    KL_bi  tok_acc  sample[0]: gt / pt / rc
+ 0.05      0.614   0.1098   1.0000  gt='e the capital of one government after an'
+                                  pt='e the capital of one government after an'  (pt_acc=1.000)
+                                  rc='e the capital of one government after an'
+ 0.10      1.227   0.1098   1.0000  gt='e the capital of one government after an'
+                                  pt='e the capital of one government after an'  (pt_acc=1.000)
+                                  rc='e the capital of one government after an'
+ 0.20      2.454   0.1379   0.9945  gt='e the capital of one government after an'
+                                  pt='e the capital of one government after an'  (pt_acc=0.997)
+                                  rc='e the capital of one government after an'
+ 0.30      3.682   0.5849   0.8925  gt='e the capital of one government after an'
+                                  pt='e the cajitpu of one govbrxment afqer an'  (pt_acc=0.893)
+                                  rc='e the calitpu of one govbrxmenr afqerhan'
+ 0.40      4.909   1.5749   0.6945  gt='e the capital of one government after an'
+                                  pt='e thewfacilalcofgpne goverxment zxter an'  (pt_acc=0.695)
+                                  rc='e thewfacilalcofgpne goverxment zxter an'
+ 0.50      6.136   2.7709   0.5229  gt='e the capital of one government after an'
+                                  pt='k thezclphral of zni goyrrnmeltr ster an'  (pt_acc=0.523)
+                                  rc='k thezclphral of zni goyrrnmeltr ster an'
+ 1.00     12.272   4.7267   0.1871  gt='e the capital of one government after an'
+                                  pt='x rhihfckmtal cbyuxvsgecbdqecnteafteozmj'  (pt_acc=0.187)
+                                  rc='x rhihfckmtal cbyuxvsgecbdqecnteafteozmj'
+
+Wrote runs/comp_ref_det_mse/recovery.json

@@ -1,0 +1,32 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+=== Unconditional generation ===
+  KL_uni=0.6807  KL_bi=6.0019  KL_tri=13.6977  H_gen=3.2944
+  sample[0]: ' ltvxbfkhulwwhuob fxnkpahshpadscouaecwci'
+  sample[1]: ' gsnggarojzcojngfyjeaviiyvctzvfvwserxvjb'
+
+=== Recovery from perturbation ===
+  embed_norm_mean=12.2723  σ_source=0.1000
+    α  σ_perturb    KL_bi  tok_acc  sample[0]: gt / pt / rc
+ 0.05      0.614   0.1098   1.0000  gt='e the capital of one government after an'
+                                  pt='e the capital of one government after an'  (pt_acc=1.000)
+                                  rc='e the capital of one government after an'
+ 0.10      1.227   0.1098   1.0000  gt='e the capital of one government after an'
+                                  pt='e the capital of one government after an'  (pt_acc=1.000)
+                                  rc='e the capital of one government after an'
+ 0.20      2.454   0.1093   0.9963  gt='e the capital of one government after an'
+                                  pt='e the capital of one government after an'  (pt_acc=0.997)
+                                  rc='e the capital of one government after an'
+ 0.30      3.682   0.2428   0.9096  gt='e the capital of one government after an'
+                                  pt='e the cajitpu of one govbrxment afqer an'  (pt_acc=0.893)
+                                  rc='e the calitao of one government after an'
+ 0.40      4.909   0.5870   0.7413  gt='e the capital of one government after an'
+                                  pt='e thewfacilalcofgpne goverxment zxter an'  (pt_acc=0.695)
+                                  rc='e thewcacitalcofgsne government after an'
+ 0.50      6.136   1.2457   0.5796  gt='e the capital of one government after an'
+                                  pt='k thezclphral of zni goyrrnmeltr ster an'  (pt_acc=0.523)
+                                  rc='e theocnphtal of oni goyrrnmeltr rter an'
+ 1.00     12.272   4.7267   0.1871  gt='e the capital of one government after an'
+                                  pt='x rhihfckmtal cbyuxvsgecbdqecnteafteozmj'  (pt_acc=0.187)
+                                  rc='x rhihfckmtal cbyuxvsgecbdqecnteafteozmj'
+
+Wrote runs/comp_hilbert_seed42/recovery.json

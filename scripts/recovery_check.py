@@ -103,6 +103,14 @@ def main() -> int:
     if hasattr(model, "embed"):
         embed = model.embed.weight.detach().to(device)
         embed_norm = embed.norm(dim=-1).mean().item()
+    elif hasattr(model, "encode"):
+        # Contextual encoder (e.g. EqMAE): perturbation scale comes from the
+        # actual latent-norm distribution of held-out tokens — there is no
+        # per-token embedding row to read.
+        with torch.no_grad():
+            sample_z = model.encode(val_ids[:64].to(device))
+        embed_norm = sample_z.norm(dim=-1).mean().item()
+        embed = None
     else:
         # Simplex EqM: use the data-feature L2 norm as the perturbation scale.
         # Compute on a held-out batch.

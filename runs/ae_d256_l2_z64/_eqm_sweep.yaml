@@ -1,0 +1,20 @@
+- name: eqm
+  overrides:
+    training.model_name: EqMAE
+    training.epochs: 5
+    training.seed: 42
+    text8_dataset.max_train_windows: 10000
+    autoencoder.d_model: 256
+    autoencoder.num_layers: 2
+    autoencoder.nhead: 4
+    autoencoder.d_latent: 64
+    autoencoder.denoising_schedule: relative_uniform
+    autoencoder.denoising_sigma: 0.5
+    autoencoder.latent_l2: 0.001
+    autoencoder.activation: gelu
+    autoencoder.tie_embeddings: true
+    eqm_ae.ae_ckpt_path: runs/ae_d256_l2_z64/ae/epoch_final.pt
+    eqm.lambda_ce: 0.5
+    eqm.gamma_power: 0.5
+    eqm.source_sigma: 0.8098111152648926
+    loss.mode: mse

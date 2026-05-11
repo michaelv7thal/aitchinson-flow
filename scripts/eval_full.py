@@ -90,7 +90,7 @@ def _config_from_payload(payload: dict[str, Any]) -> Config:
     """
     cfg = Config()
     saved = payload.get("cfg") or {}
-    for section_name in ("training", "text8_dataset", "transformation", "transformer", "eqm", "dfm", "logitkl", "loss", "auditor", "embedding"):
+    for section_name in ("training", "text8_dataset", "transformation", "transformer", "eqm", "dfm", "logitkl", "loss", "auditor", "embedding", "autoencoder", "eqm_ae"):
         section_dict = saved.get(section_name) or {}
         if not section_dict:
             continue

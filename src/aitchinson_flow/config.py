@@ -68,6 +68,15 @@ class Text8DataConfig:
     # for also setting K=2 (training.K and text8_dataset.K).
     alphabet: str = "full"  # "full" | "binary"
 
+    # Variable-L training for AE/EqMAE. When True, the training set yields
+    # samples with L ~ U(L_min, L_max) per sample (collate pads + emits
+    # pad_mask). Validation stays at fixed L (= cfg.text8_dataset.L) so
+    # eval metrics are comparable across cells. The model's positional
+    # embedding tables must be sized to L_max.
+    variable_length: bool = False
+    L_min: int = 40
+    L_max: int = 128
+
     provider: str = "huggingface"
     source_ref: str = "afmck/text8"
     dataset_name: str | None = None
@@ -185,6 +194,11 @@ class EqM:
     # The OOD-at-γ≈0 mismatch hypothesis says reducing this may help the Euler
     # sampler that starts at γ=0 (where training sees x_γ ≈ x0 = σ-noise).
     sample_sigma_init: float | None = None
+    # Langevin diffusion coefficient α for the SDE sampler (sampler="sde").
+    # Per-step noise scale is sqrt(2·α·h) where h = 1/nfe. α = 0 reduces to
+    # deterministic Euler; small α (~0.05–0.2) adds mixing without
+    # destroying the trajectory; α > 0.5 is essentially Brownian motion.
+    sde_alpha: float = 0.0
     # Joint-head bigram NLL weight (W2). 0 disables. Distinct from the
     # factorised lambda_bigram above (which Phase 5 showed is a re-weighted
     # unigram CE — kept here only for reproducibility of that negative).
@@ -417,6 +431,64 @@ class EmbeddingConfig:
 
 
 @dataclass
+class AutoencoderConfig:
+    """TextAutoencoder — contextual denoising AE used as the latent space for
+    ``EqMAE``. Architecture: token+pos embedding → N-layer Transformer encoder
+    → Linear(d_latent), then Linear(d_latent) → token+pos embedding → N-layer
+    Transformer encoder → Linear(K) head.
+
+    The denoising_sigma noise on z during training is what makes the latent
+    space FM-friendly: the decoder learns to be robust to small perturbations
+    of z, so the EqM sampler doesn't need to land exactly on the data
+    manifold for the decode to be valid text. ``latent_l2`` keeps ‖z‖ bounded
+    so the EqM source noise can match the data scale without re-tuning.
+    """
+
+    d_model: int = 256
+    d_latent: int = 64
+    nhead: int = 4
+    num_layers: int = 2
+    dropout: float = 0.0
+    # Denoising noise on the encoded z before decoding. Two regimes:
+    #   "fixed"            — σ = denoising_sigma (absolute, per-dim)
+    #   "relative_uniform" — σ = U(0, denoising_sigma) * std(z),  per-batch
+    # The relative-uniform schedule is the default because (a) it scales
+    # with whatever z scale the AE settles into (so the noise/signal ratio
+    # is comparable across AE sizes) and (b) sweeping σ from 0 to max in
+    # one training trains the decoder to be robust across the *full
+    # spectrum* of residuals the downstream EqM sampler might leave behind
+    # — not just one specific noise magnitude.
+    denoising_schedule: str = "relative_uniform"
+    denoising_sigma: float = 0.5
+    latent_l2: float = 1e-3
+    # Best-practice defaults: GELU FFN activation (modern transformer norm)
+    # and tied I/O embeddings (decoder head shares weight with encoder
+    # token_embed). Tying forces the encoder representation to be linearly
+    # separable for the decoder and saves K*d_model params on the head.
+    activation: str = "gelu"
+    tie_embeddings: bool = True
+    # AE | VAE flavour. "ae" is the deterministic encoder used so far;
+    # "vae" replaces to_latent with parallel μ and logσ heads, samples
+    # z = μ + σ·ε via reparameterisation, and adds a KL(q(z|x) || N(0,I))
+    # term to the loss with weight ``vae_beta``. Sampling z each step
+    # also gives EqMVAE training the "thickened-x1" property the
+    # compositional simplex EqM gets from Dirichlet thickening, but in
+    # latent space.
+    mode: str = "ae"
+    vae_beta: float = 0.1
+    vae_beta_warmup_epochs: int = 1
+
+
+@dataclass
+class EqMAEConfig:
+    """EqMAE — EqM in a frozen pretrained-AE latent space. Pairs with
+    ``AutoencoderConfig`` for the AE architecture (must match the pretrained
+    checkpoint's arch) and ``EqM`` for the flow hyperparameters."""
+
+    ae_ckpt_path: str = ""
+
+
+@dataclass
 class WandbConfig:
     """Optional Weights & Biases logging. Off by default; enable with --wandb."""
 
@@ -450,4 +522,6 @@ class Config:
         default_factory=HalluevalDFMAuditorConfig
     )
     embedding: EmbeddingConfig = field(default_factory=EmbeddingConfig)
+    autoencoder: AutoencoderConfig = field(default_factory=AutoencoderConfig)
+    eqm_ae: EqMAEConfig = field(default_factory=EqMAEConfig)
     wandb: WandbConfig = field(default_factory=WandbConfig)

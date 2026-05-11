@@ -1,0 +1,5 @@
+[v3] 09:35:55 waiting for v2 launcher pid=413117
+[v3] 09:57:56 waiting for best-of-N rerun pid=262275
+[v3] 14:03:57 best-of-N done, launching v3 (variable-L)
+[v3-retry] 14:51:36 restarting v3 with allocator-fragmentation fix
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.

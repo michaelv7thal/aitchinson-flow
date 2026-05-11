@@ -8,6 +8,8 @@ from .fm_clr import FMonCLR
 from .logitkl_flow import LogitKLFlow
 from .eqm_consgrad import EqMConsGrad
 from .eqm_latent import EquilibriumFlowMatchingLatent
+from .autoencoder import TextAutoencoder
+from .eqm_ae import EquilibriumFlowMatchingAE
 
 __all__ = [
     "GenerativeTrainingModel",
@@ -24,4 +26,6 @@ __all__ = [
     "LogitKLFlow",
     "EqMConsGrad",
     "EquilibriumFlowMatchingLatent",
+    "TextAutoencoder",
+    "EquilibriumFlowMatchingAE",
 ]

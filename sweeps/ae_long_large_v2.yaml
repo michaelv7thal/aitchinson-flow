@@ -1,0 +1,103 @@
+# v2: properly-tuned scaling for the large-AE + long-sequence regime.
+#
+# Diagnosis from v1 (NOTE_WHY_UNCONDITIONAL_FAILS.md, EqMAE history per cell):
+#   * AE training is fine — tok_acc reaches 1.000 in 2-3 epochs across all sizes.
+#   * EqMAE flow_loss converges (20× drop in `ae_d1024_l8_z512_L80_e15`).
+#   * BUT unconditional KL_uni stays flat for any d_latent ≥ 256 — the energy
+#     field fits FM locally but the *global* basin structure isn't forming.
+#
+# Two suspects, addressed simultaneously here:
+#   1. Data starvation in high-dim latent space: 10k unique x_1's spread
+#      across 256/512-dim latent leaves the field with no signal between
+#      training points. → 5× more EqMAE windows (50k).
+#   2. EqMAE lr=3e-4 too aggressive for d_model=1024/8 backbone with
+#      second-order autograd. → lr=1e-4 (≈ √(256/1024) × baseline) +
+#      cosine schedule + 2-epoch warmup.
+#
+# Plus: hold d_latent at the known-working zone (128) for two cells, then
+# push to 256 in the third with the same proper training. Lets us see
+# whether the d_latent=256 failure is intrinsic or just a v1 hyperparam
+# artefact.
+#
+# Compute budget per cell on the 20 GiB MIG:
+#   AE training            ~6  GiB peak,  5–10 min
+#   EqMAE training         ~10 GiB peak,  ~2.5 h (50k windows × 20 ep × L=80)
+#   recovery + SDE eval    ~6  GiB,        ~30 min
+# 3 cells sequential ≈ ~9 h.
+
+- name: ae_d1024_l8_z128_v2
+  ae:
+    d_model: 1024
+    num_layers: 8
+    nhead: 8
+    d_latent: 128
+    denoising_schedule: relative_uniform
+    denoising_sigma: 0.5
+    latent_l2: 1.0e-3
+    mode: ae
+  ae_train:
+    L: 80
+    epochs: 5
+    windows: 10000
+    batch_size: 64
+    lr: 3.0e-4
+  eqm_train:
+    L: 80
+    epochs: 20
+    windows: 50000
+    batch_size: 64
+    lr: 1.0e-4
+    scheduler_warmup_epochs: 2
+  eqm_ae_seed: 42
+
+- name: vae_d1024_l8_z128_v2
+  ae:
+    d_model: 1024
+    num_layers: 8
+    nhead: 8
+    d_latent: 128
+    denoising_schedule: relative_uniform
+    denoising_sigma: 0.5
+    latent_l2: 1.0e-3
+    mode: vae
+    vae_beta: 0.1
+    vae_beta_warmup_epochs: 2
+  ae_train:
+    L: 80
+    epochs: 5
+    windows: 10000
+    batch_size: 64
+    lr: 3.0e-4
+  eqm_train:
+    L: 80
+    epochs: 20
+    windows: 50000
+    batch_size: 64
+    lr: 1.0e-4
+    scheduler_warmup_epochs: 2
+  eqm_ae_seed: 42
+
+- name: ae_d1024_l8_z256_v2
+  ae:
+    d_model: 1024
+    num_layers: 8
+    nhead: 8
+    d_latent: 256
+    denoising_schedule: relative_uniform
+    denoising_sigma: 0.5
+    latent_l2: 1.0e-3
+    mode: ae
+  ae_train:
+    L: 80
+    epochs: 5
+    windows: 10000
+    batch_size: 64
+    lr: 3.0e-4
+  eqm_train:
+    L: 80
+    epochs: 20
+    windows: 50000
+    batch_size: 64
+    lr: 1.0e-4
+    scheduler_warmup_epochs: 2
+  eqm_ae_seed: 42

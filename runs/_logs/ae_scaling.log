@@ -1,0 +1,39 @@
+[ae-sweep] 16:39:52 waiting for sequential recovery runner pid=35028
+[ae-sweep] 18:55:52 recovery sweep finished, launching AE scaling sweep
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[post-sweep] 19:59:50 waiting for AE sweep launcher pid=41992
+
+=== ae_d256_l2_z64 ===
+[exec] /home/renku/work/aitchinson-flow/.venv/bin/python scripts/train_autoencoder.py --out runs/ae_d256_l2_z64/ae --d-model 256 --num-layers 2 --nhead 4 --d-latent 64 --denoising-schedule relative_uniform --denoising-sigma 0.5 --latent-l2 0.001 --epochs 5 --windows 10000 --batch-size 64 --lr 0.0003 --seed 42 → runs/ae_d256_l2_z64/_runlog.log
+[autoscale] ae_d256_l2_z64: source_sigma = 0.8098
+[exec] /home/renku/work/aitchinson-flow/.venv/bin/python scripts/run_sweep.py --sweep runs/ae_d256_l2_z64/_eqm_sweep.yaml --runs-root runs/ae_d256_l2_z64 → runs/ae_d256_l2_z64/_runlog.log
+[exec] /home/renku/work/aitchinson-flow/.venv/bin/python scripts/recovery_check.py --ckpt runs/ae_d256_l2_z64/eqm/epoch_final.pt --alphas 0.05,0.10,0.20,0.30,0.40,0.50,1.00 --n 256 --steps 200 --out runs/ae_d256_l2_z64/eqm/recovery.json → runs/ae_d256_l2_z64/_runlog.log
+
+=== ae_d512_l4_z128 ===
+[exec] /home/renku/work/aitchinson-flow/.venv/bin/python scripts/train_autoencoder.py --out runs/ae_d512_l4_z128/ae --d-model 512 --num-layers 4 --nhead 8 --d-latent 128 --denoising-schedule relative_uniform --denoising-sigma 0.5 --latent-l2 0.001 --epochs 5 --windows 10000 --batch-size 64 --lr 0.0003 --seed 42 → runs/ae_d512_l4_z128/_runlog.log
+[autoscale] ae_d512_l4_z128: source_sigma = 1.5537
+[exec] /home/renku/work/aitchinson-flow/.venv/bin/python scripts/run_sweep.py --sweep runs/ae_d512_l4_z128/_eqm_sweep.yaml --runs-root runs/ae_d512_l4_z128 → runs/ae_d512_l4_z128/_runlog.log
+[exec] /home/renku/work/aitchinson-flow/.venv/bin/python scripts/recovery_check.py --ckpt runs/ae_d512_l4_z128/eqm/epoch_final.pt --alphas 0.05,0.10,0.20,0.30,0.40,0.50,1.00 --n 256 --steps 200 --out runs/ae_d512_l4_z128/eqm/recovery.json → runs/ae_d512_l4_z128/_runlog.log
+
+=== ae_d1024_l6_z256 ===
+[exec] /home/renku/work/aitchinson-flow/.venv/bin/python scripts/train_autoencoder.py --out runs/ae_d1024_l6_z256/ae --d-model 1024 --num-layers 6 --nhead 8 --d-latent 256 --denoising-schedule relative_uniform --denoising-sigma 0.5 --latent-l2 0.001 --epochs 5 --windows 10000 --batch-size 64 --lr 0.0003 --seed 42 → runs/ae_d1024_l6_z256/_runlog.log
+[autoscale] ae_d1024_l6_z256: source_sigma = 1.5076
+[exec] /home/renku/work/aitchinson-flow/.venv/bin/python scripts/run_sweep.py --sweep runs/ae_d1024_l6_z256/_eqm_sweep.yaml --runs-root runs/ae_d1024_l6_z256 → runs/ae_d1024_l6_z256/_runlog.log
+[exec] /home/renku/work/aitchinson-flow/.venv/bin/python scripts/recovery_check.py --ckpt runs/ae_d1024_l6_z256/eqm/epoch_final.pt --alphas 0.05,0.10,0.20,0.30,0.40,0.50,1.00 --n 256 --steps 200 --out runs/ae_d1024_l6_z256/eqm/recovery.json → runs/ae_d1024_l6_z256/_runlog.log
+
+=== ae_d1024_l8_z512 ===
+[exec] /home/renku/work/aitchinson-flow/.venv/bin/python scripts/train_autoencoder.py --out runs/ae_d1024_l8_z512/ae --d-model 1024 --num-layers 8 --nhead 8 --d-latent 512 --denoising-schedule relative_uniform --denoising-sigma 0.5 --latent-l2 0.001 --epochs 5 --windows 10000 --batch-size 64 --lr 0.0003 --seed 42 → runs/ae_d1024_l8_z512/_runlog.log
+[autoscale] ae_d1024_l8_z512: source_sigma = 0.9627
+[exec] /home/renku/work/aitchinson-flow/.venv/bin/python scripts/run_sweep.py --sweep runs/ae_d1024_l8_z512/_eqm_sweep.yaml --runs-root runs/ae_d1024_l8_z512 → runs/ae_d1024_l8_z512/_runlog.log
+[exec] /home/renku/work/aitchinson-flow/.venv/bin/python scripts/recovery_check.py --ckpt runs/ae_d1024_l8_z512/eqm/epoch_final.pt --alphas 0.05,0.10,0.20,0.30,0.40,0.50,1.00 --n 256 --steps 200 --out runs/ae_d1024_l8_z512/eqm/recovery.json → runs/ae_d1024_l8_z512/_runlog.log
+
+=== sweep summary ===
+{"name": "ae_d256_l2_z64", "ae": 0, "eqm": 0, "recovery": 0}
+{"name": "ae_d512_l4_z128", "ae": 0, "eqm": 0, "recovery": 0}
+{"name": "ae_d1024_l6_z256", "ae": 0, "eqm": 0, "recovery": 0}
+{"name": "ae_d1024_l8_z512", "ae": 0, "eqm": 0, "recovery": 0}
+[ae-sweep] 22:35:56 sweep exited rc=0
+[post-sweep] 22:36:51 AE sweep finished
+[post-sweep] 22:36:51 re-running recovery on ae_d256_l2_z64 with dense α grid
+[post-sweep] 23:21:18 ae_d256_l2_z64 dense recovery rc=0
+[post-sweep] 23:21:18 done

@@ -1,0 +1,18 @@
+[bestof] 00:47:53 waiting for long+large launcher pid=169518
+[bestof] 09:55:54 long+large finished, starting best-of-8 rerun
+[bestof] ae_d256_l2_z64 start=09:55:54
+[bestof-done] ae_d256_l2_z64 rc=0 at 10:23:28
+[bestof] ae_d512_l4_z128 start=10:23:28
+[bestof-done] ae_d512_l4_z128 rc=0 at 10:51:04
+[bestof] ae_d1024_l6_z256 start=10:51:04
+[bestof-done] ae_d1024_l6_z256 rc=0 at 11:18:45
+[bestof] ae_d1024_l8_z512 start=11:18:45
+[bestof-done] ae_d1024_l8_z512 rc=0 at 11:46:39
+[bestof] vae_d256_l2_z64 start=11:46:39
+[bestof-done] vae_d256_l2_z64 rc=0 at 12:14:12
+[bestof] ae_d1024_l8_z512_L80_e15 start=12:14:12
+[bestof-done] ae_d1024_l8_z512_L80_e15 rc=0 at 13:08:46
+[bestof] vae_d1024_l8_z512_L80_e15 start=13:08:46
+[bestof-done] vae_d1024_l8_z512_L80_e15 rc=0 at 14:03:25
+[skip-bestof] vae_d1024_l8_z512_L128_e10 (no ckpt)
+[bestof] 14:03:25 all done

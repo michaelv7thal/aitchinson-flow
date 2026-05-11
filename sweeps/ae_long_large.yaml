@@ -1,0 +1,99 @@
+# Long sequences + large models + more epochs.
+#
+# Hypothesis (NOTE_WHY_UNCONDITIONAL_FAILS.md, post-AE-scaling notes):
+#   * L=40 windows have only ~180 bits of per-window information; many
+#     "valid" 40-char snippets exist, so the energy field has limited
+#     basin separation. Longer windows force the field to learn real
+#     long-range structure.
+#   * Large models (d_model=1024, num_layers=8) likely undertrain at
+#     5 epochs on 10k windows. More epochs lets the basins sharpen.
+#
+# Three cells, all targeting the largest AE arch (d1024/l8/z512):
+#   1. AE @ L=80, 15 ep         — long+large, deterministic AE flavour
+#   2. VAE @ L=80, 15 ep        — long+large, KL-prior latent
+#   3. VAE @ L=128, 10 ep, B=32 — even longer; B halved for memory headroom
+#
+# Each cell trains AE, autoscales source_sigma, trains EqMAE/EqMVAE on
+# the latents, runs the dense recovery diagnostic, and SDE-evals
+# unconditional generation.
+#
+# Memory budget per cell (20 GiB MIG):
+#   AE training (L=80, B=64)      ≈ 6 GiB
+#   AE training (L=128, B=32)     ≈ 7 GiB
+#   EqMAE training (L=80, B=64)   ≈ 10–11 GiB
+#   EqMAE training (L=128, B=32)  ≈ 11–13 GiB
+#   recovery + SDE eval           ≈ 6 GiB
+# Sequential.
+
+- name: ae_d1024_l8_z512_L80_e15
+  ae:
+    d_model: 1024
+    num_layers: 8
+    nhead: 8
+    d_latent: 512
+    denoising_schedule: relative_uniform
+    denoising_sigma: 0.5
+    latent_l2: 1.0e-3
+    mode: ae
+  ae_train:
+    L: 80
+    epochs: 15
+    windows: 10000
+    batch_size: 64
+    lr: 3.0e-4
+  eqm_train:
+    L: 80
+    epochs: 15
+    windows: 10000
+    batch_size: 64
+  eqm_ae_seed: 42
+
+- name: vae_d1024_l8_z512_L80_e15
+  ae:
+    d_model: 1024
+    num_layers: 8
+    nhead: 8
+    d_latent: 512
+    denoising_schedule: relative_uniform
+    denoising_sigma: 0.5
+    latent_l2: 1.0e-3
+    mode: vae
+    vae_beta: 0.1
+    vae_beta_warmup_epochs: 2
+  ae_train:
+    L: 80
+    epochs: 15
+    windows: 10000
+    batch_size: 64
+    lr: 3.0e-4
+  eqm_train:
+    L: 80
+    epochs: 15
+    windows: 10000
+    batch_size: 64
+  eqm_ae_seed: 42
+
+- name: vae_d1024_l8_z512_L128_e10
+  ae:
+    d_model: 1024
+    num_layers: 8
+    nhead: 8
+    d_latent: 512
+    denoising_schedule: relative_uniform
+    denoising_sigma: 0.5
+    latent_l2: 1.0e-3
+    mode: vae
+    vae_beta: 0.1
+    vae_beta_warmup_epochs: 2
+  ae_train:
+    L: 128
+    epochs: 10
+    windows: 10000
+    batch_size: 32
+    lr: 3.0e-4
+  eqm_train:
+    L: 128
+    epochs: 10
+    windows: 10000
+    batch_size: 32
+  eqm_ae_seed: 42

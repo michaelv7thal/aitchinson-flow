@@ -1,0 +1,58 @@
+# EqMAE — EqM in a frozen pretrained-AE latent space.
+#
+# Pre-req: train the AE first via
+#     env -u PYTHONPATH .venv/bin/python scripts/train_autoencoder.py \
+#         --out runs/textae_d64 \
+#         --d-latent 64 --d-model 256 --num-layers 2 \
+#         --denoising-sigma 0.1 --latent-l2 1e-3 \
+#         --epochs 5 --windows 10000 --seed 42
+#
+# Then launch this sweep:
+#     env -u PYTHONPATH .venv/bin/python scripts/run_sweep.py \
+#         --sweep sweeps/eqm_ae_test.yaml --runs-root runs
+#
+# The sweep covers:
+#   * eqm_ae_smoke  — 1 ep, small backbone, sanity check
+#   * eqm_ae_seed42 — full 5-ep run matching the comp_ recipe scale
+#
+# All cells share the same AE checkpoint; only the flow backbone is trained.
+# Backbone size matches the comp_ cells (d_model=1024, num_layers=8) so the
+# AE-vs-simplex comparison isn't confounded by capacity.
+
+- name: eqm_ae_smoke
+  overrides:
+    training.model_name: EqMAE
+    training.epochs: 1
+    training.B: 32
+    text8_dataset.batch_size: 32
+    text8_dataset.max_train_windows: 1024
+    text8_dataset.max_eval_windows: 256
+    transformer.d_model: 128
+    transformer.nhead: 4
+    transformer.num_layers: 2
+    autoencoder.d_latent: 64
+    autoencoder.d_model: 256
+    autoencoder.num_layers: 2
+    autoencoder.nhead: 4
+    autoencoder.denoising_sigma: 0.1
+    autoencoder.latent_l2: 0.001
+    eqm_ae.ae_ckpt_path: runs/textae_d64/epoch_final.pt
+    eqm.lambda_ce: 0.5
+    eqm.gamma_power: 0.5
+
+- name: eqm_ae_seed42
+  overrides:
+    training.model_name: EqMAE
+    training.epochs: 5
+    training.seed: 42
+    text8_dataset.max_train_windows: 10000
+    autoencoder.d_latent: 64
+    autoencoder.d_model: 256
+    autoencoder.num_layers: 2
+    autoencoder.nhead: 4
+    autoencoder.denoising_sigma: 0.1
+    autoencoder.latent_l2: 0.001
+    eqm_ae.ae_ckpt_path: runs/textae_d64/epoch_final.pt
+    eqm.lambda_ce: 0.5
+    eqm.gamma_power: 0.5
+    loss.mode: mse

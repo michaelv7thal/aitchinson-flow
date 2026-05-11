@@ -1,0 +1,54 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+=== best-of-8 on runs/ae_d256_l2_z64/eqm/epoch_final.pt (B=256, sampler=nag) ===
+Traceback (most recent call last):
+  File "/home/renku/work/aitchinson-flow/scripts/sample_best_of_n.py", line 180, in <module>
+    raise SystemExit(main())
+                     ~~~~^^
+  File "/home/renku/work/aitchinson-flow/scripts/sample_best_of_n.py", line 127, in main
+    x = model.sample(B * cn, L, max_steps=args.steps)  # (B*cn, L, ...)
+  File "/home/renku/work/aitchinson-flow/src/aitchinson_flow/models/eqm_ae.py", line 304, in sample
+    grad = _clip(self._compute_grad(x))
+                 ~~~~~~~~~~~~~~~~~~^^^
+  File "/home/renku/work/aitchinson-flow/src/aitchinson_flow/models/eqm_ae.py", line 333, in _compute_grad
+    energy = (x_req * self.forward(x_req, gamma)).sum()
+                      ~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "/home/renku/work/aitchinson-flow/src/aitchinson_flow/models/eqm_ae.py", line 154, in forward
+    return self.backbone(x, gamma)
+           ~~~~~~~~~~~~~^^^^^^^^^^
+  File "/home/renku/work/aitchinson-flow/.venv/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1779, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/home/renku/work/aitchinson-flow/.venv/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1790, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/renku/work/aitchinson-flow/src/aitchinson_flow/models/eqm_ae.py", line 95, in forward
+    h = self.transformer(h)
+  File "/home/renku/work/aitchinson-flow/.venv/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1779, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/home/renku/work/aitchinson-flow/.venv/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1790, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/renku/work/aitchinson-flow/.venv/lib/python3.13/site-packages/torch/nn/modules/transformer.py", line 540, in forward
+    output = mod(
+        output,
+    ...<2 lines>...
+        src_key_padding_mask=src_key_padding_mask_for_layers,
+    )
+  File "/home/renku/work/aitchinson-flow/.venv/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1779, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/home/renku/work/aitchinson-flow/.venv/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1790, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/renku/work/aitchinson-flow/.venv/lib/python3.13/site-packages/torch/nn/modules/transformer.py", line 950, in forward
+    x = x + self._ff_block(self.norm2(x))
+            ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "/home/renku/work/aitchinson-flow/.venv/lib/python3.13/site-packages/torch/nn/modules/transformer.py", line 981, in _ff_block
+    x = self.linear2(self.dropout(self.activation(self.linear1(x))))
+                                  ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/home/renku/work/aitchinson-flow/.venv/lib/python3.13/site-packages/torch/nn/functional.py", line 1723, in relu
+    result = torch.relu(input)
+RuntimeError: NVML_SUCCESS == r INTERNAL ASSERT FAILED at "/pytorch/c10/cuda/CUDACachingAllocator.cpp":1165, please report a bug to PyTorch. 
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+=== best-of-8 on runs/ae_d256_l2_z64/eqm/epoch_final.pt (B=256, sampler=nag) ===
+unigram_kl=0.0336 bigram_kl=1.7202 H_ratio=1.034 E_best=-687.856
+sample[0]: 'oiwtwd ot ug r  trclcchtgbhohwsu  e oi i'
+wrote runs/ae_d256_l2_z64/eqm/eval_bestof8.json

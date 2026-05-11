@@ -1,0 +1,5 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+=== best-of-1 on runs/ae_d1024_l8_z512/eqm/epoch_final.pt (B=256, sampler=sde) ===
+unigram_kl=0.5562 bigram_kl=4.8289 H_ratio=1.002 E_best=-10314.308
+sample[0]: 'xztioetnp rdsto fsi tzq v qzz  crwdniezt'
+wrote runs/ae_d1024_l8_z512/eqm/eval_sde.json

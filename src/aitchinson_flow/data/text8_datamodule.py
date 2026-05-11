@@ -10,7 +10,12 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 
 from aitchinson_flow.config import Text8DataConfig, TransformationConfig, LoaderSettings
-from aitchinson_flow.data.char_window_dataset import CharWindowDataset, VOCAB_SIZE
+from aitchinson_flow.data.char_window_dataset import (
+    CharWindowDataset,
+    VOCAB_SIZE,
+    VariableLengthCharWindowDataset,
+    variable_length_collate,
+)
 from aitchinson_flow.data.corrupting_collate import CorruptingCollate
 from aitchinson_flow.data.hf_text_loader import load_splits
 from aitchinson_flow.training import DataModule
@@ -107,7 +112,20 @@ class Text8DataModule(DataModule):
 
         ls = transform_cfg.label_smoothing
 
-        self._train_ds = CharWindowDataset(train, K=K, label_smoothing=ls)
+        self._variable_length = bool(getattr(dataset_cfg, "variable_length", False))
+        if self._variable_length:
+            # Per-sample variable L in [L_min, L_max]. Sampling is deterministic
+            # via the dataset's seed, and val/test stay fixed-L for stable
+            # eval metrics.
+            self._train_ds = VariableLengthCharWindowDataset(
+                train,
+                L_min=int(dataset_cfg.L_min),
+                L_max=int(dataset_cfg.L_max),
+                num_windows=int(dataset_cfg.max_train_windows or train.shape[0]),
+                seed=int(dataset_cfg.corruption_seed),
+            )
+        else:
+            self._train_ds = CharWindowDataset(train, K=K, label_smoothing=ls)
         self._val_ds = CharWindowDataset(val, K=K, label_smoothing=ls)
         self._test_ds = CharWindowDataset(test, K=K, label_smoothing=ls)
 
@@ -154,6 +172,13 @@ class Text8DataModule(DataModule):
         )
 
     def train_dataloader(self) -> DataLoader[Any]:
+        if self._variable_length:
+            # Variable-L training uses its own collate (pad + mask). The
+            # CorruptingCollate's CLR / Dirichlet machinery is for simplex
+            # EqM, which doesn't run in this mode.
+            return self._loader(
+                self._train_ds, shuffle=True, collate=variable_length_collate
+            )
         return self._loader(self._train_ds, shuffle=True, collate=self._train_collate)
 
     def val_dataloader(self) -> DataLoader[Any] | None:

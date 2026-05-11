@@ -1,0 +1,27 @@
+{
+  "ckpt": "runs/vae_d256_l2_z64/eqm/epoch_final.pt",
+  "best_of": 1,
+  "n_samples": 256,
+  "sampler": "sde",
+  "sde_alpha": 0.1,
+  "steps": 200,
+  "unigram_kl": 0.03307179734110832,
+  "bigram_kl": 2.220761299133301,
+  "trigram_kl": 7.695161819458008,
+  "H_gen": 2.8405494689941406,
+  "H_gt": 2.8483986854553223,
+  "H_ratio": 0.9972443406531319,
+  "energy_mean_best": -259.14154052734375,
+  "energy_mean_all": -259.14154052734375,
+  "energy_gap_mean": 0.0,
+  "samples": [
+    "bbeott ee salarxc lwg n  lr  xf vti  i z",
+    "ce oso vilooei ic a  xeso e axeitan orde",
+    "   oiahttlhesd  enncpvtyd oe   lku iu n ",
+    " grv hrqjni lqoyfnotcheeera ut  e rt seb",
+    "utttshif leh s iotcnfsco hlaar tolortrn ",
+    "tg u  y nselenai  lhdsder dsim mabf lsar",
+    "n s l y g kiiueh nnsoid sehhor ke h erac",
+    "w wcoioer   hyeseoaa ljn smrdleleuortinr"
+  ]
+}
