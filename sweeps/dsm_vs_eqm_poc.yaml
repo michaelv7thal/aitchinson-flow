@@ -1,0 +1,218 @@
+# POC version of dsm_vs_eqm.yaml — sized for an 8 GB Blackwell GPU
+# (RTX PRO 1000). Maximum-scale POC: ~4-5 GB peak GPU.
+#
+# Backbone: d_model=768, num_layers=8, nhead=12 (larger than the AE!).
+# Latent:   d_latent=128 (AE at runs/ae_poc_m/ae — d=512/6L).
+# Data:     L=64, batch 64, 20000 train windows, 5 epochs.
+# Per-cell wall time: ~10-15 min ScoreDSM, ~20-30 min EqMAE/EqMDSM
+# (double-backward overhead). Total ~60-90 min.
+#
+# Purpose: end-to-end test of the DSM-vs-EqM comparison large enough
+# that the trends are *directionally* meaningful (recovery Δ visible,
+# basin structure resolvable). Numbers are NOT publication-grade; the
+# real run is sweeps/dsm_vs_eqm.yaml on bigger hardware.
+#
+# AE: runs/ae_poc_m/ae/epoch_final.pt — per_dim_std=0.577, z_norm=6.45.
+
+- name: eqm_fm_poc
+  overrides:
+    training.model_name: EqMAE
+    training.epochs: 5
+    training.seed: 42
+    training.lr: 0.0001
+    training.scheduler_warmup_epochs: 1
+    training.B: 64
+    training.L: 64
+    text8_dataset.batch_size: 64
+    text8_dataset.L: 64
+    text8_dataset.max_train_windows: 20000
+    text8_dataset.variable_length: false
+    transformer.d_model: 768
+    transformer.num_layers: 8
+    transformer.nhead: 12
+    autoencoder.d_model: 512
+    autoencoder.num_layers: 6
+    autoencoder.nhead: 8
+    autoencoder.d_latent: 128
+    autoencoder.denoising_schedule: relative_uniform
+    autoencoder.denoising_sigma: 0.5
+    autoencoder.latent_l2: 0.001
+    autoencoder.activation: gelu
+    autoencoder.tie_embeddings: true
+    autoencoder.mode: ae
+    eqm_ae.ae_ckpt_path: runs/ae_poc_m/ae/epoch_final.pt
+    eqm.lambda_ce: 0.5
+    eqm.gamma_power: 0.5
+    eqm.source_sigma: 0.577
+    eqm.sample_max_steps: 100
+    eqm.sample_return_best: true
+    loss.mode: mse
+    training.sample_eval_n: 32
+    training.sample_eval_every: 5
+    wandb.enabled: false
+
+- name: score_dsm_poc
+  overrides:
+    training.model_name: ScoreDSM
+    training.epochs: 5
+    training.seed: 42
+    training.lr: 0.0001
+    training.scheduler_warmup_epochs: 1
+    training.B: 64
+    training.L: 64
+    text8_dataset.batch_size: 64
+    text8_dataset.L: 64
+    text8_dataset.max_train_windows: 20000
+    text8_dataset.variable_length: false
+    transformer.d_model: 768
+    transformer.num_layers: 8
+    transformer.nhead: 12
+    autoencoder.d_model: 512
+    autoencoder.num_layers: 6
+    autoencoder.nhead: 8
+    autoencoder.d_latent: 128
+    autoencoder.activation: gelu
+    autoencoder.tie_embeddings: true
+    autoencoder.mode: ae
+    eqm.time_conditioning: add
+    eqm_ae.ae_ckpt_path: runs/ae_poc_m/ae/epoch_final.pt
+    dsm.ae_ckpt_path: runs/ae_poc_m/ae/epoch_final.pt
+    dsm.sigma_min: 0.05
+    dsm.sigma_max: 5.0
+    dsm.sigma_distribution: log_uniform
+    dsm.loss_weighting: constant
+    dsm.lambda_ce: 0.5
+    dsm.ce_min_logsig: 0.0
+    dsm.n_sigma: 16
+    dsm.steps_per_sigma: 6
+    dsm.sampler_eps: 1.0e-5
+    training.sample_eval_n: 32
+    training.sample_eval_every: 5
+    wandb.enabled: false
+
+- name: bayes_auditor_poc
+  overrides:
+    training.model_name: BayesianAuditorAE
+    training.epochs: 5
+    training.seed: 42
+    training.lr: 0.0001
+    training.scheduler_warmup_epochs: 1
+    training.B: 32
+    training.L: 64
+    text8_dataset.batch_size: 32
+    text8_dataset.L: 64
+    text8_dataset.max_train_windows: 20000
+    text8_dataset.variable_length: false
+    text8_dataset.train_corrupt_rate: 0.15
+    text8_dataset.eval_corrupt_rate: 0.15
+    text8_dataset.train_order_mix_rate: 0.10
+    text8_dataset.eval_order_mix_rate: 0.10
+    transformer.d_model: 768
+    transformer.num_layers: 8
+    transformer.nhead: 12
+    autoencoder.d_model: 512
+    autoencoder.num_layers: 6
+    autoencoder.nhead: 8
+    autoencoder.d_latent: 128
+    autoencoder.activation: gelu
+    autoencoder.tie_embeddings: true
+    autoencoder.mode: ae
+    eqm_ae.ae_ckpt_path: runs/ae_poc_m/ae/epoch_final.pt
+    bayes_auditor.ae_ckpt_path: runs/ae_poc_m/ae/epoch_final.pt
+    bayes_auditor.num_inducing: 64
+    bayes_auditor.lambda_hinge: 1.0
+    bayes_auditor.margin_energy: 2.0
+    bayes_auditor.lambda_kl: 0.01
+    eqm.lambda_ce: 0.5
+    eqm.gamma_power: 0.5
+    eqm.source_sigma: 0.577
+    eqm.sample_max_steps: 100
+    eqm.sample_return_best: true
+    training.sample_eval_n: 32
+    training.sample_eval_every: 5
+    wandb.enabled: false
+
+- name: bayes_auditor_gpt2_poc
+  overrides:
+    training.model_name: PerTokenBayesianAuditorWiki
+    training.epochs: 5
+    training.seed: 42
+    training.lr: 0.0003
+    training.scheduler_warmup_epochs: 0
+    training.B: 8
+    training.L: 64
+    training.K: 64
+    training.sample_eval_n: 16
+    training.sample_eval_every: 5
+    text8_dataset.L: 64
+    text8_dataset.K: 64
+    text8_dataset.batch_size: 8
+    # text8 + GPT-2 cache (built by scripts/cache_text8_gpt2.py).
+    # The cache has the same schema as the wiki cache, so the model class
+    # (PerTokenBayesianAuditorWiki) operates on it unchanged — only the
+    # corpus origin differs. Keeps every cell in the sweep on text8.
+    auditor.enabled: true
+    auditor.cache_path: data/text8_cache_gpt2.pt
+    auditor.batch_size: 8
+    auditor.train_frac: 0.8
+    transformer.d_model: 256
+    transformer.num_layers: 4
+    transformer.nhead: 8
+    transformer.d_latent: 64
+    eqm.context_features: "off"      # context enters via the GP, not the backbone
+    eqm.source_sigma: 1.0            # wiki CLR has different scale than text8
+    eqm.gamma_power: 0.5
+    eqm.lambda_ce: 0.0               # no AE decoder here; CE term skipped
+    eqm.gradient_lambda: 1.0
+    eqm.sample_eta: 0.05
+    eqm.sample_mu: 0.9
+    eqm.sample_max_steps: 80
+    eqm.sample_grad_clip: 1.0
+    eqm.sample_return_best: true
+    bayes_auditor.num_inducing: 64
+    bayes_auditor.lambda_hinge: 1.0
+    bayes_auditor.margin_energy: 2.0
+    bayes_auditor.lambda_kl: 0.01
+    bayes_auditor.ctx_hidden: 768
+    bayes_auditor.ctx_proj_dim: 64
+    bayes_auditor.wiki_cache_path: data/text8_cache_gpt2.pt
+    wandb.enabled: false
+
+- name: eqm_dsm_poc
+  overrides:
+    training.model_name: EqMDSM
+    training.epochs: 5
+    training.seed: 42
+    training.lr: 0.0001
+    training.scheduler_warmup_epochs: 1
+    training.B: 64
+    training.L: 64
+    text8_dataset.batch_size: 64
+    text8_dataset.L: 64
+    text8_dataset.max_train_windows: 20000
+    text8_dataset.variable_length: false
+    transformer.d_model: 768
+    transformer.num_layers: 8
+    transformer.nhead: 12
+    autoencoder.d_model: 512
+    autoencoder.num_layers: 6
+    autoencoder.nhead: 8
+    autoencoder.d_latent: 128
+    autoencoder.activation: gelu
+    autoencoder.tie_embeddings: true
+    autoencoder.mode: ae
+    eqm.time_conditioning: add
+    eqm_ae.ae_ckpt_path: runs/ae_poc_m/ae/epoch_final.pt
+    dsm.ae_ckpt_path: runs/ae_poc_m/ae/epoch_final.pt
+    dsm.sigma_min: 0.05
+    dsm.sigma_max: 5.0
+    dsm.sigma_distribution: log_uniform
+    dsm.loss_weighting: constant
+    dsm.lambda_ce: 0.5
+    dsm.ce_min_logsig: 0.0
+    dsm.n_sigma: 16
+    dsm.steps_per_sigma: 6
+    dsm.sampler_eps: 1.0e-5
+    training.sample_eval_n: 32
+    training.sample_eval_every: 5
+    wandb.enabled: false

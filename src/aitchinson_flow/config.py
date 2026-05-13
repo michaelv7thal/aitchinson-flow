@@ -489,6 +489,81 @@ class EqMAEConfig:
 
 
 @dataclass
+class BayesianAuditorConfig:
+    """BayesianAuditorAE — GP-energy EBM with contrastive hinge.
+
+    Implements the supervisor-suggested design: GP posterior mean as a scalar
+    energy E(x), with conservative-gradient velocity v = -∇E, FM regression
+    loss plus a contrastive hinge against perturbation-based negatives
+    produced by ``CorruptingCollate`` (set ``text8_dataset.train_corrupt_rate``
+    > 0 to enable; default 0.15).
+    """
+
+    ae_ckpt_path: str = ""
+    num_inducing: int = 64
+    lambda_hinge: float = 1.0      # weight on E(clean)² + relu(margin - E(invalid))
+    margin_energy: float = 2.0
+    lambda_kl: float = 0.01        # weight on the variational KL / B
+    # (variance hinge omitted in the AE-latent variant — the GP posterior over a
+    # pooled deep feature is not well-calibrated as an OOD signal without further
+    # work; left for a follow-up.)
+    # ── product-kernel (wiki/GPT-2) extension ─────────────────────────────
+    # Used by ``PerTokenBayesianAuditorWiki`` (cfg.training.model_name).
+    # The context dim ``ctx_hidden`` matches the LM's last-hidden-state dim
+    # (768 for GPT-2 small); ``ctx_proj_dim`` is the projected per-position
+    # context dim consumed by the product kernel's second factor.
+    ctx_hidden: int = 768
+    ctx_proj_dim: int = 64
+    # Cache path used by the wiki/GPT-2 datamodule. Produced by
+    # ``scripts/cache_wiki.py`` with --lm gpt2 --K 64.
+    wiki_cache_path: str = "data/wiki_cache_gpt2.pt"
+
+
+@dataclass
+class DSMConfig:
+    """Denoising-score-matching family (ScoreDSM, EqMDSM).
+
+    Both models train a noise-conditional score on a frozen AE latent. They
+    share this config block. The model_name selects which parameterisation
+    of the score is used (direct vector field vs. ∇⟨x, f⟩ — i.e. the
+    energy-gradient form that recovers EqM's conservative-field structure).
+
+    Conditioning. Both models pass ``log(σ)`` through the backbone's
+    existing γ-conditioning path (`eqm.time_conditioning` must be "add" or
+    "concat"). This means the backbone is unchanged; the σ-embedding is
+    just the sinusoidal embedding of the log-noise-level.
+    """
+
+    # σ schedule for training-time noise sampling.
+    # Default range covers ~99% of the embedding-norm dynamic range you
+    # observe on text8 AE latents (z_norm ~6–10).
+    sigma_min: float = 0.05
+    sigma_max: float = 5.0
+    sigma_distribution: str = "log_uniform"  # "log_uniform" | "uniform"
+
+    # ε-prediction loss weighting λ(σ). "constant" = 1 (matches
+    # variance-preserving DDPM); "snr+1" = σ²+1 (Karras 2022 weighting).
+    loss_weighting: str = "constant"
+
+    # Aux CE on the implied-x1 reconstruction, same role as in EqM.
+    # ``ce_min_logsig`` masks the CE to small-σ samples (where the
+    # implied-x1 is reliable). Translation of EqM's ce_min_gamma but
+    # measured in log-σ rather than γ.
+    lambda_ce: float = 0.5
+    ce_min_logsig: float = 0.0  # only CE on σ <= exp(0) = 1.0 by default
+
+    # Annealed Langevin sampler.
+    n_sigma: int = 16  # σ ladder size (geometric between σ_max and σ_min)
+    steps_per_sigma: int = 8  # K Langevin steps at each σ
+    sampler_eps: float = 1e-5  # base step size; α_i = eps · (σ_i/σ_min)²
+    sample_use_predictor_corrector: bool = False
+
+    # AE pretrained checkpoint path (mirrors EqMAEConfig — same AE in
+    # all three cells of the sweep).
+    ae_ckpt_path: str = ""
+
+
+@dataclass
 class WandbConfig:
     """Optional Weights & Biases logging. Off by default; enable with --wandb."""
 
@@ -524,4 +599,6 @@ class Config:
     embedding: EmbeddingConfig = field(default_factory=EmbeddingConfig)
     autoencoder: AutoencoderConfig = field(default_factory=AutoencoderConfig)
     eqm_ae: EqMAEConfig = field(default_factory=EqMAEConfig)
+    dsm: DSMConfig = field(default_factory=DSMConfig)
+    bayes_auditor: BayesianAuditorConfig = field(default_factory=BayesianAuditorConfig)
     wandb: WandbConfig = field(default_factory=WandbConfig)

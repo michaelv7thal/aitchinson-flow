@@ -10,6 +10,10 @@ from .eqm_consgrad import EqMConsGrad
 from .eqm_latent import EquilibriumFlowMatchingLatent
 from .autoencoder import TextAutoencoder
 from .eqm_ae import EquilibriumFlowMatchingAE
+from .score_dsm import ScoreDSM, ScoreDSM_CLR
+from .eqm_dsm import EqMDSM
+from .bayes_auditor import BayesianAuditorAE, BayesianAuditorRaw
+from .bayes_auditor_wiki import PerTokenBayesianAuditorWiki
 
 __all__ = [
     "GenerativeTrainingModel",
@@ -28,4 +32,10 @@ __all__ = [
     "EquilibriumFlowMatchingLatent",
     "TextAutoencoder",
     "EquilibriumFlowMatchingAE",
+    "ScoreDSM",
+    "ScoreDSM_CLR",
+    "EqMDSM",
+    "BayesianAuditorAE",
+    "BayesianAuditorRaw",
+    "PerTokenBayesianAuditorWiki",
 ]

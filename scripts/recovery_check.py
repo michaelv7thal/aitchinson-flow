@@ -268,7 +268,18 @@ def main() -> int:
             log_probs_pt = model.decode_to_logprobs(z_init)
             ids_pt = log_probs_pt.argmax(-1).cpu()
 
-            x = model.sample(args.n, L, max_steps=args.steps, x_init=z_init)
+            # NCSN-style annealed-Langevin samplers (ScoreDSM/EqMDSM) accept a
+            # ``start_sigma`` kwarg that restricts the σ-ladder to values ≤
+            # the perturbation magnitude — without it the sampler re-noises
+            # ``z_init`` all the way back up to σ_max before annealing,
+            # which destroys the recovery signal at small α. EqM/EqMAE
+            # samplers don't accept this kwarg; fall back to the legacy call.
+            import inspect as _inspect
+            _sig = _inspect.signature(model.sample)
+            sample_kwargs = {"x_init": z_init, "max_steps": args.steps}
+            if "start_sigma" in _sig.parameters:
+                sample_kwargs["start_sigma"] = float(sig_perturb)
+            x = model.sample(args.n, L, **sample_kwargs)
             log_probs = model.decode_to_logprobs(x)
             ids = log_probs.argmax(-1).cpu()
         rc_scores = _score_stats(model, x)

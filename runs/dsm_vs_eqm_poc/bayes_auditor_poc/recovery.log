@@ -1,0 +1,29 @@
+=== Score reference (clean encoded val) ===
+  energy:    mean=0.315  std=0.423
+  grad_norm: mean=0.605  std=0.784
+  curvature: mean=nan  std=nan
+=== Unconditional generation ===
+  KL_uni=2.0518  KL_bi=10.3124  KL_tri=19.4826  H_gen=2.5367
+  sample[0]: 'ccgkkxmwxdrxcxbvmmzjdkvxjtzgccrmmcdxmdxlddmxmdkxcqzbmvrjmvdbxxmd'
+  sample[1]: 'mckkgwddcxyctxbkmzgxcxvxbttdmxvkmmdgmdmlkxbjmkmmcdqbbvqjmvkxxxxd'
+  energy:    mean=2.379  std=0.221
+  grad_norm: mean=0.026  std=0.032
+  curvature: mean=nan  std=nan
+
+=== Recovery from perturbation ===
+  embed_norm_mean=6.4514  σ_source=0.5770
+    α  σ_perturb    KL_bi  tok_acc  sample[0]: gt / pt / rc
+ 0.10      0.645   0.0746   0.9974  gt='e the capital of one government after another one of such govern'
+                                  pt='e the capital of one government after another one of such govern'  (pt_acc=0.997)
+                                  rc='e the capital of one government after another one of such govern'
+ 0.30      1.935   1.1999   0.7145  gt='e the capital of one government after another one of such govern'
+                                  pt='eithe xagctal af onecgovernmecttafzer ankther one ofpsknhpgodern'  (pt_acc=0.713)
+                                  rc='eithe xagctal af onecgovernmecttafzer ankther one ofpsknhpgodern'
+ 0.50      3.226   2.0380   0.4115  gt='e the capital of one government after another one of such govern'
+                                  pt='axshe lapieplqbs ofe g yeeghi tb  tersasoehhnbosedos stch usserp'  (pt_acc=0.411)
+                                  rc='axshe lapieplqbs ofe g yeeghi tb  tersasoehhnbosedos stch usserp'
+ 1.00      6.451   2.3839   0.1862  gt='e the capital of one government after another one of such govern'
+                                  pt='qsphtfslcqlpless osecgnlhkehlcsnavxhzsenagsesbmuhshqellsc goeehe'  (pt_acc=0.186)
+                                  rc='qsphtfslcqlpless osecgnlhkehlcsnavxhzsenagsesbmuhshqellsc goeehe'
+
+Wrote runs/dsm_vs_eqm_poc/bayes_auditor_poc/recovery.json

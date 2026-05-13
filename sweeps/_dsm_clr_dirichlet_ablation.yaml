@@ -1,0 +1,95 @@
+# 2x2 with comp_* on the (training-signal × x₁-thickening) axes.
+#
+#   training signal: FM    (comp_mse_seed42, comp_ref_det_mse)
+#                    DSM   (this file)
+#   x₁:              deterministic CLR  /  Dirichlet-thickened CLR
+#
+# Backbone, L, K, batch_size, source_sigma, optimiser, schedule all match
+# comp_* so the only varying knobs are the training signal and the data
+# transformation.
+
+- name: dsm_clr_det
+  overrides:
+    training.model_name: ScoreDSM_CLR
+    training.epochs: 5
+    training.seed: 42
+    training.lr: 0.0003
+    training.scheduler_warmup_epochs: 0
+    training.B: 64
+    training.L: 40
+    training.K: 27
+    training.sample_eval_n: 32
+    training.sample_eval_every: 5
+    text8_dataset.batch_size: 64
+    text8_dataset.L: 40
+    text8_dataset.K: 27
+    text8_dataset.max_train_windows: 10000
+    text8_dataset.variable_length: false
+    transformation.label_smoothing: 0.0001
+    transformation.dirichlet_sampling: false
+    transformer.d_model: 1024
+    transformer.num_layers: 8
+    transformer.nhead: 8
+    transformer.d_latent: 64
+    eqm.time_conditioning: "add"
+    eqm.context_features: "off"
+    eqm.source_sigma: 0.1
+    eqm.sample_eta: 0.1
+    eqm.sample_mu: 0.9
+    eqm.sample_max_steps: 100
+    eqm.sample_grad_clip: 1.0
+    eqm.sample_return_best: true
+    dsm.sigma_min: 0.01
+    dsm.sigma_max: 1.0
+    dsm.sigma_distribution: log_uniform
+    dsm.loss_weighting: constant
+    dsm.lambda_ce: 0.5
+    dsm.ce_min_logsig: 0.0
+    dsm.n_sigma: 16
+    dsm.steps_per_sigma: 6
+    dsm.sampler_eps: 1.0e-5
+    wandb.enabled: false
+
+- name: dsm_clr_dir
+  overrides:
+    training.model_name: ScoreDSM_CLR
+    training.epochs: 5
+    training.seed: 42
+    training.lr: 0.0003
+    training.scheduler_warmup_epochs: 0
+    training.B: 64
+    training.L: 40
+    training.K: 27
+    training.sample_eval_n: 32
+    training.sample_eval_every: 5
+    text8_dataset.batch_size: 64
+    text8_dataset.L: 40
+    text8_dataset.K: 27
+    text8_dataset.max_train_windows: 10000
+    text8_dataset.variable_length: false
+    transformation.label_smoothing: 0.0001
+    transformation.dirichlet_sampling: true
+    transformation.dirichlet_alpha_peak: 10.0
+    transformation.dirichlet_alpha_base: 0.1
+    transformer.d_model: 1024
+    transformer.num_layers: 8
+    transformer.nhead: 8
+    transformer.d_latent: 64
+    eqm.time_conditioning: "add"
+    eqm.context_features: "off"
+    eqm.source_sigma: 0.1
+    eqm.sample_eta: 0.1
+    eqm.sample_mu: 0.9
+    eqm.sample_max_steps: 100
+    eqm.sample_grad_clip: 1.0
+    eqm.sample_return_best: true
+    dsm.sigma_min: 0.01
+    dsm.sigma_max: 1.0
+    dsm.sigma_distribution: log_uniform
+    dsm.loss_weighting: constant
+    dsm.lambda_ce: 0.5
+    dsm.ce_min_logsig: 0.0
+    dsm.n_sigma: 16
+    dsm.steps_per_sigma: 6
+    dsm.sampler_eps: 1.0e-5
+    wandb.enabled: false

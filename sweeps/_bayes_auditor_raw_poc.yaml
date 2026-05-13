@@ -1,0 +1,46 @@
+# Raw-text/CLR bayes_auditor (no AE). Sized for the 8 GB POC GPU.
+# Transformer is small (d_model=256, 4 layers) like bayes_auditor_gpt2_poc,
+# since the second-order autograd through TransformerBackbone is the
+# memory bottleneck.
+- name: bayes_auditor_raw_poc
+  overrides:
+    training.model_name: BayesianAuditorRaw
+    training.epochs: 5
+    training.seed: 42
+    training.lr: 0.0001
+    training.scheduler_warmup_epochs: 1
+    training.B: 32
+    training.L: 64
+    training.K: 27
+    training.sample_eval_n: 32
+    training.sample_eval_every: 5
+    text8_dataset.batch_size: 32
+    text8_dataset.L: 64
+    text8_dataset.K: 27
+    text8_dataset.max_train_windows: 20000
+    text8_dataset.variable_length: false
+    text8_dataset.train_corrupt_rate: 0.15
+    text8_dataset.eval_corrupt_rate: 0.15
+    text8_dataset.train_order_mix_rate: 0.10
+    text8_dataset.eval_order_mix_rate: 0.10
+    transformer.d_model: 256
+    transformer.num_layers: 4
+    transformer.nhead: 8
+    transformer.d_latent: 64
+    bayes_auditor.num_inducing: 64
+    bayes_auditor.lambda_hinge: 1.0
+    bayes_auditor.margin_energy: 2.0
+    bayes_auditor.lambda_kl: 0.01
+    eqm.lambda_ce: 0.5
+    eqm.gamma_power: 0.5
+    eqm.source_sigma: 0.577
+    eqm.gradient_lambda: 1.0
+    eqm.sample_eta: 0.1
+    eqm.sample_mu: 0.9
+    eqm.sample_max_steps: 100
+    eqm.sample_grad_clip: 1.0
+    eqm.sample_return_best: true
+    eqm.context_features: "off"
+    eqm.time_conditioning: "off"
+    loss.mode: mse
+    wandb.enabled: false

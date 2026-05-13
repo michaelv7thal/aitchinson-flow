@@ -1,0 +1,28 @@
+{
+  "ckpt": "runs/dsm_vs_eqm_poc/eqm_dsm_poc/epoch_final.pt",
+  "model_name": "EqMDSM",
+  "epoch": 5,
+  "global_step": 1565,
+  "n_samples": 64,
+  "sample_steps": 80,
+  "sample_kwargs": {},
+  "unigram_kl": 0.3777430057525635,
+  "bigram_kl": 3.1629645824432373,
+  "trigram_kl": 11.178162574768066,
+  "H_gen": 3.175877332687378,
+  "H_gt": 2.8537919521331787,
+  "H_ratio": 1.1128622499315144,
+  "grad_at_gen": NaN,
+  "grad_at_gt": NaN,
+  "samples": [
+    "yc   p pajqh feneggpduo osrscazbysnsexcnkfockbpqszlggzcruedih gt",
+    "ies hb qhesacufoewcnslttlffkecglbuobeiiku gblylbeihah p ef o faa",
+    "ewswugrtelieokb vy n ugsekekewltfisktcvsljsxvpiussaoo srf heahsw",
+    "ivjcroxcujzdkeairsoexagw gghs p hfaspajroanagscilshh szh iogclu ",
+    "k nieksfel nvsq yotsxp  btaesgaaehtrego xsbzclkbnnoindfeiai euie",
+    " n is  lsigqcylqqlcftcto suhkefzuzooositlcsnd qknkhot  qxslac rx",
+    "fynn udqfjkszypefvsh yfxbkd lsl coagpoesuxzjqqf r jiqiasqylakwae",
+    "uscuslyttclgtuioorsqnecyct hswhlkc yc byylgcgiyb zps bi gcshnsle"
+  ],
+  "run_name": "eqm_dsm_poc"
+}

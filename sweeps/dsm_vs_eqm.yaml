@@ -1,0 +1,185 @@
+# DSM vs EqM — three-cell capstone comparison.
+#
+# Tests whether switching the training signal from FM regression
+# (EqM, target c(γ)(x_0 - x_1)) to denoising score matching (DSM,
+# target ε at multiple σ) escapes the §3 single-basin attractor on
+# text, and whether enforcing the score to be a conservative-energy
+# gradient (EqMDSM) costs perplexity or buys recoverable basins.
+#
+# Three cells, identical backbone / AE / data / seed:
+#   1. eqm_fm     — baseline.  FM regression on the conservative gradient.
+#                   Reference cell; we expect §3 flat-field collapse on
+#                   the d=1024 recipe (matches the v3 phenotype).
+#   2. score_dsm  — DSM training, direct-score parameterisation. No
+#                   conservativity constraint. Standard diffusion-LM.
+#   3. eqm_dsm    — DSM training, energy-gradient parameterisation.
+#                   Conservative score s = -∇⟨x, f⟩.
+#
+# All three share the same pretrained AE (cfg.dsm.ae_ckpt_path =
+# cfg.eqm_ae.ae_ckpt_path). The AE is trained separately ahead of time;
+# the sweep assumes a checkpoint at the path specified per cell.
+#
+# Compute budget (A100): ~45-60 min per cell at 5 epochs × 50k windows
+# × d=1024 / 8 layers. ~3-4 h end-to-end.
+#
+# Eval suite per cell (handled by run_sweep.py + recovery_check.py):
+#   eval.json:      unigram/bigram/trigram KL, H_ratio, samples
+#   recovery.json:  α-sweep token-acc and energy stats
+#
+# AE pointer — replace before running:
+#   eqm_ae.ae_ckpt_path: runs/ae_d1024_l8_z128_v3/ae/epoch_final.pt
+#   dsm.ae_ckpt_path:    same (DSM models read either)
+
+
+# ─── Smoke test ────────────────────────────────────────────────────────────
+# Tiny config that exercises the full pipeline (DSM training step, σ-
+# conditioning, annealed Langevin) on the d256 AE. ~3 min on an A100.
+# Skip the main cells if this fails.
+
+- name: dsm_smoke
+  overrides:
+    training.model_name: ScoreDSM
+    training.epochs: 1
+    training.B: 32
+    text8_dataset.batch_size: 32
+    text8_dataset.max_train_windows: 2000
+    text8_dataset.L: 40
+    training.L: 40
+    autoencoder.d_model: 256
+    autoencoder.num_layers: 2
+    autoencoder.nhead: 4
+    autoencoder.d_latent: 64
+    autoencoder.activation: gelu
+    autoencoder.tie_embeddings: true
+    autoencoder.mode: ae
+    eqm.time_conditioning: add    # σ-cond rides this path
+    eqm_ae.ae_ckpt_path: runs/ae_d256_l2_z64/ae/epoch_final.pt
+    dsm.ae_ckpt_path: runs/ae_d256_l2_z64/ae/epoch_final.pt
+    dsm.sigma_min: 0.05
+    dsm.sigma_max: 5.0
+    dsm.sigma_distribution: log_uniform
+    dsm.lambda_ce: 0.5
+    dsm.ce_min_logsig: 0.0
+    dsm.n_sigma: 8
+    dsm.steps_per_sigma: 4
+    transformer.d_model: 256
+    transformer.num_layers: 2
+    transformer.nhead: 4
+
+# ─── Main cells: d=1024 backbone, matched to ae_d1024_l8_z128_v3 ─────────
+# These are the recipe where EqM-FM is known to fail (§3 flat-field
+# collapse, see analyses in NOTE_WHY_EBM_INIT_STUCK.md).
+
+- name: eqm_fm
+  overrides:
+    training.model_name: EqMAE
+    training.epochs: 5
+    training.seed: 42
+    training.lr: 0.0001
+    training.scheduler_warmup_epochs: 2
+    text8_dataset.max_train_windows: 50000
+    text8_dataset.variable_length: true
+    text8_dataset.L_min: 40
+    text8_dataset.L_max: 128
+    text8_dataset.L: 128
+    training.L: 128
+    training.B: 64
+    text8_dataset.batch_size: 64
+    autoencoder.d_model: 1024
+    autoencoder.num_layers: 8
+    autoencoder.nhead: 8
+    autoencoder.d_latent: 128
+    autoencoder.denoising_schedule: relative_uniform
+    autoencoder.denoising_sigma: 0.5
+    autoencoder.latent_l2: 0.001
+    autoencoder.activation: gelu
+    autoencoder.tie_embeddings: true
+    autoencoder.mode: ae
+    eqm_ae.ae_ckpt_path: runs/ae_d1024_l8_z128_v3/ae/epoch_final.pt
+    eqm.lambda_ce: 0.5
+    eqm.gamma_power: 0.5            # corrected from v3's 1.0 → matches d256 recipe
+    eqm.source_sigma: 0.9085379838943481
+    loss.mode: mse
+
+- name: score_dsm
+  overrides:
+    training.model_name: ScoreDSM
+    training.epochs: 5
+    training.seed: 42
+    training.lr: 0.0001
+    training.scheduler_warmup_epochs: 2
+    text8_dataset.max_train_windows: 50000
+    text8_dataset.variable_length: true
+    text8_dataset.L_min: 40
+    text8_dataset.L_max: 128
+    text8_dataset.L: 128
+    training.L: 128
+    training.B: 64
+    text8_dataset.batch_size: 64
+    autoencoder.d_model: 1024
+    autoencoder.num_layers: 8
+    autoencoder.nhead: 8
+    autoencoder.d_latent: 128
+    autoencoder.activation: gelu
+    autoencoder.tie_embeddings: true
+    autoencoder.mode: ae
+    eqm.time_conditioning: add
+    eqm_ae.ae_ckpt_path: runs/ae_d1024_l8_z128_v3/ae/epoch_final.pt
+    dsm.ae_ckpt_path: runs/ae_d1024_l8_z128_v3/ae/epoch_final.pt
+    dsm.sigma_min: 0.05
+    dsm.sigma_max: 5.0
+    dsm.sigma_distribution: log_uniform
+    dsm.loss_weighting: constant
+    dsm.lambda_ce: 0.5
+    dsm.ce_min_logsig: 0.0
+    dsm.n_sigma: 16
+    dsm.steps_per_sigma: 8
+    dsm.sampler_eps: 1.0e-5
+
+- name: eqm_dsm
+  overrides:
+    training.model_name: EqMDSM
+    training.epochs: 5
+    training.seed: 42
+    training.lr: 0.0001
+    training.scheduler_warmup_epochs: 2
+    text8_dataset.max_train_windows: 50000
+    text8_dataset.variable_length: true
+    text8_dataset.L_min: 40
+    text8_dataset.L_max: 128
+    text8_dataset.L: 128
+    training.L: 128
+    training.B: 64
+    text8_dataset.batch_size: 64
+    autoencoder.d_model: 1024
+    autoencoder.num_layers: 8
+    autoencoder.nhead: 8
+    autoencoder.d_latent: 128
+    autoencoder.activation: gelu
+    autoencoder.tie_embeddings: true
+    autoencoder.mode: ae
+    eqm.time_conditioning: add
+    eqm_ae.ae_ckpt_path: runs/ae_d1024_l8_z128_v3/ae/epoch_final.pt
+    dsm.ae_ckpt_path: runs/ae_d1024_l8_z128_v3/ae/epoch_final.pt
+    dsm.sigma_min: 0.05
+    dsm.sigma_max: 5.0
+    dsm.sigma_distribution: log_uniform
+    dsm.loss_weighting: constant
+    dsm.lambda_ce: 0.5
+    dsm.ce_min_logsig: 0.0
+    dsm.n_sigma: 16
+    dsm.steps_per_sigma: 8
+    dsm.sampler_eps: 1.0e-5
+
+# ─── Triplicate seeds — for variance estimates on the headline numbers ───
+# Enable these once the single-seed cells finish cleanly. Drop the seed
+# offsets to keep cross-cell paired-seed comparability.
+
+- name: eqm_fm_seed43
+  overrides: {training.model_name: EqMAE,     training.seed: 43, training.epochs: 5, training.lr: 0.0001, training.scheduler_warmup_epochs: 2, text8_dataset.max_train_windows: 50000, text8_dataset.variable_length: true, text8_dataset.L_min: 40, text8_dataset.L_max: 128, text8_dataset.L: 128, training.L: 128, training.B: 64, text8_dataset.batch_size: 64, autoencoder.d_model: 1024, autoencoder.num_layers: 8, autoencoder.nhead: 8, autoencoder.d_latent: 128, autoencoder.denoising_schedule: relative_uniform, autoencoder.denoising_sigma: 0.5, autoencoder.latent_l2: 0.001, autoencoder.activation: gelu, autoencoder.tie_embeddings: true, autoencoder.mode: ae, eqm_ae.ae_ckpt_path: runs/ae_d1024_l8_z128_v3/ae/epoch_final.pt, eqm.lambda_ce: 0.5, eqm.gamma_power: 0.5, eqm.source_sigma: 0.9085379838943481, loss.mode: mse}
+
+- name: score_dsm_seed43
+  overrides: {training.model_name: ScoreDSM, training.seed: 43, training.epochs: 5, training.lr: 0.0001, training.scheduler_warmup_epochs: 2, text8_dataset.max_train_windows: 50000, text8_dataset.variable_length: true, text8_dataset.L_min: 40, text8_dataset.L_max: 128, text8_dataset.L: 128, training.L: 128, training.B: 64, text8_dataset.batch_size: 64, autoencoder.d_model: 1024, autoencoder.num_layers: 8, autoencoder.nhead: 8, autoencoder.d_latent: 128, autoencoder.activation: gelu, autoencoder.tie_embeddings: true, autoencoder.mode: ae, eqm.time_conditioning: add, eqm_ae.ae_ckpt_path: runs/ae_d1024_l8_z128_v3/ae/epoch_final.pt, dsm.ae_ckpt_path: runs/ae_d1024_l8_z128_v3/ae/epoch_final.pt, dsm.sigma_min: 0.05, dsm.sigma_max: 5.0, dsm.sigma_distribution: log_uniform, dsm.loss_weighting: constant, dsm.lambda_ce: 0.5, dsm.ce_min_logsig: 0.0, dsm.n_sigma: 16, dsm.steps_per_sigma: 8, dsm.sampler_eps: 1.0e-5}
+
+- name: eqm_dsm_seed43
+  overrides: {training.model_name: EqMDSM,   training.seed: 43, training.epochs: 5, training.lr: 0.0001, training.scheduler_warmup_epochs: 2, text8_dataset.max_train_windows: 50000, text8_dataset.variable_length: true, text8_dataset.L_min: 40, text8_dataset.L_max: 128, text8_dataset.L: 128, training.L: 128, training.B: 64, text8_dataset.batch_size: 64, autoencoder.d_model: 1024, autoencoder.num_layers: 8, autoencoder.nhead: 8, autoencoder.d_latent: 128, autoencoder.activation: gelu, autoencoder.tie_embeddings: true, autoencoder.mode: ae, eqm.time_conditioning: add, eqm_ae.ae_ckpt_path: runs/ae_d1024_l8_z128_v3/ae/epoch_final.pt, dsm.ae_ckpt_path: runs/ae_d1024_l8_z128_v3/ae/epoch_final.pt, dsm.sigma_min: 0.05, dsm.sigma_max: 5.0, dsm.sigma_distribution: log_uniform, dsm.loss_weighting: constant, dsm.lambda_ce: 0.5, dsm.ce_min_logsig: 0.0, dsm.n_sigma: 16, dsm.steps_per_sigma: 8, dsm.sampler_eps: 1.0e-5}
