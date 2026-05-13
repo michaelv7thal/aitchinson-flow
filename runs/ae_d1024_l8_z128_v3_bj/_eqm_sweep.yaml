@@ -16,7 +16,7 @@
     autoencoder.activation: gelu
     autoencoder.tie_embeddings: true
     autoencoder.mode: ae
-    eqm_ae.ae_ckpt_path: runs/ae_d1024_l8_z128_v3/ae/epoch_final.pt
+    eqm_ae.ae_ckpt_path: runs/ae_d1024_l8_z128_v3_bj/ae/epoch_final.pt
     eqm.lambda_ce: 0.5
     eqm.gamma_power: 1.0
     eqm.source_sigma: 0.9085379838943481
@@ -28,3 +28,4 @@
     text8_dataset.variable_length: true
     text8_dataset.L_min: 40
     text8_dataset.L_max: 128
+    eqm.lambda_bigram_joint: 0.1

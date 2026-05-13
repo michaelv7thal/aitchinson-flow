@@ -184,7 +184,7 @@ def _write_eqm_sweep_yaml(cell: dict[str, Any], cell_dir: Path, ae_ckpt: Path) -
         "eqm_ae.ae_ckpt_path": str(ae_ckpt),
         # EqM backbone matches the comp_ baselines
         "eqm.lambda_ce": 0.5,
-        "eqm.gamma_power": 0.5,
+        "eqm.gamma_power": 1.0,
         # Per-cell source_sigma so FM source N(0, σ²I) matches the
         # encoded x1's per-dim std — fixes the "x0 is negligible at
         # all γ" failure mode.
@@ -211,6 +211,11 @@ def _write_eqm_sweep_yaml(cell: dict[str, Any], cell_dir: Path, ae_ckpt: Path) -
         # Pos emb sized to L_max
         overrides["training.L"] = L_max
         overrides["text8_dataset.L"] = L_max
+    # Per-cell EqM overrides (e.g. lambda_bigram_joint) — flattened into
+    # eqm.<key> keys. Lets a sweep cell opt into auxiliary heads without
+    # editing this script.
+    for k, v in (cell.get("eqm") or {}).items():
+        overrides[f"eqm.{k}"] = v
     spec = [{"name": name, "overrides": overrides}]
     yaml_path = cell_dir / "_eqm_sweep.yaml"
     yaml_path.write_text(yaml.safe_dump(spec, sort_keys=False))

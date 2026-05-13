@@ -38,6 +38,32 @@ from aitchinson_flow.models.autoencoder import TextAutoencoder
 from aitchinson_flow.transformer_backbone import _sinusoidal_embedding
 
 
+class _BigramHeadLatent(nn.Module):
+    """Non-factorised bigram joint head for EqMAE.
+
+    Reads adjacent implied-x1 latents (the same vectors the aux CE decodes)
+    and emits K² logits per position pair, parameterising P(token_t, token_{t+1}
+    | implied_x1[t], implied_x1[t+1]). Unlike the factorised log p(a)+log p(b)
+    construction (a no-op architecturally — see eqm.py Phase 5 note), this can
+    represent any bigram joint and therefore *can* push the encoder/velocity to
+    encode digraph structure that survives back into the conservative gradient.
+
+    Memory at K=27, d_latent=128, B=64, L=128:
+        Linear params: 2·128·729 ≈ 187K
+        Logits tensor: (B, L-1, K²) ≈ 24 MB.
+    """
+
+    def __init__(self, d_latent: int, K: int) -> None:
+        super().__init__()
+        self.K = K
+        self.proj = nn.Linear(2 * d_latent, K * K)
+
+    def forward(self, z: torch.Tensor) -> torch.Tensor:
+        """z: (M, L, d_latent) → (M, L-1, K²)."""
+        pairs = torch.cat([z[:, :-1], z[:, 1:]], dim=-1)
+        return self.proj(pairs)
+
+
 class _LatentBackbone(nn.Module):
     """Same shape as ``eqm_latent._LatentBackbone`` but with input/output dims
     driven by ``cfg.autoencoder.d_latent`` instead of ``cfg.embedding.d_embed``."""
@@ -137,11 +163,24 @@ class EquilibriumFlowMatchingAE(nn.Module):
         if not hasattr(self.ae, "_warmup_epoch_seen"):
             self.ae._warmup_epoch_seen = 0
 
+        # Optional non-factorised bigram joint head — only instantiated when
+        # eqm.lambda_bigram_joint > 0 so the parameter count and memory cost
+        # are paid only when the term is active.
+        if getattr(cfg.eqm, "lambda_bigram_joint", 0.0) > 0.0:
+            self.bigram_head: _BigramHeadLatent | None = _BigramHeadLatent(
+                d_latent=self.d_latent, K=self.K
+            )
+        else:
+            self.bigram_head = None
+
         # Plain MSE on the regression — geometry is whatever the AE learned.
         self.loss_fn = nn.MSELoss()
 
     def trainable_parameters(self) -> Iterable[nn.Parameter]:
-        return [p for p in self.backbone.parameters()]
+        params = list(self.backbone.parameters())
+        if self.bigram_head is not None:
+            params.extend(self.bigram_head.parameters())
+        return params
 
     # ----- encode / decode (delegate to frozen AE) ------------------------- #
 
@@ -180,6 +219,122 @@ class EquilibriumFlowMatchingAE(nn.Module):
         )
         v = self.forward(x, gamma)
         return (x * v).sum(dim=(1, 2))
+
+    # ----- UQ / scoring API ------------------------------------------------- #
+    # The conservative-gradient parameterisation means the trained model
+    # exposes a scalar energy g(x) = ⟨x, f(x)⟩ at every point in latent
+    # space. These methods surface energy / its gradient norm / a Hutchinson
+    # trace estimate of its Hessian for post-training uncertainty
+    # quantification on generated or recovered samples.
+    #   * score_energy(x): how "in-distribution" is x (lower = more likely)
+    #   * score_gradient_norm(x): distance from the nearest local minimum
+    #     (larger = sampler hasn't fully settled)
+    #   * score_curvature(x): basin sharpness (larger positive = sharper
+    #     local minimum = higher confidence)
+    # All three respect pad_mask so padded positions don't contribute.
+
+    def _score_gamma(self, x: torch.Tensor) -> torch.Tensor | None:
+        s = self.cfg.eqm
+        if getattr(s, "time_conditioning", "off") == "off":
+            return None
+        return torch.full(
+            (x.shape[0],), float(s.sample_gamma), device=x.device, dtype=x.dtype
+        )
+
+    @torch.no_grad()
+    def score_energy(
+        self,
+        x: torch.Tensor,
+        pad_mask: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        """Per-sample scalar energy g(x) = ⟨x, f(x)⟩. Returns (B,)."""
+        gamma = self._score_gamma(x)
+        v = self.forward(x, gamma, pad_mask=pad_mask)
+        if pad_mask is None:
+            return (x * v).sum(dim=(1, 2))
+        valid_f = (~pad_mask).to(x.dtype).unsqueeze(-1)
+        return (x * v * valid_f).sum(dim=(1, 2))
+
+    def score_gradient_norm(
+        self,
+        x: torch.Tensor,
+        pad_mask: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        """Per-sample L2 norm of ∇_x g(x). Larger = further from a local
+        minimum of the energy. Returns (B,)."""
+        gamma = self._score_gamma(x)
+        with torch.enable_grad():
+            x_req = x.detach().requires_grad_(True)
+            v = self.forward(x_req, gamma, pad_mask=pad_mask)
+            if pad_mask is None:
+                energy_total = (x_req * v).sum()
+            else:
+                valid_f = (~pad_mask).to(x_req.dtype).unsqueeze(-1)
+                energy_total = (x_req * v * valid_f).sum()
+            grad = torch.autograd.grad(energy_total, x_req, create_graph=False)[0]
+        if pad_mask is None:
+            return grad.detach().flatten(start_dim=1).norm(dim=-1)
+        valid_f = (~pad_mask).to(grad.dtype).unsqueeze(-1)
+        return (grad.detach() * valid_f).flatten(start_dim=1).norm(dim=-1)
+
+    def score_curvature(
+        self,
+        x: torch.Tensor,
+        pad_mask: torch.Tensor | None = None,
+        *,
+        n_samples: int = 4,
+        chunk_size: int = 32,
+    ) -> torch.Tensor:
+        """Hutchinson estimate of tr(∇²_x g(x)) with Rademacher probes.
+        Larger positive = sharper local minimum = higher confidence.
+
+        Memory-heavy: each probe sample needs the create_graph=True graph
+        from the energy forward + a second backward through it. We chunk
+        along the batch dimension and empty the CUDA cache between chunks
+        to keep peak memory bounded; n_samples is the number of probe
+        vectors averaged. Costs ``n_samples`` × (1 fwd + 2 bwd) per chunk.
+        Returns (B,)."""
+        gamma = self._score_gamma(x)
+        B = x.shape[0]
+        traces = torch.zeros(B, device=x.device, dtype=x.dtype)
+        cs = max(1, int(chunk_size))
+        for start in range(0, B, cs):
+            end = min(B, start + cs)
+            x_chunk = x[start:end].detach()
+            pad_chunk = pad_mask[start:end] if pad_mask is not None else None
+            gamma_chunk = gamma[start:end] if gamma is not None else None
+            valid_f = (
+                (~pad_chunk).to(x_chunk.dtype).unsqueeze(-1)
+                if pad_chunk is not None
+                else None
+            )
+            trace_chunk = torch.zeros(end - start, device=x.device, dtype=x.dtype)
+            for _ in range(n_samples):
+                # Rademacher probe v built in-place to avoid a temporary float tensor.
+                v_probe = (
+                    torch.empty_like(x_chunk).uniform_(0.0, 1.0).round_().mul_(2.0).sub_(1.0)
+                )
+                with torch.enable_grad():
+                    x_req = x_chunk.requires_grad_(True)
+                    v = self.forward(x_req, gamma_chunk, pad_mask=pad_chunk)
+                    if valid_f is None:
+                        energy_total = (x_req * v).sum()
+                    else:
+                        energy_total = (x_req * v * valid_f).sum()
+                    grad = torch.autograd.grad(energy_total, x_req, create_graph=True)[0]
+                    inner = (grad * v_probe).sum()
+                    Hv = torch.autograd.grad(inner, x_req, create_graph=False)[0]
+                if valid_f is None:
+                    est = (Hv * v_probe).sum(dim=(1, 2)).detach()
+                else:
+                    est = (Hv * v_probe * valid_f).sum(dim=(1, 2)).detach()
+                trace_chunk = trace_chunk + est
+                del v, grad, Hv, inner, energy_total, v_probe
+            traces[start:end] = trace_chunk / float(n_samples)
+            # Release per-chunk graph memory before the next chunk allocates.
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+        return traces
 
     # ----- training step --------------------------------------------------- #
 
@@ -240,28 +395,70 @@ class EquilibriumFlowMatchingAE(nn.Module):
         total = flow_loss
         out: LossDict = {"flow_loss": flow_loss}
 
-        if s.lambda_ce > 0.0:
+        # CE and bigram-joint NLL both consume the implied-x1 reconstruction,
+        # so compute it once if either is active.
+        wants_anchor = s.lambda_ce > 0.0 or (
+            self.bigram_head is not None
+            and getattr(s, "lambda_bigram_joint", 0.0) > 0.0
+        )
+        if wants_anchor:
             ce_mask = gamma >= s.ce_min_gamma
             if ce_mask.any():
                 lam = s.gradient_lambda
                 pred_x1 = x_gamma[ce_mask] - lam * grad_g[ce_mask]
-                # Pass the sliced pad_mask too if present.
                 ce_pad = pad_mask[ce_mask] if pad_mask is not None else None
-                logits = self.decode_to_logits(pred_x1)
-                log_probs = F.log_softmax(logits, dim=-1)
                 ids = token_ids[ce_mask].long()
-                if ce_pad is None:
-                    ce = F.nll_loss(log_probs.reshape(-1, self.K), ids.reshape(-1))
-                else:
-                    valid = (~ce_pad).reshape(-1).to(log_probs.dtype)
-                    ce_per = F.nll_loss(
-                        log_probs.reshape(-1, self.K),
-                        ids.reshape(-1),
-                        reduction="none",
-                    )
-                    ce = (ce_per * valid).sum() / valid.sum().clamp(min=1.0)
-                total = total + s.lambda_ce * ce
-                out["ce"] = ce.detach()
+
+                if s.lambda_ce > 0.0:
+                    logits = self.decode_to_logits(pred_x1)
+                    log_probs = F.log_softmax(logits, dim=-1)
+                    if ce_pad is None:
+                        ce = F.nll_loss(log_probs.reshape(-1, self.K), ids.reshape(-1))
+                    else:
+                        valid = (~ce_pad).reshape(-1).to(log_probs.dtype)
+                        ce_per = F.nll_loss(
+                            log_probs.reshape(-1, self.K),
+                            ids.reshape(-1),
+                            reduction="none",
+                        )
+                        ce = (ce_per * valid).sum() / valid.sum().clamp(min=1.0)
+                    total = total + s.lambda_ce * ce
+                    out["ce"] = ce.detach()
+
+                # Non-factorised bigram joint NLL — Linear(2·d_latent → K²) on
+                # adjacent implied-x1 vectors. Supervision flows back into
+                # grad_g (via pred_x1), so the conservative gradient field
+                # gets pushed toward digraph-aware structure.
+                lam_bj = getattr(s, "lambda_bigram_joint", 0.0)
+                if (
+                    self.bigram_head is not None
+                    and lam_bj > 0.0
+                    and pred_x1.shape[1] >= 2
+                ):
+                    bg_logits = self.bigram_head(pred_x1)  # (M, L-1, K²)
+                    bg_log_p = F.log_softmax(bg_logits, dim=-1)
+                    bg_target = ids[:, :-1] * self.K + ids[:, 1:]  # (M, L-1)
+                    if ce_pad is None:
+                        bg_nll = F.nll_loss(
+                            bg_log_p.reshape(-1, self.K * self.K),
+                            bg_target.reshape(-1),
+                        )
+                    else:
+                        # A bigram position is valid only if BOTH its tokens
+                        # are non-padded.
+                        valid_pair = (~ce_pad[:, :-1] & ~ce_pad[:, 1:]).reshape(-1).to(
+                            bg_log_p.dtype
+                        )
+                        bg_per = F.nll_loss(
+                            bg_log_p.reshape(-1, self.K * self.K),
+                            bg_target.reshape(-1),
+                            reduction="none",
+                        )
+                        bg_nll = (bg_per * valid_pair).sum() / valid_pair.sum().clamp(
+                            min=1.0
+                        )
+                    total = total + lam_bj * bg_nll
+                    out["bg_joint_nll"] = bg_nll.detach()
 
         out[TRAINING_LOSS_KEY] = total
 
@@ -275,6 +472,20 @@ class EquilibriumFlowMatchingAE(nn.Module):
             sq_b = (grad_g[mask_b] - u_tgt[mask_b]).pow(2) * v_f
             return sq_b.sum() / (v_f.sum() * grad_g.shape[-1]).clamp(min=1.0)
 
+        # Per-sample L2 norms over (L, d_latent) for the echo-trap diagnostic.
+        # Detached so they don't pollute the training graph.
+        if pad_mask is None:
+            grad_norms = grad_g.detach().flatten(start_dim=1).norm(dim=-1)
+            tgt_norms = u_tgt.detach().flatten(start_dim=1).norm(dim=-1)
+        else:
+            valid_f = (~pad_mask).to(grad_g.dtype).unsqueeze(-1)
+            grad_norms = (
+                (grad_g.detach() * valid_f).flatten(start_dim=1).norm(dim=-1)
+            )
+            tgt_norms = (
+                (u_tgt.detach() * valid_f).flatten(start_dim=1).norm(dim=-1)
+            )
+
         for key, mask in (
             ("g<.33", gamma < 0.33),
             ("g<.66", (gamma >= 0.33) & (gamma < 0.66)),
@@ -282,6 +493,13 @@ class EquilibriumFlowMatchingAE(nn.Module):
         ):
             if mask.any():
                 out[key] = _bucket_loss(mask)
+                # Echo-trap diagnostic: ratio of mean ‖grad_g‖ to mean ‖u_tgt‖
+                # in this γ-bin. ≈1 ⇒ real transport, →0 ⇒ flat field (echo
+                # trap), ≫1 ⇒ overshoot.
+                rkey = key.replace("g<", "r<")
+                out[rkey] = grad_norms[mask].mean() / tgt_norms[mask].mean().clamp(
+                    min=1e-8
+                )
 
         return out
 

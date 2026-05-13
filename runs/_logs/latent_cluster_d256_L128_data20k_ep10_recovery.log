@@ -1,0 +1,47 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+=== Unconditional generation ===
+  KL_uni=0.1012  KL_bi=0.9228  KL_tri=3.3723  H_gen=2.7491
+  sample[0]: 'oe usisisai erdeteober  urate sero e is  itni  ipiarer es difynardbrocttheeso  baiduris sideeatid in asblniu washepie soien teic'
+  sample[1]: ' hyormedndradri whirossoon anr  rpizynesroch de oeie halay  iinciast icaeaizan eeu aimedur s ineniez ai aii ioisserisapsvecorsch'
+
+=== Recovery from perturbation ===
+  embed_norm_mean=4.3581  σ_source=0.1000
+    α  σ_perturb    KL_bi  tok_acc  sample[0]: gt / pt / rc
+ 0.15      0.654   0.0404   0.9991  gt='e the capital of one government after another one of such governments was established in one eight six four as a second mexican '
+                                  pt='e the capital of one government after another one of such governments was established in one eight six four as a second mexican '  (pt_acc=0.999)
+                                  rc='e the capital of one government after another one of such governments was established in one eight sin four as a second mexican '
+ 0.20      0.872   0.0385   0.9942  gt='e the capital of one government after another one of such governments was established in one eight six four as a second mexican '
+                                  pt='e the capital of one government after another one of such governments was established in one eight six four as a second megican '  (pt_acc=0.996)
+                                  rc='e the capital of one government after another one of such governments was established in one eight six four as a second megican '
+ 0.25      1.090   0.0499   0.9729  gt='e the capital of one government after another one of such governments was established in one eight six four as a second mexican '
+                                  pt='e tht capital of one government after anothev one of such governments was established in one eight sip four as a second mevican '  (pt_acc=0.977)
+                                  rc='e tht capital of one government after another one of such governments was establisced in one eight sip four as a second meoican '
+ 0.30      1.307   0.1194   0.9193  gt='e the capital of one government after another one of such governments was established in one eight six four as a second mexican '
+                                  pt='e the capital of onecgovernment altfrsafothir one of  uch tovernments wss established in ono eighw six four as a secovd hhxican '  (pt_acc=0.925)
+                                  rc='e the capital of onecgovernment altfrsanothir one of  uch tovernments wss established in ono eighw six four as a secovd hhxican '
+ 0.35      1.525   0.2346   0.8400  gt='e the capital of one government after another one of such governments was established in one eight six four as a second mexican '
+                                  pt='e the capital oe one gmvernmenb hmter anothercone of suhhtgovernments was established indone eigtt six foun as a smcond meiican '  (pt_acc=0.849)
+                                  rc='e the capital oe one gmvdrnmenc hmter anothercone of suhhtgovernments was established indone eigtt six foun as a smcond meiican '
+ 0.40      1.743   0.4016   0.7511  gt='e the capital of one government after another one of such governments was established in one eight six four as a second mexican '
+                                  pt='e the takwtap sf onebgoyrrnm ntpaftearanovher one df soct  olwrnments zas established iy onh eight hbv focr as a  lvord mwrican '  (pt_acc=0.762)
+                                  rc='e the tkkwtap sf onebgoyrrnm ntpactearanother one sf soct  olwrnments was established iy onh eight hbp focr as a  lfond mwrican '
+ 0.45      1.961   0.5630   0.6714  gt='e the capital of one government after another one of such governments was established in one eight six four as a second mexican '
+                                  pt='e d e wapitalaof odeigowezneent asunriauother ureiof sfca wvmernments was lstablissed inoonv aisht six foar vs f svconw mkeivan '  (pt_acc=0.680)
+                                  rc='e d e wapitalaof odeigowerndent asunriapother ureiof sfca wpmernments was lstablissfd inoone aiuht six foarrds f svconw meeivan '
+ 0.50      2.179   0.7532   0.5909  gt='e the capital of one government after another one of such governments was established in one eight six four as a second mexican '
+                                  pt='kethi ialitalxoa onedeocfrementauigen anorhtrnoye ofmsuch irvebnbentyluayfessamnished intmne eigst six fohmyas a rtctnd mexechth'  (pt_acc=0.599)
+                                  rc='kethi ialitalxoaaonedeocfrdmentauigen anorhtrnoye ofmsuch irvernbentsluayfessamnished intmne eigsi sis fohryas n rtctnd mexechth'
+ 0.60      2.615   1.0400   0.4667  gt='e the capital of one government after another one of such governments was established in one eight six four as a second mexican '
+                                  pt='sethewbanrtau oc  ne eakesnmdnt gbkem anohtexsoye os sbch nllmonr ntsyynd csuersmshemcictone eilhtprgl fgcr fhlt sebpnd mevcgli '  (pt_acc=0.473)
+                                  rc='scthewbanrtau oc  ne xakesnmdnt gbkeo anohcexsoyenos sbch nllmrnr ntsyynd csuersmshemcictone eilhtprgl fgcr fhlt sebpnd meicgli '
+ 0.70      3.051   1.2471   0.3825  gt='e the capital of one government after another one of such governments was established in one eight six four as a second mexican '
+                                  pt='o ane cflbtqesro bny fosvmnmantsawclr enonhiruvpd uf sudh gocva behutxs saeutarni hedas  lnaaoiforeslxssrbudfepxuyzcofbeyu ekrcp'  (pt_acc=0.386)
+                                  rc='o ane cnlbtqesro bny fosvmnmantsawclr rnonhirufpd uf sudh gocva behutxs saeutarni hedas  lnaaoiforeslgssrbudfepcuyocofbeyu ekrcp'
+ 0.80      3.486   1.3240   0.3218  gt='e the capital of one government after another one of such governments was established in one eight six four as a second mexican '
+                                  pt='eejcetmplinl tof gcf y seynce gngoemufbvtehy onny uf pbil lpltfypeft nw teeoklblekhefbvscbne  uyht trh stltodsiadsnclld dexicret'  (pt_acc=0.324)
+                                  rc='ecycetmpninm rof gcf y seynceigngremufrvtehy onny uftpbil lpltfdpeftwnwateeoklbln helbiscbner uyhtrtrh ztltodsiadsnclld dexicret'
+ 1.00      4.358   1.5391   0.2385  gt='e the capital of one government after another one of such governments was established in one eight six four as a second mexican '
+                                  pt='edmhcfciepehl afntmh issltndentucdhsokazutufyouodeisovarfirovarnmvnbaalitoescfecryhenaob omepmfgitgufioiolr csaa sraonfpsigisyg '  (pt_acc=0.241)
+                                  rc='ldmhgfciapyhl ofntmh issltndentucdhsokazutuoyouodeismvarfirovarnmvnbaalitoescaecryhenaob omepmfgitgufimiolr csaa sraonfppigisygb'
+
+Wrote runs/latent_cluster_d256_L128_data20k_ep10/recovery.json

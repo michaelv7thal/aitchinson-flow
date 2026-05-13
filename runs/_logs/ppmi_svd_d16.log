@@ -1,0 +1,6 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+corpus: (10000, 40), K=27
+co-occurrence: total=3700000, min=0, max=69441
+PPMI: nz=0.383, mean=0.0821, max=3.1096
+embed: shape=(27, 16), norm_mean=0.7637, pairwise_min=0.3344
+wrote data/ppmi_svd_d16.pt

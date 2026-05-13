@@ -201,6 +201,19 @@ def fit(
                 step_callback=_step_cb if wb_enabled else None,
             )
 
+            # Persist the just-trained weights BEFORE eval/probe so an
+            # allocator/NVML crash during sampling still leaves a usable
+            # checkpoint on disk. Overwrites each epoch; no optimizer state
+            # so the file is inference-ready (matches the post-loop save).
+            save_checkpoint(
+                ckpt_dir / "epoch_final.pt",
+                model=model,
+                cfg=cfg,
+                optimizer=None,
+                epoch=epoch + 1,
+                global_step=global_step,
+            )
+
             epoch_entry: dict[str, float] = {k: float(v) for k, v in metrics.items()}
 
             train_loss = metrics.get(TRAINING_LOSS_KEY)

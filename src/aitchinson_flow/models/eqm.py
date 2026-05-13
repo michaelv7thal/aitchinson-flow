@@ -315,6 +315,9 @@ class EquilibriumFlowMatching(nn.Module):
         out[TRAINING_LOSS_KEY] = total_loss
 
         # 8. γ-bucket diagnostics.
+        # Per-sample L2 norms over (L, D) — one scalar per batch element.
+        grad_norms = grad_g.detach().flatten(start_dim=1).norm(dim=-1)
+        tgt_norms = u_tgt.detach().flatten(start_dim=1).norm(dim=-1)
         for key, mask in (
             ("g<.33", gamma < 0.33),
             ("g<.66", (gamma >= 0.33) & (gamma < 0.66)),
@@ -322,6 +325,12 @@ class EquilibriumFlowMatching(nn.Module):
         ):
             if mask.any():
                 out[key] = self.loss_fn(grad_g[mask], u_tgt[mask])
+                # Echo-trap diagnostic: ratio of mean ‖grad_g‖ to mean ‖u_tgt‖
+                # in this γ-bin. ≈1 ⇒ field has the right magnitude (real
+                # transport). →0 ⇒ field is flat in this bin (echo trap).
+                # ≫1 ⇒ overshooting. Detached — diagnostic only.
+                rkey = key.replace("g<", "r<")
+                out[rkey] = grad_norms[mask].mean() / tgt_norms[mask].mean().clamp(min=1e-8)
 
         return out
 

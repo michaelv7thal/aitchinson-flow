@@ -1,0 +1,13 @@
+
+--- /home/renku/work/aitchinson-flow/.venv/bin/python scripts/train_autoencoder.py --out runs/ae_d1024_l8_z256_v3/ae --d-model 1024 --num-layers 8 --nhead 8 --d-latent 256 --denoising-schedule relative_uniform --denoising-sigma 0.5 --latent-l2 0.001 --epochs 5 --windows 10000 --batch-size 64 --lr 0.0003 --seed 42 --mode ae --seq-len 128 --variable-length --L-min 40 --L-max 128 ---
+Traceback (most recent call last):
+  File "/home/renku/work/aitchinson-flow/scripts/train_autoencoder.py", line 40, in <module>
+    from aitchinson_flow.training import (  # noqa: E402
+    ...<3 lines>...
+    )
+  File "/home/renku/work/aitchinson-flow/src/aitchinson_flow/training/__init__.py", line 7, in <module>
+    from .loops import train_epoch, evaluate
+  File "/home/renku/work/aitchinson-flow/src/aitchinson_flow/training/loops.py", line 43
+    loader,n
+           ^
+SyntaxError: invalid syntax. Perhaps you forgot a comma?

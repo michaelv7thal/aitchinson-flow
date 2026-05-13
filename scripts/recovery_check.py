@@ -76,6 +76,47 @@ def _kl_smoothed(gen: torch.Tensor, ref: torch.Tensor) -> float:
     return float((gp * (gp.log() - rp.log())).sum())
 
 
+def _score_stats(model, x: torch.Tensor, *, curv_samples: int = 4) -> dict:
+    """Compute UQ scalars on a batch of latents: energy g(x), ‖∇g(x)‖, and a
+    Hutchinson estimate of tr(∇²g(x)). Reports per-sample summary stats
+    (mean / std / min / max) for each. Skips silently if the model doesn't
+    expose the score_* API (older checkpoints, simplex EqM, etc.). Curvature
+    is the only expensive piece; if it OOMs we drop just that field and
+    emit the cheaper energy/grad_norm anyway."""
+    if not hasattr(model, "score_energy"):
+        return {}
+
+    def _summary(t: torch.Tensor) -> dict:
+        return {
+            "mean": float(t.mean().item()),
+            "std": float(t.std().item()) if t.numel() > 1 else 0.0,
+            "min": float(t.min().item()),
+            "max": float(t.max().item()),
+        }
+
+    energy = model.score_energy(x).cpu()
+    grad_norm = model.score_gradient_norm(x).cpu()
+    out = {"energy": _summary(energy), "grad_norm": _summary(grad_norm)}
+    try:
+        curvature = model.score_curvature(x, n_samples=curv_samples).cpu()
+        out["curvature"] = _summary(curvature)
+    except torch.cuda.OutOfMemoryError as e:
+        print(f"  [warn] score_curvature OOM ({e}); skipping curvature")
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+    except RuntimeError as e:
+        # NVML / allocator-internal asserts from PyTorch surface as RuntimeError
+        # in this environment; treat them as transient OOM-class failures.
+        msg = str(e)
+        if "CUDA" in msg or "NVML" in msg or "out of memory" in msg.lower():
+            print(f"  [warn] score_curvature CUDA error: {msg}; skipping")
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+        else:
+            raise
+    return out
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--ckpt", required=True)
@@ -127,6 +168,31 @@ def main() -> int:
 
     rows: list[dict] = []
 
+    # ─── (0) Clean reference — calibration baseline for the UQ scalars ────
+    # Encode held-out val tokens and score them: this is what "in-distribution"
+    # looks like under the trained energy. Generated/recovered samples will be
+    # compared against these reference statistics.
+    if hasattr(model, "score_energy"):
+        with torch.no_grad():
+            z_ref = (
+                model.encode(val_ids[: args.n].to(device))
+                if hasattr(model, "encode")
+                else None
+            )
+        if z_ref is not None:
+            ref_scores = _score_stats(model, z_ref)
+            print("=== Score reference (clean encoded val) ===")
+            print(
+                f"  energy:    mean={ref_scores['energy']['mean']:.3f}  std={ref_scores['energy']['std']:.3f}"
+            )
+            print(
+                f"  grad_norm: mean={ref_scores['grad_norm']['mean']:.3f}  std={ref_scores['grad_norm']['std']:.3f}"
+            )
+            print(
+                f"  curvature: mean={ref_scores['curvature']['mean']:.3f}  std={ref_scores['curvature']['std']:.3f}"
+            )
+            rows.append({"mode": "score_reference", **ref_scores})
+
     # ─── (A) Unconditional ────────────────────────────────────────────────
     torch.manual_seed(args.seed)
     print("=== Unconditional generation ===")
@@ -134,6 +200,7 @@ def main() -> int:
         x = model.sample(args.n, L, max_steps=args.steps)
         log_probs = model.decode_to_logprobs(x)
         ids = log_probs.argmax(-1).cpu()
+    uncond_scores = _score_stats(model, x)
 
     gen_uni = _ngram_counts_flat(ids, K, 1)
     gen_bi = _ngram_counts_flat(ids, K, 2)
@@ -148,6 +215,16 @@ def main() -> int:
     )
     print(f"  sample[0]: {''.join(ALPHABET[int(i)] for i in ids[0])!r}")
     print(f"  sample[1]: {''.join(ALPHABET[int(i)] for i in ids[1])!r}")
+    if uncond_scores:
+        print(
+            f"  energy:    mean={uncond_scores['energy']['mean']:.3f}  std={uncond_scores['energy']['std']:.3f}"
+        )
+        print(
+            f"  grad_norm: mean={uncond_scores['grad_norm']['mean']:.3f}  std={uncond_scores['grad_norm']['std']:.3f}"
+        )
+        print(
+            f"  curvature: mean={uncond_scores['curvature']['mean']:.3f}  std={uncond_scores['curvature']['std']:.3f}"
+        )
     rows.append(
         {
             "mode": "unconditional",
@@ -159,6 +236,7 @@ def main() -> int:
             "samples": [
                 "".join(ALPHABET[int(i)] for i in ids[s]) for s in range(min(4, args.n))
             ],
+            **uncond_scores,
         }
     )
 
@@ -193,6 +271,7 @@ def main() -> int:
             x = model.sample(args.n, L, max_steps=args.steps, x_init=z_init)
             log_probs = model.decode_to_logprobs(x)
             ids = log_probs.argmax(-1).cpu()
+        rc_scores = _score_stats(model, x)
 
         gen_uni = _ngram_counts_flat(ids, K, 1)
         gen_bi = _ngram_counts_flat(ids, K, 2)
@@ -218,6 +297,7 @@ def main() -> int:
                 "gt_sample0": sample_gt,
                 "perturbed_sample0": sample_pt,
                 "rc_sample0": sample_rc,
+                **rc_scores,
             }
         )
 

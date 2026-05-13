@@ -15,12 +15,14 @@
     autoencoder.latent_l2: 0.001
     autoencoder.activation: gelu
     autoencoder.tie_embeddings: true
-    autoencoder.mode: ae
-    eqm_ae.ae_ckpt_path: runs/ae_d1024_l8_z128_v3/ae/epoch_final.pt
+    autoencoder.mode: vae
+    eqm_ae.ae_ckpt_path: runs/vae_d1024_l8_z128_v3/ae/epoch_final.pt
     eqm.lambda_ce: 0.5
     eqm.gamma_power: 1.0
-    eqm.source_sigma: 0.9085379838943481
+    eqm.source_sigma: 0.5663769245147705
     loss.mode: mse
+    autoencoder.vae_beta: 0.1
+    autoencoder.vae_beta_warmup_epochs: 2
     training.L: 128
     text8_dataset.L: 128
     training.B: 64

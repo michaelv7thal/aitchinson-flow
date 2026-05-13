@@ -155,6 +155,64 @@ def _ae_section(cells: list[str], section_title: str, intro: str) -> list[str]:
     return out
 
 
+def _latent_section() -> list[str]:
+    """Section for EqMLatent (learned-embedding) cells.
+
+    Storage layout differs from AE/VAE cells: eval.json and recovery.json
+    live directly under runs/<cell>/, not under eqm/.
+    """
+    cells = sorted([d for d in RUNS.glob("latent_*")
+                    if (d / "eval.json").exists()
+                    and (d / "epoch_final.pt").exists()])
+    if not cells:
+        return []
+    out = ["## EqMLatent runs (learned-embedding flow on text8)",
+           "",
+           "Cells using `EqMLatent` (jointly-learned `nn.Embedding(K, d_embed)` + "
+           "EqM flow on the embedded sequence) rather than the AE/VAE pretrain + "
+           "EqMAE pipeline. Pretrained-embedding variants (`latent_fixed_*`) load "
+           "from `data/{skipgram,ppmi_svd}_d{N}.pt`. KL_uni / KL_bi / H_ratio are "
+           "from `eval.json` (NAG sampling); recovery curve from `recovery.json`.",
+           "",
+           "| cell | d_embed | epochs | KL_uni | KL_bi | H_ratio |",
+           "|---|---|---|---|---|---|"]
+    rows_data: list[tuple[str, dict[str, Any]]] = []
+    for cell_dir in cells:
+        name = cell_dir.name
+        ev = _load(cell_dir / "eval.json") or {}
+        d_embed = ev.get("overrides", {}).get("embedding.d_embed", "—")
+        epochs = ev.get("epoch", "—")
+        n = lambda v: "—" if v is None else f"{float(v):.4f}"  # noqa: E731
+        out.append(
+            f"| `{name}` | {d_embed} | {epochs} | "
+            f"{n(ev.get('unigram_kl'))} | {n(ev.get('bigram_kl'))} | {n(ev.get('H_ratio'))} |"
+        )
+        rows_data.append((name, ev))
+    out.append("")
+    # Per-cell recovery + sample blocks
+    for name, ev in rows_data:
+        cell_dir = RUNS / name
+        rec_data = _load(cell_dir / "recovery.json") or {}
+        rec_rows = [r for r in rec_data.get("rows", []) if r.get("mode") == "recovery"]
+        samples = (ev.get("samples") or [])[:3]
+        if not rec_rows and not samples:
+            continue
+        out.append(f"### `{name}`")
+        out.append("")
+        if rec_rows:
+            out.append("**Recovery curve** (token accuracy vs perturbation magnitude):")
+            out.append("")
+            out.extend(_format_recovery_table(rec_rows))
+            out.append("")
+        if samples:
+            out.append("**Unconditional samples (NAG)**:")
+            out.append("")
+            for i, s in enumerate(samples):
+                out.append(f"```\n[{i}] {s}\n```")
+            out.append("")
+    return out
+
+
 def _gather_sequence_lengths() -> dict[str, int]:
     """Inspect each EqMAE eval.json for the actual L it was trained at."""
     out: dict[str, int] = {}
@@ -205,7 +263,8 @@ def main() -> int:
     # AE scaling cells (L=40, 5 epochs)
     ae_cells = sorted([d.name for d in RUNS.glob("ae_d*_l*_z*")
                        if (d / "eqm" / "eval.json").exists()
-                       and "_L" not in d.name])
+                       and "_L" not in d.name
+                       and not d.name.endswith("_v3")])
     if ae_cells:
         parts.extend(_ae_section(
             ae_cells,
@@ -220,7 +279,8 @@ def main() -> int:
     # VAE cells (L=40)
     vae_cells = sorted([d.name for d in RUNS.glob("vae_d*_l*_z*")
                         if (d / "eqm" / "eval.json").exists()
-                        and "_L" not in d.name])
+                        and "_L" not in d.name
+                        and not d.name.endswith("_v3")])
     if vae_cells:
         parts.extend(_ae_section(
             vae_cells,
@@ -243,6 +303,25 @@ def main() -> int:
             "too few distinct basins. Cells use L=80 or L=128 and 10–15 epochs.",
         ))
 
+    # v3 cells: per-sample variable-length training (L~U(40,128)), 20 EqM epochs
+    v3_cells = sorted([d.name for d in RUNS.glob("*_v3")
+                       if (d / "eqm" / "eval.json").exists()])
+    if v3_cells:
+        parts.extend(_ae_section(
+            v3_cells,
+            "Variable-length training (v3, L~U(40,128), 20 EqM epochs)",
+            "Per-sample variable-length training: each batch sample draws L~U(40,128), "
+            "collate pads to max-L-in-batch with a pad_mask, attention and FM loss "
+            "mask the padding. Sampling at inference is fixed-L (L_max=128). "
+            "Hypothesis (from NOTE_WHY_UNCONDITIONAL_FAILS.md): the unconditional-KL "
+            "plateau at d_latent ≥ 256 is driven by latent space sparsity at fixed L=40 "
+            "— variable-L multiplies the effective number of distinct (token, context) "
+            "views and forces position-relative rather than position-absolute structure. "
+            "Same v2 hyperparams (lr=1e-4, warmup=2, 50k windows, 20 epochs).",
+        ))
+
+    parts.extend(_latent_section())
+
     # Sampler comparison summary
     parts.append("## Sampler comparison summary")
     parts.append("")
@@ -264,6 +343,8 @@ def main() -> int:
     parts.append("- `runs/_logs/unconditional_remedies.log` — SDE + best-of + VAE pipeline")
     parts.append("- `runs/_logs/long_large.log` — long+large sweep")
     parts.append("- `runs/_logs/bestof_rerun.log` — best-of-8 rerun (after fix)")
+    parts.append("- `runs/_logs/ae_long_large_v3.log` — v3 variable-length sweep launcher")
+    parts.append("- `runs/_logs/latent_retrain_queue.log` — EqMLatent retrain queue (post-v3)")
     parts.append("")
 
     OUT.write_text("\n".join(parts))

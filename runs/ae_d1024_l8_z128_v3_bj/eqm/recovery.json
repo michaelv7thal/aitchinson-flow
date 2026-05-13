@@ -1,0 +1,405 @@
+{
+  "rows": [
+    {
+      "mode": "score_reference",
+      "energy": {
+        "mean": -5657.80859375,
+        "std": 218.6306915283203,
+        "min": -6219.330078125,
+        "max": -5063.552734375
+      },
+      "grad_norm": {
+        "mean": 14.412352561950684,
+        "std": 0.6691063046455383,
+        "min": 13.137228012084961,
+        "max": 16.481895446777344
+      },
+      "curvature": {
+        "mean": 12290.845703125,
+        "std": 241.18313598632812,
+        "min": 11684.8037109375,
+        "max": 13029.8125
+      }
+    },
+    {
+      "mode": "unconditional",
+      "alpha": null,
+      "KL_uni": 0.021943654865026474,
+      "KL_bi": 1.2339279651641846,
+      "KL_tri": 4.019348621368408,
+      "H_gen": 2.780726432800293,
+      "samples": [
+        "sufbohoaiaanisar ireiyaasl tae  rne  tagirsenooavtouapad bdtgobeatione vethoslifreun tesintie  dihnle tiue  oeh t n   rhr eirisr",
+        "e kteojoh nebir r t t   mr tnaiheedetiaeoftzticd e esyaitts ptli eoisf the n ed entceoy loz tedwebt  rs see e dthfeabhscaeobimr ",
+        "xhaoi ronitw eitdspeeiuitemssatt e la ri arb nrohis  oerdoses tta enage unhi s tenineas iqetetstssn tiij re omtfsnpihso trtptai ",
+        "iesmenahglobn  hsebudaiitv nratbi attfp a b hf ooaseht  rs  lliw ta rvou  uncesaepnrbr n ataiatleso naie tbte tbiszihsttce ii vi"
+      ],
+      "energy": {
+        "mean": -5787.3203125,
+        "std": 186.54794311523438,
+        "min": -6402.61669921875,
+        "max": -5352.689453125
+      },
+      "grad_norm": {
+        "mean": 11.757408142089844,
+        "std": 2.8941643238067627,
+        "min": 4.90468692779541,
+        "max": 21.22892189025879
+      },
+      "curvature": {
+        "mean": 11522.015625,
+        "std": 190.0928497314453,
+        "min": 10830.37890625,
+        "max": 11944.294921875
+      }
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.15,
+      "sigma_perturb": 1.4348854064941405,
+      "KL_bi": 1.0797693729400635,
+      "token_acc": 0.686370849609375,
+      "token_acc_perturbed": 0.928436279296875,
+      "gt_sample0": "e the capital of one government after another one of such governments was established in one eight six four as a second mexican ",
+      "perturbed_sample0": "eethe nawitas of onelgovernment after another one of such governments was established in oneweight six four as a second mexicanq",
+      "rc_sample0": "d the camitay ow ole govdrlwedt after anotherloye ww swih bovdrnwdjus wis ertaflishedxin ole eivhu six wowr as m secoyd weiican ",
+      "energy": {
+        "mean": -7613.708984375,
+        "std": 300.5161437988281,
+        "min": -8514.908203125,
+        "max": -6806.7626953125
+      },
+      "grad_norm": {
+        "mean": 33.336181640625,
+        "std": 1.8239672183990479,
+        "min": 28.064603805541992,
+        "max": 39.980262756347656
+      },
+      "curvature": {
+        "mean": 8535.892578125,
+        "std": 280.2279968261719,
+        "min": 7815.3916015625,
+        "max": 9422.478515625
+      }
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.2,
+      "sigma_perturb": 1.9131805419921877,
+      "KL_bi": 1.51250159740448,
+      "token_acc": 0.608154296875,
+      "token_acc_perturbed": 0.81341552734375,
+      "gt_sample0": "e the capital of one government after another one of such governments was established in one eight six four as a second mexican ",
+      "perturbed_sample0": "e the capehal of onexgoverwmeneyafter awosher wne of suvhwgovernwentw wws established eweone eightxseh foureas a seqowlxmeqicany",
+      "rc_sample0": "dlthe cawiral rf oyrigowdrwwdltyafuer aworhur wjd ow bwihzbovdrawwyus walxdstawlishew iphorwxeirhtxsii wwww ar a slpdwwxwlxicawy",
+      "energy": {
+        "mean": -7263.9501953125,
+        "std": 290.46759033203125,
+        "min": -7982.5634765625,
+        "max": -6406.67138671875
+      },
+      "grad_norm": {
+        "mean": 45.981258392333984,
+        "std": 2.280261754989624,
+        "min": 40.20751190185547,
+        "max": 53.09503936767578
+      },
+      "curvature": {
+        "mean": 7509.60302734375,
+        "std": 216.58506774902344,
+        "min": 6995.87890625,
+        "max": 8275.521484375
+      }
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.25,
+      "sigma_perturb": 2.3914756774902344,
+      "KL_bi": 1.1286301612854004,
+      "token_acc": 0.68621826171875,
+      "token_acc_perturbed": 0.68621826171875,
+      "gt_sample0": "e the capital of one government after another one of such governments was established in one eight six four as a second mexican ",
+      "perturbed_sample0": " ethe chwihasqofwone bovernwene nfter hwosherhoneleflsunh gokewwwhnkshwas eseqbleshe  iaeoneeexghthni qfofr hs a senfnd aexican ",
+      "rc_sample0": " ethe chwihasqofwone bovernwene nfter hwosherhoneleflsunh gokewwwhnkshwas eseqbleshe  iaeoneeexghthni qfofr hs a senfnd aexican ",
+      "energy": {
+        "mean": 21995.689453125,
+        "std": 433.7207946777344,
+        "min": 20723.546875,
+        "max": 23167.375
+      },
+      "grad_norm": {
+        "mean": 136.89620971679688,
+        "std": 3.6914455890655518,
+        "min": 126.75309753417969,
+        "max": 147.14686584472656
+      },
+      "curvature": {
+        "mean": 6327.76025390625,
+        "std": 51.39590072631836,
+        "min": 6198.7490234375,
+        "max": 6478.7333984375
+      }
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.3,
+      "sigma_perturb": 2.869770812988281,
+      "KL_bi": 1.583078384399414,
+      "token_acc": 0.578826904296875,
+      "token_acc_perturbed": 0.578826904296875,
+      "gt_sample0": "e the capital of one government after another one of such governments was established in one eight six four as a second mexican ",
+      "perturbed_sample0": "e hhe saweghpwofgonweyfkerhmgns after hnothereoweqofkfurh governweqmeewpsoestablise onanqone eighe sixqfotrnazwaqsexowd mwxiapnw",
+      "rc_sample0": "e hhe saweghpwofgonweyfkerhmgns after hnothereoweqofkfurh governweqmeewpsoestablise onanqone eighe sixqfotrnazwaqsexowd mwxiapnw",
+      "energy": {
+        "mean": 28079.42578125,
+        "std": 447.6097106933594,
+        "min": 26886.08984375,
+        "max": 29162.15625
+      },
+      "grad_norm": {
+        "mean": 130.58480834960938,
+        "std": 3.060647487640381,
+        "min": 121.68195343017578,
+        "max": 139.63546752929688
+      },
+      "curvature": {
+        "mean": 5337.3896484375,
+        "std": 38.26112747192383,
+        "min": 5235.73095703125,
+        "max": 5465.7744140625
+      }
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.35,
+      "sigma_perturb": 3.3480659484863278,
+      "KL_bi": 2.0302796363830566,
+      "token_acc": 0.487091064453125,
+      "token_acc_perturbed": 0.487091064453125,
+      "gt_sample0": "e the capital of one government after another one of such governments was established in one eight six four as a second mexican ",
+      "perturbed_sample0": " kmhw sannehq ofnkweegfkernweno hfllr ahhhaerqowe vfonopw sovnrwwewgs was  swawlixh kpenwowh eigehosifvfourvhswh sgfondqwwxfcane",
+      "rc_sample0": " kmhw sannehq ofnkweegfkernweno hfllr ahhhaerqowe vfonopw sovnrwwewgs was  swawlixh kpenwowh eigehosifvfourvhswh sgfondqwwxfcane",
+      "energy": {
+        "mean": 34005.5625,
+        "std": 401.3219909667969,
+        "min": 32619.6015625,
+        "max": 35097.59765625
+      },
+      "grad_norm": {
+        "mean": 128.1500244140625,
+        "std": 2.045579671859741,
+        "min": 121.91949462890625,
+        "max": 134.20309448242188
+      },
+      "curvature": {
+        "mean": 4589.36572265625,
+        "std": 39.667293548583984,
+        "min": 4449.76708984375,
+        "max": 4699.537109375
+      }
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.4,
+      "sigma_perturb": 3.8263610839843754,
+      "KL_bi": 2.323718309402466,
+      "token_acc": 0.418701171875,
+      "token_acc_perturbed": 0.418701171875,
+      "gt_sample0": "e the capital of one government after another one of such governments was established in one eight six four as a second mexican ",
+      "perturbed_sample0": "e ehnwnsnihwq wforsqdgwqwrwwenrehfnerxswothxrgwnwhwfeswqhogoohrnhhwhw wsm ereaflnshh eih ow wrahhexsvx vofrqasws seaofd pexeanwn",
+      "rc_sample0": "e ehnwnsnihwq wforsqdgwqwrwwenrehfnerxswothxrgwnwhwfeswqhogoohrnhhwhw wsm ereaflnshh eih ow wrahhexsvx vofrqasws seaofd pexeanwn",
+      "energy": {
+        "mean": 39833.96484375,
+        "std": 432.84600830078125,
+        "min": 38527.90625,
+        "max": 41061.3125
+      },
+      "grad_norm": {
+        "mean": 126.3485107421875,
+        "std": 1.7184178829193115,
+        "min": 121.70990753173828,
+        "max": 130.87063598632812
+      },
+      "curvature": {
+        "mean": 3930.55712890625,
+        "std": 35.39371109008789,
+        "min": 3849.509765625,
+        "max": 4059.633056640625
+      }
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.45,
+      "sigma_perturb": 4.304656219482422,
+      "KL_bi": 2.5352046489715576,
+      "token_acc": 0.37127685546875,
+      "token_acc_perturbed": 0.37127685546875,
+      "gt_sample0": "e the capital of one government after another one of such governments was established in one eight six four as a second mexican ",
+      "perturbed_sample0": "enfhn xwsfwemoof on yoovewnwona xfseroeeokqerwooeqwf fwehhgfperhmohwwewasnhrthfgishegywn whewerghmhsfxooowyhn  eewecowwemqqncfw ",
+      "rc_sample0": "enfhn xwsfwemoof on yoovewnwona xfseroeeokqerwooeqwf fwehhgfperhmohwwewasnhrthfgishegywn whewerghmhsfxooowyhn  eewecowwemqqncfw ",
+      "energy": {
+        "mean": 45420.01953125,
+        "std": 445.0190734863281,
+        "min": 44297.43359375,
+        "max": 46633.9765625
+      },
+      "grad_norm": {
+        "mean": 123.90823364257812,
+        "std": 1.5562324523925781,
+        "min": 119.4410400390625,
+        "max": 127.78282928466797
+      },
+      "curvature": {
+        "mean": 3348.79541015625,
+        "std": 36.73191452026367,
+        "min": 3226.71630859375,
+        "max": 3463.415771484375
+      }
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.5,
+      "sigma_perturb": 4.782951354980469,
+      "KL_bi": 2.6460764408111572,
+      "token_acc": 0.3297119140625,
+      "token_acc_perturbed": 0.3297119140625,
+      "gt_sample0": "e the capital of one government after another one of such governments was established in one eight six four as a second mexican ",
+      "perturbed_sample0": "enmeswepwznaqpofqonkrfoqerhw htwmfhhrwaw ghzootnewowoswwh kpwhonmhwxfowaneeswwflinhew in hnaqef honsixfwwhrwawfpwbwnoft aewhnwof",
+      "rc_sample0": "enmeswepwznaqpofqonkrfoqerhw htwmfhhrwaw ghzootnewowoswwh kpwhonmhwxfowaneeswwflinhew in hnaqef honsixfwwhrwawfpwbwnoft aewhnwof",
+      "energy": {
+        "mean": 50794.03125,
+        "std": 472.60125732421875,
+        "min": 49114.94921875,
+        "max": 52230.9296875
+      },
+      "grad_norm": {
+        "mean": 120.56265258789062,
+        "std": 1.4016352891921997,
+        "min": 117.28153991699219,
+        "max": 126.44961547851562
+      },
+      "curvature": {
+        "mean": 2830.191650390625,
+        "std": 32.632938385009766,
+        "min": 2742.4150390625,
+        "max": 2921.823486328125
+      }
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.6,
+      "sigma_perturb": 5.739541625976562,
+      "KL_bi": 2.8437767028808594,
+      "token_acc": 0.2708740234375,
+      "token_acc_perturbed": 0.2708740234375,
+      "gt_sample0": "e the capital of one government after another one of such governments was established in one eight six four as a second mexican ",
+      "perturbed_sample0": "gohheone weaevowaoneoqqwetwwsaeeffhernwhwower wkw oonsufewowrrhwmnntnewqwweatasqoshloenh owgoefohwbwkqffwwrwawewordnow wswhozann",
+      "rc_sample0": "gohheone weaevowaoneoqqwetwwsaeeffhernwhwower wkw oonsufewowrrhwmnntnewqwweatasqoshloenh owgoefohwbwkqffwwrwawewordnow wswhozann",
+      "energy": {
+        "mean": 60598.7734375,
+        "std": 484.8080749511719,
+        "min": 59299.97265625,
+        "max": 61737.171875
+      },
+      "grad_norm": {
+        "mean": 113.1044921875,
+        "std": 1.4120484590530396,
+        "min": 109.7603988647461,
+        "max": 117.66345977783203
+      },
+      "curvature": {
+        "mean": 2013.1700439453125,
+        "std": 26.465984344482422,
+        "min": 1926.069091796875,
+        "max": 2082.7314453125
+      }
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.7,
+      "sigma_perturb": 6.6961318969726555,
+      "KL_bi": 2.8503658771514893,
+      "token_acc": 0.228240966796875,
+      "token_acc_perturbed": 0.228240966796875,
+      "gt_sample0": "e the capital of one government after another one of such governments was established in one eight six four as a second mexican ",
+      "perturbed_sample0": "ehretesaeiswqtfwefke hwfhmwzenqefghwwqaywhheohonwewfxsh hhwoowrowrwt qwhskwsfhgw nhwoewh ihew wfaneww wfaerwhwop wwenl fnhpwhqne",
+      "rc_sample0": "ehretesaeiswqtfwefke hwfhmwzenqefghwwqaywhheohonwewfxsh hhwoowrowrwt qwhskwsfhgw nhwoewh ihew wfaneww wfaerwhwop wwenl fnhpwhqne",
+      "energy": {
+        "mean": 68964.8046875,
+        "std": 580.9677124023438,
+        "min": 67536.640625,
+        "max": 70506.421875
+      },
+      "grad_norm": {
+        "mean": 106.30750274658203,
+        "std": 1.3474929332733154,
+        "min": 102.39016723632812,
+        "max": 112.165771484375
+      },
+      "curvature": {
+        "mean": 1455.82177734375,
+        "std": 22.053192138671875,
+        "min": 1385.3822021484375,
+        "max": 1520.4027099609375
+      }
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.8,
+      "sigma_perturb": 7.652722167968751,
+      "KL_bi": 2.9104089736938477,
+      "token_acc": 0.1953125,
+      "token_acc_perturbed": 0.1953125,
+      "gt_sample0": "e the capital of one government after another one of such governments was established in one eight six four as a second mexican ",
+      "perturbed_sample0": " pnhnhasaffrrfwfwohlwowahweawwt afenohaaotheroanhxohesboshxnvwriaysqswwwakestasenshn nxnlfnev ehntwpfadwhfd lroqqheewlzamdehe no",
+      "rc_sample0": " pnhnhasaffrrfwfwohlwowahweawwt afenohaaotheroanhxohesboshxnvwriaysqswwwakestasenshn nxnlfnev ehntwpfadwhfd lroqqheewlzamdehe no",
+      "energy": {
+        "mean": 76170.03125,
+        "std": 593.5835571289062,
+        "min": 74360.34375,
+        "max": 77697.6328125
+      },
+      "grad_norm": {
+        "mean": 101.19271850585938,
+        "std": 1.2061372995376587,
+        "min": 97.8779525756836,
+        "max": 104.69107818603516
+      },
+      "curvature": {
+        "mean": 1086.03857421875,
+        "std": 17.828697204589844,
+        "min": 1044.118408203125,
+        "max": 1137.2529296875
+      }
+    },
+    {
+      "mode": "recovery",
+      "alpha": 1.0,
+      "sigma_perturb": 9.565902709960938,
+      "KL_bi": 2.7583227157592773,
+      "token_acc": 0.1578369140625,
+      "token_acc_perturbed": 0.1578369140625,
+      "gt_sample0": "e the capital of one government after another one of such governments was established in one eight six four as a second mexican ",
+      "perturbed_sample0": "hytaenwwaihxnlfwovwhhwokwrnmenw efehhdwwhhoeoewnewefbwwsahrwmhrfocofpdwfiqrnsafensnwtnnr wazoghgggesvegwwoewaewsowhhwzwfwrsxitss",
+      "rc_sample0": "hytaenwwaihxnlfwovwhhwokwrnmenw efehhdwwhhoeoewnewefbwwsahrwmhrfocofpdwfiqrnsafensnwtnnr wazoghgggesvegwwoewaewsowhhwzwfwrsxitss",
+      "energy": {
+        "mean": 88306.53125,
+        "std": 682.6307373046875,
+        "min": 86114.546875,
+        "max": 89995.7578125
+      },
+      "grad_norm": {
+        "mean": 95.05220031738281,
+        "std": 0.9290590286254883,
+        "min": 92.66680145263672,
+        "max": 97.58872985839844
+      },
+      "curvature": {
+        "mean": 671.9066162109375,
+        "std": 10.948807716369629,
+        "min": 641.7391357421875,
+        "max": 701.17529296875
+      }
+    }
+  ]
+}

@@ -3,3 +3,79 @@
 [v3] 14:03:57 best-of-N done, launching v3 (variable-L)
 [v3-retry] 14:51:36 restarting v3 with allocator-fragmentation fix
 Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+=== ae_d1024_l8_z128_v3 ===
+[exec] /home/renku/work/aitchinson-flow/.venv/bin/python scripts/train_autoencoder.py --out runs/ae_d1024_l8_z128_v3/ae --d-model 1024 --num-layers 8 --nhead 8 --d-latent 128 --denoising-schedule relative_uniform --denoising-sigma 0.5 --latent-l2 0.001 --epochs 5 --windows 10000 --batch-size 64 --lr 0.0003 --seed 42 --mode ae --seq-len 128 --variable-length --L-min 40 --L-max 128 → runs/ae_d1024_l8_z128_v3/_runlog.log
+[autoscale] ae_d1024_l8_z128_v3: source_sigma = 0.9085
+[exec] /home/renku/work/aitchinson-flow/.venv/bin/python scripts/run_sweep.py --sweep runs/ae_d1024_l8_z128_v3/_eqm_sweep.yaml --runs-root runs/ae_d1024_l8_z128_v3 → runs/ae_d1024_l8_z128_v3/_runlog.log
+[error] EqMAE ckpt missing for ae_d1024_l8_z128_v3: runs/ae_d1024_l8_z128_v3/eqm/epoch_final.pt
+
+=== vae_d1024_l8_z128_v3 ===
+[exec] /home/renku/work/aitchinson-flow/.venv/bin/python scripts/train_autoencoder.py --out runs/vae_d1024_l8_z128_v3/ae --d-model 1024 --num-layers 8 --nhead 8 --d-latent 128 --denoising-schedule relative_uniform --denoising-sigma 0.5 --latent-l2 0.001 --epochs 5 --windows 10000 --batch-size 64 --lr 0.0003 --seed 42 --mode vae --vae-beta 0.1 --vae-beta-warmup-epochs 2 --seq-len 128 --variable-length --L-min 40 --L-max 128 → runs/vae_d1024_l8_z128_v3/_runlog.log
+[error] rc=1; see runs/vae_d1024_l8_z128_v3/_runlog.log
+
+=== ae_d1024_l8_z256_v3 ===
+[exec] /home/renku/work/aitchinson-flow/.venv/bin/python scripts/train_autoencoder.py --out runs/ae_d1024_l8_z256_v3/ae --d-model 1024 --num-layers 8 --nhead 8 --d-latent 256 --denoising-schedule relative_uniform --denoising-sigma 0.5 --latent-l2 0.001 --epochs 5 --windows 10000 --batch-size 64 --lr 0.0003 --seed 42 --mode ae --seq-len 128 --variable-length --L-min 40 --L-max 128 → runs/ae_d1024_l8_z256_v3/_runlog.log
+[error] rc=1; see runs/ae_d1024_l8_z256_v3/_runlog.log
+
+=== sweep summary ===
+{"name": "ae_d1024_l8_z128_v3", "ae": 0, "eqm": 0, "recovery": 1}
+{"name": "vae_d1024_l8_z128_v3", "ae": 1, "eqm": -1, "recovery": -1}
+{"name": "ae_d1024_l8_z256_v3", "ae": 1, "eqm": -1, "recovery": -1}
+[v3-retry] 19:36:52 sweep exited rc=0
+wrote /home/renku/work/aitchinson-flow/runs/AE_EQM_FINAL_REPORT.md
+sections: comp(1) ae_scaling(4) vae(1) long_large(2)
+[v3-retry] 19:36:52 done; report at runs/AE_EQM_FINAL_REPORT.md
+[v3-retry2] 2026-05-11 19:44:04 restarting v3 after loops.py syntax fix + adding expandable_segments
+
+=== ae_d1024_l8_z128_v3 ===
+[skip ae] ae_d1024_l8_z128_v3 (ckpt exists)
+[autoscale] ae_d1024_l8_z128_v3: source_sigma = 0.9085
+[exec] /home/renku/work/aitchinson-flow/.venv/bin/python scripts/run_sweep.py --sweep runs/ae_d1024_l8_z128_v3/_eqm_sweep.yaml --runs-root runs/ae_d1024_l8_z128_v3 → runs/ae_d1024_l8_z128_v3/_runlog.log
+[error] EqMAE ckpt missing for ae_d1024_l8_z128_v3: runs/ae_d1024_l8_z128_v3/eqm/epoch_final.pt
+
+=== vae_d1024_l8_z128_v3 ===
+[exec] /home/renku/work/aitchinson-flow/.venv/bin/python scripts/train_autoencoder.py --out runs/vae_d1024_l8_z128_v3/ae --d-model 1024 --num-layers 8 --nhead 8 --d-latent 128 --denoising-schedule relative_uniform --denoising-sigma 0.5 --latent-l2 0.001 --epochs 5 --windows 10000 --batch-size 64 --lr 0.0003 --seed 42 --mode vae --vae-beta 0.1 --vae-beta-warmup-epochs 2 --seq-len 128 --variable-length --L-min 40 --L-max 128 → runs/vae_d1024_l8_z128_v3/_runlog.log
+Traceback (most recent call last):
+  File "/home/renku/work/aitchinson-flow/scripts/run_ae_scaling.py", line 318, in <module>
+    raise SystemExit(main())
+                     ~~~~^^
+  File "/home/renku/work/aitchinson-flow/scripts/run_ae_scaling.py", line 307, in main
+    rcs = _process_cell(cell, runs_root)
+  File "/home/renku/work/aitchinson-flow/scripts/run_ae_scaling.py", line 279, in _process_cell
+    rc_eqm = _train_eqm_ae(cell, cell_dir, log)
+  File "/home/renku/work/aitchinson-flow/scripts/run_ae_scaling.py", line 230, in _train_eqm_ae
+    yaml_path = _write_eqm_sweep_yaml(cell, cell_dir, ae_ckpt)
+  File "/home/renku/work/aitchinson-flow/scripts/run_ae_scaling.py", line 162, in _write_eqm_sweep_yaml
+    source_sigma = _measure_latent_sigma(ae_ckpt, cell)
+  File "/home/renku/work/aitchinson-flow/scripts/run_ae_scaling.py", line 102, in _measure_latent_sigma
+    import torch
+  File "/layers/paketo-buildpacks_pip-install/packages/lib/python3.11/site-packages/torch/__init__.py", line 1046, in <module>
+    raise ImportError(
+    ...<14 lines>...
+    ) from None
+ImportError: Failed to load PyTorch C extensions:
+    It appears that PyTorch has loaded the `torch/_C` folder
+    of the PyTorch repository rather than the C extensions which
+    are expected in the `torch._C` namespace. This can occur when
+    using the `install` workflow. e.g.
+        $ python -m pip install --no-build-isolation -v . && python -c "import torch"
+
+    This error can generally be solved using the `develop` workflow
+        $ python -m pip install --no-build-isolation -v -e . && python -c "import torch"  # This should succeed
+    or by running Python from a different directory.
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[relaunch] 2026-05-12 11:31:03 PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+[relaunch] 2026-05-12 15:54:06 after adding pre-eval save_checkpoint in runner.py
+[relaunch] 2026-05-12 15:55:23 epochs reduced 20 → 5 in eqm_train
+[relaunch] 2026-05-12 16:14:54 eqm.gamma_power 0.5 → 1.0 (uniform γ)
+[bj-launch] 2026-05-12 21:11:50 --only ae_d1024_l8_z128_v3_bj (lambda_bigram_joint=0.1, gamma_power=1.0, r-diag)
+
+=== ae_d1024_l8_z128_v3_bj ===
+[skip ae] ae_d1024_l8_z128_v3_bj (ckpt exists)
+[autoscale] ae_d1024_l8_z128_v3_bj: source_sigma = 0.9085
+[exec] /home/renku/work/aitchinson-flow/.venv/bin/python scripts/run_sweep.py --sweep runs/ae_d1024_l8_z128_v3_bj/_eqm_sweep.yaml --runs-root runs/ae_d1024_l8_z128_v3_bj → runs/ae_d1024_l8_z128_v3_bj/_runlog.log
+[exec] /home/renku/work/aitchinson-flow/.venv/bin/python scripts/recovery_check.py --ckpt runs/ae_d1024_l8_z128_v3_bj/eqm/epoch_final.pt --alphas 0.15,0.20,0.25,0.30,0.35,0.40,0.45,0.50,0.60,0.70,0.80,1.00 --n 256 --steps 200 --out runs/ae_d1024_l8_z128_v3_bj/eqm/recovery.json → runs/ae_d1024_l8_z128_v3_bj/_runlog.log
+
+=== sweep summary ===
+{"name": "ae_d1024_l8_z128_v3_bj", "ae": 0, "eqm": 0, "recovery": 0}
