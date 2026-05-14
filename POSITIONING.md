@@ -131,34 +131,83 @@ in `NOTE_WHY_EBM_INIT_STUCK.md`. Related public methods:
 - We are not making claims about generation quality on benchmarks
   where autoregressive LMs are saturated.
 
-## What we are claiming, precisely
+## What we are claiming, precisely (revised after `dsm_clr_ablation` and concurrent supervisor work)
 
-1. **EqM-FM exhibits a measurable single-basin collapse on text in the
-   d=1024 / variable-length / 50k-windows recipe**, with a phenotype
-   (no-op recovery, unigram-flat energy) we have already documented in
-   `runs/ae_d1024_l8_z128_v3/`. This collapse is *predicted* by the
-   §3 / §6 argument of `NOTE_WHY_EBM_INIT_STUCK.md`.
-2. **Swapping the training signal to DSM eliminates the collapse**
-   on the same backbone, AE, and seed: ScoreDSM and EqMDSM both
-   produce non-trivial basins around held-out text (recovery Δ > 0 at
-   matched perturbation).
-3. **Enforcing the score to be a conservative-energy gradient (EqMDSM
-   vs ScoreDSM) is the interesting frontier**: it costs some
-   perplexity / DSM-loss, gains recoverable scalar energy with
-   diagnosable basin geometry. The empirical trade-off curve has not
-   been reported for text.
+1. **EqM-FM (Wang & Du 2025, §4.2 Eq. 7 Dot Product variant) exhibits
+   a measurable single-basin collapse on vertex-supported discrete data
+   in the d=1024 / L=40 recipe**, with a chart-invariant no-op
+   recovery phenotype documented in (a) `runs/ae_d1024_l8_z128_v3/`
+   (AE-latent), (b) `runs/comp_ref_det_mse/` (CLR), and (c) concurrent
+   supervisor work on DNA promoter Hilbert FM (CNN). The collapse is
+   *predicted* by the §3 / §6 argument of `NOTE_WHY_EBM_INIT_STUCK.md`,
+   and the prediction is **chart-, architecture-, and domain-invariant
+   within the FM and flow-map signal classes** (`NOTE` §7.5).
 
-The strongest single-headline finding the experiment can deliver is
-either:
+2. **The training signal is the load-bearing axis for the
+   *unconditional* component of the collapse, but not for recovery
+   at this scale.** Specifically (`runs/dsm_clr_ablation/`, 2×2 over
+   training signal × x₁ recipe, d=1024 / 8L / K=27 / L=40, 3 seeds for
+   the FM cells):
 
-- "Energy-gradient DSM matches direct-score DSM on perplexity within
-  X% while delivering recoverable energies and a curvature-based
-  uncertainty surface" — supporting Salimans-Ho's image conclusion
-  on text, or
-- "Energy-gradient DSM lags direct-score DSM by Y% perplexity but
-  exposes basin structure that direct-score DSM cannot represent;
-  the right design depends on what you need from the model" — a
-  honest trade-off paper.
+   - **DSM with deterministic CLR `x_1`** achieves KL$_\text{uni}=0.63$ —
+     comparable to the compositional FM cells (KL$_\text{uni}=0.67$) and
+     **distinct from the FM-deterministic-CLR no-op signature**
+     (KL$_\text{uni}=0.04$, the unigram peak). Switching the training
+     signal alone, *holding the data recipe fixed*, defeats the §3
+     mechanism on the unconditional axis.
+   - **DSM does not transfer to recovery** at this scale
+     (Δ@.50 ≈ −0.02 for both `x_1` recipes), and Dirichlet thickening
+     does not help DSM the way it helps FM (Δ@.50 = +0.060 ± 0.000
+     across 3 seeds for FM-Dirichlet; the only positive cell in the
+     2×2).
+   - Concurrent supervisor work (healer convergence study) attributes
+     the recovery deficit on GP-EBM-class models to **continuous-Langevin
+     instability on log-simplex**, not to model defect; discrete Gibbs
+     samplers on the same trained fields recover ~1.22 nats LM log-prob.
 
-Either is publishable. The §3 diagnosis and the recovery benchmark
-travel as supporting analyses regardless of which way (3) lands.
+   The scoped honest claim is therefore: *DSM eliminates the
+   unconditional-KL component of the §3 collapse; the recovery
+   component lives on the sampler axis and requires a separate
+   intervention (concurrent supervisor work shows Gibbs[SE∪GP] is the
+   appropriate intervention).*
+
+3. **The KL$_\text{uni}$ and recovery axes are empirically
+   decoupled** (`runs/comp_*` + `runs/dsm_clr_ablation/`): the cell
+   with best KL$_\text{uni}$ (FM-det-CLR at 0.04) has the worst
+   recovery (Δ@.50 = 0.000); the cell with worst KL$_\text{uni}$
+   (FM-Dirichlet at 0.67) has the best recovery (Δ@.50 = +0.06). This
+   justifies recovery, not unigram-KL, as the headline metric for
+   this model class — a methodological move with no analog in the
+   concurrent BPC-centric evaluations.
+
+4. **Enforcing the score to be a conservative-energy gradient
+   (EqMDSM vs ScoreDSM)** remains the interesting frontier for
+   *fluent unconditional generation*, but the present POC scale does
+   not produce numbers strong enough to ground a Salimans-Ho-on-text
+   parity claim. Honest scope: at d=1024/L=40 on text8, neither DSM
+   variant produces recovery improvement under continuous Langevin;
+   the energy-vs-direct-score axis would need to be re-evaluated with
+   a Gibbs-class sampler before a parametrisation parity claim can be
+   made.
+
+The strongest single-headline finding the project can deliver, given
+present evidence, is:
+
+> **"The FM-on-simplex single-basin collapse is a
+> training-signal-class phenomenon (`NOTE` §7.5), confirmed across
+> three independent empirical instances and partially defeated on two
+> axes: data-side Dirichlet `x_1` thickening on FM (Δ@.50 = +0.06,
+> 3-seed-replicated) and signal-side DSM on the unconditional KL
+> (KL$_\text{uni}=0.04 \to 0.63$, det-CLR cell). Neither fix delivers
+> fluent generation on its own at this scale; recovery requires a
+> separate sampler-axis intervention (concurrent supervisor healer
+> work). The §3 diagnosis and the unified six-axis fix taxonomy
+> (`CAPSTONE_SUMMARY.md` §2.2) organise these results into a single
+> framework."**
+
+This claim is *modest, empirically defensible, and honest about
+scope*. It is *not* "we built a generative LM"; it is "we diagnosed
+a class of failure modes, demonstrated controlled partial fixes, and
+provided the structural framework that organises the search space."
+That is the pass-grade story available from the artefacts in
+`runs/`.

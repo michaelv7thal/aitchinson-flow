@@ -122,7 +122,17 @@ so the upweighted signal is also dominated by $-\mu_1$.
 
 ---
 
-## 5. How this plays out specifically for **Equilibrium Flow Matching**
+## 5. How this plays out specifically for **Equilibrium Flow Matching** (Wang & Du 2025, Eq. 7 Dot Product variant)
+
+The construction analysed here is **Equilibrium Matching with Explicit
+Energy, Dot Product variant** (Wang & Du 2025, arXiv:2510.02300, §4.2,
+Eq. 7), which parameterises
+$E_\theta(x) = x \cdot f_\theta(x)$ and trains
+$\nabla E_\theta(x_\gamma) = f_\theta(x_\gamma) + x_\gamma^\top \nabla f_\theta(x_\gamma)$
+against the standard FM target $c(\gamma)(\epsilon - x) = c(\gamma)(x_0 - x_1)$.
+The §4.1 implicit-energy branch (learn $f_\theta$ directly, no scalar
+$g$) is the sister method — distinct parametrisation, same FM target,
+same Bayes-optimum collapse argument below.
 
 Three EqM-specific aggravations turn the generic failure above into
 the exact phenotype reported in `SESSION_SUMMARY.md`:
@@ -244,6 +254,78 @@ informationless.
 The Dirichlet path wins net because the unconditional bad slab is
 narrow (a thin shell at $\gamma\approx 1$) and importance sampling can
 avoid it, while the one-hot bad slab is the whole path.
+
+---
+
+## 7.5 The §3 attractor is a **training-signal-class** phenomenon, not a parametrisation phenomenon
+
+The argument of §§2–6 only used three structural facts about the loss:
+
+1. The loss is MSE between a network output and a regression target.
+2. The regression target's pointwise Bayes-optimum at the
+   no-information point of $x_\gamma$ is $-c(\gamma)\mu_1$ (the
+   constant marginal-mode field).
+3. The parametrisation class at NTK lazy init is affine, so the best
+   in-class fit is exactly the constant solution.
+
+Crucially, fact (2) is **a property of the training-signal class**,
+not of the chart or the model. We can therefore enumerate which
+training signals inherit the collapse:
+
+| Training signal | Regression target | Bayes-optimum at $\gamma{=}0$ (no information) | §3 collapse? |
+|---|---|---|---|
+| **FM** (velocity, MSE; Lipman et al. 2022, Wang & Du 2025) | $c(\gamma)(x_0 - x_1)$ | constant velocity $-c(\gamma)\mu_1$ | **yes** — single attractor at unigram peak |
+| **Flow map** (CE on $x_1$; Stark et al. 2024 categorical FM, supervisor's Hilbert FM) | discrete token id $y$ | marginal categorical $P(y)$ | **yes** — argmax of $P(y)$ is the marginal mode (text: "space"; DNA: "C") |
+| **DSM** (ε-prediction, MSE; Vincent 2011, Song & Ermon 2019) | $\epsilon$ given $\tilde{x} = x_1 + \sigma\epsilon$ | proper denoiser; non-degenerate by construction | **no** — the target is conditioned on a *noisy* sample of $x_1$, not the noiseless interpolant |
+
+The line between "collapses" and "does not collapse" is **whether the
+target is conditioned on a noisy view of $x_1$ or on the noiseless
+interpolant $x_\gamma$**. FM targets are functions of the
+deterministic-interpolant pair $(x_0, x_1)$; flow maps target the
+deterministic label $y$; both have a degenerate Bayes-optimum at the
+no-information limit. DSM's target $\epsilon$ is by construction
+defined *relative to a stochastic perturbation of the data point*,
+which makes $\mathbb{E}[\epsilon \mid \tilde{x}]$ a proper denoiser at
+every $\sigma$, including $\sigma \to \sigma_{\max}$.
+
+**Empirical confirmation** (`runs/dsm_clr_ablation/` 2×2):
+
+| training signal | $x_1$ recipe | KL$_{\text{uni}}$ | Δ@.50 |
+|---|---|---|---|
+| FM (Eq. 7 Dot Prod.)  | Det. CLR    | **0.042** | +0.000 |
+| FM (Eq. 7 Dot Prod.)  | Dirichlet   | 0.666     | **+0.060** |
+| DSM (simplex-CLR)     | Det. CLR    | 0.630     | −0.016 |
+| DSM (simplex-CLR)     | Dirichlet   | 0.645     | −0.017 |
+
+Three observations:
+
+1. The deterministic-CLR FM cell exhibits the §3 phenotype (KL$_\text{uni}=0.04$
+   is the unigram-collapse signature; Δ@.50 = 0.000 is the no-op sampler).
+2. DSM with deterministic $x_1$ **escapes** the unigram collapse
+   (KL$_\text{uni}$ matches the compositional baseline, not the
+   degenerate one). The training-signal switch alone — *holding the
+   data recipe fixed* — is sufficient to defeat the §3 mechanism.
+3. DSM does **not** transfer to *recovery* (Δ@.50 ≈ −0.02 for both
+   $x_1$ recipes), and Dirichlet thickening does not help DSM the way
+   it helps FM. Recovery deficit is therefore a separate-axis issue
+   (sampler instability, see concurrent healer-study work) rather than
+   an instance of the §3 mechanism.
+
+Concurrent empirical confirmations of the same phenotype across
+parametrisations, geometries, and architectures:
+
+| Domain / Lift / Architecture | Signal | Failure mode | Reference |
+|---|---|---|---|
+| text8 / CLR / Transformer | FM | KL$_\text{uni}=0.04$ (unigram peak) at d=1024/8L | `runs/comp_ref_det_*/`, this work |
+| text8 / AE-latent / Transformer | FM | identical no-op signature at d=1024/8L | `runs/ae_d1024_l8_z128_v3/` |
+| DNA / Aitchison-geodesic / CNN | Flow map | 95% C tokens (marginal mode) at $t=0$ | supervisor mode-collapse diagnosis |
+| Wikipedia / GPT-2 cache / GP-EBM | FM via conservative gradient | recovery flatlines under Langevin | supervisor healer convergence study |
+| text8 / CLR / Transformer | DSM | **no collapse** (KL$_\text{uni}=0.63$, matches `comp_*`) | `runs/dsm_clr_ablation/dsm_clr_det/` |
+
+The phenotype is **chart-, architecture-, and domain-invariant within
+the FM and flow-map signal classes**. Only the DSM signal class
+structurally escapes it by training on a target conditioned on noisy
+data.
 
 ---
 
@@ -397,19 +479,46 @@ flight as of this writing. The numbers above will be updated in
 ## 11. Summary
 
 The unigram-collapse failure mode is a single mathematical fact
-expressed five different ways:
+expressed six different ways:
 
 | where | how it shows up |
 |---|---|
 | §2 Bayes-optimum | $g^\star \to -c(\gamma)\mu_1$ when $I(x_1;x_\gamma)$ is small |
 | §3 lazy init | realisable energies are quadratic, single-basin |
-| §5 EqM-specific | bilinear $\langle x,f\rangle$ constraint locks the function class |
+| §5 EqM-specific | bilinear $\langle x,f\rangle$ constraint (Wang & Du Eq. 7 Dot Prod.) locks the function class |
 | §6 one-hot CLR | irreducible Bayes-risk floor $\Rightarrow$ best affine fit is flat |
 | §7 Dirichlet CLR | floor moves to $\gamma=1$, where $c(\gamma)=0$ trivialises the loss |
+| §7.5 training-signal class | FM and flow-map targets share the degenerate-Bayes-optimum at no-info point; DSM by construction does not (target is conditioned on noisy data) |
 
-The fixes that actually work share one feature: they introduce a
-non-MSE, non-quadratic term whose minimisers form a set of
-cardinality $\Omega(K^L)$. The aux CE on implied-$x_1$ is the
-canonical example. Everything else (Hilbert metric, latent
-embeddings, SDE sampling, longer sequences) shapes how cleanly that
-multi-modal carving propagates, but cannot substitute for it.
+The fixes that actually work share one feature: they break the
+degenerate Bayes-optimum at the no-information point of $x_\gamma$.
+This can be done on at least four axes:
+
+1. **Data** ($x_1$ thickening, e.g. Dirichlet around the vertex) —
+   moves the variance floor as in §7; empirically rescues Δ@.50 on
+   FM (`comp_*` triplicate, Δ@.50 = +0.060 ± 0.000).
+2. **Source** ($x_0$ stochasticity) — prerequisite for any
+   non-degenerate inference; concurrent supervisor mode-collapse
+   diagnosis shows that deterministic-$x_0$ produces 0.1% unique
+   outputs regardless of training.
+3. **Training signal** (FM → DSM) — DSM's $\epsilon$-target is
+   conditioned on a noisy view of $x_1$, so its Bayes-optimum at
+   $\sigma \to \sigma_{\max}$ remains a proper denoiser
+   (`runs/dsm_clr_ablation/`, KL$_\text{uni}=0.63$ on det-CLR vs 0.04
+   for FM-det-CLR).
+4. **Sampler** (continuous Langevin → discrete Gibbs on masked
+   positions) — relevant when the field is already trained collapsed;
+   concurrent supervisor healer-convergence study shows
+   Gibbs[SE∪GP] recovers ~1.22 nats LM log-prob on the same model
+   class that flatlines under Langevin.
+
+The §3 attractor is therefore not a single fixable bug but a class
+phenomenon that demands symmetry-breaking on at least one of these
+four axes. None of the four alone is sufficient for fluent
+generation in our setting; modest measurable improvements are
+obtained on individual axes (`comp_*` data-axis Δ@.50 = +0.06;
+supervisor healer-axis −1.22 nats LM log-prob). The aux CE on
+implied-$x_1$ is the canonical training-time symmetry-break for the
+flow-map class; Hilbert metric, latent embeddings, SDE sampling, and
+longer sequences shape how cleanly the carving propagates but cannot
+substitute for it.
