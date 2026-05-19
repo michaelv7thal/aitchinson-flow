@@ -69,6 +69,31 @@ sampler, full EqM-family EBM API (`energy`, `position_uncertainty`,
 > (SFLMEBM ≫ existing EBMs; SFLMEBM best shuffle localiser) as
 > indicative, pending the proper runs below.
 
+### Capstone arms (both scaffolded; ready to train)
+
+Two research arms now live alongside the original `SFLMEBM`, both
+additive (default behaviour unchanged) and ablatable via one config
+flag each:
+
+- **Arm 1 — `SFLM` (Stage-1 generator)**:
+  `src/aitchinson_flow/models/sflm.py`, registered. Time-conditioned
+  hyperspherical denoiser (γ via sinusoidal embedding), plain CE on
+  SLERP-noised latents, Euler-over-γ sampler via x1-prediction +
+  geodesic SLERP step. Exposes the EqM-family inference API; no
+  `energy()` (it's a generator, not an EBM) — bench treats it like
+  DFM. The KL_uni/bi/tri probe is the **gate question**: if SFLM
+  matches DFM-level generation, follow with a Stage-2 SVGP head
+  (mirrors `DirichletFMSvgp`).
+- **Arm 2 — `SFLMEBM_FM` (option 2: density-faithful energy)**:
+  same `SFLMEBM` class, one-flag activation `cfg.sflm_ebm.lambda_fm>0`
+  (the driver sets `lambda_fm=1.0, lambda_hinge=0.0`). Adds the
+  Riemannian-FM regression
+  `−project_tangent(∇E) → c(α)·log_{z_α}(z₁)` via
+  `create_graph=True` (second-order autograd, EqM-style cost). The
+  *existing* energy-GD `sample()` then transports noise→data — no
+  new sampler. Tests whether a single energy can be both generative
+  and OOD-faithful (the unification the capstone story rests on).
+
 ### Proper runs (scale-aware)
 
 `scripts/train_for_sflm_bench.py` now trains all four at a **shared

@@ -607,6 +607,47 @@ class SFLMEbmConfig:
     # Riemannian-GD sampler (adaptive step in geodesic arc length).
     sample_steps: int = 200
     sample_target_step: float = 0.1
+    # ----- Option 2 (conservative-gradient FM target on the sphere) -----
+    # When > 0, the model additionally regresses the Riemannian gradient of
+    # its own energy onto the geodesic FM target ``c(α)·log_map(z_α, z1)``
+    # (Chen & Lipman 2023). This makes the same energy density-faithful
+    # *and* generatively traversable — the existing energy-GD ``sample()``
+    # then transports noise→data instead of failing to (see
+    # SFLM_EBM_FINDINGS.md option 2). Requires second-order autograd
+    # (create_graph=True) — heavier than CE-only. Recommend running with
+    # lambda_hinge=0 in this regime to test whether FM supervision alone
+    # gives both generation and OOD; the hinge can be re-enabled later
+    # as an ablation. 0 disables → exactly current SFLMEBM behaviour.
+    lambda_fm: float = 0.0
+    # Path-decay c(α). "linear": c(α) = 1−α (matches EqM default).
+    fm_c_decay: str = "linear"
+
+
+@dataclass
+class SFLMConfig:
+    """Proper S-FLM Stage-1 generator (arXiv:2605.11125 in spirit, on
+    text8). Time-conditioned hyperspherical denoiser trained with plain CE
+    on SLERP-noised latents; sampled by Euler-over-γ on the sphere via
+    x1-prediction + geodesic step. Pairs with a Stage-2 SVGP head
+    (post-hoc, mirrors DirichletFMSvgp) for OOD — see
+    ``SFLM_EBM_FINDINGS.md``.
+    """
+
+    d_embed: int = 128
+    tau: float = 0.1
+    alpha_sched: str = "import"   # γ ~ alpha_hi · U(0,1)**0.5
+    alpha_lo: float = 0.0
+    alpha_hi: float = 0.95
+    # γ conditioning: "add" injects sinusoidal-γ via an extra projection;
+    # "concat" concatenates it onto the per-token hidden state and projects
+    # back. Both are standard; "add" is cheaper.
+    time_conditioning: str = "add"
+    # Eval-time γ used when the bench / recovery_check calls
+    # ``decode_to_logprobs(z)`` without a γ argument (signal-regime
+    # equivalent of DFM's t≈1 evaluation).
+    eval_gamma: float = 0.95
+    # Euler-over-γ sampler: nfe steps, x1-prediction + geodesic SLERP step.
+    sample_nfe: int = 64
 
 
 @dataclass
@@ -694,4 +735,5 @@ class Config:
     dsm: DSMConfig = field(default_factory=DSMConfig)
     bayes_auditor: BayesianAuditorConfig = field(default_factory=BayesianAuditorConfig)
     sflm_ebm: SFLMEbmConfig = field(default_factory=SFLMEbmConfig)
+    sflm: SFLMConfig = field(default_factory=SFLMConfig)
     wandb: WandbConfig = field(default_factory=WandbConfig)

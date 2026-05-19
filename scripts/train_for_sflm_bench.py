@@ -80,9 +80,29 @@ def _base_cfg(epochs: int, out_dir: str, scale: str) -> Config:
     return cfg
 
 
+# Map from *arm* (experiment) name → registered model class name. Two
+# arms share the SFLMEBM class but differ in cfg (CE+hinge vs CE+FM):
+#   SFLMEBM       — CE + contrastive hinge (current).
+#   SFLMEBM_FM    — CE + conservative-grad FM target (option 2,
+#                   SFLM_EBM_FINDINGS.md); hinge OFF to isolate whether
+#                   FM supervision alone gives both OOD *and* generation.
+# SFLM is the Stage-1 generator (S-FLM proper, time-conditioned). Pair
+# with a post-hoc SVGP head (mirror DirichletFMSvgp) for Stage 2 OOD.
+ARM_TO_MODEL = {
+    "SFLMEBM": "SFLMEBM",
+    "SFLMEBM_FM": "SFLMEBM",
+    "SFLM": "SFLM",
+    "EqM": "EqM",
+    "EqMLatent": "EqMLatent",
+    "DFM": "DFM",
+}
+ARMS = list(ARM_TO_MODEL)
+
+
 def _model_cfg(name: str, epochs: int, scale: str) -> Config:
     cfg = _base_cfg(epochs, f"runs/sflm_bench_{scale}/{name}", scale)
-    cfg.training = replace(cfg.training, model_name=name)
+    model_name = ARM_TO_MODEL[name]
+    cfg.training = replace(cfg.training, model_name=model_name)
     if name == "EqMLatent":
         # Best existing EqMLatent run: d128, tied, lambda_ce=1.0, euler.
         cfg.embedding = replace(cfg.embedding, enabled=True,
@@ -90,6 +110,14 @@ def _model_cfg(name: str, epochs: int, scale: str) -> Config:
         cfg.eqm = replace(cfg.eqm, lambda_ce=1.0, sampler="euler")
     elif name == "SFLMEBM":
         cfg.sflm_ebm = replace(cfg.sflm_ebm, d_embed=D_EMBED)
+    elif name == "SFLMEBM_FM":
+        # Option 2: CE + Riemannian-FM regression, no hinge.
+        cfg.sflm_ebm = replace(
+            cfg.sflm_ebm, d_embed=D_EMBED,
+            lambda_fm=1.0, lambda_hinge=0.0,
+        )
+    elif name == "SFLM":
+        cfg.sflm = replace(cfg.sflm, d_embed=D_EMBED)
     elif name == "EqM":
         # Tuned simplex-EqM recipe (runs/dphase4_lambda_recalib): the
         # Config defaults are NOT the working EqM — it needs
@@ -113,9 +141,12 @@ def main() -> None:
     args = ap.parse_args()
     d_model, n_layers, _, batch = SCALES[args.scale]
 
-    names = ["SFLMEBM", "EqM", "EqMLatent", "DFM"]
+    names = ARMS
     if args.only:
-        names = [args.only]
+        names = [a.strip() for a in args.only.split(",") if a.strip()]
+        unknown = [n for n in names if n not in ARM_TO_MODEL]
+        if unknown:
+            raise SystemExit(f"unknown arm(s): {unknown}; choose from {ARMS}")
 
     for name in names:
         print(f"\n{'='*70}\n=== TRAIN {name} [{args.scale}] ({args.epochs} ep, "

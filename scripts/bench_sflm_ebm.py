@@ -48,7 +48,7 @@ from aitchinson_flow.models import build_model  # noqa: E402
 from aitchinson_flow.training import build_training_datamodule  # noqa: E402
 from scripts.eval_full import _config_from_payload  # noqa: E402
 
-MODELS = ["SFLMEBM", "EqM", "EqMLatent", "DFM"]
+MODELS = ["SFLMEBM", "SFLMEBM_FM", "SFLM", "EqM", "EqMLatent", "DFM"]
 
 
 def _auroc(pos: torch.Tensor, neg: torch.Tensor) -> float:
@@ -69,17 +69,22 @@ def _auroc(pos: torch.Tensor, neg: torch.Tensor) -> float:
 @torch.no_grad()
 def _per_pos_logits(model, name: str, ids: torch.Tensor, cfg: Config):
     """(B, L, K) per-position logits via each model's natural path, and the
-    sequence-level energy score (None for DFM → fall back to mean SE)."""
+    sequence-level energy score (None ⇒ fall back to mean SE)."""
     K = cfg.text8_dataset.K
     if name == "DFM":
         t = torch.full((ids.shape[0],), 0.99, device=ids.device)
         return model.forward(ids, t), None
+    if name == "SFLM":
+        # Generator (no energy field); decode at eval_gamma — bench falls
+        # back to mean spilled energy for the sequence score (like DFM).
+        z = model.encode(ids)
+        return model.decode_to_logprobs(z), None
     if name == "EqM":  # simplex: CLR features, no encode()
         feats = token_ids_to_features(
             ids, K, label_smoothing=cfg.transformation.label_smoothing
         )
         return model.decode_to_logprobs(feats), model.energy(feats)
-    # SFLMEBM / EqMLatent: learned embedding lookup
+    # SFLMEBM / SFLMEBM_FM / EqMLatent: learned embedding lookup.
     z = model.encode(ids)
     return model.decode_to_logprobs(z), model.energy(z)
 
@@ -93,7 +98,7 @@ def _spilled_energy(logits: torch.Tensor, ids: torch.Tensor) -> torch.Tensor:
 
 
 def _position_uncertainty(model, name: str, ids: torch.Tensor, cfg: Config):
-    if name == "DFM" or not hasattr(model, "position_uncertainty"):
+    if name in ("DFM", "SFLM") or not hasattr(model, "position_uncertainty"):
         return None
     if name == "EqM":
         feats = token_ids_to_features(

@@ -16,6 +16,7 @@ from .eqm_dsm import EqMDSM
 from .bayes_auditor import BayesianAuditorAE, BayesianAuditorRaw
 from .bayes_auditor_wiki import PerTokenBayesianAuditorWiki
 from .sflm_ebm import SFLMEBM
+from .sflm import SFLM
 
 __all__ = [
     "GenerativeTrainingModel",
@@ -42,4 +43,5 @@ __all__ = [
     "BayesianAuditorRaw",
     "PerTokenBayesianAuditorWiki",
     "SFLMEBM",
+    "SFLM",
 ]

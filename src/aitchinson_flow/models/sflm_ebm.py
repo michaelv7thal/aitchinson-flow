@@ -79,6 +79,17 @@ def _project_tangent(p: torch.Tensor, v: torch.Tensor) -> torch.Tensor:
     return v - (p * v).sum(dim=-1, keepdim=True) * p
 
 
+def _log_map(p: torch.Tensor, q: torch.Tensor) -> torch.Tensor:
+    """``log_p(q)`` — tangent vector at p whose norm equals the geodesic
+    distance to q and whose direction is along the great-circle toward q.
+    Used to build the Riemannian flow-matching target ``c(α)·log_{z_α}(z₁)``
+    (Chen & Lipman 2023) for the option-2 conservative-gradient regression.
+    """
+    omega = _geodesic(p, q).unsqueeze(-1)
+    s = torch.sin(omega).clamp(min=1e-7)
+    return (omega / s) * (q - torch.cos(omega) * p)
+
+
 # --------------------------------------------------------------------------
 # Backbone — time-free transformer, S^{d-1} → feature h(z).
 # (Mirrors eqm_latent._LatentBackbone but with no γ / context plumbing.)
@@ -247,7 +258,15 @@ class SFLMEBM(nn.Module):
         alpha = self._sample_alpha(B, device)  # (B, 1)
         z_a = _slerp(z0, z1, alpha.expand(B, L))
 
-        log_p = F.log_softmax(self.decode_to_logits(z_a), dim=-1)  # (B, L, K)
+        # One features pass — used for CE (logits) and, when λ_fm>0, for the
+        # Riemannian-gradient FM target. Skipping double-forward.
+        need_fm = s.lambda_fm > 0.0
+        if need_fm:
+            z_a = z_a.requires_grad_(True)
+        feats = self.features(z_a)
+        logits = (feats @ self.codebook_normalized().t()) / self.tau
+        log_p = F.log_softmax(logits, dim=-1)
+
         ce_mask = alpha.squeeze(-1) >= s.ce_min_alpha
         if ce_mask.any():
             ce = F.nll_loss(
@@ -258,6 +277,30 @@ class SFLMEBM(nn.Module):
             ce = (log_p.sum() * 0.0)
         total = ce
         out: LossDict = {"ce": ce.detach()}
+
+        if need_fm:
+            # Conservative-gradient FM regression (option 2 —
+            # SFLM_EBM_FINDINGS.md). Supervise the Riemannian gradient of
+            # the energy to equal the geodesic FM velocity at z_α:
+            #     u_tgt = c(α) · log_{z_α}(z₁)        (toward data)
+            # so that descending -∇_tan E transports noise→data.
+            # create_graph=True ⇒ second-order autograd (the EqM cost).
+            E_pos = -self.tau * torch.logsumexp(logits, dim=-1)   # (B, L)
+            grad_E, = torch.autograd.grad(
+                E_pos.sum(), z_a, create_graph=True, retain_graph=True
+            )
+            g_tan = _project_tangent(z_a, grad_E)
+            # c(α) is per-sample; broadcast over L, d.
+            if s.fm_c_decay == "linear":
+                c_alpha = (1.0 - alpha).unsqueeze(-1)             # (B, 1, 1)
+            else:
+                raise ValueError(f"sflm_ebm.fm_c_decay={s.fm_c_decay!r}")
+            with torch.no_grad():
+                u_tgt = c_alpha * _log_map(z_a.detach(), z1)
+            loss_fm = F.mse_loss(-g_tan, u_tgt)
+            total = total + s.lambda_fm * loss_fm
+            out["fm"] = loss_fm.detach()
+            out["grad_E_norm"] = g_tan.norm(dim=-1).mean().detach()
 
         if s.lambda_hinge > 0.0:
             hinge = self._hinge(z1, batch.get("token_ids_invalid"))
