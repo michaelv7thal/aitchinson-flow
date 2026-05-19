@@ -1,0 +1,242 @@
+{
+  "ckpt": "runs/dfm_svgp_pure50_lr3e4/model_with_svgp_hinge.pt",
+  "t_eval": 4.5,
+  "n": 10,
+  "sample_nfe": 100,
+  "ground_truth": [
+    {
+      "idx": 0,
+      "text": "e the capital of one government after an"
+    },
+    {
+      "idx": 1,
+      "text": "other one of such governments was establ"
+    },
+    {
+      "idx": 2,
+      "text": "ished in one eight six four as a second "
+    },
+    {
+      "idx": 3,
+      "text": "mexican empire the short lived monarchy "
+    },
+    {
+      "idx": 4,
+      "text": "led by maximilian of habsburg left its m"
+    },
+    {
+      "idx": 5,
+      "text": "ark on the reconstruction of chapultepec"
+    },
+    {
+      "idx": 6,
+      "text": " castle and other urban planning a three"
+    },
+    {
+      "idx": 7,
+      "text": " decade long dictatorship under porfirio"
+    },
+    {
+      "idx": 8,
+      "text": " diaz left a french style influence upon"
+    },
+    {
+      "idx": 9,
+      "text": " mexico city the angel of independence w"
+    }
+  ],
+  "unconditional": [
+    {
+      "idx": 0,
+      "text": "bltreack  owmthl s s lxgh eran coppecwid"
+    },
+    {
+      "idx": 1,
+      "text": " senggaro es jngcomeatiin ct imawnere ab"
+    },
+    {
+      "idx": 2,
+      "text": "ivaiar onld cond hemhilvhald truded aut "
+    },
+    {
+      "idx": 3,
+      "text": "e qs the wish dingfcbedical ljhiter snag"
+    },
+    {
+      "idx": 4,
+      "text": "reedaat it etedcsecion rech so xinanlity"
+    },
+    {
+      "idx": 5,
+      "text": " and ancmnau and is is read caw or yeria"
+    },
+    {
+      "idx": 6,
+      "text": "ndearual thea co on abtiot to chhltersst"
+    },
+    {
+      "idx": 7,
+      "text": "e denchutwol a copectunnineol ea in indi"
+    },
+    {
+      "idx": 8,
+      "text": "a s anemal woter in stee audeled nachicu"
+    },
+    {
+      "idx": 9,
+      "text": "somed any vemiapeial froce frince finugl"
+    }
+  ],
+  "ood_valid": [
+    {
+      "idx": 0,
+      "text": "e the capital of one government after an",
+      "std": 1.591874122619629,
+      "mean": 0.8973178863525391,
+      "prob": 0.6834326982498169
+    },
+    {
+      "idx": 1,
+      "text": "other one of such governments was establ",
+      "std": 1.591874122619629,
+      "mean": 0.9155629277229309,
+      "prob": 0.6868796348571777
+    },
+    {
+      "idx": 2,
+      "text": "ished in one eight six four as a second ",
+      "std": 1.591874122619629,
+      "mean": 0.20883339643478394,
+      "prob": 0.5442262887954712
+    },
+    {
+      "idx": 3,
+      "text": "mexican empire the short lived monarchy ",
+      "std": 1.591874122619629,
+      "mean": 1.1005733013153076,
+      "prob": 0.7208737730979919
+    },
+    {
+      "idx": 4,
+      "text": "led by maximilian of habsburg left its m",
+      "std": 1.591874122619629,
+      "mean": 1.1023422479629517,
+      "prob": 0.7211899757385254
+    },
+    {
+      "idx": 5,
+      "text": "ark on the reconstruction of chapultepec",
+      "std": 1.591874122619629,
+      "mean": 0.5561026334762573,
+      "prob": 0.6163136959075928
+    },
+    {
+      "idx": 6,
+      "text": " castle and other urban planning a three",
+      "std": 1.591874122619629,
+      "mean": 0.7261078953742981,
+      "prob": 0.6503427624702454
+    },
+    {
+      "idx": 7,
+      "text": " decade long dictatorship under porfirio",
+      "std": 1.591874122619629,
+      "mean": 0.8212122321128845,
+      "prob": 0.668884813785553
+    },
+    {
+      "idx": 8,
+      "text": " diaz left a french style influence upon",
+      "std": 1.591874122619629,
+      "mean": 1.3601213693618774,
+      "prob": 0.7653145790100098
+    },
+    {
+      "idx": 9,
+      "text": " mexico city the angel of independence w",
+      "std": 1.591874122619629,
+      "mean": 1.2929567098617554,
+      "prob": 0.7542029619216919
+    }
+  ],
+  "ood_invalid": [
+    {
+      "idx": 0,
+      "text": "aaveeetota frte npgch em onnt anoel ri f",
+      "std": 1.591874122619629,
+      "mean": 1.3964189291000366,
+      "prob": 0.7712020874023438
+    },
+    {
+      "idx": 1,
+      "text": "nohwn rh  sslaecob enge vaforttoums sete",
+      "std": 1.591874122619629,
+      "mean": 1.3655964136123657,
+      "prob": 0.7662080526351929
+    },
+    {
+      "idx": 2,
+      "text": "oei sdu ais g  eisco  xis eafnntr noehdh",
+      "std": 1.591874122619629,
+      "mean": 0.8012036681175232,
+      "prob": 0.6650161743164062
+    },
+    {
+      "idx": 3,
+      "text": "eohr eihal httsiv rmcorx e  ynecmpadimen",
+      "std": 1.591874122619629,
+      "mean": 0.9722466468811035,
+      "prob": 0.6974837183952332
+    },
+    {
+      "idx": 4,
+      "text": "smulgb yafmo tiiminfxadah e i le ltb bsr",
+      "std": 1.591874122619629,
+      "mean": 1.7359418869018555,
+      "prob": 0.8221051692962646
+    },
+    {
+      "idx": 5,
+      "text": "ttaehuec otrsplpoc   firk hnucnontroecea",
+      "std": 1.591874122619629,
+      "mean": 1.1600878238677979,
+      "prob": 0.731414794921875
+    },
+    {
+      "idx": 6,
+      "text": "naul an rh cesegtapbanrlat eoin de h nrt",
+      "std": 1.591874122619629,
+      "mean": 1.5046032667160034,
+      "prob": 0.788248598575592
+    },
+    {
+      "idx": 7,
+      "text": "coididt noorcino egee fpshiadarrrpludt  ",
+      "std": 1.591874122619629,
+      "mean": 1.9471021890640259,
+      "prob": 0.8498387336730957
+    },
+    {
+      "idx": 8,
+      "text": "uiaca lele ohnnfcetz   fnsrepdy eutl ifn",
+      "std": 1.591874122619629,
+      "mean": 1.2450894117355347,
+      "prob": 0.7461147308349609
+    },
+    {
+      "idx": 9,
+      "text": "ii te gmeewiened cnaohfdyxpce  entnl oc ",
+      "std": 1.591874122619629,
+      "mean": 1.1931108236312866,
+      "prob": 0.7371761202812195
+    }
+  ],
+  "summary": {
+    "valid_mean_std": 1.591874122619629,
+    "valid_mean_prob": 0.6811661124229431,
+    "invalid_mean_std": 1.591874122619629,
+    "invalid_mean_prob": 0.757480800151825,
+    "delta_mean_std": 0.0,
+    "delta_mean_prob": -0.07631468772888184
+  }
+}

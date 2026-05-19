@@ -1,0 +1,273 @@
+{
+  "ckpt": "runs/dfm_svgp_pure50_lr3e4/model_with_svgp_hinge.pt",
+  "t_eval": 4.5,
+  "n_per_split": 500,
+  "rates": [
+    0.1,
+    0.2,
+    0.3,
+    0.4,
+    0.5,
+    0.6,
+    0.7,
+    0.8,
+    0.9,
+    1.0
+  ],
+  "schemes": [
+    "replace",
+    "shuffle",
+    "both"
+  ],
+  "rows": [
+    {
+      "scheme": null,
+      "rate": 0.0,
+      "n": 500,
+      "mean_prob": 0.6042850613594055,
+      "std_prob": 0.08092013001441956,
+      "auroc_prob_as_ood": NaN
+    },
+    {
+      "scheme": "replace",
+      "rate": 0.1,
+      "n": 500,
+      "mean_prob": 0.6641203761100769,
+      "std_prob": 0.08290868997573853,
+      "auroc_prob_as_ood": 0.695124
+    },
+    {
+      "scheme": "replace",
+      "rate": 0.2,
+      "n": 500,
+      "mean_prob": 0.7024425864219666,
+      "std_prob": 0.07629047334194183,
+      "auroc_prob_as_ood": 0.8078559999999999
+    },
+    {
+      "scheme": "replace",
+      "rate": 0.3,
+      "n": 500,
+      "mean_prob": 0.745093822479248,
+      "std_prob": 0.07099481672048569,
+      "auroc_prob_as_ood": 0.9005719999999999
+    },
+    {
+      "scheme": "replace",
+      "rate": 0.4,
+      "n": 500,
+      "mean_prob": 0.7676924467086792,
+      "std_prob": 0.06409092992544174,
+      "auroc_prob_as_ood": 0.9379040000000001
+    },
+    {
+      "scheme": "replace",
+      "rate": 0.5,
+      "n": 500,
+      "mean_prob": 0.7911075353622437,
+      "std_prob": 0.058880895376205444,
+      "auroc_prob_as_ood": 0.96216
+    },
+    {
+      "scheme": "replace",
+      "rate": 0.6,
+      "n": 500,
+      "mean_prob": 0.8073620200157166,
+      "std_prob": 0.04890946298837662,
+      "auroc_prob_as_ood": 0.982116
+    },
+    {
+      "scheme": "replace",
+      "rate": 0.7,
+      "n": 500,
+      "mean_prob": 0.8249710202217102,
+      "std_prob": 0.04204646125435829,
+      "auroc_prob_as_ood": 0.99152
+    },
+    {
+      "scheme": "replace",
+      "rate": 0.8,
+      "n": 500,
+      "mean_prob": 0.8335528373718262,
+      "std_prob": 0.03766300529241562,
+      "auroc_prob_as_ood": 0.994548
+    },
+    {
+      "scheme": "replace",
+      "rate": 0.9,
+      "n": 500,
+      "mean_prob": 0.8425894975662231,
+      "std_prob": 0.03331407532095909,
+      "auroc_prob_as_ood": 0.9964759999999999
+    },
+    {
+      "scheme": "replace",
+      "rate": 1.0,
+      "n": 500,
+      "mean_prob": 0.8497256636619568,
+      "std_prob": 0.030442193150520325,
+      "auroc_prob_as_ood": 0.9973000000000001
+    },
+    {
+      "scheme": "shuffle",
+      "rate": 0.1,
+      "n": 500,
+      "mean_prob": 0.636250376701355,
+      "std_prob": 0.07672064751386642,
+      "auroc_prob_as_ood": 0.6152960000000001
+    },
+    {
+      "scheme": "shuffle",
+      "rate": 0.2,
+      "n": 500,
+      "mean_prob": 0.6538769006729126,
+      "std_prob": 0.08052907884120941,
+      "auroc_prob_as_ood": 0.6654120000000001
+    },
+    {
+      "scheme": "shuffle",
+      "rate": 0.3,
+      "n": 500,
+      "mean_prob": 0.6912259459495544,
+      "std_prob": 0.07190275192260742,
+      "auroc_prob_as_ood": 0.7852639999999999
+    },
+    {
+      "scheme": "shuffle",
+      "rate": 0.4,
+      "n": 500,
+      "mean_prob": 0.7055136561393738,
+      "std_prob": 0.07305833697319031,
+      "auroc_prob_as_ood": 0.8201719999999999
+    },
+    {
+      "scheme": "shuffle",
+      "rate": 0.5,
+      "n": 500,
+      "mean_prob": 0.7193753719329834,
+      "std_prob": 0.06907536089420319,
+      "auroc_prob_as_ood": 0.855048
+    },
+    {
+      "scheme": "shuffle",
+      "rate": 0.6,
+      "n": 500,
+      "mean_prob": 0.7341048121452332,
+      "std_prob": 0.06603114306926727,
+      "auroc_prob_as_ood": 0.8880000000000001
+    },
+    {
+      "scheme": "shuffle",
+      "rate": 0.7,
+      "n": 500,
+      "mean_prob": 0.7467758059501648,
+      "std_prob": 0.06135508418083191,
+      "auroc_prob_as_ood": 0.914268
+    },
+    {
+      "scheme": "shuffle",
+      "rate": 0.8,
+      "n": 500,
+      "mean_prob": 0.749885618686676,
+      "std_prob": 0.06125272065401077,
+      "auroc_prob_as_ood": 0.9190920000000001
+    },
+    {
+      "scheme": "shuffle",
+      "rate": 0.9,
+      "n": 500,
+      "mean_prob": 0.7522618770599365,
+      "std_prob": 0.05935284495353699,
+      "auroc_prob_as_ood": 0.92472
+    },
+    {
+      "scheme": "shuffle",
+      "rate": 1.0,
+      "n": 500,
+      "mean_prob": 0.7520489692687988,
+      "std_prob": 0.056686293333768845,
+      "auroc_prob_as_ood": 0.929052
+    },
+    {
+      "scheme": "both",
+      "rate": 0.1,
+      "n": 500,
+      "mean_prob": 0.6763367652893066,
+      "std_prob": 0.08172589540481567,
+      "auroc_prob_as_ood": 0.736524
+    },
+    {
+      "scheme": "both",
+      "rate": 0.2,
+      "n": 500,
+      "mean_prob": 0.7341895699501038,
+      "std_prob": 0.07260069996118546,
+      "auroc_prob_as_ood": 0.8780699999999999
+    },
+    {
+      "scheme": "both",
+      "rate": 0.3,
+      "n": 500,
+      "mean_prob": 0.7666254043579102,
+      "std_prob": 0.06194230914115906,
+      "auroc_prob_as_ood": 0.9383480000000001
+    },
+    {
+      "scheme": "both",
+      "rate": 0.4,
+      "n": 500,
+      "mean_prob": 0.7919272780418396,
+      "std_prob": 0.054749347269535065,
+      "auroc_prob_as_ood": 0.9683679999999999
+    },
+    {
+      "scheme": "both",
+      "rate": 0.5,
+      "n": 500,
+      "mean_prob": 0.8096823692321777,
+      "std_prob": 0.04649675637483597,
+      "auroc_prob_as_ood": 0.984112
+    },
+    {
+      "scheme": "both",
+      "rate": 0.6,
+      "n": 500,
+      "mean_prob": 0.815446674823761,
+      "std_prob": 0.04797065630555153,
+      "auroc_prob_as_ood": 0.9854560000000001
+    },
+    {
+      "scheme": "both",
+      "rate": 0.7,
+      "n": 500,
+      "mean_prob": 0.8272683024406433,
+      "std_prob": 0.040917981415987015,
+      "auroc_prob_as_ood": 0.991772
+    },
+    {
+      "scheme": "both",
+      "rate": 0.8,
+      "n": 500,
+      "mean_prob": 0.8380266427993774,
+      "std_prob": 0.036714818328619,
+      "auroc_prob_as_ood": 0.9958
+    },
+    {
+      "scheme": "both",
+      "rate": 0.9,
+      "n": 500,
+      "mean_prob": 0.8421779274940491,
+      "std_prob": 0.03603561222553253,
+      "auroc_prob_as_ood": 0.9955640000000001
+    },
+    {
+      "scheme": "both",
+      "rate": 1.0,
+      "n": 500,
+      "mean_prob": 0.8474929928779602,
+      "std_prob": 0.033132459968328476,
+      "auroc_prob_as_ood": 0.9968319999999999
+    }
+  ],
+  "_convention": "auroc_prob_as_ood: AUROC of model.svgp prob output as the OOD score with label=1 for OOD. The hinge trained E_invalid > E_clean, so prob > 0.5 indicates OOD. Higher AUROC means better OOD detection."
+}

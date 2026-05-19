@@ -1,0 +1,38 @@
+{
+  "fit": {
+    "elbo_loss": 0.7515835762023926,
+    "n_pos": 4000,
+    "n_neg": 4000,
+    "t_eval": 4.5
+  },
+  "rows": [
+    {
+      "split": "positive_val",
+      "n": 500,
+      "mean_std": 0.43246835470199585,
+      "std_std": 5.966433747062183e-08,
+      "mean_prob": 0.49994760751724243,
+      "mean_latent": -0.000143201817991212
+    },
+    {
+      "split": "ood_scrambled",
+      "n": 500,
+      "mean_std": 0.43246835470199585,
+      "std_std": 5.966433747062183e-08,
+      "mean_prob": 0.49994760751724243,
+      "mean_latent": -0.00014320190530270338,
+      "auroc_std": 0.5,
+      "auroc_neg_prob": 0.499
+    },
+    {
+      "split": "ood_random_simplex",
+      "n": 500,
+      "mean_std": 0.43246835470199585,
+      "std_std": 5.966433747062183e-08,
+      "mean_prob": 0.49994760751724243,
+      "mean_latent": -0.00014320197806227952,
+      "auroc_std": 0.5,
+      "auroc_neg_prob": 0.499
+    }
+  ]
+}

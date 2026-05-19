@@ -4,6 +4,7 @@ from .eqm import EquilibriumFlowMatching
 from .dfm import DiscreteFlowMatching
 from .dirichlet_fm import DirichletFlowMatching
 from .dirichlet_fm_auditor import DirichletFMAuditor
+from .dirichlet_fm_svgp import DirichletFMSvgp
 from .fm_clr import FMonCLR
 from .logitkl_flow import LogitKLFlow
 from .eqm_consgrad import EqMConsGrad
@@ -14,6 +15,7 @@ from .score_dsm import ScoreDSM, ScoreDSM_CLR
 from .eqm_dsm import EqMDSM
 from .bayes_auditor import BayesianAuditorAE, BayesianAuditorRaw
 from .bayes_auditor_wiki import PerTokenBayesianAuditorWiki
+from .sflm_ebm import SFLMEBM
 
 __all__ = [
     "GenerativeTrainingModel",
@@ -26,6 +28,7 @@ __all__ = [
     "DiscreteFlowMatching",
     "DirichletFlowMatching",
     "DirichletFMAuditor",
+    "DirichletFMSvgp",
     "FMonCLR",
     "LogitKLFlow",
     "EqMConsGrad",
@@ -38,4 +41,5 @@ __all__ = [
     "BayesianAuditorAE",
     "BayesianAuditorRaw",
     "PerTokenBayesianAuditorWiki",
+    "SFLMEBM",
 ]

@@ -264,7 +264,12 @@ class EquilibriumFlowMatching(nn.Module):
                 log_probs = pred_x1 - torch.logsumexp(pred_x1, dim=-1, keepdim=True)
                 ids = token_ids[ce_mask].long()  # (M, L)
                 if s.lambda_ce > 0.0:
-                    ce = F.nll_loss(log_probs.reshape(-1, D), ids.reshape(-1))
+                    aux_kind = getattr(s, "aux_kind", "softmax")
+                    if aux_kind == "sparsemax":
+                        from aitchinson_flow.losses import sparsemax_loss
+                        ce = sparsemax_loss(pred_x1.reshape(-1, D), ids.reshape(-1))
+                    else:
+                        ce = F.nll_loss(log_probs.reshape(-1, D), ids.reshape(-1))
                     total_loss = total_loss + s.lambda_ce * ce
                     out["ce"] = ce.detach()
                 # 7b. Non-factorised bigram NLL (W2). Distinct from the

@@ -87,25 +87,28 @@ def _config_from_payload(payload: dict[str, Any]) -> Config:
     """Rebuild a Config dataclass from the dict saved with a checkpoint.
 
     Falls back to defaults for any missing keys (older checkpoints).
+    Iterates over **all** top-level Config dataclass fields so new
+    sections (dfm_svgp, dirichlet_fm, dsm, bayes_auditor, …) are
+    handled without further edits.
     """
+    from dataclasses import fields as _dc_fields
     cfg = Config()
     saved = payload.get("cfg") or {}
-    for section_name in ("training", "text8_dataset", "transformation", "transformer", "eqm", "dfm", "logitkl", "loss", "auditor", "embedding", "autoencoder", "eqm_ae"):
+    for f in _dc_fields(cfg):
+        section_name = f.name
         section_dict = saved.get(section_name) or {}
-        if not section_dict:
+        if not section_dict or not isinstance(section_dict, dict):
             continue
         section = getattr(cfg, section_name)
         if not is_dataclass(section):
             continue
-        valid = {k: v for k, v in section_dict.items() if k in {f.name for f in section.__dataclass_fields__.values()}}
+        valid = {k: v for k, v in section_dict.items() if k in {ff.name for ff in section.__dataclass_fields__.values()}}
         # Skip 'device' — string in payload, torch.device in config.
         valid.pop("device", None)
-        if section_name == "training":
-            valid.pop("device", None)
         try:
             setattr(cfg, section_name, replace(section, **valid))
         except TypeError:
-            # Some sections are frozen and need from-scratch construction
+            # Some sections are frozen and need from-scratch construction.
             kls = type(section)
             setattr(cfg, section_name, kls(**valid))
     return cfg

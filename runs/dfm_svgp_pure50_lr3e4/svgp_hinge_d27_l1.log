@@ -1,0 +1,53 @@
+[stage 2 hinge] training SVGP via contrastive hinge
+  ckpt:      runs/dfm_svgp_pure50_lr3e4/epoch_final.pt
+  n_epochs:  5
+  lr:        0.001
+  t_eval:    4.5
+  margin:    2.0
+  train_pooler: True
+  [hinge] step    1  hinge=2.0000  E_clean=-0.0000  E_invalid=-0.0000  gap=-0.0000
+  [hinge] step   20  hinge=1.9797  E_clean=+0.0204  E_invalid=+0.0207  gap=+0.0004
+  [hinge] step   40  hinge=1.9591  E_clean=+0.0433  E_invalid=+0.0428  gap=-0.0005
+  [hinge] step   60  hinge=1.9387  E_clean=+0.0655  E_invalid=+0.0657  gap=+0.0002
+  [hinge] step   80  hinge=1.9151  E_clean=+0.0925  E_invalid=+0.0937  gap=+0.0012
+  [hinge] step  100  hinge=1.8942  E_clean=+0.1190  E_invalid=+0.1204  gap=+0.0014
+  [hinge] step  120  hinge=1.8718  E_clean=+0.1462  E_invalid=+0.1504  gap=+0.0043
+  [hinge] step  140  hinge=1.8470  E_clean=+0.1716  E_invalid=+0.1836  gap=+0.0120
+  [hinge] step  160  hinge=1.8431  E_clean=+0.2099  E_invalid=+0.2049  gap=-0.0051
+  [hinge] step  180  hinge=1.8112  E_clean=+0.2473  E_invalid=+0.2564  gap=+0.0091
+  [hinge] step  200  hinge=1.8156  E_clean=+0.2857  E_invalid=+0.2771  gap=-0.0086
+  [hinge] step  220  hinge=1.7879  E_clean=+0.3106  E_invalid=+0.3246  gap=+0.0139
+  [hinge] step  240  hinge=1.7566  E_clean=+0.3236  E_invalid=+0.3598  gap=+0.0362
+  [hinge] step  260  hinge=1.7640  E_clean=+0.3757  E_invalid=+0.3965  gap=+0.0209
+  [hinge] step  280  hinge=1.7545  E_clean=+0.3987  E_invalid=+0.4275  gap=+0.0288
+  [hinge] step  300  hinge=1.7911  E_clean=+0.4239  E_invalid=+0.4175  gap=-0.0063
+  [hinge] step  320  hinge=1.7290  E_clean=+0.4061  E_invalid=+0.4589  gap=+0.0528
+  [hinge] step  340  hinge=1.7525  E_clean=+0.4327  E_invalid=+0.4633  gap=+0.0306
+  [hinge] step  360  hinge=1.7153  E_clean=+0.4315  E_invalid=+0.4939  gap=+0.0624
+  [hinge] step  380  hinge=1.6836  E_clean=+0.4451  E_invalid=+0.5328  gap=+0.0877
+  [hinge] step  400  hinge=1.7222  E_clean=+0.4723  E_invalid=+0.5258  gap=+0.0535
+  [hinge] step  420  hinge=1.6934  E_clean=+0.4501  E_invalid=+0.5367  gap=+0.0866
+  [hinge] step  440  hinge=1.7455  E_clean=+0.5064  E_invalid=+0.5510  gap=+0.0446
+  [hinge] step  460  hinge=1.6734  E_clean=+0.4214  E_invalid=+0.5175  gap=+0.0961
+  [hinge] step  480  hinge=1.7264  E_clean=+0.4669  E_invalid=+0.5243  gap=+0.0575
+  [hinge] step  500  hinge=1.6915  E_clean=+0.4704  E_invalid=+0.5638  gap=+0.0934
+  [hinge] step  520  hinge=1.6692  E_clean=+0.4927  E_invalid=+0.6061  gap=+0.1133
+  [hinge] step  540  hinge=1.6488  E_clean=+0.4344  E_invalid=+0.5627  gap=+0.1282
+  [hinge] step  560  hinge=1.7302  E_clean=+0.4730  E_invalid=+0.5297  gap=+0.0567
+  [hinge] step  580  hinge=1.6792  E_clean=+0.4894  E_invalid=+0.6038  gap=+0.1144
+  [hinge] step  600  hinge=1.7337  E_clean=+0.4928  E_invalid=+0.5562  gap=+0.0635
+  [hinge] step  620  hinge=1.6791  E_clean=+0.4746  E_invalid=+0.5774  gap=+0.1028
+  [hinge] step  640  hinge=1.6718  E_clean=+0.4531  E_invalid=+0.5585  gap=+0.1053
+  [hinge] step  660  hinge=1.6975  E_clean=+0.4865  E_invalid=+0.5824  gap=+0.0960
+  [hinge] step  680  hinge=1.6919  E_clean=+0.4936  E_invalid=+0.5901  gap=+0.0964
+  [hinge] step  700  hinge=1.7080  E_clean=+0.4803  E_invalid=+0.5740  gap=+0.0938
+  [hinge] step  720  hinge=1.6863  E_clean=+0.4787  E_invalid=+0.5786  gap=+0.0999
+  [hinge] step  740  hinge=1.6619  E_clean=+0.5183  E_invalid=+0.6547  gap=+0.1364
+  [hinge] step  760  hinge=1.6414  E_clean=+0.4760  E_invalid=+0.6237  gap=+0.1477
+  [hinge] step  780  hinge=1.6290  E_clean=+0.4641  E_invalid=+0.6258  gap=+0.1618
+[stage 2 hinge] done. n_steps=785  final_hinge=1.6295
+  positive  mean(std)=1.6244  mean(prob)=0.603
+  [      scrambled] mean(std)=1.6244  AUROC(std)=0.5000  AUROC(-prob)=0.1883
+  [ random_simplex] mean(std)=1.6244  AUROC(std)=0.5000  AUROC(-prob)=0.2075
+
+Wrote runs/dfm_svgp_pure50_lr3e4/svgp_hinge_eval.json

@@ -235,6 +235,14 @@ class EqM:
     # concatenated to the simplex input in "product_concat" mode. None
     # defaults to d_model // 2.
     ctx_proj_dim: int | None = None
+    # Aux loss family on the implied-x1 reconstruction.
+    # "softmax"   — log_softmax + NLL (the default, used everywhere prior).
+    # "sparsemax" — Martins & Astudillo (2016) sparsemax loss; the implied-x1
+    #               distribution is computed via sparsemax instead of softmax,
+    #               producing sparse posteriors over tokens. Combined with the
+    #               existing bigram_joint head this is a discrete-side
+    #               symmetry-break alternative to Dirichlet x_1 thickening.
+    aux_kind: str = "softmax"
 
 
 @dataclass(frozen=True)
@@ -564,6 +572,44 @@ class DSMConfig:
 
 
 @dataclass
+class SFLMEbmConfig:
+    """SFLMEBM — time-free hyperspherical flow model read as an EBM.
+
+    Tokens get a learned codebook embedding projected onto S^{d-1}. A
+    time-free denoiser is trained with CE on SLERP-noised latents
+    (S-FLM, arXiv:2605.11125); the implicit energy is the EqM-style
+    log-sum-exp readout ``E(z) = -tau * logsumexp_v <h(z), e_v>/tau``
+    (arXiv:2510.02300). The SFLM_EBM_FINDINGS.md probe showed the
+    energy basin is correct (recover≈1.0) under pure CE; the
+    importance schedule + contrastive hinge below are the EqM
+    anti-collapse knobs, kept as one-flag ablations.
+
+    The model ignores ``batch["x"]`` (CLR features) and does the
+    embedding lookup from ``batch["token_ids"]`` internally, mirroring
+    ``EqMLatent``. Uses ``cfg.transformer`` for backbone width/depth.
+    """
+
+    d_embed: int = 64
+    tau: float = 0.1  # codebook-softmax / energy temperature
+    # SLERP noise schedule. "uniform": alpha~U(lo,hi); "trunc": U(0.5,hi);
+    # "import": hi*U(0,1)**0.5 (EqM gamma-power, mass toward the signal end).
+    alpha_sched: str = "import"
+    alpha_lo: float = 0.0
+    alpha_hi: float = 0.95
+    # CE only applied where alpha >= this (signal regime; EqM ce_min_gamma).
+    ce_min_alpha: float = 0.3
+    # Contrastive energy hinge: relu(margin + E_clean - E_neg) with
+    # negatives = {token_ids_invalid embeddings, centroid seq, uniform
+    # sphere}. 0 disables (pure-CE ablation). Needs corruption enabled
+    # (text8_dataset.train_corrupt_rate > 0) for the invalid negatives.
+    lambda_hinge: float = 1.0
+    hinge_margin: float = 0.5
+    # Riemannian-GD sampler (adaptive step in geodesic arc length).
+    sample_steps: int = 200
+    sample_target_step: float = 0.1
+
+
+@dataclass
 class WandbConfig:
     """Optional Weights & Biases logging. Off by default; enable with --wandb."""
 
@@ -581,6 +627,51 @@ class WandbConfig:
 
 
 @dataclass
+class DFMSvgpConfig:
+    """DirichletFMSvgp: Dirichlet Flow Matching + post-hoc SVGP head for OOD.
+
+    Stage 1 is identical to DirichletFlowMatching; this config controls
+    only the SVGP head and its training set construction.
+    """
+
+    pooling: str = "mean"               # "mean" | "max" | "attention"
+    d_embed: int = 256                  # SVGP input dim (pooled projection)
+    n_inducing: int = 128               # SVGP inducing-point count
+    kernel: str = "matern52"            # "matern52" | "rbf" | "matern32"
+                                         # Matern-5/2 is default: C² samples,
+                                         # heavier tails than RBF → better-graded
+                                         # OOD variance, and consistent with
+                                         # this repo's _SparseGP (which also
+                                         # uses Matern-5/2). RBF (C∞ samples,
+                                         # Gaussian tails) saturates variance
+                                         # too quickly far from inducing pts
+                                         # for OOD discrimination.
+    t_eval: float = 4.5                 # Dirichlet path time at which to extract
+                                         # features (mid-path; signal+noise balanced)
+    n_pos: int = 4000                   # number of positive features for SVGP fit
+    neg_strategy: str = "scrambled"     # "scrambled" | "random_simplex" | "mixed"
+    neg_per_pos_ratio: float = 1.0      # how many negatives per positive
+    n_iters: int = 200                  # SVGP optimisation iters
+    lr: float = 0.01                    # SVGP optimiser LR
+    train_pooler_with_dfm: bool = False # if True, pooler gradients flow through
+                                         # Stage 1 (cheap regularisation); False
+                                         # keeps Stage 1 identical to vanilla DFM.
+    # ----- joint contrastive-hinge training (alternative to post-hoc fit) ---
+    lambda_hinge: float = 0.0           # contrastive energy hinge weight;
+                                         # 0 = original two-stage (post-hoc SVGP fit only)
+                                         # >0 = trains SVGP jointly during Stage 1
+                                         # using batch["token_ids_invalid"] from
+                                         # CorruptingCollate.
+    margin_energy: float = 2.0          # hinge margin: E_invalid should exceed this
+    train_svgp_jointly: bool = False    # set True alongside lambda_hinge>0 to
+                                         # unfreeze the SVGP params during Stage 1
+                                         # (pooler also unfrozen — hinge gradient
+                                         # has to reach the encoder)
+    hinge_t_eval: float | None = None   # path-time t at which to compute the
+                                         # hinge during training (None → use t_eval)
+
+
+@dataclass
 class Config:
     training: TrainingConfigs = field(default_factory=TrainingConfigs)
     text8_dataset: Text8DataConfig = field(default_factory=Text8DataConfig)
@@ -589,6 +680,7 @@ class Config:
     eqm: EqM = field(default_factory=EqM)
     dfm: DFMConfig = field(default_factory=DFMConfig)
     dirichlet_fm: DirichletFMConfig = field(default_factory=DirichletFMConfig)
+    dfm_svgp: DFMSvgpConfig = field(default_factory=DFMSvgpConfig)
     logitkl: LogitKLFlowConfig = field(default_factory=LogitKLFlowConfig)
     loader_settings: LoaderSettings = field(default_factory=LoaderSettings)
     loss: LossConfig = field(default_factory=LossConfig)
@@ -601,4 +693,5 @@ class Config:
     eqm_ae: EqMAEConfig = field(default_factory=EqMAEConfig)
     dsm: DSMConfig = field(default_factory=DSMConfig)
     bayes_auditor: BayesianAuditorConfig = field(default_factory=BayesianAuditorConfig)
+    sflm_ebm: SFLMEbmConfig = field(default_factory=SFLMEbmConfig)
     wandb: WandbConfig = field(default_factory=WandbConfig)

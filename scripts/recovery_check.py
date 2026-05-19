@@ -125,10 +125,35 @@ def main() -> int:
     ap.add_argument("--alphas", type=str, default="0.1,0.3,0.5,1.0")
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--out", type=str, default=None)
+    ap.add_argument(
+        "--sampler",
+        type=str,
+        default=None,
+        help="Override cfg.eqm.sampler at load time. e.g. nag / euler / sde. "
+             "Only applies to EqM-class models that dispatch on cfg.eqm.sampler.",
+    )
+    ap.add_argument(
+        "--sde-alpha",
+        type=float,
+        default=None,
+        help="Override cfg.eqm.sde_alpha (Langevin diffusion coefficient). "
+             "Has no effect for non-SDE samplers.",
+    )
     args = ap.parse_args()
 
     payload = torch.load(args.ckpt, map_location="cpu", weights_only=False)
     cfg = _config_from_payload(payload)
+    # Optional per-run sampler override (no retraining needed). Applies to
+    # EqM-class models whose ``sample()`` reads cfg.eqm.sampler.
+    if args.sampler is not None or args.sde_alpha is not None:
+        from dataclasses import replace as _replace
+        eqm_overrides: dict = {}
+        if args.sampler is not None:
+            eqm_overrides["sampler"] = args.sampler
+        if args.sde_alpha is not None:
+            eqm_overrides["sde_alpha"] = float(args.sde_alpha)
+        cfg.eqm = _replace(cfg.eqm, **eqm_overrides)
+        print(f"[sampler override] {eqm_overrides}")
     device = cfg.training.device
     model = build_model(cfg).to(device)
     state = payload["model_state_dict"] if "model_state_dict" in payload else payload

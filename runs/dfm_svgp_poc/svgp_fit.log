@@ -1,0 +1,13 @@
+[stage 2] fitting SVGP head — strategy=scrambled, n_pos=4000, n_iters=200, t_eval=4.5
+    [SVGP] iter 40/200  loss=0.8530
+    [SVGP] iter 80/200  loss=0.8138
+    [SVGP] iter 120/200  loss=0.7858
+    [SVGP] iter 160/200  loss=0.7659
+    [SVGP] iter 200/200  loss=0.7516
+[stage 2] done. ELBO=0.7516 n_pos=4000 n_neg=4000
+[eval] collecting positive features from val for AUROC
+  positive mean(std)=0.4325  mean(prob)=0.4999
+  [      scrambled] mean(std)=0.4325  AUROC(std)=0.5000  AUROC(-prob)=0.4990
+  [ random_simplex] mean(std)=0.4325  AUROC(std)=0.5000  AUROC(-prob)=0.4990
+
+Wrote runs/dfm_svgp_poc/svgp_eval.json

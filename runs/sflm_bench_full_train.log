@@ -1,0 +1,105 @@
+
+======================================================================
+=== TRAIN SFLMEBM (50 ep, d_model=1024/8L) ===
+======================================================================
+epochs:   0%|          | 0/50 [00:00<?, ?epoch/s]
+train epoch: 1:   0%|          | 0/157 [00:00<?, ?it/s][A
+                                                       [Aepochs:   0%|          | 0/50 [00:01<?, ?epoch/s]
+Traceback (most recent call last):
+  File "/workspace/scripts/train_for_sflm_bench.py", line 108, in <module>
+    main()
+    ~~~~^^
+  File "/workspace/scripts/train_for_sflm_bench.py", line 103, in main
+    fit(cfg=cfg, datamodule=dm, wandb_logger=None)
+    ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/src/aitchinson_flow/training/runner.py", line 193, in fit
+    metrics, global_step = train_epoch(
+                           ~~~~~~~~~~~^
+        model,
+        ^^^^^^
+    ...<6 lines>...
+        step_callback=_step_cb if wb_enabled else None,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/workspace/src/aitchinson_flow/training/loops.py", line 51, in train_epoch
+    out: LossDict = m.training_step(batch, step)
+                    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/workspace/src/aitchinson_flow/models/sflm_ebm.py", line 281, in training_step
+    return self._loss(batch)
+           ~~~~~~~~~~^^^^^^^
+  File "/workspace/.venv/lib/python3.13/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+    return func(*args, **kwargs)
+  File "/workspace/src/aitchinson_flow/models/sflm_ebm.py", line 263, in _loss
+    hinge = self._hinge(z1, batch.get("token_ids_invalid"))
+  File "/workspace/src/aitchinson_flow/models/sflm_ebm.py", line 233, in _hinge
+    negs.append(self.energy_per_pos(self.encode(token_ids_invalid)).sum(-1))
+                ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/src/aitchinson_flow/models/sflm_ebm.py", line 160, in energy_per_pos
+    scores = self.features(z) @ self.codebook_normalized().t()  # (B, L, K)
+             ~~~~~~~~~~~~~^^^
+  File "/workspace/src/aitchinson_flow/models/sflm_ebm.py", line 145, in features
+    return self.backbone(z)
+           ~~~~~~~~~~~~~^^^
+  File "/workspace/.venv/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1779, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/workspace/.venv/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1790, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/workspace/src/aitchinson_flow/models/sflm_ebm.py", line 120, in forward
+    h = self.transformer(h)
+  File "/workspace/.venv/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1779, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/workspace/.venv/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1790, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/workspace/.venv/lib/python3.13/site-packages/torch/nn/modules/transformer.py", line 540, in forward
+    output = mod(
+        output,
+    ...<2 lines>...
+        src_key_padding_mask=src_key_padding_mask_for_layers,
+    )
+  File "/workspace/.venv/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1779, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/workspace/.venv/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1790, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/workspace/.venv/lib/python3.13/site-packages/torch/nn/modules/transformer.py", line 947, in forward
+    x = x + self._sa_block(
+            ~~~~~~~~~~~~~~^
+        self.norm1(x), src_mask, src_key_padding_mask, is_causal=is_causal
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/workspace/.venv/lib/python3.13/site-packages/torch/nn/modules/transformer.py", line 968, in _sa_block
+    x = self.self_attn(
+        ~~~~~~~~~~~~~~^
+        x,
+        ^^
+    ...<5 lines>...
+        is_causal=is_causal,
+        ^^^^^^^^^^^^^^^^^^^^
+    )[0]
+    ^
+  File "/workspace/.venv/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1779, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/workspace/.venv/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1790, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/workspace/.venv/lib/python3.13/site-packages/torch/nn/modules/activation.py", line 1492, in forward
+    attn_output, attn_output_weights = F.multi_head_attention_forward(
+                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        query,
+        ^^^^^^
+    ...<17 lines>...
+        is_causal=is_causal,
+        ^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/workspace/.venv/lib/python3.13/site-packages/torch/nn/functional.py", line 6478, in multi_head_attention_forward
+    q, k, v = _in_projection_packed(query, key, value, in_proj_weight, in_proj_bias)
+              ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/.venv/lib/python3.13/site-packages/torch/nn/functional.py", line 5843, in _in_projection_packed
+    .contiguous()
+     ~~~~~~~~~~^^
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 30.00 MiB. GPU 0 has a total capacity of 7.53 GiB of which 12.25 MiB is free. Including non-PyTorch memory, this process has 7.46 GiB memory in use. Of the allocated memory 7.33 GiB is allocated by PyTorch, and 19.63 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://docs.pytorch.org/docs/stable/notes/cuda.html#optimizing-memory-usage-with-pytorch-cuda-alloc-conf)

@@ -1,0 +1,32 @@
+[sampler override] {'sampler': 'nag'}
+=== Unconditional generation ===
+  KL_uni=0.0237  KL_bi=1.0349  KL_tri=4.9727  H_gen=2.7188
+  sample[0]: ' ltrestth liwtuon  snthth epan  o heltci'
+  sample[1]: ' ssntcaro rs ongc meaanie ct vf n ene a '
+
+=== Recovery from perturbation ===
+  embed_norm_mean=12.2723  σ_source=0.1000
+    α  σ_perturb    KL_bi  tok_acc  sample[0]: gt / pt / rc
+ 0.05      0.614   0.1098   1.0000  gt='e the capital of one government after an'
+                                  pt='e the capital of one government after an'  (pt_acc=1.000)
+                                  rc='e the capital of one government after an'
+ 0.10      1.227   0.1098   1.0000  gt='e the capital of one government after an'
+                                  pt='e the capital of one government after an'  (pt_acc=1.000)
+                                  rc='e the capital of one government after an'
+ 0.20      2.454   0.2561   0.9787  gt='e the capital of one government after an'
+                                  pt='e the capital of one government after an'  (pt_acc=0.996)
+                                  rc='e the capital of mne government after an'
+ 0.30      3.682   2.0978   0.7449  gt='e the capital of one government after an'
+                                  pt='e the cajitpu of one govbrxment afqer an'  (pt_acc=0.897)
+                                  rc='e theqcalitpu ofoonebgovbrxmenbqafqerban'
+ 0.40      4.909   3.0872   0.5321  gt='e the capital of one government after an'
+                                  pt='e thewfacilalcofgpne goverxment zxter an'  (pt_acc=0.697)
+                                  rc='eithewfacilalcmfgpnmfguverlmentwzfteruae'
+ 0.50      6.136   2.7132   0.5282  gt='e the capital of one government after an'
+                                  pt='k thezclphral of zni goyrrnmeltr ster an'  (pt_acc=0.528)
+                                  rc='k thezclphral of zni goyrrnmeltr ster an'
+ 1.00     12.272   4.9147   0.2006  gt='e the capital of one government after an'
+                                  pt='x rhihfckmtal cbyuxvsgecbdqecnteafteozmj'  (pt_acc=0.201)
+                                  rc='x rhihfckmtal cbyuxvsgecbdqecnteafteozmj'
+
+Wrote runs/eqm_sparsemax_bigram_ce01/recovery_nag.json

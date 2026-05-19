@@ -1,0 +1,49 @@
+# Standard EqM (Wang & Du 2025 §4.2 Eq.7 Dot Product) on text8 with
+# deterministic-CLR x_1, MSE flow loss, sparsemax aux CE, and the
+# non-factorised bigram-joint head. Same backbone / data scale as comp_*
+# so it slots into the 2x2 headline table as a third row testing whether
+# discrete-side aux losses (sparsemax + bigram_joint) can rescue the
+# deterministic-CLR collapse *without* the x_1 Dirichlet trick.
+
+- name: eqm_sparsemax_bigram
+  overrides:
+    training.model_name: EqM
+    training.epochs: 5
+    training.seed: 42
+    training.lr: 0.0003
+    training.scheduler_warmup_epochs: 0
+    training.B: 64
+    training.L: 40
+    training.K: 27
+    training.sample_eval_n: 32
+    training.sample_eval_every: 5
+    text8_dataset.batch_size: 64
+    text8_dataset.L: 40
+    text8_dataset.K: 27
+    text8_dataset.max_train_windows: 10000
+    text8_dataset.variable_length: false
+    transformation.label_smoothing: 0.0001
+    transformation.dirichlet_sampling: false   # deterministic CLR — same as comp_ref_det_mse
+    transformer.d_model: 1024
+    transformer.num_layers: 8
+    transformer.nhead: 8
+    transformer.d_latent: 64
+    eqm.time_conditioning: "off"
+    eqm.context_features: "off"
+    eqm.source_sigma: 0.1
+    eqm.gamma_power: 1.5
+    eqm.gradient_lambda: 1.0
+    eqm.lambda_ce: 0.5            # the token-accuracy aux loss
+    eqm.aux_kind: "sparsemax"     # NEW — sparsemax instead of log_softmax
+    eqm.ce_min_gamma: 0.5
+    eqm.lambda_bigram: 0.0        # factorised; off
+    eqm.lambda_bigram_joint: 0.5  # non-factorised K^2 head; on
+    eqm.lambda_trigram: 0.0
+    eqm.sample_eta: 0.1
+    eqm.sample_mu: 0.9
+    eqm.sample_max_steps: 100
+    eqm.sample_grad_clip: 1.0
+    eqm.sample_return_best: true
+    eqm.sampler: nag
+    loss.mode: mse
+    wandb.enabled: false

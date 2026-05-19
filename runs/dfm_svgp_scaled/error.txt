@@ -1,0 +1,7 @@
+RuntimeError: Error(s) in loading state_dict for DirichletFMSvgp:
+	size mismatch for pooler.proj.weight: copying a param with shape torch.Size([27, 1280]) from checkpoint, the shape in current model is torch.Size([256, 1280]).
+	size mismatch for pooler.proj.bias: copying a param with shape torch.Size([27]) from checkpoint, the shape in current model is torch.Size([256]).
+	size mismatch for svgp._mu: copying a param with shape torch.Size([27]) from checkpoint, the shape in current model is torch.Size([256]).
+	size mismatch for svgp._sigma: copying a param with shape torch.Size([27]) from checkpoint, the shape in current model is torch.Size([256]).
+	size mismatch for svgp.gp.variational_strategy.inducing_points: copying a param with shape torch.Size([128, 27]) from checkpoint, the shape in current model is torch.Size([128, 256]).
+	size mismatch for energy_head.weight: copying a param with shape torch.Size([1, 27]) from checkpoint, the shape in current model is torch.Size([1, 256]).

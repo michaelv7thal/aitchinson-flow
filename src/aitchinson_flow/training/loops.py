@@ -112,6 +112,12 @@ def evaluate(
 
 
 _GAMMA_BIN_KEYS = ("flow_loss", "ce", "g<.33", "g<.66", "g<1")
+# Keys to skip when expanding the per-step postfix (already shown explicitly
+# or are diagnostic-only). Everything else in the model's ``out`` dict that
+# is a scalar tensor / number is surfaced so the user can audit which loss
+# components are firing on every step (bg_joint_nll, tg_nll, hinge_loss,
+# kl, E_clean, E_invalid, ...).
+_POSTFIX_SKIP_KEYS = frozenset({TRAINING_LOSS_KEY, "bpd"})
 
 
 def _loss_postfix(out: LossDict) -> dict[str, str]:
@@ -121,8 +127,18 @@ def _loss_postfix(out: LossDict) -> dict[str, str]:
     if total is not None:
         postfix["total_loss"] = f"{total:.4f}"
 
+    # Show the canonical γ-bucket and headline-aux keys first (stable order).
     for key in _GAMMA_BIN_KEYS:
         val = _to_float_scalar(out.get(key))
+        if val is not None:
+            postfix[key] = f"{val:.4f}"
+
+    # Then surface every other scalar in ``out`` so all loss components are
+    # auditable in the live train log (not just in the per-epoch summary).
+    for key in sorted(out.keys()):
+        if key in postfix or key in _POSTFIX_SKIP_KEYS:
+            continue
+        val = _to_float_scalar(out[key])
         if val is not None:
             postfix[key] = f"{val:.4f}"
 

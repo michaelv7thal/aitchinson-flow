@@ -87,6 +87,54 @@ class SoftmaxSoftHilbertLoss(nn.Module):
         return loss.mean()
 
 
+def sparsemax(z: torch.Tensor) -> torch.Tensor:
+    """Sparsemax projection onto the simplex (Martins & Astudillo 2016).
+
+    For an input ``z`` of shape (..., K), returns probabilities of the same
+    shape that sum to 1 along the last axis and may contain exact zeros.
+
+    Pure-PyTorch, second-order differentiable (sort + cumsum + clamp).
+    """
+    K = z.shape[-1]
+    z_sorted, _ = torch.sort(z, dim=-1, descending=True)
+    z_cumsum = z_sorted.cumsum(dim=-1)
+    k = torch.arange(1, K + 1, device=z.device, dtype=z.dtype)
+    # Support condition: 1 + k * z_sorted_k > sum_{j<=k} z_sorted_j
+    support = (1.0 + k * z_sorted) > z_cumsum  # (..., K) bool
+    cardinality = support.long().sum(dim=-1, keepdim=True).clamp(min=1)
+    # tau = (sum_{j in S} z_j - 1) / |S|
+    z_cumsum_k = z_cumsum.gather(-1, cardinality - 1)
+    tau = (z_cumsum_k - 1.0) / cardinality.to(z.dtype)
+    p = (z - tau).clamp(min=0.0)
+    return p
+
+
+def sparsemax_loss(z: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    """Martins & Astudillo 2016 sparsemax loss (Eq. 10).
+
+    ``z`` is (..., K) logits, ``target`` is (...) integer class indices.
+    Returns the mean loss across the leading dimensions. Convex, has zero
+    gradient on the support so the model can be exactly confident.
+
+    Closed form (verified at the limit p = e_y):
+      L(z, y) = -z_y + 0.5 * sum_{j in S(z)} z_j^2 - 0.5 * τ^2 * |S(z)| + 0.5
+
+    where τ and S(z) are the sparsemax threshold and support of ``z``.
+    """
+    p = sparsemax(z)
+    support_f = (p > 0).to(z.dtype)
+    cardinality = support_f.sum(dim=-1, keepdim=True).clamp(min=1.0)
+    # τ = (sum_{j in S} z_j - 1) / |S|
+    tau = (support_f * z).sum(dim=-1, keepdim=True) / cardinality - 1.0 / cardinality
+
+    z_target = z.gather(-1, target.unsqueeze(-1)).squeeze(-1)
+    sum_z2_on_support = (support_f * z * z).sum(dim=-1)
+    tau_sq_card = (tau.squeeze(-1) ** 2) * cardinality.squeeze(-1)
+
+    loss = -z_target + 0.5 * (sum_z2_on_support - tau_sq_card + 1.0)
+    return loss.mean()
+
+
 @_REGISTRY.register("hilbert")
 def _build_hilbert(cfg: Config) -> HilbertLoss:
     return HilbertLoss()

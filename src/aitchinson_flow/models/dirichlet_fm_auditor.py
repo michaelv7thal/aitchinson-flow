@@ -331,10 +331,11 @@ class _SVGPHead(nn.Module):
         kernel: str = "rbf",
     ) -> None:
         super().__init__()
-        if kernel != "rbf":
+        if kernel not in ("rbf", "matern52", "matern32"):
             raise ValueError(f"unsupported kernel: {kernel!r}")
         self.d_model = d_model
         self.n_inducing = n_inducing
+        self.kernel = kernel
         # Standardisation buffers, populated by fit().
         self.register_buffer("_mu", torch.zeros(d_model))
         self.register_buffer("_sigma", torch.ones(d_model))
@@ -342,7 +343,7 @@ class _SVGPHead(nn.Module):
         # Build the gpytorch components eagerly so state_dict is stable.
         # Random inducing points are placeholders until fit() reseeds them.
         ip0 = torch.randn(n_inducing, d_model)
-        self.gp = _build_svgp_module(ip0)
+        self.gp = _build_svgp_module(ip0, kernel=kernel)
         self.likelihood = gpytorch.likelihoods.BernoulliLikelihood()
         # Don't include SVGP params in the main FM optimizer's update.
         for p in self.gp.parameters():
@@ -386,7 +387,7 @@ class _SVGPHead(nn.Module):
         # variational distribution dims line up.
         perm = torch.randperm(Xs.shape[0], device=device)[: self.n_inducing]
         ip = Xs[perm].detach().clone()
-        self.gp = _build_svgp_module(ip).to(device)
+        self.gp = _build_svgp_module(ip, kernel=self.kernel).to(device)
         self.likelihood = gpytorch.likelihoods.BernoulliLikelihood().to(device)
         self._mu = mu.detach()
         self._sigma = sigma.detach()
@@ -462,32 +463,49 @@ class _SVGPHead(nn.Module):
         return prob, mean, std
 
 
-def _build_svgp_module(inducing_points: torch.Tensor) -> gpytorch.models.ApproximateGP:
-    """Internal: gpytorch SVGP module factory. RBF + ConstantMean.
+def _build_svgp_module(
+    inducing_points: torch.Tensor, kernel: str = "rbf"
+) -> gpytorch.models.ApproximateGP:
+    """Internal: gpytorch SVGP module factory. ScaleKernel + ConstantMean.
 
     Split out so ``_SVGPHead.fit`` can rebuild the module fresh after
     re-seeding inducing points (``CholeskyVariationalDistribution``
     bakes the inducing-set size into its parameter shapes).
+
+    Kernel choices:
+      * ``"rbf"``     — RBFKernel; C∞ samples, fast variance saturation
+                        far from inducing points. Original auditor default.
+      * ``"matern52"`` — MaternKernel(ν=5/2); C² samples, heavier tails,
+                        better-graded OOD variance and more numerically
+                        stable. Default in BO literature (Snoek 2012) and
+                        in this repo's pure-PyTorch ``_SparseGP``.
+      * ``"matern32"`` — MaternKernel(ν=3/2); even rougher (C¹).
     """
+    if kernel == "rbf":
+        base_kernel = gpytorch.kernels.RBFKernel()
+    elif kernel == "matern52":
+        base_kernel = gpytorch.kernels.MaternKernel(nu=2.5)
+    elif kernel == "matern32":
+        base_kernel = gpytorch.kernels.MaternKernel(nu=1.5)
+    else:
+        raise ValueError(f"unknown kernel: {kernel!r}")
 
     class _SVGP(gpytorch.models.ApproximateGP):
-        def __init__(self, ip: torch.Tensor) -> None:
+        def __init__(self, ip: torch.Tensor, base_k: gpytorch.kernels.Kernel) -> None:
             vd = gpytorch.variational.CholeskyVariationalDistribution(ip.size(0))
             vs = gpytorch.variational.VariationalStrategy(
                 self, ip, vd, learn_inducing_locations=True
             )
             super().__init__(vs)
             self.mean_module = gpytorch.means.ConstantMean()
-            self.covar_module = gpytorch.kernels.ScaleKernel(
-                gpytorch.kernels.RBFKernel()
-            )
+            self.covar_module = gpytorch.kernels.ScaleKernel(base_k)
 
         def forward(self, x: torch.Tensor):  # noqa: D401
             return gpytorch.distributions.MultivariateNormal(
                 self.mean_module(x), self.covar_module(x)
             )
 
-    return _SVGP(inducing_points)
+    return _SVGP(inducing_points, base_kernel)
 
 
 def _dirichlet_logp_mixture(

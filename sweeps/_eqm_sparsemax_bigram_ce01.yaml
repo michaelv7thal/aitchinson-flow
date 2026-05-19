@@ -1,0 +1,53 @@
+# Option 1 fix for the dead-sparsemax-aux problem: lower ce_min_gamma from
+# 0.5 → 0.1 so the sparsemax loss sees pred_x1 in a regime where x_γ is
+# *not yet* heavily peaked at the target. At γ≈0.1 the source noise still
+# dominates (x_γ[y] ≈ 1.2, x_γ[k] ≈ -0.05 in CLR units), so sparsemax
+# support is wider than 1 entry and the Fenchel-Young loss has non-zero
+# gradient.
+#
+# All other knobs match eqm_sparsemax_bigram for clean comparison:
+# det CLR + sparsemax aux + bigram_joint, MSE flow loss, deterministic
+# Wang & Du Eq. 7 Dot Product EqM.
+
+- name: eqm_sparsemax_bigram_ce01
+  overrides:
+    training.model_name: EqM
+    training.epochs: 5
+    training.seed: 42
+    training.lr: 0.0003
+    training.scheduler_warmup_epochs: 0
+    training.B: 64
+    training.L: 40
+    training.K: 27
+    training.sample_eval_n: 32
+    training.sample_eval_every: 5
+    text8_dataset.batch_size: 64
+    text8_dataset.L: 40
+    text8_dataset.K: 27
+    text8_dataset.max_train_windows: 10000
+    text8_dataset.variable_length: false
+    transformation.label_smoothing: 0.0001
+    transformation.dirichlet_sampling: false
+    transformer.d_model: 1024
+    transformer.num_layers: 8
+    transformer.nhead: 8
+    transformer.d_latent: 64
+    eqm.time_conditioning: "off"
+    eqm.context_features: "off"
+    eqm.source_sigma: 0.1
+    eqm.gamma_power: 1.5
+    eqm.gradient_lambda: 1.0
+    eqm.lambda_ce: 0.5
+    eqm.aux_kind: "sparsemax"
+    eqm.ce_min_gamma: 0.1            # FIX — was 0.5; aux now sees less-peaked pred_x1
+    eqm.lambda_bigram: 0.0
+    eqm.lambda_bigram_joint: 0.5
+    eqm.lambda_trigram: 0.0
+    eqm.sample_eta: 0.1
+    eqm.sample_mu: 0.9
+    eqm.sample_max_steps: 100
+    eqm.sample_grad_clip: 1.0
+    eqm.sample_return_best: true
+    eqm.sampler: nag
+    loss.mode: mse
+    wandb.enabled: false
