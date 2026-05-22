@@ -92,8 +92,14 @@ ARM_TO_MODEL = {
     "SFLMEBM": "SFLMEBM",
     "SFLMEBM_FM": "SFLMEBM",
     "SFLM": "SFLM",
-    "EqM": "EqM",
+    # Two EqM variants exposed as separate arms so the unified generation
+    # evaluator can compare *one-hot CLR* (label-smoothed only) vs the
+    # *Dirichlet-thickened* CLR pipeline.  Same model class, different
+    # data augmentation flag (cfg.transformation.dirichlet_sampling).
+    "EqM_OneHot": "EqM",        # dirichlet_sampling=False
+    "EqM": "EqM",               # dirichlet_sampling=True  (existing tuned recipe)
     "EqMLatent": "EqMLatent",
+    "DirichletFM": "DirichletFM",
     "DFM": "DFM",
 }
 ARMS = list(ARM_TO_MODEL)
@@ -119,14 +125,24 @@ def _model_cfg(name: str, epochs: int, scale: str) -> Config:
     elif name == "SFLM":
         cfg.sflm = replace(cfg.sflm, d_embed=D_EMBED)
     elif name == "EqM":
-        # Tuned simplex-EqM recipe (runs/dphase4_lambda_recalib): the
-        # Config defaults are NOT the working EqM — it needs
-        # gradient_lambda=3.0 and Dirichlet-sampled CLR data. Without
-        # these EqM scores below chance (the artifact the small-budget
-        # run exposed).
+        # Tuned simplex-EqM recipe (runs/dphase4_lambda_recalib): needs
+        # gradient_lambda=3.0 + Dirichlet-sampled CLR data.
         cfg.eqm = replace(cfg.eqm, gradient_lambda=3.0)
         cfg.transformation = replace(cfg.transformation,
                                      dirichlet_sampling=True)
+    elif name == "EqM_OneHot":
+        # Same tuned recipe except Dirichlet thickening is OFF — uses
+        # deterministic label-smoothed one-hot CLR features. Isolates the
+        # contribution of the Dirichlet x_1 augmentation in the
+        # unified generation comparison (the EqM arm minus its data side).
+        cfg.eqm = replace(cfg.eqm, gradient_lambda=3.0)
+        cfg.transformation = replace(cfg.transformation,
+                                     dirichlet_sampling=False)
+    elif name == "DirichletFM":
+        # DirichletFlowMatching (Stark et al. 2024) — Dirichlet conditional
+        # probability path on the simplex. Config defaults are the
+        # known-good recipe (matches DFM_SVGP_FINDINGS Stage-1).
+        pass
     # DFM: Config defaults are its known-good recipe.
     return cfg
 

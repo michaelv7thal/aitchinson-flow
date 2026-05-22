@@ -17,6 +17,7 @@ from .bayes_auditor import BayesianAuditorAE, BayesianAuditorRaw
 from .bayes_auditor_wiki import PerTokenBayesianAuditorWiki
 from .sflm_ebm import SFLMEBM
 from .sflm import SFLM
+from .sflm_svgp import SFLMSvgp
 
 __all__ = [
     "GenerativeTrainingModel",
@@ -44,4 +45,5 @@ __all__ = [
     "PerTokenBayesianAuditorWiki",
     "SFLMEBM",
     "SFLM",
+    "SFLMSvgp",
 ]

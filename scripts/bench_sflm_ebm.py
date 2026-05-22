@@ -52,7 +52,25 @@ from aitchinson_flow.models import build_model  # noqa: E402
 from aitchinson_flow.training import build_training_datamodule  # noqa: E402
 from scripts.eval_full import _config_from_payload  # noqa: E402
 
-MODELS = ["SFLMEBM", "SFLMEBM_FM", "SFLM", "EqM", "EqMLatent", "DFM"]
+MODELS = [
+    # EBMs with a native energy field (sequence + per-position readouts).
+    "SFLMEBM", "SFLMEBM_FM",
+    # EqM family on the simplex / latent space.
+    "EqM", "EqM_OneHot", "EqMLatent",
+    # Time-conditioned transport generators (no native energy; bench uses
+    # spilled energy as the universal baseline).
+    "SFLM", "DirichletFM", "DFM",
+    # Two-stage SVGP detectors. Load model_with_svgp_hinge.pt (post-hoc
+    # Stage-2 fit); SVGP latent mean → Bernoulli probability is the
+    # sequence-level OOD score. Per-position remains SE (SVGP is
+    # seq-level by design — `DFM_SVGP_FINDINGS.md`).
+    "DFM_SVGP", "SFLM_SVGP",
+]
+
+# Existing baseline SVGP checkpoint (DFM_SVGP_FINDINGS Stage-2 run).
+EXISTING_SVGP_BASELINES = {
+    "DFM_SVGP": "runs/dfm_svgp_pure50_lr3e4/model_with_svgp_hinge.pt",
+}
 
 
 def _auroc(pos: torch.Tensor, neg: torch.Tensor) -> float:
@@ -75,22 +93,46 @@ def _per_pos_logits(model, name: str, ids: torch.Tensor, cfg: Config):
     """(B, L, K) per-position logits via each model's natural path, and the
     sequence-level energy score (None ⇒ fall back to mean SE)."""
     K = cfg.text8_dataset.K
+    # ---- 2-stage SVGP arms: delegate logits to the underlying generator,
+    #      sequence-energy is the SVGP probability (handled separately
+    #      in main()).
+    if name == "DFM_SVGP":
+        t = torch.full((ids.shape[0],), 0.99, device=ids.device)
+        return model.forward(ids, t), None
+    if name == "SFLM_SVGP":
+        z = model.encode(ids)
+        return model.decode_to_logprobs(z), None
+    # ---- Stage-1 generators / EBMs as before.
     if name == "DFM":
         t = torch.full((ids.shape[0],), 0.99, device=ids.device)
         return model.forward(ids, t), None
     if name == "SFLM":
-        # Generator (no energy field); decode at eval_gamma — bench falls
-        # back to mean spilled energy for the sequence score (like DFM).
         z = model.encode(ids)
         return model.decode_to_logprobs(z), None
-    if name == "EqM":  # simplex: CLR features, no encode()
+    if name in ("EqM", "EqM_OneHot"):
         feats = token_ids_to_features(
             ids, K, label_smoothing=cfg.transformation.label_smoothing
         )
         return model.decode_to_logprobs(feats), model.energy(feats)
+    if name == "DirichletFM":
+        t = torch.full((ids.shape[0],), 0.99 * model.t_max,
+                       device=ids.device, dtype=torch.float32)
+        # DFM-family: input must be a simplex draw conditioned on ids.
+        x_t = model._sample_xt(ids.long(), t)
+        return model.forward(x_t, t).log_softmax(dim=-1), None
     # SFLMEBM / SFLMEBM_FM / EqMLatent: learned embedding lookup.
     z = model.encode(ids)
     return model.decode_to_logprobs(z), model.energy(z)
+
+
+@torch.no_grad()
+def _svgp_score(model, name: str, ids: torch.Tensor) -> torch.Tensor | None:
+    """Per-sequence SVGP latent-mean Bernoulli probability — the calibrated
+    OOD score from the 2-stage detectors. Higher = more OOD."""
+    if not name.endswith("_SVGP") or not hasattr(model, "ood_score"):
+        return None
+    out = model.ood_score(ids)
+    return out["prob"].detach()
 
 
 @torch.no_grad()
@@ -127,9 +169,32 @@ EXISTING_BASELINES = {
 
 
 def _load(name: str, device, root: str):
-    # SFLMEBM: from the freshly trained sflm_bench_<scale> run. Baselines:
-    # prefer the sflm_bench run if present (cluster), else fall back to the
-    # reusable existing checkpoint (local).
+    """Load Stage-1 or Stage-2 checkpoints depending on the arm name.
+
+    Stage-2 SVGP arms map ``DFM_SVGP`` → look for
+    ``model_with_svgp_hinge.pt`` next to the corresponding Stage-1 ``DFM``
+    checkpoint; same for SFLM_SVGP. Falls back to the existing
+    well-trained baseline at ``runs/dfm_svgp_pure50_lr3e4/`` for
+    DFM_SVGP when no fresh Stage-2 fit is present in this scale.
+    """
+    # 2-stage SVGP arms: load model_with_svgp_hinge.pt + cfg.training.model_name
+    # must already point at the wrapper class (DirichletFMSvgp / SFLMSvgp).
+    if name.endswith("_SVGP"):
+        stage1 = name[: -len("_SVGP")]
+        ckpt = Path(f"{root}/{stage1}/model_with_svgp_hinge.pt")
+        if not ckpt.exists() and name in EXISTING_SVGP_BASELINES:
+            ckpt = Path(EXISTING_SVGP_BASELINES[name])
+            print(f"[{name}] reusing existing SVGP checkpoint {ckpt}")
+        if not ckpt.exists():
+            return None, None
+        payload = torch.load(ckpt, map_location="cpu", weights_only=False)
+        cfg = _config_from_payload(payload)
+        model = build_model(cfg).to(device)
+        state = payload.get("model_state_dict", payload)
+        model.load_state_dict(state, strict=False)
+        model.eval()
+        return model, cfg
+
     ckpt = Path(f"{root}/{name}/epoch_final.pt")
     if not ckpt.exists() and name in EXISTING_BASELINES:
         ckpt = Path(EXISTING_BASELINES[name])
@@ -187,12 +252,26 @@ def main() -> None:
         cl_seq_se = cl_SE.mean(-1)                              # baseline (B,)
         cl_pu = _position_uncertainty(model, name, clean, cfg)
 
-        # Universal SE baseline + (optional) model-natural energy for EBMs.
+        # Generation metric — BPD on held-out clean ids. Each model
+        # implements .bpd() in its natural geometry (EqM: NAG-GD recovery
+        # NLL; SFLMEBM/SFLM: SLERP recovery NLL; DirichletFM/DFM: pure
+        # denoiser NLL at high t). NaN if .bpd() is not defined.
+        try:
+            bpd_val = float(model.bpd(clean, max_steps=64))
+        except Exception as e:  # noqa: BLE001 — eval-time best-effort
+            print(f"[{name}] bpd unavailable: {type(e).__name__}: {e}")
+            bpd_val = float("nan")
+
+        # Universal SE baseline + (optional) model-natural energy for EBMs
+        # + (optional) SVGP Bernoulli probability for 2-stage detectors.
+        cl_svgp = _svgp_score(model, name, clean)
         res = {
-            "seq_se_auroc": {},      # universal baseline (every model)
-            "seq_energy_auroc": {},  # model.energy if available (EBMs)
-            "pospair_se_auroc": {},  # universal per-position baseline
-            "pospair_pu_auroc": {},  # ‖∇E‖ if available (EBMs)
+            "bpd": bpd_val,
+            "seq_se_auroc": {},        # universal baseline (every model)
+            "seq_energy_auroc": {},    # model.energy if available (EBMs)
+            "seq_svgp_auroc": {},      # SVGP prob if available (2-stage)
+            "pospair_se_auroc": {},    # universal per-position baseline
+            "pospair_pu_auroc": {},    # ‖∇E‖ if available (EBMs)
         }
         for cname, (cids, cmask) in corruptions.items():
             co_logits, co_E = _per_pos_logits(model, name, cids, cfg)
@@ -202,6 +281,10 @@ def main() -> None:
             # (1b) Model-natural energy (EBMs only) — what beats baseline?
             if cl_E is not None and co_E is not None:
                 res["seq_energy_auroc"][cname] = _auroc(co_E, cl_E)
+            # (1c) SVGP probability (2-stage only).
+            if cl_svgp is not None:
+                co_svgp = _svgp_score(model, name, cids)
+                res["seq_svgp_auroc"][cname] = _auroc(co_svgp, cl_svgp)
             # (2a) Per-position SE localisation (universal baseline).
             if cmask.any() and (~cmask).any():
                 res["pospair_se_auroc"][cname] = _auroc(
@@ -233,6 +316,13 @@ def main() -> None:
     loc = [c for c in cs if c != "rand"]   # rand changes all positions
 
     print("\n" + "=" * 90)
+    print("(0) GENERATION  —  reconstruction bits-per-character on held-out val")
+    print("=" * 90)
+    print(f"{'model':12s}  {'BPD':>8s}")
+    for n, r in results.items():
+        print(f"{n:12s}  {_fmt(r['bpd'], 8)}")
+
+    print("\n" + "=" * 90)
     print("(1) SEQUENCE-level  AUROC  (clean vs corrupted; 0.5=chance, 1=perfect)")
     print("    BASELINE = mean spilled energy (universal).  EBMs also report "
           "model.energy.")
@@ -249,6 +339,26 @@ def main() -> None:
             e = r["seq_energy_auroc"].get(c)
             row += f"  {_fmt(se, 10)} {_fmt(e, 8)} {_delta(e, se, 8)}"
         print(row)
+
+    # 2-stage SVGP table — only relevant for arms that have a fitted head.
+    svgp_arms = [n for n, r in results.items() if r["seq_svgp_auroc"]]
+    if svgp_arms:
+        print("\n" + "=" * 90)
+        print("(1b) 2-STAGE SVGP DETECTORS — Bernoulli prob AUROC")
+        print("     Δ-vs-baseline = SVGP_prob_AUROC − spilled_energy_AUROC.")
+        print("=" * 90)
+        header = f"{'arm':12s}"
+        for c in cs:
+            header += f"  {c+'/SE':>10s} {c+'/SVGP':>10s} {'Δ':>8s}"
+        print(header)
+        for n in svgp_arms:
+            r = results[n]
+            row = f"{n:12s}"
+            for c in cs:
+                se = r["seq_se_auroc"].get(c, float("nan"))
+                sv = r["seq_svgp_auroc"].get(c)
+                row += f"  {_fmt(se, 10)} {_fmt(sv, 10)} {_delta(sv, se, 8)}"
+            print(row)
 
     print("\n" + "=" * 90)
     print("(2) PER-POSITION  AUROC  (changed vs unchanged inside corrupted seqs)")
