@@ -51,6 +51,7 @@ from aitchinson_flow.data.transforms import token_ids_to_features  # noqa: E402
 from aitchinson_flow.models import build_model  # noqa: E402
 from aitchinson_flow.training import build_training_datamodule  # noqa: E402
 from scripts.eval_full import _config_from_payload  # noqa: E402
+from scripts._ensure_ckpt import ensure_checkpoint  # noqa: E402
 
 MODELS = [
     # EBMs with a native energy field (sequence + per-position readouts).
@@ -168,44 +169,25 @@ EXISTING_BASELINES = {
 }
 
 
-def _load(name: str, device, root: str):
-    """Load Stage-1 or Stage-2 checkpoints depending on the arm name.
-
-    Stage-2 SVGP arms map ``DFM_SVGP`` → look for
-    ``model_with_svgp_hinge.pt`` next to the corresponding Stage-1 ``DFM``
-    checkpoint; same for SFLM_SVGP. Falls back to the existing
-    well-trained baseline at ``runs/dfm_svgp_pure50_lr3e4/`` for
-    DFM_SVGP when no fresh Stage-2 fit is present in this scale.
-    """
-    # 2-stage SVGP arms: load model_with_svgp_hinge.pt + cfg.training.model_name
-    # must already point at the wrapper class (DirichletFMSvgp / SFLMSvgp).
-    if name.endswith("_SVGP"):
-        stage1 = name[: -len("_SVGP")]
-        ckpt = Path(f"{root}/{stage1}/model_with_svgp_hinge.pt")
-        if not ckpt.exists() and name in EXISTING_SVGP_BASELINES:
-            ckpt = Path(EXISTING_SVGP_BASELINES[name])
-            print(f"[{name}] reusing existing SVGP checkpoint {ckpt}")
-        if not ckpt.exists():
-            return None, None
-        payload = torch.load(ckpt, map_location="cpu", weights_only=False)
-        cfg = _config_from_payload(payload)
-        model = build_model(cfg).to(device)
-        state = payload.get("model_state_dict", payload)
-        model.load_state_dict(state, strict=False)
-        model.eval()
-        return model, cfg
-
-    ckpt = Path(f"{root}/{name}/epoch_final.pt")
-    if not ckpt.exists() and name in EXISTING_BASELINES:
-        ckpt = Path(EXISTING_BASELINES[name])
-        print(f"[{name}] reusing existing checkpoint {ckpt}")
-    if not ckpt.exists():
+def _load(name: str, device, scale: str, *,
+          epochs: int, svgp_epochs: int, auto_train: bool):
+    """Load Stage-1 or Stage-2 checkpoints, auto-training/-fitting any
+    missing arm via :func:`ensure_checkpoint`.  Pass ``--no-auto-train``
+    to revert to the legacy "skip if missing / fall back to existing
+    repo baselines" behaviour."""
+    ckpt = ensure_checkpoint(
+        name, scale=scale, epochs=epochs, svgp_epochs=svgp_epochs,
+        auto_train=auto_train,
+    )
+    if ckpt is None:
         return None, None
     payload = torch.load(ckpt, map_location="cpu", weights_only=False)
     cfg = _config_from_payload(payload)
     model = build_model(cfg).to(device)
     state = payload.get("model_state_dict", payload)
-    model.load_state_dict(state)
+    # SVGP arms have a Stage-1 sub-module → strict=False so unknown keys
+    # from a Stage-1 fallback don't error.
+    model.load_state_dict(state, strict=not name.endswith("_SVGP"))
     model.eval()
     return model, cfg
 
@@ -216,6 +198,13 @@ def main() -> None:
     ap.add_argument("--seed", type=int, default=1234)
     ap.add_argument("--scale", choices=["local", "cluster"], default="local",
                     help="which sflm_bench_<scale> checkpoints to benchmark")
+    ap.add_argument("--epochs", type=int, default=50,
+                    help="epochs for any arm that needs auto-training")
+    ap.add_argument("--svgp-epochs", type=int, default=5,
+                    help="epochs for any SVGP arm that needs auto-fitting")
+    ap.add_argument("--no-auto-train", action="store_true",
+                    help="revert to legacy 'skip / use existing baseline' "
+                         "behaviour when a checkpoint is missing")
     args = ap.parse_args()
     root = f"runs/sflm_bench_{args.scale}"
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -242,9 +231,13 @@ def main() -> None:
 
     results: dict = {}
     for name in MODELS:
-        model, cfg = _load(name, device, root)
+        model, cfg = _load(
+            name, device, args.scale,
+            epochs=args.epochs, svgp_epochs=args.svgp_epochs,
+            auto_train=not args.no_auto_train,
+        )
         if model is None:
-            print(f"[skip] {name}: no checkpoint")
+            print(f"[skip] {name}: no checkpoint and auto-train failed/disabled")
             continue
 
         cl_logits, cl_E = _per_pos_logits(model, name, clean, cfg)

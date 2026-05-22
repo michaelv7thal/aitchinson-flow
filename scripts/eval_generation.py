@@ -47,29 +47,20 @@ from aitchinson_flow.data.transforms import token_ids_to_features  # noqa: E402
 from aitchinson_flow.models import build_model  # noqa: E402
 from aitchinson_flow.training import build_training_datamodule  # noqa: E402
 from scripts.eval_full import _config_from_payload  # noqa: E402
+from scripts._ensure_ckpt import ensure_checkpoint  # noqa: E402
 
 # Five-arm unified comparison. SFLMEBM* arms are *not* in this list — they
 # live in the OOD bench; this file is the *generation* comparator.
 GEN_ARMS = ["EqM_OneHot", "EqMLatent", "EqM", "DirichletFM", "SFLM"]
 ALPHABET = "".join(sorted(CHAR2ID, key=CHAR2ID.__getitem__))
 
-# Existing tuned baseline checkpoints (re-used when a fresh sflm_bench_<scale>
-# run is absent — same fallback policy as bench_sflm_ebm.py).
-EXISTING_BASELINES = {
-    "EqM": "runs/dphase4_lambda_recalib/epoch_final.pt",
-    "EqMLatent": "runs/latent_d128_trainable_tied_ce0_ep20/epoch_final.pt",
-}
 
-
-# --------------------------------------------------------------------------
-# Loading
-# --------------------------------------------------------------------------
-def _load(arm: str, device, root: str):
-    ckpt = Path(f"{root}/{arm}/epoch_final.pt")
-    if not ckpt.exists() and arm in EXISTING_BASELINES:
-        ckpt = Path(EXISTING_BASELINES[arm])
-        print(f"[{arm}] reusing existing checkpoint {ckpt}")
-    if not ckpt.exists():
+def _load(arm: str, device, scale: str, *,
+          epochs: int, auto_train: bool):
+    ckpt = ensure_checkpoint(
+        arm, scale=scale, epochs=epochs, auto_train=auto_train,
+    )
+    if ckpt is None:
         return None, None
     payload = torch.load(ckpt, map_location="cpu", weights_only=False)
     cfg = _config_from_payload(payload)
@@ -185,6 +176,10 @@ def main() -> None:
     ap.add_argument("--steps", type=int, default=200,
                     help="recovery sampler max_steps")
     ap.add_argument("--recover-alphas", type=str, default="0.1,0.3,0.5,1.0")
+    ap.add_argument("--epochs", type=int, default=50,
+                    help="epochs for any arm that needs auto-training")
+    ap.add_argument("--no-auto-train", action="store_true",
+                    help="revert to legacy 'skip if missing' behaviour")
     args = ap.parse_args()
     root = f"runs/sflm_bench_{args.scale}"
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -209,9 +204,12 @@ def main() -> None:
 
     results: dict = {}
     for arm in GEN_ARMS:
-        model, cfg = _load(arm, device, root)
+        model, cfg = _load(
+            arm, device, args.scale,
+            epochs=args.epochs, auto_train=not args.no_auto_train,
+        )
         if model is None:
-            print(f"[skip] {arm}: no checkpoint at {root}/{arm}/")
+            print(f"[skip] {arm}: no checkpoint and auto-train failed/disabled")
             continue
         print(f"\n=== {arm} ===")
         torch.manual_seed(args.seed)
