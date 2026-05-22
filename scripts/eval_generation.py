@@ -112,12 +112,13 @@ def _generate_ids(arm: str, model, cfg, n: int, L: int) -> torch.Tensor:
 
 
 @torch.no_grad()
-def _bpd(arm: str, model, cfg, ids: torch.Tensor) -> float:
+def _bpc(arm: str, model, cfg, ids: torch.Tensor) -> float:
     """Bits-per-character.  For the latent / sphere / CLR families this is
-    the model's own recovery-NLL BPD.  For DirichletFM (no bpd method) we
-    compute the denoiser NLL at t close to ``t_max`` evaluated on a
-    Dirichlet draw conditioned on the clean ids — the natural BPD analogue.
-    """
+    the model's own recovery-NLL ``.bpd()``.  For DirichletFM (no bpd method)
+    we compute the denoiser NLL at t close to ``t_max`` evaluated on a
+    Dirichlet draw conditioned on the clean ids — the natural per-character
+    NLL.  PPL = 2**BPC and BPB = BPC on text8 (one ASCII byte per token);
+    both are derived from this single quantity in the caller."""
     if hasattr(model, "bpd"):
         return float(model.bpd(ids, max_steps=64))
     if arm == "DirichletFM":
@@ -141,10 +142,32 @@ def _bpd(arm: str, model, cfg, ids: torch.Tensor) -> float:
 def _recover_acc(
     arm: str, model, cfg, ids: torch.Tensor, alpha: float, steps: int
 ) -> float | None:
-    """Token-level recovery accuracy at perturbation scale α (per
-    recovery_check.py).  Returns None when the arm has no x_init hook."""
+    """Token-level recovery accuracy at perturbation scale α.
+
+    Latent / sphere / CLR arms (EqM, EqMLatent, SFLM, …): perturb the
+    encoded latent by α·embed_norm·N(0, I) and re-sample with the
+    perturbed latent as ``x_init``.  Mirrors ``recovery_check.py``.
+
+    DirichletFM (Stark et al.) has no Euclidean latent to add Gaussian
+    noise to, so we use the *partial-path* analogue: take a Dirichlet
+    draw conditioned on the clean ids at a path time ``t_start`` chosen
+    so that α=0 ⇔ t_start=t_max (no perturbation) and α=1 ⇔ t_start=1
+    (uniform Dirichlet, i.e. full perturbation), then integrate forward.
+    Geometry-aware and directly comparable to the latent-space recovery.
+    """
     if arm == "DirichletFM":
-        return None  # no x_init pathway in the marginal-velocity sampler
+        device = next(model.parameters()).device
+        ids_dev = ids.to(device).long()
+        B, L = ids_dev.shape
+        t_max = float(model.t_max)
+        t_start = max(1.0, t_max - float(alpha) * (t_max - 1.0))
+        t_b = torch.full((B,), t_start, device=device, dtype=torch.float32)
+        with torch.no_grad():
+            x_init = model._sample_xt(ids_dev, t_b)
+            rec = model.sample(
+                B, L, x_init=x_init, t_start=t_start, nfe=steps,
+            ).cpu()
+        return float((rec == ids.cpu()).float().mean())
     device = next(model.parameters()).device
     ids = ids.to(device).long()
     K = cfg.text8_dataset.K
@@ -170,7 +193,9 @@ def _recover_acc(
 # --------------------------------------------------------------------------
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--scale", choices=["local", "cluster"], default="cluster")
+    ap.add_argument("--scale", choices=["local", "cluster", "a100_20g"],
+                    default="cluster",
+                    help="a100_20g = d1024/12L medium-tier on the A100 MIG")
     ap.add_argument("--n", type=int, default=256)
     ap.add_argument("--seed", type=int, default=1234)
     ap.add_argument("--steps", type=int, default=200,
@@ -213,7 +238,8 @@ def main() -> None:
             continue
         print(f"\n=== {arm} ===")
         torch.manual_seed(args.seed)
-        bpd = _bpd(arm, model, cfg, clean_val)
+        bpc = _bpc(arm, model, cfg, clean_val)
+        ppl, bpb = float(2.0 ** bpc), bpc  # BPB ≡ BPC on text8 (1 byte/token)
 
         # Unconditional generation → n-gram KL.
         gen_ids = _generate_ids(arm, model, cfg, args.n, L)
@@ -234,11 +260,13 @@ def main() -> None:
             print(f"  α={a:.2f}  recover_acc={tag}")
 
         results[arm] = {
-            "bpd": bpd, "KL_uni": kl_u, "KL_bi": kl_b, "KL_tri": kl_t,
+            "ppl": ppl, "bpb": bpb, "bpc": bpc,
+            "KL_uni": kl_u, "KL_bi": kl_b, "KL_tri": kl_t,
             "H_gen": H_gen, "recover": rec_curve,
             "sample0": sample_text,
         }
-        print(f"  BPD={bpd:.3f}  KL_uni={kl_u:.4f}  KL_bi={kl_b:.4f}  "
+        print(f"  PPL={ppl:7.3f}  BPB={bpb:.3f}  BPC={bpc:.3f}  "
+              f"KL_uni={kl_u:.4f}  KL_bi={kl_b:.4f}  "
               f"KL_tri={kl_t:.4f}  H_gen={H_gen:.3f}")
         print(f"  sample[0]: {sample_text!r}")
 
@@ -247,12 +275,14 @@ def main() -> None:
     out_path.write_text(json.dumps(results, indent=2))
 
     # ---- printed comparison table ----
-    print("\n" + "=" * 100)
-    print("UNIFIED GENERATION COMPARISON  (5 arms; lower BPD/KL = better;"
-          " higher recover_acc = better)")
-    print("=" * 100)
-    head = (f"{'arm':12s}  {'BPD':>7s}  {'KL_uni':>8s}  {'KL_bi':>8s}  "
-            f"{'KL_tri':>8s}  {'H_gen':>7s}")
+    print("\n" + "=" * 110)
+    print("UNIFIED GENERATION COMPARISON  (5 arms; lower PPL/BPB/BPC/KL = "
+          "better; higher recover_acc = better)")
+    print("    (text8: BPB ≡ BPC since each token is one ASCII byte;"
+          " BPC is the legacy text8 column)")
+    print("=" * 110)
+    head = (f"{'arm':12s}  {'PPL':>7s}  {'BPB':>6s}  {'BPC':>6s}  "
+            f"{'KL_uni':>8s}  {'KL_bi':>8s}  {'KL_tri':>8s}  {'H_gen':>6s}")
     head += "".join(f"  {'rec@'+str(a):>7s}" for a in alphas)
     print(head)
     for arm in GEN_ARMS:
@@ -260,8 +290,9 @@ def main() -> None:
         if r is None:
             print(f"{arm:12s}  (missing checkpoint)")
             continue
-        row = (f"{arm:12s}  {r['bpd']:7.3f}  {r['KL_uni']:8.4f}  "
-               f"{r['KL_bi']:8.4f}  {r['KL_tri']:8.4f}  {r['H_gen']:7.3f}")
+        row = (f"{arm:12s}  {r['ppl']:7.3f}  {r['bpb']:6.3f}  {r['bpc']:6.3f}  "
+               f"{r['KL_uni']:8.4f}  {r['KL_bi']:8.4f}  {r['KL_tri']:8.4f}  "
+               f"{r['H_gen']:6.3f}")
         for a in alphas:
             v = r["recover"].get(a)
             row += f"  {'—':>7s}" if v is None else f"  {v:7.3f}"

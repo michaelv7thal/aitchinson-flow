@@ -39,21 +39,35 @@ from aitchinson_flow.training import (  # noqa: E402
 # best existing runs/ checkpoints) so the comparison is each method at its
 # best, not a strawman.
 #
-#   local   — fits an 8 GB laptop GPU with all four models, incl. SFLMEBM's
-#             4-forward hinge and EqM/EqMLatent second-order autograd.
-#             A serious run (vs the d256/4L/6ep smoke) for local dev.
-#   cluster — d1024/8L, batch 64: the DFM_SVGP_FINDINGS.md Stage-1
-#             reference scale. Needs ~16-18 GB → run on the 20 GB cluster.
+#   local    — fits an 8 GB laptop GPU with all four models, incl.
+#              SFLMEBM's 4-forward hinge and EqM/EqMLatent second-order
+#              autograd. A serious run (vs the d256/4L/6ep smoke) for
+#              local dev.
+#   cluster  — d1024/8L, batch 64: the DFM_SVGP_FINDINGS.md Stage-1
+#              reference scale (~85M params, the "paper-small" tier of
+#              the diffusion-LM / Dirichlet-FM literature).
+#   a100_20g — d1024/12L, batch 32: the *modern medium* benchmark tier
+#              (~120M params, GPT-2-small-equivalent depth) that fits a
+#              20 GB A100 MIG with headroom for the worst-case arm
+#              (SFLMEBM_FM second-order autograd). Also bumps the data
+#              budget to 50k windows — the cluster preset's 10k is the
+#              actual bottleneck at ~100M params, not the model size.
 SCALES = {
-    #          d_model, n_layers, n_head, batch
-    "local":   (512, 6, 8, 16),
-    "cluster": (1024, 8, 8, 64),
+    "local":    {"d_model": 512,  "n_layers": 6,  "n_heads": 8,  "batch": 16,
+                 "max_train_windows": 10_000, "max_eval_windows": 5_000},
+    "cluster":  {"d_model": 1024, "n_layers": 8,  "n_heads": 8,  "batch": 64,
+                 "max_train_windows": 10_000, "max_eval_windows": 5_000},
+    "a100_20g": {"d_model": 1024, "n_layers": 12, "n_heads": 16, "batch": 32,
+                 "max_train_windows": 50_000, "max_eval_windows": 5_000},
 }
 D_EMBED = 128  # EqMLatent + SFLMEBM latent dim (matched; = best EqMLatent run)
 
 
 def _base_cfg(epochs: int, out_dir: str, scale: str) -> Config:
-    d_model, n_layers, n_head, batch = SCALES[scale]
+    s = SCALES[scale]
+    d_model, n_layers, n_head, batch = (
+        s["d_model"], s["n_layers"], s["n_heads"], s["batch"],
+    )
     cfg = Config()
     cfg.training = replace(
         cfg.training,
@@ -73,7 +87,12 @@ def _base_cfg(epochs: int, out_dir: str, scale: str) -> Config:
     # LoaderSettings.batch_size is frozen at the class default (64); the
     # datamodule reads it, so it must be rebuilt for the batch override.
     cfg.loader_settings = replace(cfg.loader_settings, batch_size=batch)
-    cfg.text8_dataset = replace(cfg.text8_dataset, batch_size=batch)
+    cfg.text8_dataset = replace(
+        cfg.text8_dataset,
+        batch_size=batch,
+        max_train_windows=s["max_train_windows"],
+        max_eval_windows=s["max_eval_windows"],
+    )
     cfg.wandb = replace(cfg.wandb, enabled=False, mode="disabled")
     # Corruption on (default 0.15) → collate emits token_ids_invalid, which
     # the SFLMEBM hinge consumes; harmless for the others.
@@ -155,7 +174,9 @@ def main() -> None:
     ap.add_argument("--only", type=str, default=None,
                     help="train just this model name")
     args = ap.parse_args()
-    d_model, n_layers, _, batch = SCALES[args.scale]
+    s = SCALES[args.scale]
+    d_model, n_layers, batch = s["d_model"], s["n_layers"], s["batch"]
+    n_windows = s["max_train_windows"]
 
     names = ARMS
     if args.only:
@@ -166,7 +187,8 @@ def main() -> None:
 
     for name in names:
         print(f"\n{'='*70}\n=== TRAIN {name} [{args.scale}] ({args.epochs} ep, "
-              f"d_model={d_model}/{n_layers}L, B={batch}) ===\n{'='*70}",
+              f"d_model={d_model}/{n_layers}L, B={batch}, "
+              f"n_train_windows={n_windows}) ===\n{'='*70}",
               flush=True)
         cfg = _model_cfg(name, args.epochs, args.scale)
         Path(cfg.training.checkpoint_dir).mkdir(parents=True, exist_ok=True)

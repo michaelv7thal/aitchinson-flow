@@ -136,20 +136,50 @@ class DirichletFlowMatching(nn.Module):
         return {TRAINING_LOSS_KEY: loss}
 
     @torch.no_grad()
-    def sample(self, B: int, L: int, *, nfe: int | None = None) -> torch.Tensor:
+    def sample(
+        self,
+        B: int,
+        L: int,
+        *,
+        nfe: int | None = None,
+        x_init: torch.Tensor | None = None,
+        t_start: float | None = None,
+        max_steps: int | None = None,
+        **_: object,
+    ) -> torch.Tensor:
         """Euler integration of the marginal vector field, t: 1 → t_max.
 
         Returns argmax token IDs (B, L).
+
+        Optional ``x_init`` + ``t_start`` enable the *partial-path*
+        recovery test used by :mod:`scripts.eval_generation` — instead
+        of starting from Dir(1,…,1) at t=1, start from a user-supplied
+        simplex point at ``t_start ∈ [1, t_max]`` and integrate forward.
+        The natural recovery construction is ``x_init = _sample_xt(
+        clean_ids, t_start)`` so the perturbation level is set by the
+        choice of ``t_start`` (lower t = noisier, t_max = clean).
+
+        ``max_steps`` is accepted for cross-arm API compatibility with
+        ``recovery_check.py`` / ``eval_generation`` and is aliased to
+        ``nfe`` when ``nfe`` itself is not provided.
         """
         if nfe is None:
-            nfe = self.cfg.dirichlet_fm.sample_nfe
+            nfe = max_steps if max_steps is not None else self.cfg.dirichlet_fm.sample_nfe
         K = self.cfg.text8_dataset.K
         device = next(self.parameters()).device
+        start_t = float(t_start) if t_start is not None else 1.0
+        if not (1.0 <= start_t <= self.t_max):
+            raise ValueError(
+                f"t_start={start_t} must lie in [1, t_max={self.t_max}]"
+            )
 
-        # Initial: Dir(1,...,1) = uniform on the simplex.
-        x = Dirichlet(torch.ones(B, L, K, device=device)).sample()
+        if x_init is not None:
+            x = x_init.to(device).to(dtype=torch.float32)
+        else:
+            # Initial: Dir(1,...,1) = uniform on the simplex.
+            x = Dirichlet(torch.ones(B, L, K, device=device)).sample()
 
-        t_grid = torch.linspace(1.0, self.t_max, nfe + 1, device=device)
+        t_grid = torch.linspace(start_t, self.t_max, nfe + 1, device=device)
         for i in range(nfe):
             t = float(t_grid[i].item())
             dt = float((t_grid[i + 1] - t_grid[i]).item())

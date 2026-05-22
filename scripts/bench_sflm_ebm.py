@@ -196,8 +196,11 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--n", type=int, default=256)
     ap.add_argument("--seed", type=int, default=1234)
-    ap.add_argument("--scale", choices=["local", "cluster"], default="local",
-                    help="which sflm_bench_<scale> checkpoints to benchmark")
+    ap.add_argument("--scale",
+                    choices=["local", "cluster", "a100_20g"],
+                    default="local",
+                    help="which sflm_bench_<scale> checkpoints to benchmark; "
+                         "a100_20g = d1024/12L medium-tier on the A100 MIG")
     ap.add_argument("--epochs", type=int, default=50,
                     help="epochs for any arm that needs auto-training")
     ap.add_argument("--svgp-epochs", type=int, default=5,
@@ -245,21 +248,29 @@ def main() -> None:
         cl_seq_se = cl_SE.mean(-1)                              # baseline (B,)
         cl_pu = _position_uncertainty(model, name, clean, cfg)
 
-        # Generation metric — BPD on held-out clean ids. Each model
-        # implements .bpd() in its natural geometry (EqM: NAG-GD recovery
-        # NLL; SFLMEBM/SFLM: SLERP recovery NLL; DirichletFM/DFM: pure
-        # denoiser NLL at high t). NaN if .bpd() is not defined.
+        # Generation metric — reconstruction NLL on held-out clean ids.
+        # Each model exposes ``.bpd()`` in its natural geometry (EqM:
+        # NAG-GD recovery NLL; SFLMEBM/SFLM: SLERP recovery NLL;
+        # DirichletFM/DFM: pure denoiser NLL at high t). We report PPL,
+        # BPB, and BPC — all derived from the same per-token NLL.  On
+        # text8 each token is one lowercase-ASCII byte, so BPB ≡ BPC;
+        # both columns are shown for cross-paper comparability (BPC is
+        # the legacy text8 number; BPB is the modern LM convention).
         try:
-            bpd_val = float(model.bpd(clean, max_steps=64))
+            bpc_val = float(model.bpd(clean, max_steps=64))   # = NLL/log(2)
+            ppl_val = float(2.0 ** bpc_val)                    # 2^BPC
+            bpb_val = bpc_val                                   # text8: byte == char
         except Exception as e:  # noqa: BLE001 — eval-time best-effort
             print(f"[{name}] bpd unavailable: {type(e).__name__}: {e}")
-            bpd_val = float("nan")
+            bpc_val = ppl_val = bpb_val = float("nan")
 
         # Universal SE baseline + (optional) model-natural energy for EBMs
         # + (optional) SVGP Bernoulli probability for 2-stage detectors.
         cl_svgp = _svgp_score(model, name, clean)
         res = {
-            "bpd": bpd_val,
+            "ppl": ppl_val,
+            "bpb": bpb_val,
+            "bpc": bpc_val,
             "seq_se_auroc": {},        # universal baseline (every model)
             "seq_energy_auroc": {},    # model.energy if available (EBMs)
             "seq_svgp_auroc": {},      # SVGP prob if available (2-stage)
@@ -309,11 +320,15 @@ def main() -> None:
     loc = [c for c in cs if c != "rand"]   # rand changes all positions
 
     print("\n" + "=" * 90)
-    print("(0) GENERATION  —  reconstruction bits-per-character on held-out val")
+    print("(0) GENERATION  —  reconstruction perplexity / bits-per-byte / "
+          "bits-per-char on val")
+    print("    (text8: BPB ≡ BPC since each token is one ASCII byte;"
+          " BPC kept as legacy column)")
     print("=" * 90)
-    print(f"{'model':12s}  {'BPD':>8s}")
+    print(f"{'model':12s}  {'PPL':>8s}  {'BPB':>8s}  {'BPC':>8s}")
     for n, r in results.items():
-        print(f"{n:12s}  {_fmt(r['bpd'], 8)}")
+        print(f"{n:12s}  {_fmt(r['ppl'], 8)}  {_fmt(r['bpb'], 8)}  "
+              f"{_fmt(r['bpc'], 8)}")
 
     print("\n" + "=" * 90)
     print("(1) SEQUENCE-level  AUROC  (clean vs corrupted; 0.5=chance, 1=perfect)")
