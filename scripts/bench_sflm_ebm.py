@@ -1,27 +1,31 @@
-"""Spilled-energy benchmark: SFLMEBM vs EqM / EqMLatent / DFM on text8.
+"""Spilled-energy benchmark on text8.
 
-Two questions, both about whether the model's energy localises corruption:
+**Spilled energy is the baseline** ``SE(i) = logsumexp_v logits_i −
+logits_i[token_i]`` — per-position NLL of the placed token, defined
+uniformly for every model (all expose per-position logits). It's the
+trivial single-forward OOD signal. The competing question for an EBM
+is whether its specialised readouts (sequence-level ``model.energy``,
+per-position Riemannian ``‖∇E‖``) *beat plain SE* on the same model
+and corpus, at sequence and per-position level.
 
-  (1) SEQUENCE level — clean vs corrupted AUROC. Each model's natural
-      sequence score (``model.energy`` for the EqM family; mean
-      per-position spilled energy for DFM).
+Layout:
 
-  (2) PER-POSITION level — *spilled-energy localisation*. For substitution
-      corruption we know exactly which positions changed. Score every
-      position by its spilled energy ``SE(i) = logsumexp_v logits_i −
-      logits_i[token_i]`` (uniform across models — all expose per-position
-      logits) and report AUROC of corrupted-vs-clean positions *within the
-      corrupted sequences*. This is the headline metric the user asked
-      for: does the energy spill at the right token?
+  (1) SEQ vs spilled energy — mean SE clean vs corrupted, **reported
+      for every model** (the universal baseline). For EBMs we also
+      report ``model.energy`` AUROC next to it; Δ = energy − SE shows
+      whether the EBM machinery beats the baseline.
 
-EqM-family models additionally expose ``position_uncertainty`` (Riemannian
-‖∇E‖ per position); reported alongside SE where available.
+  (2) PER-POSITION spilled-energy localisation — AUROC of corrupted
+      vs unchanged positions inside corrupted seqs (universal
+      baseline). EqM-family models also report ``‖∇E‖`` per-position
+      with the same delta framing.
 
-Reads runs/sflm_bench/<model>/epoch_final.pt (see
-scripts/train_for_sflm_bench.py). Writes runs/sflm_bench/bench.json + a
-printed table.
+Reads runs/sflm_bench_<scale>/<model>/epoch_final.pt (see
+scripts/train_for_sflm_bench.py) and falls back to the well-trained
+existing baseline checkpoints in runs/ where a fresh one is absent.
+Writes runs/sflm_bench_<scale>/bench.json + a printed table.
 
-Usage:  python scripts/bench_sflm_ebm.py [--n 256]
+Usage:  python scripts/bench_sflm_ebm.py --scale {local,cluster} [--n 256]
 """
 
 from __future__ import annotations
@@ -180,22 +184,30 @@ def main() -> None:
 
         cl_logits, cl_E = _per_pos_logits(model, name, clean, cfg)
         cl_SE = _spilled_energy(cl_logits, clean)               # (B, L)
-        cl_seq = cl_E if cl_E is not None else cl_SE.mean(-1)    # (B,)
+        cl_seq_se = cl_SE.mean(-1)                              # baseline (B,)
         cl_pu = _position_uncertainty(model, name, clean, cfg)
 
-        res = {"seq_auroc": {}, "pospair_se_auroc": {}, "pospair_pu_auroc": {}}
+        # Universal SE baseline + (optional) model-natural energy for EBMs.
+        res = {
+            "seq_se_auroc": {},      # universal baseline (every model)
+            "seq_energy_auroc": {},  # model.energy if available (EBMs)
+            "pospair_se_auroc": {},  # universal per-position baseline
+            "pospair_pu_auroc": {},  # ‖∇E‖ if available (EBMs)
+        }
         for cname, (cids, cmask) in corruptions.items():
             co_logits, co_E = _per_pos_logits(model, name, cids, cfg)
             co_SE = _spilled_energy(co_logits, cids)
-            co_seq = co_E if co_E is not None else co_SE.mean(-1)
-            # (1) sequence-level clean vs corrupted (corrupted scores higher)
-            res["seq_auroc"][cname] = _auroc(co_seq, cl_seq)
-            # (2) per-position localisation: changed vs unchanged positions
-            #     *inside the corrupted sequences*.
+            # (1a) BASELINE — mean spilled energy clean vs corrupted.
+            res["seq_se_auroc"][cname] = _auroc(co_SE.mean(-1), cl_seq_se)
+            # (1b) Model-natural energy (EBMs only) — what beats baseline?
+            if cl_E is not None and co_E is not None:
+                res["seq_energy_auroc"][cname] = _auroc(co_E, cl_E)
+            # (2a) Per-position SE localisation (universal baseline).
             if cmask.any() and (~cmask).any():
                 res["pospair_se_auroc"][cname] = _auroc(
                     co_SE[cmask], co_SE[~cmask]
                 )
+                # (2b) Per-position ‖∇E‖ localisation (EBMs).
                 if cl_pu is not None:
                     co_pu = _position_uncertainty(model, name, cids, cfg)
                     res["pospair_pu_auroc"][cname] = _auroc(
@@ -207,32 +219,54 @@ def main() -> None:
     Path(f"{root}/bench.json").write_text(json.dumps(results, indent=2))
 
     # ---- report ----
+    def _fmt(x, w=7):
+        return f"{x:>{w}.3f}" if isinstance(x, float) else f"{'—':>{w}}"
+
+    def _delta(a, b, w=7):
+        if not (isinstance(a, float) and isinstance(b, float)):
+            return f"{'—':>{w}}"
+        d = a - b
+        sign = "+" if d >= 0 else ""
+        return f"{sign}{d:>{w-1}.3f}"
+
     cs = list(corruptions)
-    print("\n" + "=" * 78)
-    print("(1) SEQUENCE-level AUROC  (clean vs corrupted; 0.5=chance, 1=perfect)")
-    print("=" * 78)
-    print(f"{'model':10s} " + " ".join(f"{c:>10s}" for c in cs))
-    for n, r in results.items():
-        print(f"{n:10s} " + " ".join(
-            f"{r['seq_auroc'].get(c, float('nan')):10.3f}" for c in cs))
+    loc = [c for c in cs if c != "rand"]   # rand changes all positions
 
-    print("\n" + "=" * 78)
-    print("(2) PER-POSITION spilled-energy localisation AUROC")
-    print("    (changed vs unchanged positions within corrupted seqs)")
-    print("=" * 78)
-    loc = [c for c in cs if c != "rand"]  # rand changes all positions
-    print(f"{'model':10s} " + " ".join(f"{c:>10s}" for c in loc))
+    print("\n" + "=" * 90)
+    print("(1) SEQUENCE-level  AUROC  (clean vs corrupted; 0.5=chance, 1=perfect)")
+    print("    BASELINE = mean spilled energy (universal).  EBMs also report "
+          "model.energy.")
+    print("    Δ = energy − SE  →  positive means EBM beats the baseline.")
+    print("=" * 90)
+    header = f"{'model':12s}"
+    for c in cs:
+        header += f"  {c+'/SE':>10s} {c+'/E':>8s} {'Δ':>8s}"
+    print(header)
     for n, r in results.items():
-        print(f"{n:10s} " + " ".join(
-            f"{r['pospair_se_auroc'].get(c, float('nan')):10.3f}" for c in loc))
+        row = f"{n:12s}"
+        for c in cs:
+            se = r["seq_se_auroc"].get(c, float("nan"))
+            e = r["seq_energy_auroc"].get(c)
+            row += f"  {_fmt(se, 10)} {_fmt(e, 8)} {_delta(e, se, 8)}"
+        print(row)
 
-    print("\n--- per-position via Riemannian ‖∇E‖ (EqM family only) ---")
-    print(f"{'model':10s} " + " ".join(f"{c:>10s}" for c in loc))
+    print("\n" + "=" * 90)
+    print("(2) PER-POSITION  AUROC  (changed vs unchanged inside corrupted seqs)")
+    print("    BASELINE = spilled energy per position.  EBMs also report "
+          "Riemannian ‖∇E‖.")
+    print("    Δ = ‖∇E‖ − SE  →  positive means EBM machinery beats the baseline.")
+    print("=" * 90)
+    header = f"{'model':12s}"
+    for c in loc:
+        header += f"  {c+'/SE':>10s} {c+'/∇E':>8s} {'Δ':>8s}"
+    print(header)
     for n, r in results.items():
-        if r["pospair_pu_auroc"]:
-            print(f"{n:10s} " + " ".join(
-                f"{r['pospair_pu_auroc'].get(c, float('nan')):10.3f}"
-                for c in loc))
+        row = f"{n:12s}"
+        for c in loc:
+            se = r["pospair_se_auroc"].get(c, float("nan"))
+            pu = r["pospair_pu_auroc"].get(c)
+            row += f"  {_fmt(se, 10)} {_fmt(pu, 8)} {_delta(pu, se, 8)}"
+        print(row)
     print(f"\nWrote {root}/bench.json")
 
 
