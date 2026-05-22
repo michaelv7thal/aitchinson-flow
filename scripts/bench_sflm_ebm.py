@@ -96,10 +96,16 @@ def _per_pos_logits(model, name: str, ids: torch.Tensor, cfg: Config):
     K = cfg.text8_dataset.K
     # ---- 2-stage SVGP arms: delegate logits to the underlying generator,
     #      sequence-energy is the SVGP probability (handled separately
-    #      in main()).
+    #      in main()). In this codebase ``DFM_SVGP`` wraps Stark's
+    #      DirichletFM (per ``DFM_SVGP_FINDINGS.md``), so its forward
+    #      takes a *simplex* x_t, not ids — we sample x_t via the inner
+    #      ``model.dfm._sample_xt`` to obtain per-position logits.
     if name == "DFM_SVGP":
-        t = torch.full((ids.shape[0],), 0.99, device=ids.device)
-        return model.forward(ids, t), None
+        t_max = float(model.dfm.t_max)
+        t = torch.full((ids.shape[0],), 0.99 * t_max,
+                       device=ids.device, dtype=torch.float32)
+        x_t = model.dfm._sample_xt(ids.long(), t)
+        return model.forward(x_t, t).log_softmax(dim=-1), None
     if name == "SFLM_SVGP":
         z = model.encode(ids)
         return model.decode_to_logprobs(z), None
@@ -129,11 +135,22 @@ def _per_pos_logits(model, name: str, ids: torch.Tensor, cfg: Config):
 @torch.no_grad()
 def _svgp_score(model, name: str, ids: torch.Tensor) -> torch.Tensor | None:
     """Per-sequence SVGP latent-mean Bernoulli probability — the calibrated
-    OOD score from the 2-stage detectors. Higher = more OOD."""
+    OOD score from the 2-stage detectors. Higher = more OOD.
+
+    Returns ``None`` if the arm has no SVGP head or the SVGP hasn't been
+    fit yet (the shared ``_SVGPHead.forward`` raises
+    ``"called before fit()"`` until ``fit_svgp_hinge`` has run).  In that
+    case the bench falls back to spilled-energy as the seq score for that
+    arm — matching the behaviour for any other no-SVGP arm.
+    """
     if not name.endswith("_SVGP") or not hasattr(model, "ood_score"):
         return None
-    out = model.ood_score(ids)
-    return out["prob"].detach()
+    try:
+        out = model.ood_score(ids)
+        return out["prob"].detach()
+    except RuntimeError as e:
+        print(f"[{name}] SVGP score unavailable: {e}")
+        return None
 
 
 @torch.no_grad()
@@ -145,14 +162,21 @@ def _spilled_energy(logits: torch.Tensor, ids: torch.Tensor) -> torch.Tensor:
 
 
 def _position_uncertainty(model, name: str, ids: torch.Tensor, cfg: Config):
-    if name in ("DFM", "SFLM") or not hasattr(model, "position_uncertainty"):
+    # Models without a native per-position uncertainty field:
+    # SFLM (generator), DFM (categorical denoiser), DirichletFM (categorical
+    # denoiser), and the 2-stage SVGP wrappers (sequence-level only).
+    if (name in ("DFM", "SFLM", "DirichletFM")
+            or name.endswith("_SVGP")
+            or not hasattr(model, "position_uncertainty")):
         return None
-    if name == "EqM":
+    # Simplex EqM arms have no .encode(); use CLR features instead.
+    if name in ("EqM", "EqM_OneHot"):
         feats = token_ids_to_features(
             ids, cfg.text8_dataset.K,
             label_smoothing=cfg.transformation.label_smoothing,
         )
         return model.position_uncertainty(feats)
+    # EqMLatent / SFLMEBM / SFLMEBM_FM — learned-embedding lookup.
     return model.position_uncertainty(model.encode(ids))
 
 
