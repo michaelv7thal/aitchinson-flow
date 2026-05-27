@@ -1,24 +1,34 @@
 """Spilled-energy benchmark on text8.
 
-**Spilled energy is the baseline** ``SE(i) = logsumexp_v logits_i −
-logits_i[token_i]`` — per-position NLL of the placed token, defined
-uniformly for every model (all expose per-position logits). It's the
-trivial single-forward OOD signal. The competing question for an EBM
-is whether its specialised readouts (sequence-level ``model.energy``,
-per-position Riemannian ``‖∇E‖``) *beat plain SE* on the same model
-and corpus, at sequence and per-position level.
+**Spilled energy is the *universal* baseline**: ``SE(i) = logsumexp_v logits_i −
+logits_i[token_i]``, the per-position NLL of the placed token under a *fixed
+reference LM* (default: DFM, override with ``--ref-model``). The reference
+is loaded once and scores every test arm with the same logits, so the SE
+columns in the table are identical across arms by construction — any
+difference between arms in the headline OOD comparison must come from their
+*own* scores (``model.energy``, ``‖∇E‖``).
+
+For an EBM the question this bench answers is: do the specialised readouts
+beat the reference SE baseline, at sequence and per-position level?
 
 Layout:
 
-  (1) SEQ vs spilled energy — mean SE clean vs corrupted, **reported
-      for every model** (the universal baseline). For EBMs we also
-      report ``model.energy`` AUROC next to it; Δ = energy − SE shows
-      whether the EBM machinery beats the baseline.
+  (1) SEQ vs spilled energy — mean reference-LM SE clean vs corrupted.
+      Identical across arms. For EBMs the ``model.energy`` AUROC sits next
+      to it; Δ = energy − SE shows whether the EBM machinery beats the
+      reference baseline.
 
-  (2) PER-POSITION spilled-energy localisation — AUROC of corrupted
-      vs unchanged positions inside corrupted seqs (universal
-      baseline). EqM-family models also report ``‖∇E‖`` per-position
-      with the same delta framing.
+  (2) PER-POSITION spilled-energy localisation — AUROC of corrupted vs
+      unchanged positions, also identical across arms (reference). EqM
+      and SFLMEBM family also report ``‖∇E‖`` per-position with the same
+      delta framing.
+
+Earlier versions computed SE under *each arm's* own per-position logits.
+That conflates "is this arm's logit head sharp on the placed token?" with
+"is this sequence anomalous under a fixed LM?" and, for arms with an
+identity encode→decode path (SFLM), pegged seq_se_auroc at 1.0 trivially
+because clean SE was identically 0. The reference-LM design closes both
+confounds.
 
 Reads runs/sflm_bench_<scale>/<model>/epoch_final.pt (see
 scripts/train_for_sflm_bench.py) and falls back to the well-trained
@@ -26,6 +36,7 @@ existing baseline checkpoints in runs/ where a fresh one is absent.
 Writes runs/sflm_bench_<scale>/bench.json + a printed table.
 
 Usage:  python scripts/bench_sflm_ebm.py --scale {local,cluster} [--n 256]
+                                          [--ref-model DFM]
 """
 
 from __future__ import annotations
@@ -91,11 +102,12 @@ def _auroc(pos: torch.Tensor, neg: torch.Tensor) -> float:
 
 
 _NOISE_LEVEL = 0.7
-"""Common signal level γ/α/t at which every arm is scored — high enough
-that the denoiser is well-conditioned on the input, low enough that the
-encoder→decoder identity-leak (the SFLM/EqM ``decode_to_logprobs(encode(ids))``
-shortcut that pegged seq_se_auroc at 1.0) is closed.  All arms get the same
-nominal signal so SE comparisons are apples-to-apples."""
+"""Common signal level γ/α/t at which every arm is forwarded — high enough
+that the denoiser/EBM is well-conditioned on the input, low enough that the
+arm's training distribution is matched.  Used now only for the per-arm
+``model.energy`` and ``position_uncertainty`` readouts (and for the
+reference LM's own forward); the SE baseline is universal — see the
+reference-LM SE block in ``main()``."""
 
 
 def _uniform_sphere(shape, device, dtype=torch.float32):
@@ -292,6 +304,14 @@ def main() -> None:
     ap.add_argument("--no-auto-train", action="store_true",
                     help="revert to legacy 'skip / use existing baseline' "
                          "behaviour when a checkpoint is missing")
+    ap.add_argument("--ref-model", default="DFM", choices=MODELS,
+                    help="model used as the fixed reference LM for computing "
+                         "spilled energy. Loaded once; its per-position "
+                         "logits are reused to score every other arm, so "
+                         "SE columns are identical across arms (universal "
+                         "baseline). Default: DFM (well-trained char-level "
+                         "denoiser; closest thing to a calibrated text8 LM "
+                         "in the repo).")
     ap.add_argument("--subst-levels", type=str,
                     default="0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0",
                     help="substitution corruption rates to sweep")
@@ -344,6 +364,39 @@ def main() -> None:
                          generator=torch.Generator(device=device).manual_seed(args.seed))
     corruptions["rand"] = (rnd, torch.ones_like(rnd, dtype=torch.bool))
 
+    # --- Reference LM for spilled energy (universal baseline) --------------
+    # Load the reference model ONCE and cache its per-position logits on
+    # clean + every corruption.  Every test arm is then scored against
+    # these reference logits, so seq_se_auroc / pospair_se_auroc are
+    # identical across arms.  The arm-specific readouts (model.energy,
+    # position_uncertainty) remain per-arm.
+    print(f"[ref] loading reference LM '{args.ref_model}' "
+          f"for spilled-energy baseline …")
+    ref_model, ref_cfg = _load(
+        args.ref_model, device, args.scale,
+        epochs=args.epochs, svgp_epochs=args.svgp_epochs,
+        auto_train=not args.no_auto_train,
+    )
+    if ref_model is None:
+        raise RuntimeError(
+            f"Reference LM '{args.ref_model}' could not be loaded — "
+            "spilled-energy baseline requires a working reference. "
+            "Pass --ref-model to choose a different arm, or ensure the "
+            "checkpoint exists / auto-train succeeds."
+        )
+    ref_cl_logits, _ = _per_pos_logits(ref_model, args.ref_model, clean, ref_cfg)
+    ref_cl_SE = _spilled_energy(ref_cl_logits, clean)         # (B, L)
+    ref_cl_seq_se = ref_cl_SE.mean(-1)                        # (B,)
+    ref_co_SE: dict[str, torch.Tensor] = {}
+    for cname, (cids, _cmask) in corruptions.items():
+        co_logits, _ = _per_pos_logits(ref_model, args.ref_model, cids, ref_cfg)
+        ref_co_SE[cname] = _spilled_energy(co_logits, cids)   # (B, L)
+    ref_se_clean_mean = float(ref_cl_SE.mean())
+    print(f"[ref] clean SE mean = {ref_se_clean_mean:.4f} "
+          f"(reference: {args.ref_model})")
+    # Free the reference forward graph; the cached SE tensors are all we need.
+    del ref_model
+
     results: dict = {}
     for name in MODELS:
         model, cfg = _load(
@@ -355,10 +408,14 @@ def main() -> None:
             print(f"[skip] {name}: no checkpoint and auto-train failed/disabled")
             continue
 
-        cl_logits, cl_E = _per_pos_logits(model, name, clean, cfg)
-        cl_SE = _spilled_energy(cl_logits, clean)               # (B, L)
-        cl_seq_se = cl_SE.mean(-1)                              # baseline (B,)
+        # Arm-specific energy field (used only for the model.energy AUROC
+        # below; we discard the arm's own logits — SE comes from the fixed
+        # reference LM).
+        _, cl_E = _per_pos_logits(model, name, clean, cfg)
         cl_pu = _position_uncertainty(model, name, clean, cfg)
+        # Universal spilled-energy baseline — reference-LM SE, identical
+        # across arms by construction.
+        cl_seq_se = ref_cl_seq_se
 
         # Generation metric — reconstruction NLL on held-out clean ids.
         # Each model exposes ``.bpd()`` in its natural geometry (EqM:
@@ -376,13 +433,14 @@ def main() -> None:
             print(f"[{name}] bpd unavailable: {type(e).__name__}: {e}")
             bpc_val = ppl_val = bpb_val = float("nan")
 
-        # Universal SE baseline + (optional) model-natural energy for EBMs
+        # Reference-LM SE baseline + (optional) model-natural energy for EBMs
         # + (optional) SVGP Bernoulli probability for 2-stage detectors.
         cl_svgp = _svgp_score(model, name, clean)
-        # Diagnostics — surface SFLM-style "decoder reads input back" leakage
-        # (clean_se_mean ≈ 0 ⇒ the score is essentially identity on clean)
-        # and the sign convention of the energy head (clean vs corrupt mean).
-        cl_se_mean = float(cl_SE.mean())
+        # Diagnostics — clean_se_mean is now the *reference* LM's clean SE
+        # (identical across arms; useful as a sanity check that the same
+        # reference loaded successfully).  clean_energy_mean stays per-arm
+        # so the sign convention of each EBM's energy head is still visible.
+        cl_se_mean = ref_se_clean_mean
         cl_energy_mean = (
             float(cl_E.mean()) if cl_E is not None else None
         )
@@ -405,10 +463,12 @@ def main() -> None:
         res["seq_energy_auroc_signfree"] = {}
         res["seq_energy_sign"] = {}
         for cname, (cids, cmask) in corruptions.items():
-            co_logits, co_E = _per_pos_logits(model, name, cids, cfg)
-            co_SE = _spilled_energy(co_logits, cids)
+            # Arm-specific energy field; logits discarded — SE comes from
+            # the cached reference-LM logits computed once above.
+            _, co_E = _per_pos_logits(model, name, cids, cfg)
+            co_SE = ref_co_SE[cname]
             res["seq_se_corrupt"][cname] = float(co_SE.mean())
-            # (1a) BASELINE — mean spilled energy clean vs corrupted.
+            # (1a) BASELINE — mean reference-LM spilled energy clean vs corrupted.
             res["seq_se_auroc"][cname] = _auroc(co_SE.mean(-1), cl_seq_se)
             # (1b) Model-natural energy (EBMs only) — what beats baseline?
             if cl_E is not None and co_E is not None:
@@ -469,10 +529,12 @@ def main() -> None:
             print(row)
 
     print("\n" + "=" * 110)
-    print("(0) GENERATION  —  reconstruction NLL.  ⚠ bpc≈0 for arms whose "
-          "bpd() reads the input through .encode()→.decode_to_logprobs() "
-          "(SFLM/EqM/EqM_OneHot/EqMLatent) — that path is essentially identity; "
-          "treat 'real' NLL as the SE-clean column below.")
+    print("(0) GENERATION  —  reconstruction NLL (per-arm) + reference SE_clean "
+          "(identical across rows).  ⚠ bpc≈0 for arms whose bpd() reads the "
+          "input through .encode()→.decode_to_logprobs() (SFLM/EqM/EqM_OneHot/"
+          f"EqMLatent) — that path is essentially identity. SE_clean is the "
+          f"fixed reference LM '{args.ref_model}' (universal baseline); "
+          "E_clean is each EBM's own energy head.")
     print("    (text8: BPB ≡ BPC since each token is one ASCII byte)")
     print("=" * 110)
     print(f"{'model':12s}  {'PPL':>8s}  {'BPB':>8s}  {'BPC':>8s}  "
