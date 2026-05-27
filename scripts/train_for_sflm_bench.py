@@ -54,11 +54,34 @@ from aitchinson_flow.training import (  # noqa: E402
 #              actual bottleneck at ~100M params, not the model size.
 SCALES = {
     "local":    {"d_model": 512,  "n_layers": 6,  "n_heads": 8,  "batch": 16,
-                 "max_train_windows": 10_000, "max_eval_windows": 5_000},
+                 "max_train_windows": 10_000, "max_eval_windows": 5_000,
+                 "L": 40},
     "cluster":  {"d_model": 1024, "n_layers": 8,  "n_heads": 8,  "batch": 64,
-                 "max_train_windows": 10_000, "max_eval_windows": 5_000},
+                 "max_train_windows": 10_000, "max_eval_windows": 5_000,
+                 "L": 40},
     "a100_20g": {"d_model": 1024, "n_layers": 12, "n_heads": 16, "batch": 32,
-                 "max_train_windows": 50_000, "max_eval_windows": 5_000},
+                 # NB: capped at 10k windows (matching cluster) to keep
+                 # auto-train chain wallclock in single-digit hours; the
+                 # original 50k bumped SFLMEBM alone to ~7h/arm @ 10 ep.
+                 "max_train_windows": 10_000, "max_eval_windows": 5_000,
+                 "L": 40},
+    # L=256: matches the SEDD / D3PM / Multinomial-Diffusion / Transformer-
+    # XL text8 evaluation convention so our BPC is directly comparable
+    # to published numbers.  Memory at L=256 is attention-quadratic and
+    # second-order autograd doubles it for EqM / SFLMEBM_FM; sizing here
+    # is the largest d_model/n_layers/B triple that fits a 20 GB A100 MIG
+    # with the MATH SDPA backend (Flash is incompatible with EqM's
+    # create_graph=True conservative-gradient path — see CLAUDE.md).
+    "a100_20g_L256": {
+        # Sized to match the "paper-small" diffusion-LM tier (~50M params)
+        # so our text8 BPC is directly comparable to D3PM (~90M), SEDD-
+        # Absorb (~85M), Plaid (~120M), and the Transformer-XL reference.
+        # B=8 was verified to peak ~5 GB on EqM/SFLMEBM_FM's second-order
+        # autograd path with MATH SDPA on a 20 GB A100 MIG.
+        "d_model": 768, "n_layers": 8, "n_heads": 12, "batch": 8,
+        "max_train_windows": 10_000, "max_eval_windows": 2_000,
+        "L": 256,
+    },
 }
 D_EMBED = 128  # EqMLatent + SFLMEBM latent dim (matched; = best EqMLatent run)
 
@@ -68,6 +91,7 @@ def _base_cfg(epochs: int, out_dir: str, scale: str) -> Config:
     d_model, n_layers, n_head, batch = (
         s["d_model"], s["n_layers"], s["n_heads"], s["batch"],
     )
+    L = s.get("L", 40)
     cfg = Config()
     cfg.training = replace(
         cfg.training,
@@ -76,6 +100,7 @@ def _base_cfg(epochs: int, out_dir: str, scale: str) -> Config:
         scheduler_warmup_epochs=1,
         cosine_t_max_epochs=epochs,
         B=batch,
+        L=L,
         checkpoint_dir=out_dir,
         checkpoint_every=epochs,        # only the final checkpoint
         sample_eval_every=None,         # skip the (slow) KL probe during training
@@ -89,6 +114,7 @@ def _base_cfg(epochs: int, out_dir: str, scale: str) -> Config:
     cfg.loader_settings = replace(cfg.loader_settings, batch_size=batch)
     cfg.text8_dataset = replace(
         cfg.text8_dataset,
+        L=L,
         batch_size=batch,
         max_train_windows=s["max_train_windows"],
         max_eval_windows=s["max_eval_windows"],

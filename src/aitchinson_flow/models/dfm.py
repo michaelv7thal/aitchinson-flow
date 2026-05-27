@@ -127,12 +127,21 @@ class DiscreteFlowMatching(nn.Module):
         return x
 
     @torch.no_grad()
-    def bpd(self, token_ids: torch.Tensor, *, n_mc: int = 8) -> torch.Tensor:
+    def bpd(
+        self, token_ids: torch.Tensor, *, n_mc: int = 8,
+        max_steps: int | None = None,
+    ) -> torch.Tensor:
         """ELBO-based bits-per-character estimate (Monte Carlo over t).
 
         Computes E_t[-log p_{1|t}(x1 | x_t)] / log(2) as a BPD lower bound.
         Averaged over n_mc random time samples per batch item.
+
+        ``max_steps`` is accepted for cross-arm API compatibility with the
+        iterative-recovery ``bpd`` of the EqM / SFLM families (see
+        ``scripts/bench_sflm_ebm.py``) and is ignored — DFM's BPD is a
+        denoiser NLL, not an integration trajectory.
         """
+        del max_steps
         B, L = token_ids.shape
         K = self.cfg.text8_dataset.K
         device = token_ids.device

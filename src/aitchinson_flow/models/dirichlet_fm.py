@@ -26,6 +26,7 @@ expose betainc).
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
 import numpy as np
@@ -209,6 +210,35 @@ class DirichletFlowMatching(nn.Module):
             x = x / x.sum(dim=-1, keepdim=True)
 
         return x.argmax(dim=-1)
+
+    @torch.no_grad()
+    def bpd(
+        self,
+        token_ids: torch.Tensor,
+        *,
+        t_frac: float = 0.95,
+        max_steps: int | None = None,
+    ) -> torch.Tensor:
+        """Denoiser bits-per-character at a near-clean Dirichlet draw.
+
+        Mirrors the high-t fallback used by ``scripts/eval_generation._bpc``:
+        sample x_t ~ Dir(β(t, token_ids)) at t = t_frac · t_max, decode with
+        the denoiser, return per-token NLL / ln(2).  Same formula the bench
+        uses for per-position logits, so PPL/BPB/BPC are consistent with the
+        OOD readout.  ``max_steps`` is accepted for cross-arm API parity
+        with the iterative-recovery arms and is ignored.
+        """
+        del max_steps
+        device = next(self.parameters()).device
+        ids = token_ids.to(device).long()
+        B, L = ids.shape
+        K = self.cfg.text8_dataset.K
+        t = torch.full((B,), t_frac * self.t_max,
+                       device=device, dtype=torch.float32)
+        x_t = self._sample_xt(ids, t)
+        log_p = self.forward(x_t, t).log_softmax(dim=-1)
+        nll = -log_p.gather(-1, ids.unsqueeze(-1)).squeeze(-1).mean()
+        return nll / math.log(2)
 
 
 @register("DirichletFM")

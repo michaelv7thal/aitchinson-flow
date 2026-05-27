@@ -1,0 +1,69 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+data: K=27, L=40, n_eval=256 | device=cuda
+
+=== EqM_OneHot ===
+Traceback (most recent call last):
+  File "/home/renku/work/aitchinson-flow/scripts/eval_generation.py", line 484, in <module>
+    "positions for drift sanity.)")
+^^^^
+  File "/home/renku/work/aitchinson-flow/scripts/eval_generation.py", line 361, in main
+    L = base_cfg.text8_dataset.L
+              ^^^^^^^^^^^^^^^^^^^
+  File "/layers/paketo-buildpacks_pip-install/packages/lib/python3.11/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/renku/work/aitchinson-flow/scripts/eval_generation.py", line 155, in _fair_bpc
+    out = model.eval_step(batch)
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/renku/work/aitchinson-flow/src/aitchinson_flow/models/eqm.py", line 97, in eval_step
+    out = self._eqm_loss(
+          ^^^^^^^^^^^^^^^
+  File "/layers/paketo-buildpacks_pip-install/packages/lib/python3.11/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/renku/work/aitchinson-flow/src/aitchinson_flow/models/eqm.py", line 237, in _eqm_loss
+    v = self.forward(x_gamma, gamma, h_ctx)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/renku/work/aitchinson-flow/src/aitchinson_flow/models/eqm.py", line 65, in forward
+    return self.velocity_head(self.backbone(x, gamma, h_ctx))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/layers/paketo-buildpacks_pip-install/packages/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1779, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/layers/paketo-buildpacks_pip-install/packages/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1790, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/renku/work/aitchinson-flow/src/aitchinson_flow/transformer_backbone.py", line 122, in forward
+    return self.transformer(h)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/layers/paketo-buildpacks_pip-install/packages/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1779, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/layers/paketo-buildpacks_pip-install/packages/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1790, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/layers/paketo-buildpacks_pip-install/packages/lib/python3.11/site-packages/torch/nn/modules/transformer.py", line 540, in forward
+    output = mod(
+             ^^^^
+  File "/layers/paketo-buildpacks_pip-install/packages/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1779, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/layers/paketo-buildpacks_pip-install/packages/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1790, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/layers/paketo-buildpacks_pip-install/packages/lib/python3.11/site-packages/torch/nn/modules/transformer.py", line 950, in forward
+    x = x + self._ff_block(self.norm2(x))
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/layers/paketo-buildpacks_pip-install/packages/lib/python3.11/site-packages/torch/nn/modules/transformer.py", line 981, in _ff_block
+    x = self.linear2(self.dropout(self.activation(self.linear1(x))))
+                                                  ^^^^^^^^^^^^^^^
+  File "/layers/paketo-buildpacks_pip-install/packages/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1779, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/layers/paketo-buildpacks_pip-install/packages/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1790, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/layers/paketo-buildpacks_pip-install/packages/lib/python3.11/site-packages/torch/nn/modules/linear.py", line 134, in forward
+    return F.linear(input, self.weight, self.bias)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: NVML_SUCCESS == r INTERNAL ASSERT FAILED at "/pytorch/c10/cuda/CUDACachingAllocator.cpp":1165, please report a bug to PyTorch. 

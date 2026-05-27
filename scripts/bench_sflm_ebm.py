@@ -52,6 +52,7 @@ from aitchinson_flow.models import build_model  # noqa: E402
 from aitchinson_flow.training import build_training_datamodule  # noqa: E402
 from scripts.eval_full import _config_from_payload  # noqa: E402
 from scripts._ensure_ckpt import ensure_checkpoint  # noqa: E402
+from scripts.train_for_sflm_bench import SCALES  # noqa: E402  (L per scale)
 
 MODELS = [
     # EBMs with a native energy field (sequence + per-position readouts).
@@ -89,47 +90,100 @@ def _auroc(pos: torch.Tensor, neg: torch.Tensor) -> float:
     )
 
 
+_NOISE_LEVEL = 0.7
+"""Common signal level γ/α/t at which every arm is scored — high enough
+that the denoiser is well-conditioned on the input, low enough that the
+encoder→decoder identity-leak (the SFLM/EqM ``decode_to_logprobs(encode(ids))``
+shortcut that pegged seq_se_auroc at 1.0) is closed.  All arms get the same
+nominal signal so SE comparisons are apples-to-apples."""
+
+
+def _uniform_sphere(shape, device, dtype=torch.float32):
+    x = torch.randn(shape, device=device, dtype=dtype)
+    return x / x.norm(dim=-1, keepdim=True).clamp(min=1e-8)
+
+
+def _slerp(p, q, alpha):
+    omega = torch.arccos((p * q).sum(-1).clamp(-1 + 1e-7, 1 - 1e-7)).unsqueeze(-1)
+    s = torch.sin(omega).clamp(min=1e-7)
+    a = alpha.unsqueeze(-1) if alpha.dim() == p.dim() - 1 else alpha
+    return torch.sin((1.0 - a) * omega) / s * p + torch.sin(a * omega) / s * q
+
+
 @torch.no_grad()
 def _per_pos_logits(model, name: str, ids: torch.Tensor, cfg: Config):
     """(B, L, K) per-position logits via each model's natural path, and the
-    sequence-level energy score (None ⇒ fall back to mean SE)."""
+    sequence-level energy score (None ⇒ fall back to mean SE).
+
+    All arms are scored at a *noised* input at a common signal level
+    (``_NOISE_LEVEL`` ≈ data-end of the noise schedule).  This closes the
+    encode→decode identity shortcut for SFLM/EqM/EqMLatent — without it
+    those arms reported SE ≈ 0 on clean *and* corrupted inputs and the
+    AUROC collapsed to chance or pegged at 1.0 depending on how the
+    residual stream leaked.  DFM and DirichletFM already noised their
+    inputs (this is just standardising the level)."""
     K = cfg.text8_dataset.K
-    # ---- 2-stage SVGP arms: delegate logits to the underlying generator,
-    #      sequence-energy is the SVGP probability (handled separately
-    #      in main()). In this codebase ``DFM_SVGP`` wraps Stark's
-    #      DirichletFM (per ``DFM_SVGP_FINDINGS.md``), so its forward
-    #      takes a *simplex* x_t, not ids — we sample x_t via the inner
-    #      ``model.dfm._sample_xt`` to obtain per-position logits.
+    device = ids.device
+    g = _NOISE_LEVEL
+    # ---- 2-stage SVGP arms.
     if name == "DFM_SVGP":
         t_max = float(model.dfm.t_max)
-        t = torch.full((ids.shape[0],), 0.99 * t_max,
-                       device=ids.device, dtype=torch.float32)
+        t = torch.full((ids.shape[0],), 1.0 + g * (t_max - 1.0),
+                       device=device, dtype=torch.float32)
         x_t = model.dfm._sample_xt(ids.long(), t)
         return model.forward(x_t, t).log_softmax(dim=-1), None
     if name == "SFLM_SVGP":
-        z = model.encode(ids)
-        return model.decode_to_logprobs(z), None
-    # ---- Stage-1 generators / EBMs as before.
+        # Noised latent path mirrors SFLM's scoring (see below).
+        z1 = model.encode(ids)
+        z0 = _uniform_sphere(z1.shape, device, z1.dtype)
+        alpha = torch.full((ids.shape[0],), g, device=device, dtype=z1.dtype)
+        z_t = _slerp(z0, z1, alpha)
+        # SFLM_SVGP doesn't accept a γ; decode_to_logprobs uses eval_gamma.
+        return model.decode_to_logprobs(z_t), None
+    # ---- Stage-1 generators / EBMs.
     if name == "DFM":
-        t = torch.full((ids.shape[0],), 0.99, device=ids.device)
+        t = torch.full((ids.shape[0],), g, device=device)
+        # DFM's input space is token ids; the path is a Bernoulli corrupt
+        # at rate (1−κ_t).  Forward(ids, t) on clean ids at the noised t
+        # already matches the model's training distribution at that t.
         return model.forward(ids, t), None
     if name == "SFLM":
-        z = model.encode(ids)
-        return model.decode_to_logprobs(z), None
+        z1 = model.encode(ids)
+        z0 = _uniform_sphere(z1.shape, device, z1.dtype)
+        alpha = torch.full((ids.shape[0],), g, device=device, dtype=z1.dtype)
+        z_t = _slerp(z0, z1, alpha)
+        gamma = alpha
+        return model.decode_to_logprobs(z_t, gamma=gamma), None
     if name in ("EqM", "EqM_OneHot"):
         feats = token_ids_to_features(
             ids, K, label_smoothing=cfg.transformation.label_smoothing
         )
-        return model.decode_to_logprobs(feats), model.energy(feats)
+        # EqM training: x_γ = (1−γ)·x0 + γ·x1, x0 = source_sigma·randn on V_d.
+        sigma = float(cfg.eqm.source_sigma)
+        x0 = sigma * torch.randn_like(feats)
+        x0 = x0 - x0.mean(dim=-1, keepdim=True)  # V_d projection
+        x_t = (1.0 - g) * x0 + g * feats
+        return model.decode_to_logprobs(x_t), model.energy(x_t)
     if name == "DirichletFM":
-        t = torch.full((ids.shape[0],), 0.99 * model.t_max,
-                       device=ids.device, dtype=torch.float32)
-        # DFM-family: input must be a simplex draw conditioned on ids.
+        t_max = float(model.t_max)
+        t = torch.full((ids.shape[0],), 1.0 + g * (t_max - 1.0),
+                       device=device, dtype=torch.float32)
         x_t = model._sample_xt(ids.long(), t)
         return model.forward(x_t, t).log_softmax(dim=-1), None
-    # SFLMEBM / SFLMEBM_FM / EqMLatent: learned embedding lookup.
-    z = model.encode(ids)
-    return model.decode_to_logprobs(z), model.energy(z)
+    # SFLMEBM / SFLMEBM_FM / EqMLatent: learned embedding lookup, noise
+    # path mirrors training (SLERP on sphere for SFLMEBM*; linear-mix on
+    # learned ℝ^d for EqMLatent).
+    z1 = model.encode(ids)
+    is_sphere = (z1 - z1 / z1.norm(dim=-1, keepdim=True).clamp(min=1e-8)
+                 ).abs().mean() < 1e-3
+    z0 = _uniform_sphere(z1.shape, device, z1.dtype) if is_sphere \
+        else torch.randn_like(z1) * z1.norm(dim=-1).mean()
+    if is_sphere:
+        alpha = torch.full((ids.shape[0],), g, device=device, dtype=z1.dtype)
+        z_t = _slerp(z0, z1, alpha)
+    else:
+        z_t = (1.0 - g) * z0 + g * z1
+    return model.decode_to_logprobs(z_t), model.energy(z_t)
 
 
 @torch.no_grad()
@@ -216,15 +270,21 @@ def _load(name: str, device, scale: str, *,
     return model, cfg
 
 
+def _parse_levels(spec: str) -> list[float]:
+    return [float(x) for x in spec.split(",") if x.strip()]
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--n", type=int, default=256)
     ap.add_argument("--seed", type=int, default=1234)
     ap.add_argument("--scale",
-                    choices=["local", "cluster", "a100_20g"],
+                    choices=["local", "cluster", "a100_20g", "a100_20g_L256"],
                     default="local",
                     help="which sflm_bench_<scale> checkpoints to benchmark; "
-                         "a100_20g = d1024/12L medium-tier on the A100 MIG")
+                         "a100_20g = d1024/12L medium-tier on the A100 MIG; "
+                         "a100_20g_L256 = d512/6L at L=256 (text8 publication "
+                         "convention — matches SEDD / D3PM / TXL)")
     ap.add_argument("--epochs", type=int, default=50,
                     help="epochs for any arm that needs auto-training")
     ap.add_argument("--svgp-epochs", type=int, default=5,
@@ -232,26 +292,54 @@ def main() -> None:
     ap.add_argument("--no-auto-train", action="store_true",
                     help="revert to legacy 'skip / use existing baseline' "
                          "behaviour when a checkpoint is missing")
+    ap.add_argument("--subst-levels", type=str,
+                    default="0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0",
+                    help="substitution corruption rates to sweep")
+    ap.add_argument("--shuffle-levels", type=str,
+                    default="0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0",
+                    help="partial-shuffle rates to sweep")
+    ap.add_argument("--out", type=str, default=None,
+                    help="output JSON path (default: <root>/bench.json)")
     args = ap.parse_args()
     root = f"runs/sflm_bench_{args.scale}"
     device = "cuda" if torch.cuda.is_available() else "cpu"
+    subst_levels = _parse_levels(args.subst_levels)
+    shuffle_levels = _parse_levels(args.shuffle_levels)
 
-    # Clean held-out text8 windows (datamodule is model-independent here).
+    # Held-out text8 TEST split — disjoint from train (which is used to
+    # fit the models) AND from val (which we reserve for hyperparameter
+    # selection / dev iteration).  Publication-quality numbers must come
+    # from a split the model never touched at training or selection time;
+    # val violates that if anyone ever picked a checkpoint by val metric.
     base_cfg = Config()
+    from dataclasses import replace
+    L_eval = SCALES[args.scale].get("L", 40)
+    base_cfg.training = replace(base_cfg.training, L=L_eval)
+    base_cfg.text8_dataset = replace(base_cfg.text8_dataset, L=L_eval)
     dm, _ = build_training_datamodule(base_cfg)
-    val = dm.splits.val.long()
+    eval_split = getattr(dm.splits, "test", None)
+    if eval_split is None or eval_split.numel() == 0:
+        eval_split = dm.splits.val
+        print("[warn] dm.splits.test is empty — falling back to val.")
+    eval_split = eval_split.long()
     g = torch.Generator().manual_seed(args.seed)
-    pick = torch.randperm(val.shape[0], generator=g)[: args.n]
-    clean = val[pick].to(device)
+    pick = torch.randperm(eval_split.shape[0], generator=g)[: args.n]
+    clean = eval_split[pick].to(device)
     K = base_cfg.text8_dataset.K
 
     # Corruption ladder. `mask` marks changed positions (per-position GT).
-    corruptions = {}
-    for r in (0.1, 0.3):
-        c = corrupt_token_ids(clean, vocab_size=K, corrupt_rate=r, seed=args.seed)
-        corruptions[f"subst_{r}"] = (c, c != clean)
-    sh = partially_shuffle_token_ids(clean, shuffle_rate=1.0, seed=args.seed + 7)
-    corruptions["shuffle"] = (sh, sh != clean)
+    # Subst at r=1.0 with the "avoid-same-token" guard is a derangement (all
+    # positions different); rand is the true uniform-random control kept
+    # alongside as a sanity check.
+    corruptions: dict[str, tuple[torch.Tensor, torch.Tensor]] = {}
+    for r in subst_levels:
+        c = corrupt_token_ids(clean, vocab_size=K, corrupt_rate=r,
+                              seed=args.seed)
+        corruptions[f"subst_{r:.1f}"] = (c, c != clean)
+    for r in shuffle_levels:
+        sh = partially_shuffle_token_ids(clean, shuffle_rate=r,
+                                         seed=args.seed + 7)
+        corruptions[f"shuffle_{r:.1f}"] = (sh, sh != clean)
     rnd = torch.randint(0, K, clean.shape, device=device,
                          generator=torch.Generator(device=device).manual_seed(args.seed))
     corruptions["rand"] = (rnd, torch.ones_like(rnd, dtype=torch.bool))
@@ -291,24 +379,51 @@ def main() -> None:
         # Universal SE baseline + (optional) model-natural energy for EBMs
         # + (optional) SVGP Bernoulli probability for 2-stage detectors.
         cl_svgp = _svgp_score(model, name, clean)
+        # Diagnostics — surface SFLM-style "decoder reads input back" leakage
+        # (clean_se_mean ≈ 0 ⇒ the score is essentially identity on clean)
+        # and the sign convention of the energy head (clean vs corrupt mean).
+        cl_se_mean = float(cl_SE.mean())
+        cl_energy_mean = (
+            float(cl_E.mean()) if cl_E is not None else None
+        )
         res = {
             "ppl": ppl_val,
             "bpb": bpb_val,
             "bpc": bpc_val,
+            "clean_se_mean": cl_se_mean,
+            "clean_energy_mean": cl_energy_mean,
             "seq_se_auroc": {},        # universal baseline (every model)
+            "seq_se_clean": cl_se_mean,
+            "seq_se_corrupt": {},      # mean SE on each corruption type
             "seq_energy_auroc": {},    # model.energy if available (EBMs)
+            "seq_energy_corrupt": {},  # mean energy on each corruption
             "seq_svgp_auroc": {},      # SVGP prob if available (2-stage)
             "pospair_se_auroc": {},    # universal per-position baseline
             "pospair_pu_auroc": {},    # ‖∇E‖ if available (EBMs)
         }
+        # Initialise sign-agnostic energy reporting (filled per corruption).
+        res["seq_energy_auroc_signfree"] = {}
+        res["seq_energy_sign"] = {}
         for cname, (cids, cmask) in corruptions.items():
             co_logits, co_E = _per_pos_logits(model, name, cids, cfg)
             co_SE = _spilled_energy(co_logits, cids)
+            res["seq_se_corrupt"][cname] = float(co_SE.mean())
             # (1a) BASELINE — mean spilled energy clean vs corrupted.
             res["seq_se_auroc"][cname] = _auroc(co_SE.mean(-1), cl_seq_se)
             # (1b) Model-natural energy (EBMs only) — what beats baseline?
             if cl_E is not None and co_E is not None:
-                res["seq_energy_auroc"][cname] = _auroc(co_E, cl_E)
+                raw = _auroc(co_E, cl_E)
+                res["seq_energy_auroc"][cname] = raw
+                # Sign-agnostic: corrupt vs clean is invariant under sign
+                # flip of the energy head, so max(auroc, 1-auroc) recovers
+                # the discriminative power even when the energy was
+                # trained with the "wrong" sign.  Sign = "+" if higher
+                # energy ⇒ more OOD (the expected EBM convention), "−"
+                # if the model learned the inverted convention.
+                sign_free = max(raw, 1.0 - raw)
+                res["seq_energy_auroc_signfree"][cname] = sign_free
+                res["seq_energy_sign"][cname] = "+" if raw >= 0.5 else "−"
+                res["seq_energy_corrupt"][cname] = float(co_E.mean())
             # (1c) SVGP probability (2-stage only).
             if cl_svgp is not None:
                 co_svgp = _svgp_score(model, name, cids)
@@ -326,90 +441,128 @@ def main() -> None:
                     )
         results[name] = res
 
-    Path(root).mkdir(parents=True, exist_ok=True)
-    Path(f"{root}/bench.json").write_text(json.dumps(results, indent=2))
+    out_path = Path(args.out) if args.out else Path(f"{root}/bench.json")
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps(results, indent=2))
 
     # ---- report ----
-    def _fmt(x, w=7):
-        return f"{x:>{w}.3f}" if isinstance(x, float) else f"{'—':>{w}}"
+    def _fmt(x, w=6, p=3):
+        return f"{x:>{w}.{p}f}" if isinstance(x, float) else f"{'—':>{w}}"
 
-    def _delta(a, b, w=7):
-        if not (isinstance(a, float) and isinstance(b, float)):
-            return f"{'—':>{w}}"
-        d = a - b
-        sign = "+" if d >= 0 else ""
-        return f"{sign}{d:>{w-1}.3f}"
+    subst_names = [f"subst_{r:.1f}" for r in subst_levels]
+    shuffle_names = [f"shuffle_{r:.1f}" for r in shuffle_levels]
+    rand_names = ["rand"]
 
-    cs = list(corruptions)
-    loc = [c for c in cs if c != "rand"]   # rand changes all positions
-
-    print("\n" + "=" * 90)
-    print("(0) GENERATION  —  reconstruction perplexity / bits-per-byte / "
-          "bits-per-char on val")
-    print("    (text8: BPB ≡ BPC since each token is one ASCII byte;"
-          " BPC kept as legacy column)")
-    print("=" * 90)
-    print(f"{'model':12s}  {'PPL':>8s}  {'BPB':>8s}  {'BPC':>8s}")
-    for n, r in results.items():
-        print(f"{n:12s}  {_fmt(r['ppl'], 8)}  {_fmt(r['bpb'], 8)}  "
-              f"{_fmt(r['bpc'], 8)}")
-
-    print("\n" + "=" * 90)
-    print("(1) SEQUENCE-level  AUROC  (clean vs corrupted; 0.5=chance, 1=perfect)")
-    print("    BASELINE = mean spilled energy (universal).  EBMs also report "
-          "model.energy.")
-    print("    Δ = energy − SE  →  positive means EBM beats the baseline.")
-    print("=" * 90)
-    header = f"{'model':12s}"
-    for c in cs:
-        header += f"  {c+'/SE':>10s} {c+'/E':>8s} {'Δ':>8s}"
-    print(header)
-    for n, r in results.items():
-        row = f"{n:12s}"
-        for c in cs:
-            se = r["seq_se_auroc"].get(c, float("nan"))
-            e = r["seq_energy_auroc"].get(c)
-            row += f"  {_fmt(se, 10)} {_fmt(e, 8)} {_delta(e, se, 8)}"
-        print(row)
-
-    # 2-stage SVGP table — only relevant for arms that have a fitted head.
-    svgp_arms = [n for n, r in results.items() if r["seq_svgp_auroc"]]
-    if svgp_arms:
-        print("\n" + "=" * 90)
-        print("(1b) 2-STAGE SVGP DETECTORS — Bernoulli prob AUROC")
-        print("     Δ-vs-baseline = SVGP_prob_AUROC − spilled_energy_AUROC.")
-        print("=" * 90)
-        header = f"{'arm':12s}"
-        for c in cs:
-            header += f"  {c+'/SE':>10s} {c+'/SVGP':>10s} {'Δ':>8s}"
-        print(header)
-        for n in svgp_arms:
-            r = results[n]
+    def _section(title, cnames, key, models_iter):
+        print("\n" + "=" * (14 + 7 * len(cnames)))
+        print(title)
+        print("=" * (14 + 7 * len(cnames)))
+        head = f"{'model':12s}"
+        for c in cnames:
+            tag = c.replace("subst_", "s").replace("shuffle_", "sh").replace("rand", "rnd")
+            head += f"  {tag:>5s}"
+        print(head)
+        for n, r in models_iter:
             row = f"{n:12s}"
-            for c in cs:
-                se = r["seq_se_auroc"].get(c, float("nan"))
-                sv = r["seq_svgp_auroc"].get(c)
-                row += f"  {_fmt(se, 10)} {_fmt(sv, 10)} {_delta(sv, se, 8)}"
+            for c in cnames:
+                row += f"  {_fmt(r[key].get(c, float('nan')), 5)}"
             print(row)
 
-    print("\n" + "=" * 90)
-    print("(2) PER-POSITION  AUROC  (changed vs unchanged inside corrupted seqs)")
-    print("    BASELINE = spilled energy per position.  EBMs also report "
-          "Riemannian ‖∇E‖.")
-    print("    Δ = ‖∇E‖ − SE  →  positive means EBM machinery beats the baseline.")
-    print("=" * 90)
-    header = f"{'model':12s}"
-    for c in loc:
-        header += f"  {c+'/SE':>10s} {c+'/∇E':>8s} {'Δ':>8s}"
-    print(header)
+    print("\n" + "=" * 110)
+    print("(0) GENERATION  —  reconstruction NLL.  ⚠ bpc≈0 for arms whose "
+          "bpd() reads the input through .encode()→.decode_to_logprobs() "
+          "(SFLM/EqM/EqM_OneHot/EqMLatent) — that path is essentially identity; "
+          "treat 'real' NLL as the SE-clean column below.")
+    print("    (text8: BPB ≡ BPC since each token is one ASCII byte)")
+    print("=" * 110)
+    print(f"{'model':12s}  {'PPL':>8s}  {'BPB':>8s}  {'BPC':>8s}  "
+          f"{'SE_clean':>10s}  {'E_clean':>10s}")
     for n, r in results.items():
-        row = f"{n:12s}"
-        for c in loc:
-            se = r["pospair_se_auroc"].get(c, float("nan"))
-            pu = r["pospair_pu_auroc"].get(c)
-            row += f"  {_fmt(se, 10)} {_fmt(pu, 8)} {_delta(pu, se, 8)}"
-        print(row)
-    print(f"\nWrote {root}/bench.json")
+        e = r.get("clean_energy_mean")
+        e_s = _fmt(e, 10) if isinstance(e, float) else f"{'—':>10s}"
+        print(f"{n:12s}  {_fmt(r['ppl'], 8)}  {_fmt(r['bpb'], 8)}  "
+              f"{_fmt(r['bpc'], 8)}  {_fmt(r['clean_se_mean'], 10)}  {e_s}")
+
+    items = list(results.items())
+
+    # Sequence-level — one section per corruption family.
+    _section(
+        "(1a) SEQ-LEVEL SE AUROC (clean vs subst_*; 0.5=chance, 1=perfect)",
+        subst_names, "seq_se_auroc", items,
+    )
+    _section(
+        "(1b) SEQ-LEVEL SE AUROC (clean vs shuffle_*)",
+        shuffle_names, "seq_se_auroc", items,
+    )
+    _section(
+        "(1c) SEQ-LEVEL SE AUROC (clean vs rand uniform)",
+        rand_names, "seq_se_auroc", items,
+    )
+
+    ebm_items = [(n, r) for n, r in items if r["seq_energy_auroc"]]
+    if ebm_items:
+        _section(
+            "(1d) SEQ-LEVEL ENERGY AUROC RAW (EBMs; subst_*).  "
+            "Rows <0.5 ⇒ the energy head learned an inverted sign "
+            "convention — see (1d') for the sign-agnostic version.",
+            subst_names, "seq_energy_auroc", ebm_items,
+        )
+        _section(
+            "(1d') SEQ-LEVEL ENERGY AUROC SIGN-AGNOSTIC = max(raw, 1−raw); "
+            "this is the discriminative power independent of sign convention.",
+            subst_names, "seq_energy_auroc_signfree", ebm_items,
+        )
+        _section(
+            "(1e) SEQ-LEVEL ENERGY AUROC RAW (EBMs; shuffle_*)",
+            shuffle_names, "seq_energy_auroc", ebm_items,
+        )
+        _section(
+            "(1e') SEQ-LEVEL ENERGY AUROC SIGN-AGNOSTIC (shuffle_*)",
+            shuffle_names, "seq_energy_auroc_signfree", ebm_items,
+        )
+        _section(
+            "(1f) SEQ-LEVEL ENERGY AUROC RAW (EBMs; rand)",
+            rand_names, "seq_energy_auroc", ebm_items,
+        )
+        _section(
+            "(1f') SEQ-LEVEL ENERGY AUROC SIGN-AGNOSTIC (rand)",
+            rand_names, "seq_energy_auroc_signfree", ebm_items,
+        )
+
+    svgp_items = [(n, r) for n, r in items if r["seq_svgp_auroc"]]
+    if svgp_items:
+        _section(
+            "(1g) SVGP Bernoulli-prob AUROC (subst_*)",
+            subst_names, "seq_svgp_auroc", svgp_items,
+        )
+        _section(
+            "(1h) SVGP Bernoulli-prob AUROC (shuffle_*)",
+            shuffle_names, "seq_svgp_auroc", svgp_items,
+        )
+
+    # Per-position localisation. rand has no clean positions ⇒ skipped.
+    _section(
+        "(2a) PER-POSITION SE AUROC (changed vs unchanged inside corrupted; "
+        "subst_*).  Subst at rate 1.0 has no clean positions ⇒ entry absent.",
+        subst_names, "pospair_se_auroc", items,
+    )
+    _section(
+        "(2b) PER-POSITION SE AUROC (shuffle_*)",
+        shuffle_names, "pospair_se_auroc", items,
+    )
+
+    pu_items = [(n, r) for n, r in items if r["pospair_pu_auroc"]]
+    if pu_items:
+        _section(
+            "(2c) PER-POSITION ‖∇E‖ AUROC (EBMs; subst_*)",
+            subst_names, "pospair_pu_auroc", pu_items,
+        )
+        _section(
+            "(2d) PER-POSITION ‖∇E‖ AUROC (EBMs; shuffle_*)",
+            shuffle_names, "pospair_pu_auroc", pu_items,
+        )
+
+    print(f"\nWrote {out_path}")
 
 
 if __name__ == "__main__":

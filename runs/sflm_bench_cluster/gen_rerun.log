@@ -1,0 +1,55 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+data: K=27, L=40, n_eval=256 | device=cuda
+
+=== EqM_OneHot ===
+  α=0.10  recover_acc=1.000
+  α=0.30  recover_acc=0.882
+  α=0.50  recover_acc=0.523
+  α=1.00  recover_acc=0.193
+  PPL=  1.000  BPB=0.000  BPC=0.000  KL_uni=0.0155  KL_bi=1.0214  KL_tri=5.1381  H_gen=2.731
+  sample[0]: 'ln ifetgaeeonen enoe  attryrctietai ltog'
+
+=== EqMLatent ===
+  α=0.10  recover_acc=1.000
+  α=0.30  recover_acc=0.868
+  α=0.50  recover_acc=0.519
+  α=1.00  recover_acc=0.216
+  PPL=  1.017  BPB=0.024  BPC=0.024  KL_uni=0.1185  KL_bi=2.0223  KL_tri=8.0901  H_gen=2.883
+  sample[0]: 'm  g jeh hnghnpe nncnr    j ni w gdeotrd'
+
+=== EqM ===
+  α=0.10  recover_acc=1.000
+  α=0.30  recover_acc=0.911
+  α=0.50  recover_acc=0.523
+  α=1.00  recover_acc=0.193
+  PPL=  1.000  BPB=0.000  BPC=0.000  KL_uni=0.6748  KL_bi=6.0109  KL_tri=13.5509  H_gen=3.295
+  sample[0]: 'lharpztgaoeonjnlqnokyhwltpyzcuixkzypltwg'
+
+=== DirichletFM ===
+  α=0.10  recover_acc=0.915
+  α=0.30  recover_acc=0.845
+  α=0.50  recover_acc=0.708
+  α=1.00  recover_acc=0.071
+  PPL=  1.195  BPB=0.257  BPC=0.257  KL_uni=0.0136  KL_bi=0.7473  KL_tri=4.2044  H_gen=2.914
+  sample[0]: 'ke aytald gencriciatore he sorel cledss '
+
+=== SFLM ===
+  α=0.10  recover_acc=1.000
+  α=0.30  recover_acc=0.893
+  α=0.50  recover_acc=0.611
+  α=1.00  recover_acc=0.292
+  PPL=  1.003  BPB=0.004  BPC=0.004  KL_uni=0.0147  KL_bi=0.4162  KL_tri=2.7302  H_gen=2.732
+  sample[0]: 'd n as os a t jerana sheme ciininraulel '
+
+==============================================================================================================
+UNIFIED GENERATION COMPARISON  (5 arms; lower PPL/BPB/BPC/KL = better; higher recover_acc = better)
+    (text8: BPB ≡ BPC since each token is one ASCII byte; BPC is the legacy text8 column)
+==============================================================================================================
+arm               PPL     BPB     BPC    KL_uni     KL_bi    KL_tri   H_gen  rec@0.1  rec@0.3  rec@0.5  rec@1.0
+EqM_OneHot      1.000   0.000   0.000    0.0155    1.0214    5.1381   2.731    1.000    0.882    0.523    0.193
+EqMLatent       1.017   0.024   0.024    0.1185    2.0223    8.0901   2.883    1.000    0.868    0.519    0.216
+EqM             1.000   0.000   0.000    0.6748    6.0109   13.5509   3.295    1.000    0.911    0.523    0.193
+DirichletFM     1.195   0.257   0.257    0.0136    0.7473    4.2044   2.914    0.915    0.845    0.708    0.071
+SFLM            1.003   0.004   0.004    0.0147    0.4162    2.7302   2.732    1.000    0.893    0.611    0.292
+
+Wrote runs/sflm_bench_cluster/generation_eval.json

@@ -1,0 +1,696 @@
+=== Wed May 27 12:56:34 AM UTC 2026 STAGE 1/2: OOD bench (auto-trains 8 arms @ 10 ep) ===
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+[ensure_ckpt] auto-train missing arm SFLMEBM (scale=a100_20g, epochs=10); this may take a while
+             $ /home/renku/work/.venv/bin/python scripts/train_for_sflm_bench.py --scale a100_20g --only SFLMEBM --epochs 10
+
+======================================================================
+=== TRAIN SFLMEBM [a100_20g] (10 ep, d_model=1024/12L, B=32, n_train_windows=50000) ===
+======================================================================
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+epochs:   0%|          | 0/10 [00:00<?, ?epoch/s]
+train epoch: 1:   0%|          | 0/1563 [00:00<?, ?it/s][A
+train epoch: 1:   0%|          | 0/1563 [00:02<?, ?it/s, total_loss=15.4563, ce=13.9024, E_data=-1.1802, E_margin=-0.0844, hinge=1.5539][A
+train epoch: 1:   0%|          | 1/1563 [00:02<1:10:29,  2.71s/it, total_loss=15.4563, ce=13.9024, E_data=-1.1802, E_margin=-0.0844, hinge=1.5539][A
+train epoch: 1:   0%|          | 1/1563 [00:04<1:10:29,  2.71s/it, total_loss=12.8052, ce=12.1466, E_data=-1.0155, E_margin=-0.0042, hinge=0.6586][A
+train epoch: 1:   0%|          | 2/1563 [00:04<54:49,  2.11s/it, total_loss=12.8052, ce=12.1466, E_data=-1.0155, E_margin=-0.0042, hinge=0.6586]  [A
+train epoch: 1:   0%|          | 2/1563 [00:06<54:49,  2.11s/it, total_loss=11.1570, ce=10.6006, E_data=-0.9079, E_margin=0.0332, hinge=0.5563] [A
+train epoch: 1:   0%|          | 3/1563 [00:06<49:47,  1.92s/it, total_loss=11.1570, ce=10.6006, E_data=-0.9079, E_margin=0.0332, hinge=0.5563][A
+train epoch: 1:   0%|          | 3/1563 [00:07<49:47,  1.92s/it, total_loss=9.7236, ce=9.1850, E_data=-0.8223, E_margin=0.0198, hinge=0.5387]  [A
+train epoch: 1:   0%|          | 4/1563 [00:07<47:24,  1.82s/it, total_loss=9.7236, ce=9.1850, E_data=-0.8223, E_margin=0.0198, hinge=0.5387][A
+train epoch: 1:   0%|          | 4/1563 [00:09<47:24,  1.82s/it, total_loss=8.7357, ce=8.0677, E_data=-0.7712, E_margin=0.0015, hinge=0.6679][A
+train epoch: 1:   0%|          | 5/1563 [00:09<46:05,  1.78s/it, total_loss=8.7357, ce=8.0677, E_data=-0.7712, E_margin=0.0015, hinge=0.6679][A
+train epoch: 1:   0%|          | 5/1563 [00:11<46:05,  1.78s/it, total_loss=8.3981, ce=7.6534, E_data=-0.7457, E_margin=-0.0085, hinge=0.7448][A
+train epoch: 1:   0%|          | 6/1563 [00:11<45:17,  1.75s/it, total_loss=8.3981, ce=7.6534, E_data=-0.7457, E_margin=-0.0085, hinge=0.7448][A
+train epoch: 1:   0%|          | 6/1563 [00:12<45:17,  1.75s/it, total_loss=7.6090, ce=6.9732, E_data=-0.7353, E_margin=-0.0038, hinge=0.6358][A
+train epoch: 1:   0%|          | 7/1563 [00:12<44:45,  1.73s/it, total_loss=7.6090, ce=6.9732, E_data=-0.7353, E_margin=-0.0038, hinge=0.6358][A
+train epoch: 1:   0%|          | 7/1563 [00:14<44:45,  1.73s/it, total_loss=7.3296, ce=6.8061, E_data=-0.7261, E_margin=0.0054, hinge=0.5235] [A
+train epoch: 1:   1%|          | 8/1563 [00:14<44:24,  1.71s/it, total_loss=7.3296, ce=6.8061, E_data=-0.7261, E_margin=0.0054, hinge=0.5235][A
+train epoch: 1:   1%|          | 8/1563 [00:16<44:24,  1.71s/it, total_loss=6.9610, ce=6.5424, E_data=-0.7190, E_margin=0.0198, hinge=0.4186][A
+train epoch: 1:   1%|          | 9/1563 [00:16<44:09,  1.71s/it, total_loss=6.9610, ce=6.5424, E_data=-0.7190, E_margin=0.0198, hinge=0.4186][A
+train epoch: 1:   1%|          | 9/1563 [00:17<44:09,  1.71s/it, total_loss=6.8055, ce=6.3782, E_data=-0.7027, E_margin=0.0224, hinge=0.4272][A
+train epoch: 1:   1%|          | 10/1563 [00:17<43:59,  1.70s/it, total_loss=6.8055, ce=6.3782, E_data=-0.7027, E_margin=0.0224, hinge=0.4272][A
+train epoch: 1:   1%|          | 10/1563 [00:19<43:59,  1.70s/it, total_loss=6.5569, ce=6.1796, E_data=-0.6854, E_margin=0.0178, hinge=0.3773][A
+train epoch: 1:   1%|          | 11/1563 [00:19<43:51,  1.70s/it, total_loss=6.5569, ce=6.1796, E_data=-0.6854, E_margin=0.0178, hinge=0.3773][A
+train epoch: 1:   1%|          | 11/1563 [00:21<43:51,  1.70s/it, total_loss=6.2163, ce=5.7916, E_data=-0.6685, E_margin=0.0076, hinge=0.4247][A
+train epoch: 1:   1%|          | 12/1563 [00:21<43:45,  1.69s/it, total_loss=6.2163, ce=5.7916, E_data=-0.6685, E_margin=0.0076, hinge=0.4247][A
+train epoch: 1:   1%|          | 12/1563 [00:22<43:45,  1.69s/it, total_loss=5.9605, ce=5.5640, E_data=-0.6561, E_margin=0.0092, hinge=0.3965][A
+train epoch: 1:   1%|          | 13/1563 [00:22<43:42,  1.69s/it, total_loss=5.9605, ce=5.5640, E_data=-0.6561, E_margin=0.0092, hinge=0.3965][A
+train epoch: 1:   1%|          | 13/1563 [00:24<43:42,  1.69s/it, total_loss=5.7860, ce=5.4352, E_data=-0.6491, E_margin=0.0211, hinge=0.3509][A
+train epoch: 1:   1%|          | 14/1563 [00:24<43:40,  1.69s/it, total_loss=5.7860, ce=5.4352, E_data=-0.6491, E_margin=0.0211, hinge=0.3509][A
+train epoch: 1:   1%|          | 14/1563 [00:26<43:40,  1.69s/it, total_loss=5.8472, ce=5.4861, E_data=-0.6386, E_margin=0.0263, hinge=0.3611][A
+train epoch: 1:   1%|          | 15/1563 [00:26<43:37,  1.69s/it, total_loss=5.8472, ce=5.4861, E_data=-0.6386, E_margin=0.0263, hinge=0.3611][A
+train epoch: 1:   1%|          | 15/1563 [00:28<43:37,  1.69s/it, total_loss=5.5653, ce=5.2571, E_data=-0.6238, E_margin=0.0289, hinge=0.3081][A
+train epoch: 1:   1%|          | 16/1563 [00:28<43:35,  1.69s/it, total_loss=5.5653, ce=5.2571, E_data=-0.6238, E_margin=0.0289, hinge=0.3081][A
+train epoch: 1:   1%|          | 16/1563 [00:29<43:35,  1.69s/it, total_loss=5.4506, ce=5.1389, E_data=-0.6012, E_margin=0.0258, hinge=0.3117][A
+train epoch: 1:   1%|          | 17/1563 [00:29<43:33,  1.69s/it, total_loss=5.4506, ce=5.1389, E_data=-0.6012, E_margin=0.0258, hinge=0.3117][A
+train epoch: 1:   1%|          | 17/1563 [00:31<43:33,  1.69s/it, total_loss=5.0186, ce=4.7204, E_data=-0.5825, E_margin=0.0226, hinge=0.2982][A
+train epoch: 1:   1%|          | 18/1563 [00:31<43:32,  1.69s/it, total_loss=5.0186, ce=4.7204, E_data=-0.5825, E_margin=0.0226, hinge=0.2982][A
+train epoch: 1:   1%|          | 18/1563 [00:33<43:32,  1.69s/it, total_loss=5.1215, ce=4.8306, E_data=-0.5695, E_margin=0.0209, hinge=0.2910][A
+train epoch: 1:   1%|          | 19/1563 [00:33<43:30,  1.69s/it, total_loss=5.1215, ce=4.8306, E_data=-0.5695, E_margin=0.0209, hinge=0.2910][A
+train epoch: 1:   1%|          | 19/1563 [00:34<43:30,  1.69s/it, total_loss=4.8952, ce=4.6400, E_data=-0.5606, E_margin=0.0221, hinge=0.2552][A
+train epoch: 1:   1%|▏         | 20/1563 [00:34<43:28,  1.69s/it, total_loss=4.8952, ce=4.6400, E_data=-0.5606, E_margin=0.0221, hinge=0.2552][A
+train epoch: 1:   1%|▏         | 20/1563 [00:36<43:28,  1.69s/it, total_loss=4.8762, ce=4.6603, E_data=-0.5546, E_margin=0.0271, hinge=0.2159][A
+train epoch: 1:   1%|▏         | 21/1563 [00:36<43:26,  1.69s/it, total_loss=4.8762, ce=4.6603, E_data=-0.5546, E_margin=0.0271, hinge=0.2159][A
+train epoch: 1:   1%|▏         | 21/1563 [00:38<43:26,  1.69s/it, total_loss=4.5809, ce=4.3814, E_data=-0.5455, E_margin=0.0322, hinge=0.1995][A
+train epoch: 1:   1%|▏         | 22/1563 [00:38<43:25,  1.69s/it, total_loss=4.5809, ce=4.3814, E_data=-0.5455, E_margin=0.0322, hinge=0.1995][A
+train epoch: 1:   1%|▏         | 22/1563 [00:39<43:25,  1.69s/it, total_loss=4.5719, ce=4.3715, E_data=-0.5301, E_margin=0.0328, hinge=0.2004][A
+train epoch: 1:   1%|▏         | 23/1563 [00:39<43:23,  1.69s/it, total_loss=4.5719, ce=4.3715, E_data=-0.5301, E_margin=0.0328, hinge=0.2004][A
+train epoch: 1:   1%|▏         | 23/1563 [00:41<43:23,  1.69s/it, total_loss=4.6513, ce=4.4242, E_data=-0.5132, E_margin=0.0309, hinge=0.2271][A
+train epoch: 1:   2%|▏         | 24/1563 [00:41<43:21,  1.69s/it, total_loss=4.6513, ce=4.4242, E_data=-0.5132, E_margin=0.0309, hinge=0.2271][A
+train epoch: 1:   2%|▏         | 24/1563 [00:43<43:21,  1.69s/it, total_loss=4.3312, ce=4.1240, E_data=-0.5012, E_margin=0.0277, hinge=0.2071][A
+train epoch: 1:   2%|▏         | 25/1563 [00:43<43:20,  1.69s/it, total_loss=4.3312, ce=4.1240, E_data=-0.5012, E_margin=0.0277, hinge=0.2071][A
+train epoch: 1:   2%|▏         | 25/1563 [00:44<43:20,  1.69s/it, total_loss=4.2868, ce=4.0865, E_data=-0.4925, E_margin=0.0213, hinge=0.2003][A
+train epoch: 1:   2%|▏         | 26/1563 [00:44<43:18,  1.69s/it, total_loss=4.2868, ce=4.0865, E_data=-0.4925, E_margin=0.0213, hinge=0.2003][A
+train epoch: 1:   2%|▏         | 26/1563 [00:46<43:18,  1.69s/it, total_loss=4.1146, ce=3.9399, E_data=-0.4931, E_margin=0.0224, hinge=0.1746][A
+train epoch: 1:   2%|▏         | 27/1563 [00:46<43:16,  1.69s/it, total_loss=4.1146, ce=3.9399, E_data=-0.4931, E_margin=0.0224, hinge=0.1746][A
+train epoch: 1:   2%|▏         | 27/1563 [00:48<43:16,  1.69s/it, total_loss=4.0135, ce=3.8524, E_data=-0.4933, E_margin=0.0238, hinge=0.1612][A
+train epoch: 1:   2%|▏         | 28/1563 [00:48<43:15,  1.69s/it, total_loss=4.0135, ce=3.8524, E_data=-0.4933, E_margin=0.0238, hinge=0.1612][A
+train epoch: 1:   2%|▏         | 28/1563 [00:49<43:15,  1.69s/it, total_loss=3.9098, ce=3.7527, E_data=-0.4892, E_margin=0.0253, hinge=0.1570][A
+train epoch: 1:   2%|▏         | 29/1563 [00:49<43:13,  1.69s/it, total_loss=3.9098, ce=3.7527, E_data=-0.4892, E_margin=0.0253, hinge=0.1570][A
+train epoch: 1:   2%|▏         | 29/1563 [00:51<43:13,  1.69s/it, total_loss=3.8605, ce=3.7173, E_data=-0.4809, E_margin=0.0234, hinge=0.1433][A
+train epoch: 1:   2%|▏         | 30/1563 [00:51<43:11,  1.69s/it, total_loss=3.8605, ce=3.7173, E_data=-0.4809, E_margin=0.0234, hinge=0.1433][A
+train epoch: 1:   2%|▏         | 30/1563 [00:53<43:11,  1.69s/it, total_loss=3.8610, ce=3.6872, E_data=-0.4742, E_margin=0.0223, hinge=0.1738][A
+train epoch: 1:   2%|▏         | 31/1563 [00:53<43:10,  1.69s/it, total_loss=3.8610, ce=3.6872, E_data=-0.4742, E_margin=0.0223, hinge=0.1738][A
+train epoch: 1:   2%|▏         | 31/1563 [00:55<43:10,  1.69s/it, total_loss=3.7629, ce=3.6183, E_data=-0.4694, E_margin=0.0234, hinge=0.1446][A
+train epoch: 1:   2%|▏         | 32/1563 [00:55<43:08,  1.69s/it, total_loss=3.7629, ce=3.6183, E_data=-0.4694, E_margin=0.0234, hinge=0.1446][A
+train epoch: 1:   2%|▏         | 32/1563 [00:56<43:08,  1.69s/it, total_loss=3.6550, ce=3.5242, E_data=-0.4659, E_margin=0.0231, hinge=0.1308][A
+train epoch: 1:   2%|▏         | 33/1563 [00:56<43:06,  1.69s/it, total_loss=3.6550, ce=3.5242, E_data=-0.4659, E_margin=0.0231, hinge=0.1308][A
+train epoch: 1:   2%|▏         | 33/1563 [00:58<43:06,  1.69s/it, total_loss=3.8040, ce=3.6707, E_data=-0.4594, E_margin=0.0194, hinge=0.1333][A
+train epoch: 1:   2%|▏         | 34/1563 [00:58<43:04,  1.69s/it, total_loss=3.8040, ce=3.6707, E_data=-0.4594, E_margin=0.0194, hinge=0.1333][A
+train epoch: 1:   2%|▏         | 34/1563 [01:00<43:04,  1.69s/it, total_loss=3.6279, ce=3.4805, E_data=-0.4507, E_margin=0.0153, hinge=0.1474][A
+train epoch: 1:   2%|▏         | 35/1563 [01:00<43:03,  1.69s/it, total_loss=3.6279, ce=3.4805, E_data=-0.4507, E_margin=0.0153, hinge=0.1474][A
+train epoch: 1:   2%|▏         | 35/1563 [01:01<43:03,  1.69s/it, total_loss=3.4855, ce=3.3503, E_data=-0.4468, E_margin=0.0171, hinge=0.1352][A
+train epoch: 1:   2%|▏         | 36/1563 [01:01<43:02,  1.69s/it, total_loss=3.4855, ce=3.3503, E_data=-0.4468, E_margin=0.0171, hinge=0.1352][A
+train epoch: 1:   2%|▏         | 36/1563 [01:03<43:02,  1.69s/it, total_loss=3.5984, ce=3.4786, E_data=-0.4464, E_margin=0.0216, hinge=0.1198][A
+train epoch: 1:   2%|▏         | 37/1563 [01:03<43:00,  1.69s/it, total_loss=3.5984, ce=3.4786, E_data=-0.4464, E_margin=0.0216, hinge=0.1198][A
+train epoch: 1:   2%|▏         | 37/1563 [01:05<43:00,  1.69s/it, total_loss=3.4758, ce=3.3501, E_data=-0.4456, E_margin=0.0239, hinge=0.1257][A
+train epoch: 1:   2%|▏         | 38/1563 [01:05<42:59,  1.69s/it, total_loss=3.4758, ce=3.3501, E_data=-0.4456, E_margin=0.0239, hinge=0.1257][A
+train epoch: 1:   2%|▏         | 38/1563 [01:06<42:59,  1.69s/it, total_loss=3.5048, ce=3.3900, E_data=-0.4386, E_margin=0.0220, hinge=0.1149][A
+train epoch: 1:   2%|▏         | 39/1563 [01:06<42:57,  1.69s/it, total_loss=3.5048, ce=3.3900, E_data=-0.4386, E_margin=0.0220, hinge=0.1149][A
+train epoch: 1:   2%|▏         | 39/1563 [01:08<42:57,  1.69s/it, total_loss=3.4322, ce=3.3103, E_data=-0.4323, E_margin=0.0199, hinge=0.1219][A
+train epoch: 1:   3%|▎         | 40/1563 [01:08<42:57,  1.69s/it, total_loss=3.4322, ce=3.3103, E_data=-0.4323, E_margin=0.0199, hinge=0.1219][A
+train epoch: 1:   3%|▎         | 40/1563 [01:10<42:57,  1.69s/it, total_loss=3.3972, ce=3.2706, E_data=-0.4270, E_margin=0.0184, hinge=0.1266][A
+train epoch: 1:   3%|▎         | 41/1563 [01:10<42:54,  1.69s/it, total_loss=3.3972, ce=3.2706, E_data=-0.4270, E_margin=0.0184, hinge=0.1266][A
+train epoch: 1:   3%|▎         | 41/1563 [01:11<42:54,  1.69s/it, total_loss=3.4355, ce=3.3141, E_data=-0.4219, E_margin=0.0187, hinge=0.1214][A
+train epoch: 1:   3%|▎         | 42/1563 [01:11<42:52,  1.69s/it, total_loss=3.4355, ce=3.3141, E_data=-0.4219, E_margin=0.0187, hinge=0.1214][A
+train epoch: 1:   3%|▎         | 42/1563 [01:13<42:52,  1.69s/it, total_loss=3.4192, ce=3.3056, E_data=-0.4197, E_margin=0.0203, hinge=0.1136][A
+train epoch: 1:   3%|▎         | 43/1563 [01:13<42:50,  1.69s/it, total_loss=3.4192, ce=3.3056, E_data=-0.4197, E_margin=0.0203, hinge=0.1136][A
+train epoch: 1:   3%|▎         | 43/1563 [01:15<42:50,  1.69s/it, total_loss=3.3511, ce=3.2294, E_data=-0.4162, E_margin=0.0215, hinge=0.1217][A
+train epoch: 1:   3%|▎         | 44/1563 [01:15<42:48,  1.69s/it, total_loss=3.3511, ce=3.2294, E_data=-0.4162, E_margin=0.0215, hinge=0.1217][A
+train epoch: 1:   3%|▎         | 44/1563 [01:17<42:48,  1.69s/it, total_loss=3.2778, ce=3.1541, E_data=-0.4118, E_margin=0.0203, hinge=0.1237][A
+train epoch: 1:   3%|▎         | 45/1563 [01:17<42:46,  1.69s/it, total_loss=3.2778, ce=3.1541, E_data=-0.4118, E_margin=0.0203, hinge=0.1237][A
+train epoch: 1:   3%|▎         | 45/1563 [01:18<42:46,  1.69s/it, total_loss=3.2278, ce=3.1085, E_data=-0.4116, E_margin=0.0203, hinge=0.1193][A
+train epoch: 1:   3%|▎         | 46/1563 [01:18<42:44,  1.69s/it, total_loss=3.2278, ce=3.1085, E_data=-0.4116, E_margin=0.0203, hinge=0.1193][A
+train epoch: 1:   3%|▎         | 46/1563 [01:20<42:44,  1.69s/it, total_loss=3.2482, ce=3.1295, E_data=-0.4121, E_margin=0.0210, hinge=0.1187][A
+train epoch: 1:   3%|▎         | 47/1563 [01:20<42:42,  1.69s/it, total_loss=3.2482, ce=3.1295, E_data=-0.4121, E_margin=0.0210, hinge=0.1187][A
+train epoch: 1:   3%|▎         | 47/1563 [01:22<42:42,  1.69s/it, total_loss=3.2562, ce=3.1389, E_data=-0.4104, E_margin=0.0227, hinge=0.1173][A
+train epoch: 1:   3%|▎         | 48/1563 [01:22<42:40,  1.69s/it, total_loss=3.2562, ce=3.1389, E_data=-0.4104, E_margin=0.0227, hinge=0.1173][A
+train epoch: 1:   3%|▎         | 48/1563 [01:23<42:40,  1.69s/it, total_loss=3.1724, ce=3.0599, E_data=-0.4052, E_margin=0.0234, hinge=0.1125][A
+train epoch: 1:   3%|▎         | 49/1563 [01:23<42:39,  1.69s/it, total_loss=3.1724, ce=3.0599, E_data=-0.4052, E_margin=0.0234, hinge=0.1125][A
+train epoch: 1:   3%|▎         | 49/1563 [01:25<42:39,  1.69s/it, total_loss=3.1562, ce=3.0479, E_data=-0.4029, E_margin=0.0240, hinge=0.1083][A
+train epoch: 1:   3%|▎         | 50/1563 [01:25<42:37,  1.69s/it, total_loss=3.1562, ce=3.0479, E_data=-0.4029, E_margin=0.0240, hinge=0.1083][A
+train epoch: 1:   3%|▎         | 50/1563 [01:27<42:37,  1.69s/it, total_loss=3.1738, ce=3.0662, E_data=-0.4020, E_margin=0.0231, hinge=0.1075][A
+train epoch: 1:   3%|▎         | 51/1563 [01:27<42:35,  1.69s/it, total_loss=3.1738, ce=3.0662, E_data=-0.4020, E_margin=0.0231, hinge=0.1075][A
+train epoch: 1:   3%|▎         | 51/1563 [01:28<42:35,  1.69s/it, total_loss=3.1940, ce=3.0849, E_data=-0.4024, E_margin=0.0235, hinge=0.1090][A
+train epoch: 1:   3%|▎         | 52/1563 [01:28<42:33,  1.69s/it, total_loss=3.1940, ce=3.0849, E_data=-0.4024, E_margin=0.0235, hinge=0.1090][A
+train epoch: 1:   3%|▎         | 52/1563 [01:30<42:33,  1.69s/it, total_loss=3.1376, ce=3.0508, E_data=-0.4080, E_margin=0.0272, hinge=0.0868][A
+train epoch: 1:   3%|▎         | 53/1563 [01:30<42:32,  1.69s/it, total_loss=3.1376, ce=3.0508, E_data=-0.4080, E_margin=0.0272, hinge=0.0868][A
+train epoch: 1:   3%|▎         | 53/1563 [01:32<42:32,  1.69s/it, total_loss=3.1636, ce=3.0807, E_data=-0.4036, E_margin=0.0255, hinge=0.0829][A
+train epoch: 1:   3%|▎         | 54/1563 [01:32<42:30,  1.69s/it, total_loss=3.1636, ce=3.0807, E_data=-0.4036, E_margin=0.0255, hinge=0.0829][A
+train epoch: 1:   3%|▎         | 54/1563 [01:33<42:30,  1.69s/it, total_loss=3.1248, ce=3.0236, E_data=-0.3930, E_margin=0.0233, hinge=0.1012][A
+train epoch: 1:   4%|▎         | 55/1563 [01:33<42:29,  1.69s/it, total_loss=3.1248, ce=3.0236, E_data=-0.3930, E_margin=0.0233, hinge=0.1012][A
+train epoch: 1:   4%|▎         | 55/1563 [01:35<42:29,  1.69s/it, total_loss=3.0627, ce=2.9586, E_data=-0.3862, E_margin=0.0231, hinge=0.1041][A
+train epoch: 1:   4%|▎         | 56/1563 [01:35<42:27,  1.69s/it, total_loss=3.0627, ce=2.9586, E_data=-0.3862, E_margin=0.0231, hinge=0.1041][A
+train epoch: 1:   4%|▎         | 56/1563 [01:37<42:27,  1.69s/it, total_loss=3.0711, ce=2.9560, E_data=-0.3841, E_margin=0.0234, hinge=0.1150][A
+train epoch: 1:   4%|▎         | 57/1563 [01:37<42:25,  1.69s/it, total_loss=3.0711, ce=2.9560, E_data=-0.3841, E_margin=0.0234, hinge=0.1150][A
+train epoch: 1:   4%|▎         | 57/1563 [01:39<42:25,  1.69s/it, total_loss=2.9913, ce=2.8973, E_data=-0.3884, E_margin=0.0278, hinge=0.0940][A
+train epoch: 1:   4%|▎         | 58/1563 [01:39<42:23,  1.69s/it, total_loss=2.9913, ce=2.8973, E_data=-0.3884, E_margin=0.0278, hinge=0.0940][A
+train epoch: 1:   4%|▎         | 58/1563 [01:40<42:23,  1.69s/it, total_loss=3.0563, ce=2.9553, E_data=-0.3939, E_margin=0.0301, hinge=0.1010][A
+train epoch: 1:   4%|▍         | 59/1563 [01:40<42:22,  1.69s/it, total_loss=3.0563, ce=2.9553, E_data=-0.3939, E_margin=0.0301, hinge=0.1010][A
+train epoch: 1:   4%|▍         | 59/1563 [01:42<42:22,  1.69s/it, total_loss=3.0890, ce=2.9942, E_data=-0.3957, E_margin=0.0314, hinge=0.0947][A
+train epoch: 1:   4%|▍         | 60/1563 [01:42<42:20,  1.69s/it, total_loss=3.0890, ce=2.9942, E_data=-0.3957, E_margin=0.0314, hinge=0.0947][A
+train epoch: 1:   4%|▍         | 60/1563 [01:44<42:20,  1.69s/it, total_loss=3.0415, ce=2.9369, E_data=-0.3892, E_margin=0.0298, hinge=0.1047][A
+train epoch: 1:   4%|▍         | 61/1563 [01:44<42:18,  1.69s/it, total_loss=3.0415, ce=2.9369, E_data=-0.3892, E_margin=0.0298, hinge=0.1047][A
+train epoch: 1:   4%|▍         | 61/1563 [01:45<42:18,  1.69s/it, total_loss=3.0849, ce=2.9700, E_data=-0.3807, E_margin=0.0272, hinge=0.1149][A
+train epoch: 1:   4%|▍         | 62/1563 [01:45<42:17,  1.69s/it, total_loss=3.0849, ce=2.9700, E_data=-0.3807, E_margin=0.0272, hinge=0.1149][A
+train epoch: 1:   4%|▍         | 62/1563 [01:47<42:17,  1.69s/it, total_loss=3.0412, ce=2.9339, E_data=-0.3750, E_margin=0.0242, hinge=0.1073][A
+train epoch: 1:   4%|▍         | 63/1563 [01:47<42:15,  1.69s/it, total_loss=3.0412, ce=2.9339, E_data=-0.3750, E_margin=0.0242, hinge=0.1073][A
+train epoch: 1:   4%|▍         | 63/1563 [01:49<42:15,  1.69s/it, total_loss=3.0036, ce=2.9015, E_data=-0.3749, E_margin=0.0265, hinge=0.1020][A
+train epoch: 1:   4%|▍         | 64/1563 [01:49<42:14,  1.69s/it, total_loss=3.0036, ce=2.9015, E_data=-0.3749, E_margin=0.0265, hinge=0.1020][A
+train epoch: 1:   4%|▍         | 64/1563 [01:50<42:14,  1.69s/it, total_loss=3.0141, ce=2.9043, E_data=-0.3806, E_margin=0.0301, hinge=0.1099][A
+train epoch: 1:   4%|▍         | 65/1563 [01:50<42:12,  1.69s/it, total_loss=3.0141, ce=2.9043, E_data=-0.3806, E_margin=0.0301, hinge=0.1099][A
+train epoch: 1:   4%|▍         | 65/1563 [01:52<42:12,  1.69s/it, total_loss=2.9627, ce=2.8557, E_data=-0.3851, E_margin=0.0327, hinge=0.1070][A
+train epoch: 1:   4%|▍         | 66/1563 [01:52<42:10,  1.69s/it, total_loss=2.9627, ce=2.8557, E_data=-0.3851, E_margin=0.0327, hinge=0.1070][A
+train epoch: 1:   4%|▍         | 66/1563 [01:54<42:10,  1.69s/it, total_loss=2.9811, ce=2.8913, E_data=-0.3835, E_margin=0.0311, hinge=0.0899][A
+train epoch: 1:   4%|▍         | 67/1563 [01:54<42:09,  1.69s/it, total_loss=2.9811, ce=2.8913, E_data=-0.3835, E_margin=0.0311, hinge=0.0899][A
+train epoch: 1:   4%|▍         | 67/1563 [01:55<42:09,  1.69s/it, total_loss=2.9572, ce=2.8517, E_data=-0.3790, E_margin=0.0293, hinge=0.1055][A
+train epoch: 1:   4%|▍         | 68/1563 [01:55<42:07,  1.69s/it, total_loss=2.9572, ce=2.8517, E_data=-0.3790, E_margin=0.0293, hinge=0.1055][A
+train epoch: 1:   4%|▍         | 68/1563 [01:57<42:07,  1.69s/it, total_loss=2.9756, ce=2.8762, E_data=-0.3774, E_margin=0.0305, hinge=0.0993][A
+train epoch: 1:   4%|▍         | 69/1563 [01:57<42:05,  1.69s/it, total_loss=2.9756, ce=2.8762, E_data=-0.3774, E_margin=0.0305, hinge=0.0993][A
+train epoch: 1:   4%|▍         | 69/1563 [01:59<42:05,  1.69s/it, total_loss=2.9235, ce=2.8284, E_data=-0.3798, E_margin=0.0324, hinge=0.0951][A
+train epoch: 1:   4%|▍         | 70/1563 [01:59<42:04,  1.69s/it, total_loss=2.9235, ce=2.8284, E_data=-0.3798, E_margin=0.0324, hinge=0.0951][A
+train epoch: 1:   4%|▍         | 70/1563 [02:01<42:04,  1.69s/it, total_loss=2.9492, ce=2.8614, E_data=-0.3820, E_margin=0.0330, hinge=0.0877][A
+train epoch: 1:   5%|▍         | 71/1563 [02:01<42:01,  1.69s/it, total_loss=2.9492, ce=2.8614, E_data=-0.3820, E_margin=0.0330, hinge=0.0877][A
+train epoch: 1:   5%|▍         | 71/1563 [02:02<42:01,  1.69s/it, total_loss=2.9554, ce=2.8507, E_data=-0.3821, E_margin=0.0331, hinge=0.1047][A
+train epoch: 1:   5%|▍         | 72/1563 [02:02<41:59,  1.69s/it, total_loss=2.9554, ce=2.8507, E_data=-0.3821, E_margin=0.0331, hinge=0.1047][A
+train epoch: 1:   5%|▍         | 72/1563 [02:04<41:59,  1.69s/it, total_loss=2.9616, ce=2.8606, E_data=-0.3811, E_margin=0.0319, hinge=0.1010][A
+train epoch: 1:   5%|▍         | 73/1563 [02:04<41:56,  1.69s/it, total_loss=2.9616, ce=2.8606, E_data=-0.3811, E_margin=0.0319, hinge=0.1010][A
+train epoch: 1:   5%|▍         | 73/1563 [02:06<41:56,  1.69s/it, total_loss=2.9965, ce=2.8923, E_data=-0.3800, E_margin=0.0332, hinge=0.1043][A
+train epoch: 1:   5%|▍         | 74/1563 [02:06<41:54,  1.69s/it, total_loss=2.9965, ce=2.8923, E_data=-0.3800, E_margin=0.0332, hinge=0.1043][A
+train epoch: 1:   5%|▍         | 74/1563 [02:07<41:54,  1.69s/it, total_loss=2.8911, ce=2.8090, E_data=-0.3772, E_margin=0.0350, hinge=0.0821][A
+train epoch: 1:   5%|▍         | 75/1563 [02:07<41:52,  1.69s/it, total_loss=2.8911, ce=2.8090, E_data=-0.3772, E_margin=0.0350, hinge=0.0821][A
+train epoch: 1:   5%|▍         | 75/1563 [02:09<41:52,  1.69s/it, total_loss=2.9282, ce=2.8306, E_data=-0.3712, E_margin=0.0344, hinge=0.0976][A
+train epoch: 1:   5%|▍         | 76/1563 [02:09<41:50,  1.69s/it, total_loss=2.9282, ce=2.8306, E_data=-0.3712, E_margin=0.0344, hinge=0.0976][A
+train epoch: 1:   5%|▍         | 76/1563 [02:11<41:50,  1.69s/it, total_loss=2.8555, ce=2.7631, E_data=-0.3644, E_margin=0.0329, hinge=0.0923][A
+train epoch: 1:   5%|▍         | 77/1563 [02:11<41:48,  1.69s/it, total_loss=2.8555, ce=2.7631, E_data=-0.3644, E_margin=0.0329, hinge=0.0923][A
+train epoch: 1:   5%|▍         | 77/1563 [02:12<41:48,  1.69s/it, total_loss=2.8791, ce=2.7914, E_data=-0.3620, E_margin=0.0320, hinge=0.0877][A
+train epoch: 1:   5%|▍         | 78/1563 [02:12<41:46,  1.69s/it, total_loss=2.8791, ce=2.7914, E_data=-0.3620, E_margin=0.0320, hinge=0.0877][A
+train epoch: 1:   5%|▍         | 78/1563 [02:14<41:46,  1.69s/it, total_loss=2.9075, ce=2.8273, E_data=-0.3662, E_margin=0.0342, hinge=0.0802][A
+train epoch: 1:   5%|▌         | 79/1563 [02:14<41:44,  1.69s/it, total_loss=2.9075, ce=2.8273, E_data=-0.3662, E_margin=0.0342, hinge=0.0802][A
+train epoch: 1:   5%|▌         | 79/1563 [02:16<41:44,  1.69s/it, total_loss=2.8338, ce=2.7476, E_data=-0.3744, E_margin=0.0386, hinge=0.0862][A
+train epoch: 1:   5%|▌         | 80/1563 [02:16<41:42,  1.69s/it, total_loss=2.8338, ce=2.7476, E_data=-0.3744, E_margin=0.0386, hinge=0.0862][A
+train epoch: 1:   5%|▌         | 80/1563 [02:17<41:42,  1.69s/it, total_loss=2.9080, ce=2.8004, E_data=-0.3776, E_margin=0.0398, hinge=0.1075][A
+train epoch: 1:   5%|▌         | 81/1563 [02:17<41:41,  1.69s/it, total_loss=2.9080, ce=2.8004, E_data=-0.3776, E_margin=0.0398, hinge=0.1075][A
+train epoch: 1:   5%|▌         | 81/1563 [02:19<41:41,  1.69s/it, total_loss=2.8055, ce=2.7089, E_data=-0.3793, E_margin=0.0419, hinge=0.0966][A
+train epoch: 1:   5%|▌         | 82/1563 [02:19<41:39,  1.69s/it, total_loss=2.8055, ce=2.7089, E_data=-0.3793, E_margin=0.0419, hinge=0.0966][A
+train epoch: 1:   5%|▌         | 82/1563 [02:21<41:39,  1.69s/it, total_loss=2.8897, ce=2.7852, E_data=-0.3722, E_margin=0.0361, hinge=0.1045][A
+train epoch: 1:   5%|▌         | 83/1563 [02:21<41:37,  1.69s/it, total_loss=2.8897, ce=2.7852, E_data=-0.3722, E_margin=0.0361, hinge=0.1045][A
+train epoch: 1:   5%|▌         | 83/1563 [02:22<41:37,  1.69s/it, total_loss=2.8825, ce=2.7822, E_data=-0.3710, E_margin=0.0347, hinge=0.1003][A
+train epoch: 1:   5%|▌         | 84/1563 [02:22<41:36,  1.69s/it, total_loss=2.8825, ce=2.7822, E_data=-0.3710, E_margin=0.0347, hinge=0.1003][A
+train epoch: 1:   5%|▌         | 84/1563 [02:24<41:36,  1.69s/it, total_loss=2.8109, ce=2.7102, E_data=-0.3722, E_margin=0.0356, hinge=0.1006][A
+train epoch: 1:   5%|▌         | 85/1563 [02:24<41:34,  1.69s/it, total_loss=2.8109, ce=2.7102, E_data=-0.3722, E_margin=0.0356, hinge=0.1006][A
+train epoch: 1:   5%|▌         | 85/1563 [02:26<41:34,  1.69s/it, total_loss=2.8629, ce=2.7623, E_data=-0.3727, E_margin=0.0369, hinge=0.1006][A
+train epoch: 1:   6%|▌         | 86/1563 [02:26<41:32,  1.69s/it, total_loss=2.8629, ce=2.7623, E_data=-0.3727, E_margin=0.0369, hinge=0.1006][A
+train epoch: 1:   6%|▌         | 86/1563 [02:28<41:32,  1.69s/it, total_loss=2.7651, ce=2.6592, E_data=-0.3719, E_margin=0.0379, hinge=0.1058][A
+train epoch: 1:   6%|▌         | 87/1563 [02:28<41:30,  1.69s/it, total_loss=2.7651, ce=2.6592, E_data=-0.3719, E_margin=0.0379, hinge=0.1058][A
+train epoch: 1:   6%|▌         | 87/1563 [02:29<41:30,  1.69s/it, total_loss=2.7164, ce=2.6209, E_data=-0.3704, E_margin=0.0389, hinge=0.0955][A
+train epoch: 1:   6%|▌         | 88/1563 [02:29<41:29,  1.69s/it, total_loss=2.7164, ce=2.6209, E_data=-0.3704, E_margin=0.0389, hinge=0.0955][A
+train epoch: 1:   6%|▌         | 88/1563 [02:31<41:29,  1.69s/it, total_loss=2.7775, ce=2.6811, E_data=-0.3704, E_margin=0.0418, hinge=0.0964][A
+train epoch: 1:   6%|▌         | 89/1563 [02:31<41:27,  1.69s/it, total_loss=2.7775, ce=2.6811, E_data=-0.3704, E_margin=0.0418, hinge=0.0964][A
+train epoch: 1:   6%|▌         | 89/1563 [02:33<41:27,  1.69s/it, total_loss=2.8367, ce=2.7527, E_data=-0.3674, E_margin=0.0404, hinge=0.0840][A
+train epoch: 1:   6%|▌         | 90/1563 [02:33<41:25,  1.69s/it, total_loss=2.8367, ce=2.7527, E_data=-0.3674, E_margin=0.0404, hinge=0.0840][A
+train epoch: 1:   6%|▌         | 90/1563 [02:34<41:25,  1.69s/it, total_loss=2.7524, ce=2.6691, E_data=-0.3701, E_margin=0.0414, hinge=0.0833][A
+train epoch: 1:   6%|▌         | 91/1563 [02:34<41:23,  1.69s/it, total_loss=2.7524, ce=2.6691, E_data=-0.3701, E_margin=0.0414, hinge=0.0833][A
+train epoch: 1:   6%|▌         | 91/1563 [02:36<41:23,  1.69s/it, total_loss=2.7458, ce=2.6523, E_data=-0.3717, E_margin=0.0401, hinge=0.0934][A
+train epoch: 1:   6%|▌         | 92/1563 [02:36<41:22,  1.69s/it, total_loss=2.7458, ce=2.6523, E_data=-0.3717, E_margin=0.0401, hinge=0.0934][A
+train epoch: 1:   6%|▌         | 92/1563 [02:38<41:22,  1.69s/it, total_loss=2.7048, ce=2.6148, E_data=-0.3743, E_margin=0.0414, hinge=0.0900][A
+train epoch: 1:   6%|▌         | 93/1563 [02:38<41:20,  1.69s/it, total_loss=2.7048, ce=2.6148, E_data=-0.3743, E_margin=0.0414, hinge=0.0900][A
+train epoch: 1:   6%|▌         | 93/1563 [02:39<41:20,  1.69s/it, total_loss=2.7445, ce=2.6483, E_data=-0.3783, E_margin=0.0443, hinge=0.0962][A
+train epoch: 1:   6%|▌         | 94/1563 [02:39<41:19,  1.69s/it, total_loss=2.7445, ce=2.6483, E_data=-0.3783, E_margin=0.0443, hinge=0.0962][A
+train epoch: 1:   6%|▌         | 94/1563 [02:41<41:19,  1.69s/it, total_loss=2.7207, ce=2.6397, E_data=-0.3812, E_margin=0.0485, hinge=0.0810][A
+train epoch: 1:   6%|▌         | 95/1563 [02:41<41:17,  1.69s/it, total_loss=2.7207, ce=2.6397, E_data=-0.3812, E_margin=0.0485, hinge=0.0810][A
+train epoch: 1:   6%|▌         | 95/1563 [02:43<41:17,  1.69s/it, total_loss=2.7370, ce=2.6720, E_data=-0.3817, E_margin=0.0497, hinge=0.0651][A
+train epoch: 1:   6%|▌         | 96/1563 [02:43<41:16,  1.69s/it, total_loss=2.7370, ce=2.6720, E_data=-0.3817, E_margin=0.0497, hinge=0.0651][A
+train epoch: 1:   6%|▌         | 96/1563 [02:44<41:16,  1.69s/it, total_loss=2.6895, ce=2.6298, E_data=-0.3770, E_margin=0.0468, hinge=0.0597][A
+train epoch: 1:   6%|▌         | 97/1563 [02:44<41:14,  1.69s/it, total_loss=2.6895, ce=2.6298, E_data=-0.3770, E_margin=0.0468, hinge=0.0597][A
+train epoch: 1:   6%|▌         | 97/1563 [02:46<41:14,  1.69s/it, total_loss=2.6918, ce=2.6119, E_data=-0.3739, E_margin=0.0442, hinge=0.0798][A
+train epoch: 1:   6%|▋         | 98/1563 [02:46<41:12,  1.69s/it, total_loss=2.6918, ce=2.6119, E_data=-0.3739, E_margin=0.0442, hinge=0.0798][A
+train epoch: 1:   6%|▋         | 98/1563 [02:48<41:12,  1.69s/it, total_loss=2.6980, ce=2.6281, E_data=-0.3736, E_margin=0.0429, hinge=0.0700][A
+train epoch: 1:   6%|▋         | 99/1563 [02:48<41:10,  1.69s/it, total_loss=2.6980, ce=2.6281, E_data=-0.3736, E_margin=0.0429, hinge=0.0700][A
+train epoch: 1:   6%|▋         | 99/1563 [02:49<41:10,  1.69s/it, total_loss=2.6788, ce=2.6165, E_data=-0.3780, E_margin=0.0473, hinge=0.0623][A
+train epoch: 1:   6%|▋         | 100/1563 [02:49<41:09,  1.69s/it, total_loss=2.6788, ce=2.6165, E_data=-0.3780, E_margin=0.0473, hinge=0.0623][A
+train epoch: 1:   6%|▋         | 100/1563 [02:51<41:09,  1.69s/it, total_loss=2.6577, ce=2.5795, E_data=-0.3738, E_margin=0.0467, hinge=0.0782][A
+train epoch: 1:   6%|▋         | 101/1563 [02:51<41:07,  1.69s/it, total_loss=2.6577, ce=2.5795, E_data=-0.3738, E_margin=0.0467, hinge=0.0782][A
+train epoch: 1:   6%|▋         | 101/1563 [02:53<41:07,  1.69s/it, total_loss=2.6234, ce=2.5528, E_data=-0.3727, E_margin=0.0505, hinge=0.0706][A
+train epoch: 1:   7%|▋         | 102/1563 [02:53<41:05,  1.69s/it, total_loss=2.6234, ce=2.5528, E_data=-0.3727, E_margin=0.0505, hinge=0.0706][A
+train epoch: 1:   7%|▋         | 102/1563 [02:55<41:05,  1.69s/it, total_loss=2.6631, ce=2.5779, E_data=-0.3683, E_margin=0.0488, hinge=0.0853][A
+train epoch: 1:   7%|▋         | 103/1563 [02:55<41:03,  1.69s/it, total_loss=2.6631, ce=2.5779, E_data=-0.3683, E_margin=0.0488, hinge=0.0853][A
+train epoch: 1:   7%|▋         | 103/1563 [02:56<41:03,  1.69s/it, total_loss=2.6317, ce=2.5625, E_data=-0.3717, E_margin=0.0510, hinge=0.0691][A
+train epoch: 1:   7%|▋         | 104/1563 [02:56<41:02,  1.69s/it, total_loss=2.6317, ce=2.5625, E_data=-0.3717, E_margin=0.0510, hinge=0.0691][A
+train epoch: 1:   7%|▋         | 104/1563 [02:58<41:02,  1.69s/it, total_loss=2.6430, ce=2.5690, E_data=-0.3776, E_margin=0.0512, hinge=0.0740][A
+train epoch: 1:   7%|▋         | 105/1563 [02:58<41:00,  1.69s/it, total_loss=2.6430, ce=2.5690, E_data=-0.3776, E_margin=0.0512, hinge=0.0740][A
+train epoch: 1:   7%|▋         | 105/1563 [03:00<41:00,  1.69s/it, total_loss=2.5889, ce=2.5213, E_data=-0.3872, E_margin=0.0550, hinge=0.0676][A
+train epoch: 1:   7%|▋         | 106/1563 [03:00<40:59,  1.69s/it, total_loss=2.5889, ce=2.5213, E_data=-0.3872, E_margin=0.0550, hinge=0.0676][A
+train epoch: 1:   7%|▋         | 106/1563 [03:01<40:59,  1.69s/it, total_loss=2.5781, ce=2.5260, E_data=-0.3866, E_margin=0.0521, hinge=0.0521][A
+train epoch: 1:   7%|▋         | 107/1563 [03:01<40:57,  1.69s/it, total_loss=2.5781, ce=2.5260, E_data=-0.3866, E_margin=0.0521, hinge=0.0521][A
+train epoch: 1:   7%|▋         | 107/1563 [03:03<40:57,  1.69s/it, total_loss=2.6426, ce=2.5753, E_data=-0.3832, E_margin=0.0490, hinge=0.0673][A
+train epoch: 1:   7%|▋         | 108/1563 [03:03<40:55,  1.69s/it, total_loss=2.6426, ce=2.5753, E_data=-0.3832, E_margin=0.0490, hinge=0.0673][A
+train epoch: 1:   7%|▋         | 108/1563 [03:05<40:55,  1.69s/it, total_loss=2.6186, ce=2.5629, E_data=-0.3819, E_margin=0.0498, hinge=0.0557][A
+train epoch: 1:   7%|▋         | 109/1563 [03:05<40:54,  1.69s/it, total_loss=2.6186, ce=2.5629, E_data=-0.3819, E_margin=0.0498, hinge=0.0557][A
+train epoch: 1:   7%|▋         | 109/1563 [03:06<40:54,  1.69s/it, total_loss=2.5837, ce=2.5207, E_data=-0.3784, E_margin=0.0501, hinge=0.0629][A
+train epoch: 1:   7%|▋         | 110/1563 [03:06<40:52,  1.69s/it, total_loss=2.5837, ce=2.5207, E_data=-0.3784, E_margin=0.0501, hinge=0.0629][A
+train epoch: 1:   7%|▋         | 110/1563 [03:08<40:52,  1.69s/it, total_loss=2.5467, ce=2.4883, E_data=-0.3769, E_margin=0.0507, hinge=0.0585][A
+train epoch: 1:   7%|▋         | 111/1563 [03:08<40:50,  1.69s/it, total_loss=2.5467, ce=2.4883, E_data=-0.3769, E_margin=0.0507, hinge=0.0585][A
+train epoch: 1:   7%|▋         | 111/1563 [03:10<40:50,  1.69s/it, total_loss=2.5025, ce=2.4415, E_data=-0.3784, E_margin=0.0529, hinge=0.0610][A
+train epoch: 1:   7%|▋         | 112/1563 [03:10<40:49,  1.69s/it, total_loss=2.5025, ce=2.4415, E_data=-0.3784, E_margin=0.0529, hinge=0.0610][A
+train epoch: 1:   7%|▋         | 112/1563 [03:11<40:49,  1.69s/it, total_loss=2.4873, ce=2.4378, E_data=-0.3807, E_margin=0.0553, hinge=0.0495][A
+train epoch: 1:   7%|▋         | 113/1563 [03:11<40:47,  1.69s/it, total_loss=2.4873, ce=2.4378, E_data=-0.3807, E_margin=0.0553, hinge=0.0495][A
+train epoch: 1:   7%|▋         | 113/1563 [03:13<40:47,  1.69s/it, total_loss=2.6181, ce=2.5479, E_data=-0.3804, E_margin=0.0550, hinge=0.0702][A
+train epoch: 1:   7%|▋         | 114/1563 [03:13<40:45,  1.69s/it, total_loss=2.6181, ce=2.5479, E_data=-0.3804, E_margin=0.0550, hinge=0.0702][A
+train epoch: 1:   7%|▋         | 114/1563 [03:15<40:45,  1.69s/it, total_loss=2.5283, ce=2.4680, E_data=-0.3862, E_margin=0.0613, hinge=0.0602][A
+train epoch: 1:   7%|▋         | 115/1563 [03:15<40:44,  1.69s/it, total_loss=2.5283, ce=2.4680, E_data=-0.3862, E_margin=0.0613, hinge=0.0602][A
+train epoch: 1:   7%|▋         | 115/1563 [03:16<40:44,  1.69s/it, total_loss=2.6011, ce=2.5503, E_data=-0.3815, E_margin=0.0558, hinge=0.0508][A
+train epoch: 1:   7%|▋         | 116/1563 [03:16<40:43,  1.69s/it, total_loss=2.6011, ce=2.5503, E_data=-0.3815, E_margin=0.0558, hinge=0.0508][A
+train epoch: 1:   7%|▋         | 116/1563 [03:18<40:43,  1.69s/it, total_loss=2.5130, ce=2.4536, E_data=-0.3804, E_margin=0.0569, hinge=0.0594][A
+train epoch: 1:   7%|▋         | 117/1563 [03:18<40:41,  1.69s/it, total_loss=2.5130, ce=2.4536, E_data=-0.3804, E_margin=0.0569, hinge=0.0594][A
+train epoch: 1:   7%|▋         | 117/1563 [03:20<40:41,  1.69s/it, total_loss=2.5682, ce=2.4893, E_data=-0.3757, E_margin=0.0529, hinge=0.0788][A
+train epoch: 1:   8%|▊         | 118/1563 [03:20<40:39,  1.69s/it, total_loss=2.5682, ce=2.4893, E_data=-0.3757, E_margin=0.0529, hinge=0.0788][A
+train epoch: 1:   8%|▊         | 118/1563 [03:22<40:39,  1.69s/it, total_loss=2.5360, ce=2.4795, E_data=-0.3772, E_margin=0.0544, hinge=0.0565][A
+train epoch: 1:   8%|▊         | 119/1563 [03:22<40:37,  1.69s/it, total_loss=2.5360, ce=2.4795, E_data=-0.3772, E_margin=0.0544, hinge=0.0565][A
+train epoch: 1:   8%|▊         | 119/1563 [03:23<40:37,  1.69s/it, total_loss=2.5116, ce=2.4590, E_data=-0.3829, E_margin=0.0605, hinge=0.0526][A
+train epoch: 1:   8%|▊         | 120/1563 [03:23<40:35,  1.69s/it, total_loss=2.5116, ce=2.4590, E_data=-0.3829, E_margin=0.0605, hinge=0.0526][A
+train epoch: 1:   8%|▊         | 120/1563 [03:25<40:35,  1.69s/it, total_loss=2.5224, ce=2.4473, E_data=-0.3818, E_margin=0.0602, hinge=0.0751][A
+train epoch: 1:   8%|▊         | 121/1563 [03:25<40:34,  1.69s/it, total_loss=2.5224, ce=2.4473, E_data=-0.3818, E_margin=0.0602, hinge=0.0751][A
+train epoch: 1:   8%|▊         | 121/1563 [03:27<40:34,  1.69s/it, total_loss=2.4941, ce=2.4269, E_data=-0.3764, E_margin=0.0572, hinge=0.0672][A
+train epoch: 1:   8%|▊         | 122/1563 [03:27<40:32,  1.69s/it, total_loss=2.4941, ce=2.4269, E_data=-0.3764, E_margin=0.0572, hinge=0.0672][A
+train epoch: 1:   8%|▊         | 122/1563 [03:28<40:32,  1.69s/it, total_loss=2.4875, ce=2.4142, E_data=-0.3804, E_margin=0.0607, hinge=0.0733][A
+train epoch: 1:   8%|▊         | 123/1563 [03:28<40:31,  1.69s/it, total_loss=2.4875, ce=2.4142, E_data=-0.3804, E_margin=0.0607, hinge=0.0733][A
+train epoch: 1:   8%|▊         | 123/1563 [03:30<40:31,  1.69s/it, total_loss=2.4775, ce=2.4132, E_data=-0.3853, E_margin=0.0626, hinge=0.0642][A
+train epoch: 1:   8%|▊         | 124/1563 [03:30<40:29,  1.69s/it, total_loss=2.4775, ce=2.4132, E_data=-0.3853, E_margin=0.0626, hinge=0.0642][A
+train epoch: 1:   8%|▊         | 124/1563 [03:32<40:29,  1.69s/it, total_loss=2.4531, ce=2.3760, E_data=-0.3902, E_margin=0.0622, hinge=0.0771][A
+train epoch: 1:   8%|▊         | 125/1563 [03:32<40:27,  1.69s/it, total_loss=2.4531, ce=2.3760, E_data=-0.3902, E_margin=0.0622, hinge=0.0771][A
+train epoch: 1:   8%|▊         | 125/1563 [03:33<40:27,  1.69s/it, total_loss=2.4406, ce=2.3722, E_data=-0.3923, E_margin=0.0629, hinge=0.0684][A
+train epoch: 1:   8%|▊         | 126/1563 [03:33<40:26,  1.69s/it, total_loss=2.4406, ce=2.3722, E_data=-0.3923, E_margin=0.0629, hinge=0.0684][A
+train epoch: 1:   8%|▊         | 126/1563 [03:35<40:26,  1.69s/it, total_loss=2.4643, ce=2.3826, E_data=-0.3856, E_margin=0.0576, hinge=0.0817][A
+train epoch: 1:   8%|▊         | 127/1563 [03:35<40:24,  1.69s/it, total_loss=2.4643, ce=2.3826, E_data=-0.3856, E_margin=0.0576, hinge=0.0817][A
+train epoch: 1:   8%|▊         | 127/1563 [03:37<40:24,  1.69s/it, total_loss=2.3829, ce=2.3165, E_data=-0.3893, E_margin=0.0645, hinge=0.0664][A
+train epoch: 1:   8%|▊         | 128/1563 [03:37<40:22,  1.69s/it, total_loss=2.3829, ce=2.3165, E_data=-0.3893, E_margin=0.0645, hinge=0.0664][A
+train epoch: 1:   8%|▊         | 128/1563 [03:38<40:22,  1.69s/it, total_loss=2.4035, ce=2.3508, E_data=-0.3899, E_margin=0.0710, hinge=0.0526][A
+train epoch: 1:   8%|▊         | 129/1563 [03:38<40:20,  1.69s/it, total_loss=2.4035, ce=2.3508, E_data=-0.3899, E_margin=0.0710, hinge=0.0526][A
+train epoch: 1:   8%|▊         | 129/1563 [03:40<40:20,  1.69s/it, total_loss=2.4219, ce=2.3777, E_data=-0.3859, E_margin=0.0705, hinge=0.0441][A
+train epoch: 1:   8%|▊         | 130/1563 [03:40<40:19,  1.69s/it, total_loss=2.4219, ce=2.3777, E_data=-0.3859, E_margin=0.0705, hinge=0.0441][A
+train epoch: 1:   8%|▊         | 130/1563 [03:42<40:19,  1.69s/it, total_loss=2.4383, ce=2.3705, E_data=-0.3861, E_margin=0.0694, hinge=0.0678][A
+train epoch: 1:   8%|▊         | 131/1563 [03:42<40:17,  1.69s/it, total_loss=2.4383, ce=2.3705, E_data=-0.3861, E_margin=0.0694, hinge=0.0678][A
+train epoch: 1:   8%|▊         | 131/1563 [03:43<40:17,  1.69s/it, total_loss=2.3960, ce=2.3394, E_data=-0.3900, E_margin=0.0689, hinge=0.0566][A
+train epoch: 1:   8%|▊         | 132/1563 [03:43<40:15,  1.69s/it, total_loss=2.3960, ce=2.3394, E_data=-0.3900, E_margin=0.0689, hinge=0.0566][A
+train epoch: 1:   8%|▊         | 132/1563 [03:45<40:15,  1.69s/it, total_loss=2.3622, ce=2.2993, E_data=-0.3923, E_margin=0.0672, hinge=0.0629][A
+train epoch: 1:   9%|▊         | 133/1563 [03:45<40:13,  1.69s/it, total_loss=2.3622, ce=2.2993, E_data=-0.3923, E_margin=0.0672, hinge=0.0629][A
+train epoch: 1:   9%|▊         | 133/1563 [03:47<40:13,  1.69s/it, total_loss=2.4820, ce=2.4088, E_data=-0.3904, E_margin=0.0638, hinge=0.0731][A
+train epoch: 1:   9%|▊         | 134/1563 [03:47<40:11,  1.69s/it, total_loss=2.4820, ce=2.4088, E_data=-0.3904, E_margin=0.0638, hinge=0.0731][A
+train epoch: 1:   9%|▊         | 134/1563 [03:49<40:11,  1.69s/it, total_loss=2.3515, ce=2.2871, E_data=-0.3962, E_margin=0.0703, hinge=0.0643][A
+train epoch: 1:   9%|▊         | 135/1563 [03:49<40:09,  1.69s/it, total_loss=2.3515, ce=2.2871, E_data=-0.3962, E_margin=0.0703, hinge=0.0643][A
+train epoch: 1:   9%|▊         | 135/1563 [03:50<40:09,  1.69s/it, total_loss=2.3337, ce=2.2858, E_data=-0.3919, E_margin=0.0706, hinge=0.0479][A
+train epoch: 1:   9%|▊         | 136/1563 [03:50<40:07,  1.69s/it, total_loss=2.3337, ce=2.2858, E_data=-0.3919, E_margin=0.0706, hinge=0.0479][A
+train epoch: 1:   9%|▊         | 136/1563 [03:52<40:07,  1.69s/it, total_loss=2.3313, ce=2.2640, E_data=-0.3914, E_margin=0.0734, hinge=0.0673][A
+train epoch: 1:   9%|▉         | 137/1563 [03:52<40:06,  1.69s/it, total_loss=2.3313, ce=2.2640, E_data=-0.3914, E_margin=0.0734, hinge=0.0673][A
+train epoch: 1:   9%|▉         | 137/1563 [03:54<40:06,  1.69s/it, total_loss=2.3577, ce=2.2928, E_data=-0.3870, E_margin=0.0726, hinge=0.0649][A
+train epoch: 1:   9%|▉         | 138/1563 [03:54<40:04,  1.69s/it, total_loss=2.3577, ce=2.2928, E_data=-0.3870, E_margin=0.0726, hinge=0.0649][A
+train epoch: 1:   9%|▉         | 138/1563 [03:55<40:04,  1.69s/it, total_loss=2.3204, ce=2.2674, E_data=-0.3922, E_margin=0.0777, hinge=0.0530][A
+train epoch: 1:   9%|▉         | 139/1563 [03:55<40:03,  1.69s/it, total_loss=2.3204, ce=2.2674, E_data=-0.3922, E_margin=0.0777, hinge=0.0530][A
+train epoch: 1:   9%|▉         | 139/1563 [03:57<40:03,  1.69s/it, total_loss=2.2852, ce=2.2320, E_data=-0.3977, E_margin=0.0807, hinge=0.0531][A
+train epoch: 1:   9%|▉         | 140/1563 [03:57<40:01,  1.69s/it, total_loss=2.2852, ce=2.2320, E_data=-0.3977, E_margin=0.0807, hinge=0.0531][A
+train epoch: 1:   9%|▉         | 140/1563 [03:59<40:01,  1.69s/it, total_loss=2.3455, ce=2.2972, E_data=-0.3959, E_margin=0.0724, hinge=0.0482][A
+train epoch: 1:   9%|▉         | 141/1563 [03:59<39:59,  1.69s/it, total_loss=2.3455, ce=2.2972, E_data=-0.3959, E_margin=0.0724, hinge=0.0482][A
+train epoch: 1:   9%|▉         | 141/1563 [04:00<39:59,  1.69s/it, total_loss=2.2881, ce=2.2431, E_data=-0.4030, E_margin=0.0756, hinge=0.0451][A
+train epoch: 1:   9%|▉         | 142/1563 [04:00<39:57,  1.69s/it, total_loss=2.2881, ce=2.2431, E_data=-0.4030, E_margin=0.0756, hinge=0.0451][A
+train epoch: 1:   9%|▉         | 142/1563 [04:02<39:57,  1.69s/it, total_loss=2.3047, ce=2.2527, E_data=-0.4056, E_margin=0.0790, hinge=0.0520][A
+train epoch: 1:   9%|▉         | 143/1563 [04:02<39:56,  1.69s/it, total_loss=2.3047, ce=2.2527, E_data=-0.4056, E_margin=0.0790, hinge=0.0520][A
+train epoch: 1:   9%|▉         | 143/1563 [04:04<39:56,  1.69s/it, total_loss=2.1967, ce=2.1468, E_data=-0.4034, E_margin=0.0812, hinge=0.0499][A
+train epoch: 1:   9%|▉         | 144/1563 [04:04<39:54,  1.69s/it, total_loss=2.1967, ce=2.1468, E_data=-0.4034, E_margin=0.0812, hinge=0.0499][A
+train epoch: 1:   9%|▉         | 144/1563 [04:05<39:54,  1.69s/it, total_loss=2.2892, ce=2.2461, E_data=-0.3943, E_margin=0.0751, hinge=0.0430][A
+train epoch: 1:   9%|▉         | 145/1563 [04:05<39:52,  1.69s/it, total_loss=2.2892, ce=2.2461, E_data=-0.3943, E_margin=0.0751, hinge=0.0430][A
+train epoch: 1:   9%|▉         | 145/1563 [04:07<39:52,  1.69s/it, total_loss=2.3034, ce=2.2473, E_data=-0.3961, E_margin=0.0772, hinge=0.0560][A
+train epoch: 1:   9%|▉         | 146/1563 [04:07<39:51,  1.69s/it, total_loss=2.3034, ce=2.2473, E_data=-0.3961, E_margin=0.0772, hinge=0.0560][A
+train epoch: 1:   9%|▉         | 146/1563 [04:09<39:51,  1.69s/it, total_loss=2.1843, ce=2.1487, E_data=-0.4061, E_margin=0.0866, hinge=0.0356][A
+train epoch: 1:   9%|▉         | 147/1563 [04:09<39:49,  1.69s/it, total_loss=2.1843, ce=2.1487, E_data=-0.4061, E_margin=0.0866, hinge=0.0356][A
+train epoch: 1:   9%|▉         | 147/1563 [04:10<39:49,  1.69s/it, total_loss=2.2423, ce=2.1858, E_data=-0.4074, E_margin=0.0845, hinge=0.0565][A
+train epoch: 1:   9%|▉         | 148/1563 [04:10<39:48,  1.69s/it, total_loss=2.2423, ce=2.1858, E_data=-0.4074, E_margin=0.0845, hinge=0.0565][A
+train epoch: 1:   9%|▉         | 148/1563 [04:12<39:48,  1.69s/it, total_loss=2.2210, ce=2.1688, E_data=-0.4112, E_margin=0.0853, hinge=0.0522][A
+train epoch: 1:  10%|▉         | 149/1563 [04:12<39:46,  1.69s/it, total_loss=2.2210, ce=2.1688, E_data=-0.4112, E_margin=0.0853, hinge=0.0522][A
+train epoch: 1:  10%|▉         | 149/1563 [04:14<39:46,  1.69s/it, total_loss=2.1973, ce=2.1611, E_data=-0.4015, E_margin=0.0751, hinge=0.0362][A
+train epoch: 1:  10%|▉         | 150/1563 [04:14<39:45,  1.69s/it, total_loss=2.1973, ce=2.1611, E_data=-0.4015, E_margin=0.0751, hinge=0.0362][A
+train epoch: 1:  10%|▉         | 150/1563 [04:16<39:45,  1.69s/it, total_loss=2.2020, ce=2.1546, E_data=-0.3917, E_margin=0.0683, hinge=0.0474][A
+train epoch: 1:  10%|▉         | 151/1563 [04:16<39:43,  1.69s/it, total_loss=2.2020, ce=2.1546, E_data=-0.3917, E_margin=0.0683, hinge=0.0474][A
+train epoch: 1:  10%|▉         | 151/1563 [04:17<39:43,  1.69s/it, total_loss=2.1276, ce=2.0861, E_data=-0.3934, E_margin=0.0754, hinge=0.0415][A
+train epoch: 1:  10%|▉         | 152/1563 [04:17<39:41,  1.69s/it, total_loss=2.1276, ce=2.0861, E_data=-0.3934, E_margin=0.0754, hinge=0.0415][A
+train epoch: 1:  10%|▉         | 152/1563 [04:19<39:41,  1.69s/it, total_loss=2.1520, ce=2.1024, E_data=-0.4063, E_margin=0.0909, hinge=0.0496][A
+train epoch: 1:  10%|▉         | 153/1563 [04:19<39:40,  1.69s/it, total_loss=2.1520, ce=2.1024, E_data=-0.4063, E_margin=0.0909, hinge=0.0496][A
+train epoch: 1:  10%|▉         | 153/1563 [04:21<39:40,  1.69s/it, total_loss=2.2163, ce=2.1664, E_data=-0.4030, E_margin=0.0882, hinge=0.0499][A
+train epoch: 1:  10%|▉         | 154/1563 [04:21<39:39,  1.69s/it, total_loss=2.2163, ce=2.1664, E_data=-0.4030, E_margin=0.0882, hinge=0.0499][A
+train epoch: 1:  10%|▉         | 154/1563 [04:22<39:39,  1.69s/it, total_loss=2.1658, ce=2.1219, E_data=-0.4047, E_margin=0.0860, hinge=0.0439][A
+train epoch: 1:  10%|▉         | 155/1563 [04:22<39:37,  1.69s/it, total_loss=2.1658, ce=2.1219, E_data=-0.4047, E_margin=0.0860, hinge=0.0439][A
+train epoch: 1:  10%|▉         | 155/1563 [04:24<39:37,  1.69s/it, total_loss=2.1253, ce=2.0789, E_data=-0.4123, E_margin=0.0858, hinge=0.0465][A
+train epoch: 1:  10%|▉         | 156/1563 [04:24<39:35,  1.69s/it, total_loss=2.1253, ce=2.0789, E_data=-0.4123, E_margin=0.0858, hinge=0.0465][A
+train epoch: 1:  10%|▉         | 156/1563 [04:26<39:35,  1.69s/it, total_loss=2.1173, ce=2.0899, E_data=-0.4243, E_margin=0.0913, hinge=0.0274][A
+train epoch: 1:  10%|█         | 157/1563 [04:26<39:33,  1.69s/it, total_loss=2.1173, ce=2.0899, E_data=-0.4243, E_margin=0.0913, hinge=0.0274][A
+train epoch: 1:  10%|█         | 157/1563 [04:27<39:33,  1.69s/it, total_loss=2.0613, ce=2.0177, E_data=-0.4298, E_margin=0.0969, hinge=0.0436][A
+train epoch: 1:  10%|█         | 158/1563 [04:27<39:31,  1.69s/it, total_loss=2.0613, ce=2.0177, E_data=-0.4298, E_margin=0.0969, hinge=0.0436][A
+train epoch: 1:  10%|█         | 158/1563 [04:29<39:31,  1.69s/it, total_loss=1.9828, ce=1.9475, E_data=-0.4208, E_margin=0.0946, hinge=0.0353][A
+train epoch: 1:  10%|█         | 159/1563 [04:29<39:30,  1.69s/it, total_loss=1.9828, ce=1.9475, E_data=-0.4208, E_margin=0.0946, hinge=0.0353][A
+train epoch: 1:  10%|█         | 159/1563 [04:31<39:30,  1.69s/it, total_loss=2.0139, ce=1.9736, E_data=-0.4090, E_margin=0.0889, hinge=0.0403][A
+train epoch: 1:  10%|█         | 160/1563 [04:31<39:28,  1.69s/it, total_loss=2.0139, ce=1.9736, E_data=-0.4090, E_margin=0.0889, hinge=0.0403][A
+train epoch: 1:  10%|█         | 160/1563 [04:32<39:28,  1.69s/it, total_loss=1.9943, ce=1.9427, E_data=-0.4145, E_margin=0.0965, hinge=0.0516][A
+train epoch: 1:  10%|█         | 161/1563 [04:32<39:26,  1.69s/it, total_loss=1.9943, ce=1.9427, E_data=-0.4145, E_margin=0.0965, hinge=0.0516][A
+train epoch: 1:  10%|█         | 161/1563 [04:34<39:26,  1.69s/it, total_loss=2.1563, ce=2.1063, E_data=-0.4112, E_margin=0.0890, hinge=0.0500][A
+train epoch: 1:  10%|█         | 162/1563 [04:34<39:25,  1.69s/it, total_loss=2.1563, ce=2.1063, E_data=-0.4112, E_margin=0.0890, hinge=0.0500][A
+train epoch: 1:  10%|█         | 162/1563 [04:36<39:25,  1.69s/it, total_loss=2.0214, ce=1.9764, E_data=-0.4206, E_margin=0.0963, hinge=0.0450][A
+train epoch: 1:  10%|█         | 163/1563 [04:36<39:23,  1.69s/it, total_loss=2.0214, ce=1.9764, E_data=-0.4206, E_margin=0.0963, hinge=0.0450][A
+train epoch: 1:  10%|█         | 163/1563 [04:37<39:23,  1.69s/it, total_loss=1.9940, ce=1.9518, E_data=-0.4226, E_margin=0.0976, hinge=0.0423][A
+train epoch: 1:  10%|█         | 164/1563 [04:37<39:21,  1.69s/it, total_loss=1.9940, ce=1.9518, E_data=-0.4226, E_margin=0.0976, hinge=0.0423][A
+train epoch: 1:  10%|█         | 164/1563 [04:39<39:21,  1.69s/it, total_loss=2.0892, ce=2.0376, E_data=-0.4141, E_margin=0.0876, hinge=0.0517][A
+train epoch: 1:  11%|█         | 165/1563 [04:39<39:20,  1.69s/it, total_loss=2.0892, ce=2.0376, E_data=-0.4141, E_margin=0.0876, hinge=0.0517][A
+train epoch: 1:  11%|█         | 165/1563 [04:41<39:20,  1.69s/it, total_loss=2.0290, ce=2.0025, E_data=-0.4266, E_margin=0.0976, hinge=0.0266][A
+train epoch: 1:  11%|█         | 166/1563 [04:41<39:18,  1.69s/it, total_loss=2.0290, ce=2.0025, E_data=-0.4266, E_margin=0.0976, hinge=0.0266][A
+train epoch: 1:  11%|█         | 166/1563 [04:43<39:18,  1.69s/it, total_loss=1.9876, ce=1.9599, E_data=-0.4289, E_margin=0.1003, hinge=0.0277][A
+train epoch: 1:  11%|█         | 167/1563 [04:43<39:16,  1.69s/it, total_loss=1.9876, ce=1.9599, E_data=-0.4289, E_margin=0.1003, hinge=0.0277][A
+train epoch: 1:  11%|█         | 167/1563 [04:44<39:16,  1.69s/it, total_loss=1.9782, ce=1.9384, E_data=-0.4234, E_margin=0.0962, hinge=0.0398][A
+train epoch: 1:  11%|█         | 168/1563 [04:44<39:14,  1.69s/it, total_loss=1.9782, ce=1.9384, E_data=-0.4234, E_margin=0.0962, hinge=0.0398][A
+train epoch: 1:  11%|█         | 168/1563 [04:46<39:14,  1.69s/it, total_loss=1.9149, ce=1.8628, E_data=-0.4305, E_margin=0.1038, hinge=0.0521][A
+train epoch: 1:  11%|█         | 169/1563 [04:46<39:13,  1.69s/it, total_loss=1.9149, ce=1.8628, E_data=-0.4305, E_margin=0.1038, hinge=0.0521][A
+train epoch: 1:  11%|█         | 169/1563 [04:48<39:13,  1.69s/it, total_loss=2.0730, ce=2.0106, E_data=-0.4147, E_margin=0.0883, hinge=0.0623][A
+train epoch: 1:  11%|█         | 170/1563 [04:48<39:11,  1.69s/it, total_loss=2.0730, ce=2.0106, E_data=-0.4147, E_margin=0.0883, hinge=0.0623][A
+train epoch: 1:  11%|█         | 170/1563 [04:49<39:11,  1.69s/it, total_loss=1.9943, ce=1.9460, E_data=-0.4329, E_margin=0.1067, hinge=0.0484][A
+train epoch: 1:  11%|█         | 171/1563 [04:49<39:10,  1.69s/it, total_loss=1.9943, ce=1.9460, E_data=-0.4329, E_margin=0.1067, hinge=0.0484][A
+train epoch: 1:  11%|█         | 171/1563 [04:51<39:10,  1.69s/it, total_loss=1.9580, ce=1.9149, E_data=-0.4299, E_margin=0.1033, hinge=0.0431][A
+train epoch: 1:  11%|█         | 172/1563 [04:51<39:08,  1.69s/it, total_loss=1.9580, ce=1.9149, E_data=-0.4299, E_margin=0.1033, hinge=0.0431][A
+train epoch: 1:  11%|█         | 172/1563 [04:53<39:08,  1.69s/it, total_loss=1.8675, ce=1.8230, E_data=-0.4250, E_margin=0.0962, hinge=0.0445][A
+train epoch: 1:  11%|█         | 173/1563 [04:53<39:06,  1.69s/it, total_loss=1.8675, ce=1.8230, E_data=-0.4250, E_margin=0.0962, hinge=0.0445][A
+train epoch: 1:  11%|█         | 173/1563 [04:54<39:06,  1.69s/it, total_loss=1.8737, ce=1.8274, E_data=-0.4222, E_margin=0.0937, hinge=0.0463][A
+train epoch: 1:  11%|█         | 174/1563 [04:54<39:05,  1.69s/it, total_loss=1.8737, ce=1.8274, E_data=-0.4222, E_margin=0.0937, hinge=0.0463][A
+train epoch: 1:  11%|█         | 174/1563 [04:56<39:05,  1.69s/it, total_loss=1.9176, ce=1.8361, E_data=-0.4401, E_margin=0.1120, hinge=0.0815][A
+train epoch: 1:  11%|█         | 175/1563 [04:56<39:03,  1.69s/it, total_loss=1.9176, ce=1.8361, E_data=-0.4401, E_margin=0.1120, hinge=0.0815][A
+train epoch: 1:  11%|█         | 175/1563 [04:58<39:03,  1.69s/it, total_loss=1.8548, ce=1.8247, E_data=-0.4552, E_margin=0.1260, hinge=0.0300][A
+train epoch: 1:  11%|█▏        | 176/1563 [04:58<39:01,  1.69s/it, total_loss=1.8548, ce=1.8247, E_data=-0.4552, E_margin=0.1260, hinge=0.0300][A
+train epoch: 1:  11%|█▏        | 176/1563 [04:59<39:01,  1.69s/it, total_loss=1.9743, ce=1.9191, E_data=-0.4523, E_margin=0.1177, hinge=0.0553][A
+train epoch: 1:  11%|█▏        | 177/1563 [04:59<38:59,  1.69s/it, total_loss=1.9743, ce=1.9191, E_data=-0.4523, E_margin=0.1177, hinge=0.0553][A
+train epoch: 1:  11%|█▏        | 177/1563 [05:01<38:59,  1.69s/it, total_loss=1.8721, ce=1.8294, E_data=-0.4467, E_margin=0.1041, hinge=0.0427][A
+train epoch: 1:  11%|█▏        | 178/1563 [05:01<38:57,  1.69s/it, total_loss=1.8721, ce=1.8294, E_data=-0.4467, E_margin=0.1041, hinge=0.0427][A
+train epoch: 1:  11%|█▏        | 178/1563 [05:03<38:57,  1.69s/it, total_loss=1.8177, ce=1.7654, E_data=-0.4424, E_margin=0.0999, hinge=0.0524][A
+train epoch: 1:  11%|█▏        | 179/1563 [05:03<38:56,  1.69s/it, total_loss=1.8177, ce=1.7654, E_data=-0.4424, E_margin=0.0999, hinge=0.0524][A
+train epoch: 1:  11%|█▏        | 179/1563 [05:04<38:56,  1.69s/it, total_loss=1.8129, ce=1.7680, E_data=-0.4510, E_margin=0.1135, hinge=0.0449][A
+train epoch: 1:  12%|█▏        | 180/1563 [05:04<38:54,  1.69s/it, total_loss=1.8129, ce=1.7680, E_data=-0.4510, E_margin=0.1135, hinge=0.0449][A
+train epoch: 1:  12%|█▏        | 180/1563 [05:06<38:54,  1.69s/it, total_loss=1.7802, ce=1.7560, E_data=-0.4582, E_margin=0.1242, hinge=0.0242][A
+train epoch: 1:  12%|█▏        | 181/1563 [05:06<38:52,  1.69s/it, total_loss=1.7802, ce=1.7560, E_data=-0.4582, E_margin=0.1242, hinge=0.0242][A
+train epoch: 1:  12%|█▏        | 181/1563 [05:08<38:52,  1.69s/it, total_loss=1.7510, ce=1.7138, E_data=-0.4415, E_margin=0.1066, hinge=0.0372][A
+train epoch: 1:  12%|█▏        | 182/1563 [05:08<38:51,  1.69s/it, total_loss=1.7510, ce=1.7138, E_data=-0.4415, E_margin=0.1066, hinge=0.0372][A
+train epoch: 1:  12%|█▏        | 182/1563 [05:10<38:51,  1.69s/it, total_loss=1.7650, ce=1.7354, E_data=-0.4478, E_margin=0.1058, hinge=0.0295][A
+train epoch: 1:  12%|█▏        | 183/1563 [05:10<38:49,  1.69s/it, total_loss=1.7650, ce=1.7354, E_data=-0.4478, E_margin=0.1058, hinge=0.0295][A
+train epoch: 1:  12%|█▏        | 183/1563 [05:11<38:49,  1.69s/it, total_loss=1.7795, ce=1.7238, E_data=-0.4529, E_margin=0.1062, hinge=0.0557][A
+train epoch: 1:  12%|█▏        | 184/1563 [05:11<38:47,  1.69s/it, total_loss=1.7795, ce=1.7238, E_data=-0.4529, E_margin=0.1062, hinge=0.0557][A
+train epoch: 1:  12%|█▏        | 184/1563 [05:13<38:47,  1.69s/it, total_loss=1.7557, ce=1.7216, E_data=-0.4591, E_margin=0.1147, hinge=0.0341][A
+train epoch: 1:  12%|█▏        | 185/1563 [05:13<38:46,  1.69s/it, total_loss=1.7557, ce=1.7216, E_data=-0.4591, E_margin=0.1147, hinge=0.0341][A
+train epoch: 1:  12%|█▏        | 185/1563 [05:15<38:46,  1.69s/it, total_loss=1.6932, ce=1.6749, E_data=-0.4644, E_margin=0.1243, hinge=0.0183][A
+train epoch: 1:  12%|█▏        | 186/1563 [05:15<38:44,  1.69s/it, total_loss=1.6932, ce=1.6749, E_data=-0.4644, E_margin=0.1243, hinge=0.0183][A
+train epoch: 1:  12%|█▏        | 186/1563 [05:16<38:44,  1.69s/it, total_loss=1.7748, ce=1.7549, E_data=-0.4612, E_margin=0.1204, hinge=0.0199][A
+train epoch: 1:  12%|█▏        | 187/1563 [05:16<38:43,  1.69s/it, total_loss=1.7748, ce=1.7549, E_data=-0.4612, E_margin=0.1204, hinge=0.0199][A
+train epoch: 1:  12%|█▏        | 187/1563 [05:18<38:43,  1.69s/it, total_loss=1.6714, ce=1.6481, E_data=-0.4522, E_margin=0.1094, hinge=0.0233][A
+train epoch: 1:  12%|█▏        | 188/1563 [05:18<38:41,  1.69s/it, total_loss=1.6714, ce=1.6481, E_data=-0.4522, E_margin=0.1094, hinge=0.0233][A
+train epoch: 1:  12%|█▏        | 188/1563 [05:20<38:41,  1.69s/it, total_loss=1.7183, ce=1.7015, E_data=-0.4597, E_margin=0.1190, hinge=0.0169][A
+train epoch: 1:  12%|█▏        | 189/1563 [05:20<38:39,  1.69s/it, total_loss=1.7183, ce=1.7015, E_data=-0.4597, E_margin=0.1190, hinge=0.0169][A
+train epoch: 1:  12%|█▏        | 189/1563 [05:21<38:39,  1.69s/it, total_loss=1.6918, ce=1.6745, E_data=-0.4659, E_margin=0.1300, hinge=0.0172][A
+train epoch: 1:  12%|█▏        | 190/1563 [05:21<38:37,  1.69s/it, total_loss=1.6918, ce=1.6745, E_data=-0.4659, E_margin=0.1300, hinge=0.0172][A
+train epoch: 1:  12%|█▏        | 190/1563 [05:23<38:37,  1.69s/it, total_loss=1.6322, ce=1.6179, E_data=-0.4638, E_margin=0.1287, hinge=0.0143][A
+train epoch: 1:  12%|█▏        | 191/1563 [05:23<38:35,  1.69s/it, total_loss=1.6322, ce=1.6179, E_data=-0.4638, E_margin=0.1287, hinge=0.0143][A
+train epoch: 1:  12%|█▏        | 191/1563 [05:25<38:35,  1.69s/it, total_loss=1.6007, ce=1.5775, E_data=-0.4589, E_margin=0.1217, hinge=0.0232][A
+train epoch: 1:  12%|█▏        | 192/1563 [05:25<38:34,  1.69s/it, total_loss=1.6007, ce=1.5775, E_data=-0.4589, E_margin=0.1217, hinge=0.0232][A
+train epoch: 1:  12%|█▏        | 192/1563 [05:26<38:34,  1.69s/it, total_loss=1.7156, ce=1.6777, E_data=-0.4594, E_margin=0.1202, hinge=0.0378][A
+train epoch: 1:  12%|█▏        | 193/1563 [05:26<38:32,  1.69s/it, total_loss=1.7156, ce=1.6777, E_data=-0.4594, E_margin=0.1202, hinge=0.0378][A
+train epoch: 1:  12%|█▏        | 193/1563 [05:28<38:32,  1.69s/it, total_loss=1.6609, ce=1.6380, E_data=-0.4913, E_margin=0.1481, hinge=0.0230][A
+train epoch: 1:  12%|█▏        | 194/1563 [05:28<38:30,  1.69s/it, total_loss=1.6609, ce=1.6380, E_data=-0.4913, E_margin=0.1481, hinge=0.0230][A
+train epoch: 1:  12%|█▏        | 194/1563 [05:30<38:30,  1.69s/it, total_loss=1.6173, ce=1.5629, E_data=-0.5003, E_margin=0.1490, hinge=0.0544][A
+train epoch: 1:  12%|█▏        | 195/1563 [05:30<38:29,  1.69s/it, total_loss=1.6173, ce=1.5629, E_data=-0.5003, E_margin=0.1490, hinge=0.0544][A
+train epoch: 1:  12%|█▏        | 195/1563 [05:31<38:29,  1.69s/it, total_loss=1.6317, ce=1.5945, E_data=-0.4873, E_margin=0.1257, hinge=0.0372][A
+train epoch: 1:  13%|█▎        | 196/1563 [05:31<38:27,  1.69s/it, total_loss=1.6317, ce=1.5945, E_data=-0.4873, E_margin=0.1257, hinge=0.0372][A
+train epoch: 1:  13%|█▎        | 196/1563 [05:33<38:27,  1.69s/it, total_loss=1.4717, ce=1.4417, E_data=-0.4731, E_margin=0.1145, hinge=0.0301][A
+train epoch: 1:  13%|█▎        | 197/1563 [05:33<38:25,  1.69s/it, total_loss=1.4717, ce=1.4417, E_data=-0.4731, E_margin=0.1145, hinge=0.0301][A
+train epoch: 1:  13%|█▎        | 197/1563 [05:35<38:25,  1.69s/it, total_loss=1.5450, ce=1.5329, E_data=-0.4802, E_margin=0.1307, hinge=0.0121][A
+train epoch: 1:  13%|█▎        | 198/1563 [05:35<38:24,  1.69s/it, total_loss=1.5450, ce=1.5329, E_data=-0.4802, E_margin=0.1307, hinge=0.0121][A
+train epoch: 1:  13%|█▎        | 198/1563 [05:37<38:24,  1.69s/it, total_loss=1.5917, ce=1.5604, E_data=-0.4911, E_margin=0.1481, hinge=0.0313][A
+train epoch: 1:  13%|█▎        | 199/1563 [05:37<38:22,  1.69s/it, total_loss=1.5917, ce=1.5604, E_data=-0.4911, E_margin=0.1481, hinge=0.0313][A
+train epoch: 1:  13%|█▎        | 199/1563 [05:38<38:22,  1.69s/it, total_loss=1.4868, ce=1.4565, E_data=-0.4859, E_margin=0.1447, hinge=0.0303][A
+train epoch: 1:  13%|█▎        | 200/1563 [05:38<38:20,  1.69s/it, total_loss=1.4868, ce=1.4565, E_data=-0.4859, E_margin=0.1447, hinge=0.0303][A
+train epoch: 1:  13%|█▎        | 200/1563 [05:40<38:20,  1.69s/it, total_loss=1.4692, ce=1.4423, E_data=-0.4718, E_margin=0.1244, hinge=0.0269][A
+train epoch: 1:  13%|█▎        | 201/1563 [05:40<38:19,  1.69s/it, total_loss=1.4692, ce=1.4423, E_data=-0.4718, E_margin=0.1244, hinge=0.0269][A
+train epoch: 1:  13%|█▎        | 201/1563 [05:42<38:19,  1.69s/it, total_loss=1.5058, ce=1.4734, E_data=-0.4705, E_margin=0.1190, hinge=0.0324][A
+train epoch: 1:  13%|█▎        | 202/1563 [05:42<38:17,  1.69s/it, total_loss=1.5058, ce=1.4734, E_data=-0.4705, E_margin=0.1190, hinge=0.0324][A
+train epoch: 1:  13%|█▎        | 202/1563 [05:43<38:17,  1.69s/it, total_loss=1.4050, ce=1.3823, E_data=-0.4792, E_margin=0.1305, hinge=0.0226][A
+train epoch: 1:  13%|█▎        | 203/1563 [05:43<38:15,  1.69s/it, total_loss=1.4050, ce=1.3823, E_data=-0.4792, E_margin=0.1305, hinge=0.0226][A
+train epoch: 1:  13%|█▎        | 203/1563 [05:45<38:15,  1.69s/it, total_loss=1.5709, ce=1.5541, E_data=-0.4974, E_margin=0.1560, hinge=0.0168][A
+train epoch: 1:  13%|█▎        | 204/1563 [05:45<38:14,  1.69s/it, total_loss=1.5709, ce=1.5541, E_data=-0.4974, E_margin=0.1560, hinge=0.0168][A
+train epoch: 1:  13%|█▎        | 204/1563 [05:47<38:14,  1.69s/it, total_loss=1.5286, ce=1.4967, E_data=-0.5083, E_margin=0.1640, hinge=0.0319][A
+train epoch: 1:  13%|█▎        | 205/1563 [05:47<38:13,  1.69s/it, total_loss=1.5286, ce=1.4967, E_data=-0.5083, E_margin=0.1640, hinge=0.0319][A
+train epoch: 1:  13%|█▎        | 205/1563 [05:48<38:13,  1.69s/it, total_loss=1.4686, ce=1.4456, E_data=-0.5069, E_margin=0.1543, hinge=0.0230][A
+train epoch: 1:  13%|█▎        | 206/1563 [05:48<38:11,  1.69s/it, total_loss=1.4686, ce=1.4456, E_data=-0.5069, E_margin=0.1543, hinge=0.0230][A
+train epoch: 1:  13%|█▎        | 206/1563 [05:50<38:11,  1.69s/it, total_loss=1.4202, ce=1.4045, E_data=-0.4793, E_margin=0.1172, hinge=0.0158][A
+train epoch: 1:  13%|█▎        | 207/1563 [05:50<38:09,  1.69s/it, total_loss=1.4202, ce=1.4045, E_data=-0.4793, E_margin=0.1172, hinge=0.0158][A
+train epoch: 1:  13%|█▎        | 207/1563 [05:52<38:09,  1.69s/it, total_loss=1.3637, ce=1.3077, E_data=-0.4894, E_margin=0.1274, hinge=0.0559][A
+train epoch: 1:  13%|█▎        | 208/1563 [05:52<38:07,  1.69s/it, total_loss=1.3637, ce=1.3077, E_data=-0.4894, E_margin=0.1274, hinge=0.0559][A
+train epoch: 1:  13%|█▎        | 208/1563 [05:53<38:07,  1.69s/it, total_loss=1.3588, ce=1.3509, E_data=-0.4957, E_margin=0.1431, hinge=0.0079][A
+train epoch: 1:  13%|█▎        | 209/1563 [05:53<38:05,  1.69s/it, total_loss=1.3588, ce=1.3509, E_data=-0.4957, E_margin=0.1431, hinge=0.0079][A
+train epoch: 1:  13%|█▎        | 209/1563 [05:55<38:05,  1.69s/it, total_loss=1.4405, ce=1.4235, E_data=-0.5166, E_margin=0.1668, hinge=0.0169][A
+train epoch: 1:  13%|█▎        | 210/1563 [05:55<38:03,  1.69s/it, total_loss=1.4405, ce=1.4235, E_data=-0.5166, E_margin=0.1668, hinge=0.0169][A
+train epoch: 1:  13%|█▎        | 210/1563 [05:57<38:03,  1.69s/it, total_loss=1.4764, ce=1.4504, E_data=-0.5310, E_margin=0.1743, hinge=0.0260][A
+train epoch: 1:  13%|█▎        | 211/1563 [05:57<38:02,  1.69s/it, total_loss=1.4764, ce=1.4504, E_data=-0.5310, E_margin=0.1743, hinge=0.0260][A
+train epoch: 1:  13%|█▎        | 211/1563 [05:59<38:02,  1.69s/it, total_loss=1.3234, ce=1.2937, E_data=-0.5294, E_margin=0.1603, hinge=0.0297][A
+train epoch: 1:  14%|█▎        | 212/1563 [05:59<38:00,  1.69s/it, total_loss=1.3234, ce=1.2937, E_data=-0.5294, E_margin=0.1603, hinge=0.0297][A
+train epoch: 1:  14%|█▎        | 212/1563 [06:00<38:00,  1.69s/it, total_loss=1.3956, ce=1.3628, E_data=-0.5108, E_margin=0.1339, hinge=0.0328][A
+train epoch: 1:  14%|█▎        | 213/1563 [06:00<37:58,  1.69s/it, total_loss=1.3956, ce=1.3628, E_data=-0.5108, E_margin=0.1339, hinge=0.0328][A
+train epoch: 1:  14%|█▎        | 213/1563 [06:02<37:58,  1.69s/it, total_loss=1.3994, ce=1.3805, E_data=-0.4968, E_margin=0.1234, hinge=0.0189][A
+train epoch: 1:  14%|█▎        | 214/1563 [06:02<37:56,  1.69s/it, total_loss=1.3994, ce=1.3805, E_data=-0.4968, E_margin=0.1234, hinge=0.0189][A
+train epoch: 1:  14%|█▎        | 214/1563 [06:04<37:56,  1.69s/it, total_loss=1.3648, ce=1.3348, E_data=-0.5255, E_margin=0.1623, hinge=0.0300][A
+train epoch: 1:  14%|█▍        | 215/1563 [06:04<37:56,  1.69s/it, total_loss=1.3648, ce=1.3348, E_data=-0.5255, E_margin=0.1623, hinge=0.0300][A
+train epoch: 1:  14%|█▍        | 215/1563 [06:05<37:56,  1.69s/it, total_loss=1.3974, ce=1.3548, E_data=-0.5210, E_margin=0.1624, hinge=0.0426][A
+train epoch: 1:  14%|█▍        | 216/1563 [06:05<37:56,  1.69s/it, total_loss=1.3974, ce=1.3548, E_data=-0.5210, E_margin=0.1624, hinge=0.0426][A
+train epoch: 1:  14%|█▍        | 216/1563 [06:07<37:56,  1.69s/it, total_loss=1.3739, ce=1.3429, E_data=-0.5167, E_margin=0.1541, hinge=0.0310][A
+train epoch: 1:  14%|█▍        | 217/1563 [06:07<37:53,  1.69s/it, total_loss=1.3739, ce=1.3429, E_data=-0.5167, E_margin=0.1541, hinge=0.0310][A
+train epoch: 1:  14%|█▍        | 217/1563 [06:09<37:53,  1.69s/it, total_loss=1.3745, ce=1.3672, E_data=-0.5178, E_margin=0.1455, hinge=0.0073][A
+train epoch: 1:  14%|█▍        | 218/1563 [06:09<37:51,  1.69s/it, total_loss=1.3745, ce=1.3672, E_data=-0.5178, E_margin=0.1455, hinge=0.0073][A
+train epoch: 1:  14%|█▍        | 218/1563 [06:10<37:51,  1.69s/it, total_loss=1.2586, ce=1.2363, E_data=-0.5273, E_margin=0.1531, hinge=0.0224][A
+train epoch: 1:  14%|█▍        | 219/1563 [06:10<37:49,  1.69s/it, total_loss=1.2586, ce=1.2363, E_data=-0.5273, E_margin=0.1531, hinge=0.0224][A
+train epoch: 1:  14%|█▍        | 219/1563 [06:12<37:49,  1.69s/it, total_loss=1.3640, ce=1.3316, E_data=-0.5136, E_margin=0.1463, hinge=0.0323][A
+train epoch: 1:  14%|█▍        | 220/1563 [06:12<37:47,  1.69s/it, total_loss=1.3640, ce=1.3316, E_data=-0.5136, E_margin=0.1463, hinge=0.0323][A
+train epoch: 1:  14%|█▍        | 220/1563 [06:14<37:47,  1.69s/it, total_loss=1.3120, ce=1.2902, E_data=-0.5301, E_margin=0.1723, hinge=0.0217][A
+train epoch: 1:  14%|█▍        | 221/1563 [06:14<37:45,  1.69s/it, total_loss=1.3120, ce=1.2902, E_data=-0.5301, E_margin=0.1723, hinge=0.0217][A
+train epoch: 1:  14%|█▍        | 221/1563 [06:15<37:45,  1.69s/it, total_loss=1.3739, ce=1.3550, E_data=-0.5326, E_margin=0.1775, hinge=0.0189][A
+train epoch: 1:  14%|█▍        | 222/1563 [06:15<37:43,  1.69s/it, total_loss=1.3739, ce=1.3550, E_data=-0.5326, E_margin=0.1775, hinge=0.0189][A
+train epoch: 1:  14%|█▍        | 222/1563 [06:17<37:43,  1.69s/it, total_loss=1.3061, ce=1.2938, E_data=-0.5345, E_margin=0.1732, hinge=0.0123][A
+train epoch: 1:  14%|█▍        | 223/1563 [06:17<37:41,  1.69s/it, total_loss=1.3061, ce=1.2938, E_data=-0.5345, E_margin=0.1732, hinge=0.0123][A
+train epoch: 1:  14%|█▍        | 223/1563 [06:19<37:41,  1.69s/it, total_loss=1.2345, ce=1.2079, E_data=-0.5417, E_margin=0.1649, hinge=0.0265][A
+train epoch: 1:  14%|█▍        | 224/1563 [06:19<37:40,  1.69s/it, total_loss=1.2345, ce=1.2079, E_data=-0.5417, E_margin=0.1649, hinge=0.0265][A
+train epoch: 1:  14%|█▍        | 224/1563 [06:20<37:40,  1.69s/it, total_loss=1.2260, ce=1.1959, E_data=-0.5232, E_margin=0.1377, hinge=0.0301][A
+train epoch: 1:  14%|█▍        | 225/1563 [06:20<37:38,  1.69s/it, total_loss=1.2260, ce=1.1959, E_data=-0.5232, E_margin=0.1377, hinge=0.0301][A
+train epoch: 1:  14%|█▍        | 225/1563 [06:22<37:38,  1.69s/it, total_loss=1.2761, ce=1.2337, E_data=-0.5309, E_margin=0.1468, hinge=0.0424][A
+train epoch: 1:  14%|█▍        | 226/1563 [06:22<37:36,  1.69s/it, total_loss=1.2761, ce=1.2337, E_data=-0.5309, E_margin=0.1468, hinge=0.0424][A
+train epoch: 1:  14%|█▍        | 226/1563 [06:24<37:36,  1.69s/it, total_loss=1.3311, ce=1.3004, E_data=-0.5416, E_margin=0.1627, hinge=0.0306][A
+train epoch: 1:  15%|█▍        | 227/1563 [06:24<37:37,  1.69s/it, total_loss=1.3311, ce=1.3004, E_data=-0.5416, E_margin=0.1627, hinge=0.0306][A
+train epoch: 1:  15%|█▍        | 227/1563 [06:26<37:37,  1.69s/it, total_loss=1.3495, ce=1.2898, E_data=-0.5515, E_margin=0.1728, hinge=0.0598][A
+train epoch: 1:  15%|█▍        | 228/1563 [06:26<37:34,  1.69s/it, total_loss=1.3495, ce=1.2898, E_data=-0.5515, E_margin=0.1728, hinge=0.0598][A
+train epoch: 1:  15%|█▍        | 228/1563 [06:27<37:34,  1.69s/it, total_loss=1.2247, ce=1.1970, E_data=-0.5605, E_margin=0.1782, hinge=0.0277][A
+train epoch: 1:  15%|█▍        | 229/1563 [06:27<37:32,  1.69s/it, total_loss=1.2247, ce=1.1970, E_data=-0.5605, E_margin=0.1782, hinge=0.0277][A
+train epoch: 1:  15%|█▍        | 229/1563 [06:29<37:32,  1.69s/it, total_loss=1.3646, ce=1.3105, E_data=-0.5362, E_margin=0.1490, hinge=0.0541][A
+train epoch: 1:  15%|█▍        | 230/1563 [06:29<37:30,  1.69s/it, total_loss=1.3646, ce=1.3105, E_data=-0.5362, E_margin=0.1490, hinge=0.0541][A
+train epoch: 1:  15%|█▍        | 230/1563 [06:31<37:30,  1.69s/it, total_loss=1.2179, ce=1.2010, E_data=-0.5464, E_margin=0.1593, hinge=0.0169][A
+train epoch: 1:  15%|█▍        | 231/1563 [06:31<37:28,  1.69s/it, total_loss=1.2179, ce=1.2010, E_data=-0.5464, E_margin=0.1593, hinge=0.0169][A
+train epoch: 1:  15%|█▍        | 231/1563 [06:32<37:28,  1.69s/it, total_loss=1.2709, ce=1.2195, E_data=-0.5566, E_margin=0.1758, hinge=0.0514][A
+train epoch: 1:  15%|█▍        | 232/1563 [06:32<37:26,  1.69s/it, total_loss=1.2709, ce=1.2195, E_data=-0.5566, E_margin=0.1758, hinge=0.0514][A
+train epoch: 1:  15%|█▍        | 232/1563 [06:34<37:26,  1.69s/it, total_loss=1.1779, ce=1.1637, E_data=-0.5652, E_margin=0.1933, hinge=0.0141][A
+train epoch: 1:  15%|█▍        | 233/1563 [06:34<37:24,  1.69s/it, total_loss=1.1779, ce=1.1637, E_data=-0.5652, E_margin=0.1933, hinge=0.0141][A
+train epoch: 1:  15%|█▍        | 233/1563 [06:36<37:24,  1.69s/it, total_loss=1.1501, ce=1.1267, E_data=-0.5663, E_margin=0.1930, hinge=0.0234][A
+train epoch: 1:  15%|█▍        | 234/1563 [06:36<37:23,  1.69s/it, total_loss=1.1501, ce=1.1267, E_data=-0.5663, E_margin=0.1930, hinge=0.0234][A
+train epoch: 1:  15%|█▍        | 234/1563 [06:37<37:23,  1.69s/it, total_loss=1.1839, ce=1.1431, E_data=-0.5439, E_margin=0.1604, hinge=0.0408][A
+train epoch: 1:  15%|█▌        | 235/1563 [06:37<37:21,  1.69s/it, total_loss=1.1839, ce=1.1431, E_data=-0.5439, E_margin=0.1604, hinge=0.0408][A
+train epoch: 1:  15%|█▌        | 235/1563 [06:39<37:21,  1.69s/it, total_loss=1.0514, ce=1.0156, E_data=-0.5514, E_margin=0.1629, hinge=0.0358][A
+train epoch: 1:  15%|█▌        | 236/1563 [06:39<37:19,  1.69s/it, total_loss=1.0514, ce=1.0156, E_data=-0.5514, E_margin=0.1629, hinge=0.0358][A
+train epoch: 1:  15%|█▌        | 236/1563 [06:41<37:19,  1.69s/it, total_loss=1.1705, ce=1.1558, E_data=-0.5499, E_margin=0.1642, hinge=0.0148][A
+train epoch: 1:  15%|█▌        | 237/1563 [06:41<37:17,  1.69s/it, total_loss=1.1705, ce=1.1558, E_data=-0.5499, E_margin=0.1642, hinge=0.0148][A
+train epoch: 1:  15%|█▌        | 237/1563 [06:42<37:17,  1.69s/it, total_loss=1.2112, ce=1.1660, E_data=-0.5647, E_margin=0.1841, hinge=0.0451][A
+train epoch: 1:  15%|█▌        | 238/1563 [06:42<37:16,  1.69s/it, total_loss=1.2112, ce=1.1660, E_data=-0.5647, E_margin=0.1841, hinge=0.0451][A
+train epoch: 1:  15%|█▌        | 238/1563 [06:44<37:16,  1.69s/it, total_loss=1.1051, ce=1.0922, E_data=-0.5910, E_margin=0.2129, hinge=0.0129][A
+train epoch: 1:  15%|█▌        | 239/1563 [06:44<37:14,  1.69s/it, total_loss=1.1051, ce=1.0922, E_data=-0.5910, E_margin=0.2129, hinge=0.0129][A
+train epoch: 1:  15%|█▌        | 239/1563 [06:46<37:14,  1.69s/it, total_loss=1.1448, ce=1.1210, E_data=-0.5873, E_margin=0.2048, hinge=0.0238][A
+train epoch: 1:  15%|█▌        | 240/1563 [06:46<37:12,  1.69s/it, total_loss=1.1448, ce=1.1210, E_data=-0.5873, E_margin=0.2048, hinge=0.0238][A
+train epoch: 1:  15%|█▌        | 240/1563 [06:47<37:12,  1.69s/it, total_loss=1.0901, ce=1.0540, E_data=-0.5653, E_margin=0.1715, hinge=0.0362][A
+train epoch: 1:  15%|█▌        | 241/1563 [06:47<37:11,  1.69s/it, total_loss=1.0901, ce=1.0540, E_data=-0.5653, E_margin=0.1715, hinge=0.0362][A
+train epoch: 1:  15%|█▌        | 241/1563 [06:49<37:11,  1.69s/it, total_loss=1.2157, ce=1.1852, E_data=-0.5462, E_margin=0.1522, hinge=0.0305][A
+train epoch: 1:  15%|█▌        | 242/1563 [06:49<37:09,  1.69s/it, total_loss=1.2157, ce=1.1852, E_data=-0.5462, E_margin=0.1522, hinge=0.0305][A
+train epoch: 1:  15%|█▌        | 242/1563 [06:51<37:09,  1.69s/it, total_loss=1.1316, ce=1.1142, E_data=-0.5507, E_margin=0.1676, hinge=0.0175][A
+train epoch: 1:  16%|█▌        | 243/1563 [06:51<37:07,  1.69s/it, total_loss=1.1316, ce=1.1142, E_data=-0.5507, E_margin=0.1676, hinge=0.0175][A
+train epoch: 1:  16%|█▌        | 243/1563 [06:53<37:07,  1.69s/it, total_loss=1.0442, ce=1.0280, E_data=-0.5800, E_margin=0.2078, hinge=0.0162][A
+train epoch: 1:  16%|█▌        | 244/1563 [06:53<37:06,  1.69s/it, total_loss=1.0442, ce=1.0280, E_data=-0.5800, E_margin=0.2078, hinge=0.0162][A
+train epoch: 1:  16%|█▌        | 244/1563 [06:54<37:06,  1.69s/it, total_loss=1.0574, ce=1.0404, E_data=-0.5897, E_margin=0.2197, hinge=0.0170][A
+train epoch: 1:  16%|█▌        | 245/1563 [06:54<37:04,  1.69s/it, total_loss=1.0574, ce=1.0404, E_data=-0.5897, E_margin=0.2197, hinge=0.0170][A
+train epoch: 1:  16%|█▌        | 245/1563 [06:56<37:04,  1.69s/it, total_loss=1.1872, ce=1.1373, E_data=-0.5521, E_margin=0.1784, hinge=0.0498][A
+train epoch: 1:  16%|█▌        | 246/1563 [06:56<37:02,  1.69s/it, total_loss=1.1872, ce=1.1373, E_data=-0.5521, E_margin=0.1784, hinge=0.0498][A
+train epoch: 1:  16%|█▌        | 246/1563 [06:58<37:02,  1.69s/it, total_loss=1.0103, ce=0.9732, E_data=-0.5667, E_margin=0.1874, hinge=0.0371][A
+train epoch: 1:  16%|█▌        | 247/1563 [06:58<37:00,  1.69s/it, total_loss=1.0103, ce=0.9732, E_data=-0.5667, E_margin=0.1874, hinge=0.0371][A
+train epoch: 1:  16%|█▌        | 247/1563 [06:59<37:00,  1.69s/it, total_loss=1.0141, ce=0.9939, E_data=-0.5632, E_margin=0.1713, hinge=0.0202][A
+train epoch: 1:  16%|█▌        | 248/1563 [06:59<36:59,  1.69s/it, total_loss=1.0141, ce=0.9939, E_data=-0.5632, E_margin=0.1713, hinge=0.0202][A
+train epoch: 1:  16%|█▌        | 248/1563 [07:01<36:59,  1.69s/it, total_loss=1.0910, ce=1.0548, E_data=-0.5781, E_margin=0.1828, hinge=0.0361][A
+train epoch: 1:  16%|█▌        | 249/1563 [07:01<36:57,  1.69s/it, total_loss=1.0910, ce=1.0548, E_data=-0.5781, E_margin=0.1828, hinge=0.0361][A
+train epoch: 1:  16%|█▌        | 249/1563 [07:03<36:57,  1.69s/it, total_loss=1.1578, ce=1.1262, E_data=-0.5668, E_margin=0.1802, hinge=0.0316][A
+train epoch: 1:  16%|█▌        | 250/1563 [07:03<36:55,  1.69s/it, total_loss=1.1578, ce=1.1262, E_data=-0.5668, E_margin=0.1802, hinge=0.0316][A
+train epoch: 1:  16%|█▌        | 250/1563 [07:04<36:55,  1.69s/it, total_loss=1.0335, ce=1.0134, E_data=-0.5876, E_margin=0.2107, hinge=0.0202][A
+train epoch: 1:  16%|█▌        | 251/1563 [07:04<36:54,  1.69s/it, total_loss=1.0335, ce=1.0134, E_data=-0.5876, E_margin=0.2107, hinge=0.0202][A
+train epoch: 1:  16%|█▌        | 251/1563 [07:06<36:54,  1.69s/it, total_loss=1.0286, ce=1.0061, E_data=-0.5772, E_margin=0.2014, hinge=0.0225][A
+train epoch: 1:  16%|█▌        | 252/1563 [07:06<36:52,  1.69s/it, total_loss=1.0286, ce=1.0061, E_data=-0.5772, E_margin=0.2014, hinge=0.0225][A
+train epoch: 1:  16%|█▌        | 252/1563 [07:08<36:52,  1.69s/it, total_loss=1.1083, ce=1.0837, E_data=-0.5659, E_margin=0.1850, hinge=0.0246][A
+train epoch: 1:  16%|█▌        | 253/1563 [07:08<36:50,  1.69s/it, total_loss=1.1083, ce=1.0837, E_data=-0.5659, E_margin=0.1850, hinge=0.0246][A
+train epoch: 1:  16%|█▌        | 253/1563 [07:09<36:50,  1.69s/it, total_loss=1.0323, ce=1.0217, E_data=-0.5597, E_margin=0.1754, hinge=0.0106][A
+train epoch: 1:  16%|█▋        | 254/1563 [07:09<36:49,  1.69s/it, total_loss=1.0323, ce=1.0217, E_data=-0.5597, E_margin=0.1754, hinge=0.0106][A
+train epoch: 1:  16%|█▋        | 254/1563 [07:11<36:49,  1.69s/it, total_loss=1.1346, ce=1.1105, E_data=-0.5772, E_margin=0.1967, hinge=0.0242][A
+train epoch: 1:  16%|█▋        | 255/1563 [07:11<36:47,  1.69s/it, total_loss=1.1346, ce=1.1105, E_data=-0.5772, E_margin=0.1967, hinge=0.0242][A
+train epoch: 1:  16%|█▋        | 255/1563 [07:13<36:47,  1.69s/it, total_loss=1.0015, ce=0.9758, E_data=-0.5997, E_margin=0.2285, hinge=0.0257][A
+train epoch: 1:  16%|█▋        | 256/1563 [07:13<36:45,  1.69s/it, total_loss=1.0015, ce=0.9758, E_data=-0.5997, E_margin=0.2285, hinge=0.0257][A
+train epoch: 1:  16%|█▋        | 256/1563 [07:14<36:45,  1.69s/it, total_loss=1.1032, ce=1.0493, E_data=-0.5935, E_margin=0.2231, hinge=0.0539][A
+train epoch: 1:  16%|█▋        | 257/1563 [07:14<36:43,  1.69s/it, total_loss=1.1032, ce=1.0493, E_data=-0.5935, E_margin=0.2231, hinge=0.0539][A
+train epoch: 1:  16%|█▋        | 257/1563 [07:16<36:43,  1.69s/it, total_loss=1.0517, ce=1.0084, E_data=-0.5718, E_margin=0.1956, hinge=0.0434][A
+train epoch: 1:  17%|█▋        | 258/1563 [07:16<36:42,  1.69s/it, total_loss=1.0517, ce=1.0084, E_data=-0.5718, E_margin=0.1956, hinge=0.0434][A
+train epoch: 1:  17%|█▋        | 258/1563 [07:18<36:42,  1.69s/it, total_loss=0.9935, ce=0.9450, E_data=-0.5764, E_margin=0.1909, hinge=0.0485][A
+train epoch: 1:  17%|█▋        | 259/1563 [07:18<36:40,  1.69s/it, total_loss=0.9935, ce=0.9450, E_data=-0.5764, E_margin=0.1909, hinge=0.0485][A
+train epoch: 1:  17%|█▋        | 259/1563 [07:20<36:40,  1.69s/it, total_loss=1.1394, ce=1.0964, E_data=-0.5640, E_margin=0.1734, hinge=0.0430][A
+train epoch: 1:  17%|█▋        | 260/1563 [07:20<36:39,  1.69s/it, total_loss=1.1394, ce=1.0964, E_data=-0.5640, E_margin=0.1734, hinge=0.0430][A
+train epoch: 1:  17%|█▋        | 260/1563 [07:21<36:39,  1.69s/it, total_loss=0.9490, ce=0.9271, E_data=-0.5810, E_margin=0.1959, hinge=0.0219][A
+train epoch: 1:  17%|█▋        | 261/1563 [07:21<36:37,  1.69s/it, total_loss=0.9490, ce=0.9271, E_data=-0.5810, E_margin=0.1959, hinge=0.0219][A
+train epoch: 1:  17%|█▋        | 261/1563 [07:23<36:37,  1.69s/it, total_loss=0.9777, ce=0.9253, E_data=-0.5947, E_margin=0.2156, hinge=0.0524][A
+train epoch: 1:  17%|█▋        | 262/1563 [07:23<36:36,  1.69s/it, total_loss=0.9777, ce=0.9253, E_data=-0.5947, E_margin=0.2156, hinge=0.0524][A
+train epoch: 1:  17%|█▋        | 262/1563 [07:25<36:36,  1.69s/it, total_loss=1.0072, ce=0.9704, E_data=-0.5870, E_margin=0.1992, hinge=0.0369][A
+train epoch: 1:  17%|█▋        | 263/1563 [07:25<36:34,  1.69s/it, total_loss=1.0072, ce=0.9704, E_data=-0.5870, E_margin=0.1992, hinge=0.0369][A
+train epoch: 1:  17%|█▋        | 263/1563 [07:26<36:34,  1.69s/it, total_loss=0.9859, ce=0.9713, E_data=-0.5960, E_margin=0.1948, hinge=0.0146][A
+train epoch: 1:  17%|█▋        | 264/1563 [07:26<36:33,  1.69s/it, total_loss=0.9859, ce=0.9713, E_data=-0.5960, E_margin=0.1948, hinge=0.0146][A
+train epoch: 1:  17%|█▋        | 264/1563 [07:28<36:33,  1.69s/it, total_loss=0.9757, ce=0.9430, E_data=-0.6094, E_margin=0.2044, hinge=0.0327][A
+train epoch: 1:  17%|█▋        | 265/1563 [07:28<36:31,  1.69s/it, total_loss=0.9757, ce=0.9430, E_data=-0.6094, E_margin=0.2044, hinge=0.0327][A
+train epoch: 1:  17%|█▋        | 265/1563 [07:30<36:31,  1.69s/it, total_loss=1.0179, ce=0.9935, E_data=-0.6009, E_margin=0.2044, hinge=0.0244][A
+train epoch: 1:  17%|█▋        | 266/1563 [07:30<36:32,  1.69s/it, total_loss=1.0179, ce=0.9935, E_data=-0.6009, E_margin=0.2044, hinge=0.0244][A
+train epoch: 1:  17%|█▋        | 266/1563 [07:31<36:32,  1.69s/it, total_loss=0.9842, ce=0.9653, E_data=-0.6024, E_margin=0.2112, hinge=0.0188][A
+train epoch: 1:  17%|█▋        | 267/1563 [07:31<36:29,  1.69s/it, total_loss=0.9842, ce=0.9653, E_data=-0.6024, E_margin=0.2112, hinge=0.0188][A
+train epoch: 1:  17%|█▋        | 267/1563 [07:33<36:29,  1.69s/it, total_loss=0.9519, ce=0.9142, E_data=-0.6130, E_margin=0.2177, hinge=0.0377][A
+train epoch: 1:  17%|█▋        | 268/1563 [07:33<36:27,  1.69s/it, total_loss=0.9519, ce=0.9142, E_data=-0.6130, E_margin=0.2177, hinge=0.0377][A
+train epoch: 1:  17%|█▋        | 268/1563 [07:35<36:27,  1.69s/it, total_loss=0.8876, ce=0.8599, E_data=-0.6050, E_margin=0.2071, hinge=0.0277][A
+train epoch: 1:  17%|█▋        | 269/1563 [07:35<36:25,  1.69s/it, total_loss=0.8876, ce=0.8599, E_data=-0.6050, E_margin=0.2071, hinge=0.0277][A
+train epoch: 1:  17%|█▋        | 269/1563 [07:36<36:25,  1.69s/it, total_loss=0.8365, ce=0.8051, E_data=-0.5814, E_margin=0.1800, hinge=0.0314][A
+train epoch: 1:  17%|█▋        | 270/1563 [07:36<36:23,  1.69s/it, total_loss=0.8365, ce=0.8051, E_data=-0.5814, E_margin=0.1800, hinge=0.0314][A
+train epoch: 1:  17%|█▋        | 270/1563 [07:38<36:23,  1.69s/it, total_loss=0.8263, ce=0.8064, E_data=-0.5934, E_margin=0.1937, hinge=0.0199][A
+train epoch: 1:  17%|█▋        | 271/1563 [07:38<36:21,  1.69s/it, total_loss=0.8263, ce=0.8064, E_data=-0.5934, E_margin=0.1937, hinge=0.0199][A
+train epoch: 1:  17%|█▋        | 271/1563 [07:40<36:21,  1.69s/it, total_loss=0.8805, ce=0.8535, E_data=-0.5916, E_margin=0.1966, hinge=0.0270][A
+train epoch: 1:  17%|█▋        | 272/1563 [07:40<36:19,  1.69s/it, total_loss=0.8805, ce=0.8535, E_data=-0.5916, E_margin=0.1966, hinge=0.0270][A
+train epoch: 1:  17%|█▋        | 272/1563 [07:41<36:19,  1.69s/it, total_loss=0.8247, ce=0.8135, E_data=-0.6192, E_margin=0.2315, hinge=0.0112][A
+train epoch: 1:  17%|█▋        | 273/1563 [07:41<36:17,  1.69s/it, total_loss=0.8247, ce=0.8135, E_data=-0.6192, E_margin=0.2315, hinge=0.0112][A
+train epoch: 1:  17%|█▋        | 273/1563 [07:43<36:17,  1.69s/it, total_loss=0.8277, ce=0.8082, E_data=-0.6265, E_margin=0.2414, hinge=0.0195][A
+train epoch: 1:  18%|█▊        | 274/1563 [07:43<36:16,  1.69s/it, total_loss=0.8277, ce=0.8082, E_data=-0.6265, E_margin=0.2414, hinge=0.0195][A
+train epoch: 1:  18%|█▊        | 274/1563 [07:45<36:16,  1.69s/it, total_loss=0.8798, ce=0.8618, E_data=-0.6157, E_margin=0.2209, hinge=0.0181][A
+train epoch: 1:  18%|█▊        | 275/1563 [07:45<36:14,  1.69s/it, total_loss=0.8798, ce=0.8618, E_data=-0.6157, E_margin=0.2209, hinge=0.0181][A
+train epoch: 1:  18%|█▊        | 275/1563 [07:47<36:14,  1.69s/it, total_loss=0.9023, ce=0.8746, E_data=-0.5975, E_margin=0.1986, hinge=0.0277][A
+train epoch: 1:  18%|█▊        | 276/1563 [07:47<36:13,  1.69s/it, total_loss=0.9023, ce=0.8746, E_data=-0.5975, E_margin=0.1986, hinge=0.0277][A
+train epoch: 1:  18%|█▊        | 276/1563 [07:48<36:13,  1.69s/it, total_loss=0.7533, ce=0.7466, E_data=-0.6151, E_margin=0.2207, hinge=0.0067][A
+train epoch: 1:  18%|█▊        | 277/1563 [07:48<36:11,  1.69s/it, total_loss=0.7533, ce=0.7466, E_data=-0.6151, E_margin=0.2207, hinge=0.0067][A
+train epoch: 1:  18%|█▊        | 277/1563 [07:50<36:11,  1.69s/it, total_loss=0.8426, ce=0.8278, E_data=-0.5961, E_margin=0.2048, hinge=0.0148][A
+train epoch: 1:  18%|█▊        | 278/1563 [07:50<36:09,  1.69s/it, total_loss=0.8426, ce=0.8278, E_data=-0.5961, E_margin=0.2048, hinge=0.0148][A
+train epoch: 1:  18%|█▊        | 278/1563 [07:52<36:09,  1.69s/it, total_loss=0.8611, ce=0.8338, E_data=-0.6084, E_margin=0.2162, hinge=0.0273][A
+train epoch: 1:  18%|█▊        | 279/1563 [07:52<36:08,  1.69s/it, total_loss=0.8611, ce=0.8338, E_data=-0.6084, E_margin=0.2162, hinge=0.0273][A
+train epoch: 1:  18%|█▊        | 279/1563 [07:53<36:08,  1.69s/it, total_loss=0.8508, ce=0.8279, E_data=-0.6138, E_margin=0.2205, hinge=0.0230][A
+train epoch: 1:  18%|█▊        | 280/1563 [07:53<36:06,  1.69s/it, total_loss=0.8508, ce=0.8279, E_data=-0.6138, E_margin=0.2205, hinge=0.0230][A
+train epoch: 1:  18%|█▊        | 280/1563 [07:55<36:06,  1.69s/it, total_loss=0.7810, ce=0.7401, E_data=-0.6337, E_margin=0.2364, hinge=0.0408][A
+train epoch: 1:  18%|█▊        | 281/1563 [07:55<36:04,  1.69s/it, total_loss=0.7810, ce=0.7401, E_data=-0.6337, E_margin=0.2364, hinge=0.0408][A
+train epoch: 1:  18%|█▊        | 281/1563 [07:57<36:04,  1.69s/it, total_loss=0.8464, ce=0.7990, E_data=-0.6136, E_margin=0.2126, hinge=0.0474][A
+train epoch: 1:  18%|█▊        | 282/1563 [07:57<36:03,  1.69s/it, total_loss=0.8464, ce=0.7990, E_data=-0.6136, E_margin=0.2126, hinge=0.0474][A
+train epoch: 1:  18%|█▊        | 282/1563 [07:58<36:03,  1.69s/it, total_loss=0.9012, ce=0.8638, E_data=-0.6065, E_margin=0.2011, hinge=0.0375][A
+train epoch: 1:  18%|█▊        | 283/1563 [07:58<36:01,  1.69s/it, total_loss=0.9012, ce=0.8638, E_data=-0.6065, E_margin=0.2011, hinge=0.0375][A
+train epoch: 1:  18%|█▊        | 283/1563 [08:00<36:01,  1.69s/it, total_loss=0.8611, ce=0.8020, E_data=-0.6127, E_margin=0.2140, hinge=0.0590][A
+train epoch: 1:  18%|█▊        | 284/1563 [08:00<35:59,  1.69s/it, total_loss=0.8611, ce=0.8020, E_data=-0.6127, E_margin=0.2140, hinge=0.0590][A
+train epoch: 1:  18%|█▊        | 284/1563 [08:02<35:59,  1.69s/it, total_loss=0.8186, ce=0.7830, E_data=-0.6246, E_margin=0.2320, hinge=0.0356][A
+train epoch: 1:  18%|█▊        | 285/1563 [08:02<35:57,  1.69s/it, total_loss=0.8186, ce=0.7830, E_data=-0.6246, E_margin=0.2320, hinge=0.0356][A
+train epoch: 1:  18%|█▊        | 285/1563 [08:03<35:57,  1.69s/it, total_loss=0.8127, ce=0.7564, E_data=-0.6318, E_margin=0.2428, hinge=0.0563][A
+train epoch: 1:  18%|█▊        | 286/1563 [08:03<35:55,  1.69s/it, total_loss=0.8127, ce=0.7564, E_data=-0.6318, E_margin=0.2428, hinge=0.0563][A
+train epoch: 1:  18%|█▊        | 286/1563 [08:05<35:55,  1.69s/it, total_loss=0.8984, ce=0.8773, E_data=-0.6216, E_margin=0.2318, hinge=0.0211][A
+train epoch: 1:  18%|█▊        | 287/1563 [08:05<35:53,  1.69s/it, total_loss=0.8984, ce=0.8773, E_data=-0.6216, E_margin=0.2318, hinge=0.0211][A
+train epoch: 1:  18%|█▊        | 287/1563 [08:07<35:53,  1.69s/it, total_loss=0.7098, ce=0.6962, E_data=-0.6244, E_margin=0.2310, hinge=0.0136][A
+train epoch: 1:  18%|█▊        | 288/1563 [08:07<35:55,  1.69s/it, total_loss=0.7098, ce=0.6962, E_data=-0.6244, E_margin=0.2310, hinge=0.0136][A
+train epoch: 1:  18%|█▊        | 288/1563 [08:09<35:55,  1.69s/it, total_loss=0.9407, ce=0.8889, E_data=-0.6126, E_margin=0.2120, hinge=0.0518][A
+train epoch: 1:  18%|█▊        | 289/1563 [08:09<35:53,  1.69s/it, total_loss=0.9407, ce=0.8889, E_data=-0.6126, E_margin=0.2120, hinge=0.0518][A
+train epoch: 1:  18%|█▊        | 289/1563 [08:10<35:53,  1.69s/it, total_loss=0.8195, ce=0.7613, E_data=-0.6225, E_margin=0.2200, hinge=0.0581][A
+train epoch: 1:  19%|█▊        | 290/1563 [08:10<35:50,  1.69s/it, total_loss=0.8195, ce=0.7613, E_data=-0.6225, E_margin=0.2200, hinge=0.0581][A
+train epoch: 1:  19%|█▊        | 290/1563 [08:12<35:50,  1.69s/it, total_loss=0.7549, ce=0.7199, E_data=-0.6349, E_margin=0.2411, hinge=0.0350][A
+train epoch: 1:  19%|█▊        | 291/1563 [08:12<35:48,  1.69s/it, total_loss=0.7549, ce=0.7199, E_data=-0.6349, E_margin=0.2411, hinge=0.0350][A
+train epoch: 1:  19%|█▊        | 291/1563 [08:14<35:48,  1.69s/it, total_loss=0.6964, ce=0.6630, E_data=-0.6325, E_margin=0.2447, hinge=0.0334][A
+train epoch: 1:  19%|█▊        | 292/1563 [08:14<35:46,  1.69s/it, total_loss=0.6964, ce=0.6630, E_data=-0.6325, E_margin=0.2447, hinge=0.0334][A
+train epoch: 1:  19%|█▊        | 292/1563 [08:15<35:46,  1.69s/it, total_loss=0.7776, ce=0.7479, E_data=-0.6285, E_margin=0.2348, hinge=0.0297][A
+train epoch: 1:  19%|█▊        | 293/1563 [08:15<35:44,  1.69s/it, total_loss=0.7776, ce=0.7479, E_data=-0.6285, E_margin=0.2348, hinge=0.0297][A
+train epoch: 1:  19%|█▊        | 293/1563 [08:17<35:44,  1.69s/it, total_loss=0.7747, ce=0.7463, E_data=-0.6264, E_margin=0.2211, hinge=0.0284][A
+train epoch: 1:  19%|█▉        | 294/1563 [08:17<35:42,  1.69s/it, total_loss=0.7747, ce=0.7463, E_data=-0.6264, E_margin=0.2211, hinge=0.0284][A
+train epoch: 1:  19%|█▉        | 294/1563 [08:19<35:42,  1.69s/it, total_loss=0.7808, ce=0.7414, E_data=-0.6380, E_margin=0.2280, hinge=0.0394][A
+train epoch: 1:  19%|█▉        | 295/1563 [08:19<35:40,  1.69s/it, total_loss=0.7808, ce=0.7414, E_data=-0.6380, E_margin=0.2280, hinge=0.0394][A
+train epoch: 1:  19%|█▉        | 295/1563 [08:20<35:40,  1.69s/it, total_loss=0.7408, ce=0.7019, E_data=-0.6545, E_margin=0.2444, hinge=0.0389][A
+train epoch: 1:  19%|█▉        | 296/1563 [08:20<35:38,  1.69s/it, total_loss=0.7408, ce=0.7019, E_data=-0.6545, E_margin=0.2444, hinge=0.0389][A
+train epoch: 1:  19%|█▉        | 296/1563 [08:22<35:38,  1.69s/it, total_loss=0.7885, ce=0.7731, E_data=-0.6599, E_margin=0.2489, hinge=0.0154][A
+train epoch: 1:  19%|█▉        | 297/1563 [08:22<35:37,  1.69s/it, total_loss=0.7885, ce=0.7731, E_data=-0.6599, E_margin=0.2489, hinge=0.0154][A
+train epoch: 1:  19%|█▉        | 297/1563 [08:24<35:37,  1.69s/it, total_loss=0.7025, ce=0.6922, E_data=-0.6498, E_margin=0.2366, hinge=0.0103][A
+train epoch: 1:  19%|█▉        | 298/1563 [08:24<35:35,  1.69s/it, total_loss=0.7025, ce=0.6922, E_data=-0.6498, E_margin=0.2366, hinge=0.0103][A
+train epoch: 1:  19%|█▉        | 298/1563 [08:25<35:35,  1.69s/it, total_loss=0.6755, ce=0.6546, E_data=-0.6367, E_margin=0.2161, hinge=0.0209][A
+train epoch: 1:  19%|█▉        | 299/1563 [08:25<35:33,  1.69s/it, total_loss=0.6755, ce=0.6546, E_data=-0.6367, E_margin=0.2161, hinge=0.0209][A
+train epoch: 1:  19%|█▉        | 299/1563 [08:27<35:33,  1.69s/it, total_loss=0.7126, ce=0.6858, E_data=-0.6454, E_margin=0.2248, hinge=0.0269][A
+train epoch: 1:  19%|█▉        | 300/1563 [08:27<35:31,  1.69s/it, total_loss=0.7126, ce=0.6858, E_data=-0.6454, E_margin=0.2248, hinge=0.0269][A
+train epoch: 1:  19%|█▉        | 300/1563 [08:29<35:31,  1.69s/it, total_loss=0.6734, ce=0.6524, E_data=-0.6553, E_margin=0.2443, hinge=0.0210][A
+train epoch: 1:  19%|█▉        | 301/1563 [08:29<35:29,  1.69s/it, total_loss=0.6734, ce=0.6524, E_data=-0.6553, E_margin=0.2443, hinge=0.0210][A
+train epoch: 1:  19%|█▉        | 301/1563 [08:30<35:29,  1.69s/it, total_loss=0.6950, ce=0.6670, E_data=-0.6619, E_margin=0.2549, hinge=0.0280][A
+train epoch: 1:  19%|█▉        | 302/1563 [08:30<35:28,  1.69s/it, total_loss=0.6950, ce=0.6670, E_data=-0.6619, E_margin=0.2549, hinge=0.0280][A
+train epoch: 1:  19%|█▉        | 302/1563 [08:32<35:28,  1.69s/it, total_loss=0.6926, ce=0.6813, E_data=-0.6685, E_margin=0.2622, hinge=0.0112][A
+train epoch: 1:  19%|█▉        | 303/1563 [08:32<35:26,  1.69s/it, total_loss=0.6926, ce=0.6813, E_data=-0.6685, E_margin=0.2622, hinge=0.0112][A
+train epoch: 1:  19%|█▉        | 303/1563 [08:34<35:26,  1.69s/it, total_loss=0.7036, ce=0.6657, E_data=-0.6445, E_margin=0.2282, hinge=0.0379][A
+train epoch: 1:  19%|█▉        | 304/1563 [08:34<35:24,  1.69s/it, total_loss=0.7036, ce=0.6657, E_data=-0.6445, E_margin=0.2282, hinge=0.0379][A
+train epoch: 1:  19%|█▉        | 304/1563 [08:36<35:24,  1.69s/it, total_loss=0.7117, ce=0.6816, E_data=-0.6526, E_margin=0.2215, hinge=0.0302][A
+train epoch: 1:  20%|█▉        | 305/1563 [08:36<35:22,  1.69s/it, total_loss=0.7117, ce=0.6816, E_data=-0.6526, E_margin=0.2215, hinge=0.0302][A
+train epoch: 1:  20%|█▉        | 305/1563 [08:37<35:22,  1.69s/it, total_loss=0.6888, ce=0.6828, E_data=-0.6590, E_margin=0.2265, hinge=0.0060][A
+train epoch: 1:  20%|█▉        | 306/1563 [08:37<35:21,  1.69s/it, total_loss=0.6888, ce=0.6828, E_data=-0.6590, E_margin=0.2265, hinge=0.0060][A
+train epoch: 1:  20%|█▉        | 306/1563 [08:39<35:21,  1.69s/it, total_loss=0.6457, ce=0.6338, E_data=-0.6651, E_margin=0.2433, hinge=0.0119][A
+train epoch: 1:  20%|█▉        | 307/1563 [08:39<35:19,  1.69s/it, total_loss=0.6457, ce=0.6338, E_data=-0.6651, E_margin=0.2433, hinge=0.0119][A
+train epoch: 1:  20%|█▉        | 307/1563 [08:41<35:19,  1.69s/it, total_loss=0.6074, ce=0.5894, E_data=-0.6908, E_margin=0.2758, hinge=0.0179][A
+train epoch: 1:  20%|█▉        | 308/1563 [08:41<35:17,  1.69s/it, total_loss=0.6074, ce=0.5894, E_data=-0.6908, E_margin=0.2758, hinge=0.0179][A
+train epoch: 1:  20%|█▉        | 308/1563 [08:42<35:17,  1.69s/it, total_loss=0.6875, ce=0.6684, E_data=-0.6717, E_margin=0.2553, hinge=0.0191][A
+train epoch: 1:  20%|█▉        | 309/1563 [08:42<35:16,  1.69s/it, total_loss=0.6875, ce=0.6684, E_data=-0.6717, E_margin=0.2553, hinge=0.0191][A
+train epoch: 1:  20%|█▉        | 309/1563 [08:44<35:16,  1.69s/it, total_loss=0.6533, ce=0.6442, E_data=-0.6709, E_margin=0.2513, hinge=0.0091][A
+train epoch: 1:  20%|█▉        | 310/1563 [08:44<35:14,  1.69s/it, total_loss=0.6533, ce=0.6442, E_data=-0.6709, E_margin=0.2513, hinge=0.0091][A
+train epoch: 1:  20%|█▉        | 310/1563 [08:46<35:14,  1.69s/it, total_loss=0.6352, ce=0.6160, E_data=-0.6692, E_margin=0.2540, hinge=0.0192][A
+train epoch: 1:  20%|█▉        | 311/1563 [08:46<35:13,  1.69s/it, total_loss=0.6352, ce=0.6160, E_data=-0.6692, E_margin=0.2540, hinge=0.0192][A
+train epoch: 1:  20%|█▉        | 311/1563 [08:47<35:13,  1.69s/it, total_loss=0.6522, ce=0.6250, E_data=-0.6622, E_margin=0.2549, hinge=0.0273][A
+train epoch: 1:  20%|█▉        | 312/1563 [08:47<35:11,  1.69s/it, total_loss=0.6522, ce=0.6250, E_data=-0.6622, E_margin=0.2549, hinge=0.0273][A
+train epoch: 1:  20%|█▉        | 312/1563 [08:49<35:11,  1.69s/it, total_loss=0.7286, ce=0.6996, E_data=-0.6627, E_margin=0.2607, hinge=0.0289][A
+train epoch: 1:  20%|██        | 313/1563 [08:49<35:10,  1.69s/it, total_loss=0.7286, ce=0.6996, E_data=-0.6627, E_margin=0.2607, hinge=0.0289][A
+train epoch: 1:  20%|██        | 313/1563 [08:51<35:10,  1.69s/it, total_loss=0.7130, ce=0.6816, E_data=-0.6614, E_margin=0.2541, hinge=0.0314][A
+train epoch: 1:  20%|██        | 314/1563 [08:51<35:08,  1.69s/it, total_loss=0.7130, ce=0.6816, E_data=-0.6614, E_margin=0.2541, hinge=0.0314][A
+train epoch: 1:  20%|██        | 314/1563 [08:52<35:08,  1.69s/it, total_loss=0.6745, ce=0.6460, E_data=-0.6740, E_margin=0.2564, hinge=0.0285][A
+train epoch: 1:  20%|██        | 315/1563 [08:52<35:06,  1.69s/it, total_loss=0.6745, ce=0.6460, E_data=-0.6740, E_margin=0.2564, hinge=0.0285][A
+train epoch: 1:  20%|██        | 315/1563 [08:54<35:06,  1.69s/it, total_loss=0.6266, ce=0.6120, E_data=-0.6829, E_margin=0.2634, hinge=0.0146][A
+train epoch: 1:  20%|██        | 316/1563 [08:54<35:05,  1.69s/it, total_loss=0.6266, ce=0.6120, E_data=-0.6829, E_margin=0.2634, hinge=0.0146][A
+train epoch: 1:  20%|██        | 316/1563 [08:56<35:05,  1.69s/it, total_loss=0.5880, ce=0.5836, E_data=-0.6825, E_margin=0.2741, hinge=0.0044][A
+train epoch: 1:  20%|██        | 317/1563 [08:56<35:03,  1.69s/it, total_loss=0.5880, ce=0.5836, E_data=-0.6825, E_margin=0.2741, hinge=0.0044][A
+train epoch: 1:  20%|██        | 317/1563 [08:57<35:03,  1.69s/it, total_loss=0.6050, ce=0.5898, E_data=-0.6654, E_margin=0.2696, hinge=0.0153][A
+train epoch: 1:  20%|██        | 318/1563 [08:57<35:02,  1.69s/it, total_loss=0.6050, ce=0.5898, E_data=-0.6654, E_margin=0.2696, hinge=0.0153][A
+train epoch: 1:  20%|██        | 318/1563 [08:59<35:02,  1.69s/it, total_loss=0.6119, ce=0.5855, E_data=-0.6501, E_margin=0.2597, hinge=0.0263][A
+train epoch: 1:  20%|██        | 319/1563 [08:59<35:00,  1.69s/it, total_loss=0.6119, ce=0.5855, E_data=-0.6501, E_margin=0.2597, hinge=0.0263][A
+train epoch: 1:  20%|██        | 319/1563 [09:01<35:00,  1.69s/it, total_loss=0.6926, ce=0.6704, E_data=-0.6339, E_margin=0.2400, hinge=0.0222][A
+train epoch: 1:  20%|██        | 320/1563 [09:01<34:58,  1.69s/it, total_loss=0.6926, ce=0.6704, E_data=-0.6339, E_margin=0.2400, hinge=0.0222][A
+train epoch: 1:  20%|██        | 320/1563 [09:03<34:58,  1.69s/it, total_loss=0.7261, ce=0.7141, E_data=-0.6668, E_margin=0.2710, hinge=0.0120][A
+train epoch: 1:  21%|██        | 321/1563 [09:03<34:58,  1.69s/it, total_loss=0.7261, ce=0.7141, E_data=-0.6668, E_margin=0.2710, hinge=0.0120][A
+train epoch: 1:  21%|██        | 321/1563 [09:04<34:58,  1.69s/it, total_loss=0.5325, ce=0.5109, E_data=-0.6868, E_margin=0.2909, hinge=0.0215][A
+train epoch: 1:  21%|██        | 322/1563 [09:04<34:56,  1.69s/it, total_loss=0.5325, ce=0.5109, E_data=-0.6868, E_margin=0.2909, hinge=0.0215][A
+train epoch: 1:  21%|██        | 322/1563 [09:06<34:56,  1.69s/it, total_loss=0.5770, ce=0.5650, E_data=-0.6896, E_margin=0.2834, hinge=0.0120][A
+train epoch: 1:  21%|██        | 323/1563 [09:06<34:54,  1.69s/it, total_loss=0.5770, ce=0.5650, E_data=-0.6896, E_margin=0.2834, hinge=0.0120][A
+train epoch: 1:  21%|██        | 323/1563 [09:08<34:54,  1.69s/it, total_loss=0.5974, ce=0.5827, E_data=-0.6722, E_margin=0.2620, hinge=0.0147][A
+train epoch: 1:  21%|██        | 324/1563 [09:08<34:52,  1.69s/it, total_loss=0.5974, ce=0.5827, E_data=-0.6722, E_margin=0.2620, hinge=0.0147][A
+train epoch: 1:  21%|██        | 324/1563 [09:09<34:52,  1.69s/it, total_loss=0.6121, ce=0.5885, E_data=-0.6774, E_margin=0.2611, hinge=0.0236][A
+train epoch: 1:  21%|██        | 325/1563 [09:09<34:50,  1.69s/it, total_loss=0.6121, ce=0.5885, E_data=-0.6774, E_margin=0.2611, hinge=0.0236][A
+train epoch: 1:  21%|██        | 325/1563 [09:11<34:50,  1.69s/it, total_loss=0.5984, ce=0.5846, E_data=-0.6746, E_margin=0.2577, hinge=0.0138][A
+train epoch: 1:  21%|██        | 326/1563 [09:11<34:48,  1.69s/it, total_loss=0.5984, ce=0.5846, E_data=-0.6746, E_margin=0.2577, hinge=0.0138][A
+train epoch: 1:  21%|██        | 326/1563 [09:13<34:48,  1.69s/it, total_loss=0.6256, ce=0.6220, E_data=-0.6798, E_margin=0.2679, hinge=0.0036][A
+train epoch: 1:  21%|██        | 327/1563 [09:13<34:47,  1.69s/it, total_loss=0.6256, ce=0.6220, E_data=-0.6798, E_margin=0.2679, hinge=0.0036][A
+train epoch: 1:  21%|██        | 327/1563 [09:14<34:47,  1.69s/it, total_loss=0.5904, ce=0.5776, E_data=-0.6908, E_margin=0.2815, hinge=0.0128][A
+train epoch: 1:  21%|██        | 328/1563 [09:14<34:45,  1.69s/it, total_loss=0.5904, ce=0.5776, E_data=-0.6908, E_margin=0.2815, hinge=0.0128][A
+train epoch: 1:  21%|██        | 328/1563 [09:16<34:45,  1.69s/it, total_loss=0.5408, ce=0.5169, E_data=-0.7071, E_margin=0.2944, hinge=0.0239][A
+train epoch: 1:  21%|██        | 329/1563 [09:16<34:43,  1.69s/it, total_loss=0.5408, ce=0.5169, E_data=-0.7071, E_margin=0.2944, hinge=0.0239][A
+train epoch: 1:  21%|██        | 329/1563 [09:18<34:43,  1.69s/it, total_loss=0.5779, ce=0.5532, E_data=-0.7006, E_margin=0.2855, hinge=0.0246][A
+train epoch: 1:  21%|██        | 330/1563 [09:18<34:41,  1.69s/it, total_loss=0.5779, ce=0.5532, E_data=-0.7006, E_margin=0.2855, hinge=0.0246][A
+train epoch: 1:  21%|██        | 330/1563 [09:19<34:41,  1.69s/it, total_loss=0.5497, ce=0.5193, E_data=-0.6842, E_margin=0.2616, hinge=0.0304][A
+train epoch: 1:  21%|██        | 331/1563 [09:19<34:40,  1.69s/it, total_loss=0.5497, ce=0.5193, E_data=-0.6842, E_margin=0.2616, hinge=0.0304][A
+train epoch: 1:  21%|██        | 331/1563 [09:21<34:40,  1.69s/it, total_loss=0.5984, ce=0.5722, E_data=-0.6868, E_margin=0.2552, hinge=0.0262][A
+train epoch: 1:  21%|██        | 332/1563 [09:21<34:38,  1.69s/it, total_loss=0.5984, ce=0.5722, E_data=-0.6868, E_margin=0.2552, hinge=0.0262][A
+train epoch: 1:  21%|██        | 332/1563 [09:23<34:38,  1.69s/it, total_loss=0.5467, ce=0.5026, E_data=-0.6943, E_margin=0.2646, hinge=0.0441][A
+train epoch: 1:  21%|██▏       | 333/1563 [09:23<34:36,  1.69s/it, total_loss=0.5467, ce=0.5026, E_data=-0.6943, E_margin=0.2646, hinge=0.0441][A
+train epoch: 1:  21%|██▏       | 333/1563 [09:24<34:36,  1.69s/it, total_loss=0.5779, ce=0.5517, E_data=-0.6920, E_margin=0.2719, hinge=0.0263][A
+train epoch: 1:  21%|██▏       | 334/1563 [09:24<34:34,  1.69s/it, total_loss=0.5779, ce=0.5517, E_data=-0.6920, E_margin=0.2719, hinge=0.0263][A
+train epoch: 1:  21%|██▏       | 334/1563 [09:26<34:34,  1.69s/it, total_loss=0.5371, ce=0.5217, E_data=-0.7155, E_margin=0.2986, hinge=0.0154][A
+train epoch: 1:  21%|██▏       | 335/1563 [09:26<34:32,  1.69s/it, total_loss=0.5371, ce=0.5217, E_data=-0.7155, E_margin=0.2986, hinge=0.0154][A
+train epoch: 1:  21%|██▏       | 335/1563 [09:28<34:32,  1.69s/it, total_loss=0.6542, ce=0.6170, E_data=-0.7051, E_margin=0.2842, hinge=0.0372][A
+train epoch: 1:  21%|██▏       | 336/1563 [09:28<34:31,  1.69s/it, total_loss=0.6542, ce=0.6170, E_data=-0.7051, E_margin=0.2842, hinge=0.0372][A
+train epoch: 1:  21%|██▏       | 336/1563 [09:30<34:31,  1.69s/it, total_loss=0.5606, ce=0.5512, E_data=-0.7068, E_margin=0.2810, hinge=0.0094][A
+train epoch: 1:  22%|██▏       | 337/1563 [09:30<34:29,  1.69s/it, total_loss=0.5606, ce=0.5512, E_data=-0.7068, E_margin=0.2810, hinge=0.0094][A
+train epoch: 1:  22%|██▏       | 337/1563 [09:31<34:29,  1.69s/it, total_loss=0.5671, ce=0.5301, E_data=-0.6968, E_margin=0.2712, hinge=0.0370][A
+train epoch: 1:  22%|██▏       | 338/1563 [09:31<34:28,  1.69s/it, total_loss=0.5671, ce=0.5301, E_data=-0.6968, E_margin=0.2712, hinge=0.0370][A
+train epoch: 1:  22%|██▏       | 338/1563 [09:33<34:28,  1.69s/it, total_loss=0.5100, ce=0.4892, E_data=-0.7217, E_margin=0.2967, hinge=0.0209][A
+train epoch: 1:  22%|██▏       | 339/1563 [09:33<34:26,  1.69s/it, total_loss=0.5100, ce=0.4892, E_data=-0.7217, E_margin=0.2967, hinge=0.0209][A
+train epoch: 1:  22%|██▏       | 339/1563 [09:35<34:26,  1.69s/it, total_loss=0.5214, ce=0.5181, E_data=-0.7118, E_margin=0.2833, hinge=0.0032][A
+train epoch: 1:  22%|██▏       | 340/1563 [09:35<34:24,  1.69s/it, total_loss=0.5214, ce=0.5181, E_data=-0.7118, E_margin=0.2833, hinge=0.0032][A
+train epoch: 1:  22%|██▏       | 340/1563 [09:36<34:24,  1.69s/it, total_loss=0.6764, ce=0.6635, E_data=-0.7032, E_margin=0.2677, hinge=0.0129][A
+train epoch: 1:  22%|██▏       | 341/1563 [09:36<34:22,  1.69s/it, total_loss=0.6764, ce=0.6635, E_data=-0.7032, E_margin=0.2677, hinge=0.0129][A
+train epoch: 1:  22%|██▏       | 341/1563 [09:38<34:22,  1.69s/it, total_loss=0.5017, ce=0.4939, E_data=-0.7075, E_margin=0.2724, hinge=0.0079][A
+train epoch: 1:  22%|██▏       | 342/1563 [09:38<34:21,  1.69s/it, total_loss=0.5017, ce=0.4939, E_data=-0.7075, E_margin=0.2724, hinge=0.0079][Aruns/sflm_bench_a100_20g/run_chain.sh: line 9: 39074 Killed                  $PY -u scripts/bench_sflm_ebm.py --scale a100_20g --epochs 10
