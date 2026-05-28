@@ -1,34 +1,35 @@
 """Spilled-energy benchmark on text8.
 
-**Spilled energy is the *universal* baseline**: ``SE(i) = logsumexp_v logits_i −
-logits_i[token_i]``, the per-position NLL of the placed token under a *fixed
-reference LM* (default: DFM, override with ``--ref-model``). The reference
-is loaded once and scores every test arm with the same logits, so the SE
-columns in the table are identical across arms by construction — any
-difference between arms in the headline OOD comparison must come from their
-*own* scores (``model.energy``, ``‖∇E‖``).
+Two orthogonal axes:
 
-For an EBM the question this bench answers is: do the specialised readouts
-beat the reference SE baseline, at sequence and per-position level?
+  - **Per-arm OOD readouts** — every model reports OOD AUROCs computed from
+    its own per-position logits / energy field: spilled energy SE under its
+    own decoder, ``model.energy`` (EBMs), Riemannian ``‖∇E‖`` (EBMs),
+    SVGP Bernoulli probability (2-stage detectors).
+
+  - **External LLM reference** (``--ref-lm gpt2``) — spilled energy under a
+    fixed pretrained LM, computed once on the same clean/corrupted text and
+    reported as the ``gpt2_baseline`` row in the SE tables. This is the
+    apples-to-apples external baseline the per-arm OOD scores should match
+    or beat.  GPT-2 BPE doesn't align 1:1 with text8 chars, so per-char SE
+    is obtained by distributing each BPE token's NLL across the characters
+    it spans (offset-mapping).
 
 Layout:
 
-  (1) SEQ vs spilled energy — mean reference-LM SE clean vs corrupted.
-      Identical across arms. For EBMs the ``model.energy`` AUROC sits next
-      to it; Δ = energy − SE shows whether the EBM machinery beats the
-      reference baseline.
+  (0) Generation — each arm's reconstruction NLL (PPL / BPB / BPC) and
+      diagnostic ``clean_se_mean`` / ``clean_energy_mean``.
 
-  (2) PER-POSITION spilled-energy localisation — AUROC of corrupted vs
-      unchanged positions, also identical across arms (reference). EqM
-      and SFLMEBM family also report ``‖∇E‖`` per-position with the same
-      delta framing.
+  (1) SEQ-LEVEL AUROC — for each arm, AUROC of corrupted vs clean
+      *sequence-mean spilled energy* (per-arm SE). The ``gpt2_baseline``
+      row alongside is the GPT-2 SE AUROC at the same task. Δ vs the
+      gpt2_baseline row tells us whether the per-arm SE score is on par
+      with the LLM reference.  EBM-only sections (1d/1e/1f) add
+      ``model.energy`` AUROC; SVGP arms add ``ood_score`` AUROC.
 
-Earlier versions computed SE under *each arm's* own per-position logits.
-That conflates "is this arm's logit head sharp on the placed token?" with
-"is this sequence anomalous under a fixed LM?" and, for arms with an
-identity encode→decode path (SFLM), pegged seq_se_auroc at 1.0 trivially
-because clean SE was identically 0. The reference-LM design closes both
-confounds.
+  (2) PER-POSITION AUROC — AUROC of corrupted-position SE vs unchanged-
+      position SE *inside* corrupted sequences, again per-arm with the
+      ``gpt2_baseline`` row alongside.  EBMs add ``‖∇E‖`` per-position.
 
 Reads runs/sflm_bench_<scale>/<model>/epoch_final.pt (see
 scripts/train_for_sflm_bench.py) and falls back to the well-trained
@@ -36,7 +37,7 @@ existing baseline checkpoints in runs/ where a fresh one is absent.
 Writes runs/sflm_bench_<scale>/bench.json + a printed table.
 
 Usage:  python scripts/bench_sflm_ebm.py --scale {local,cluster} [--n 256]
-                                          [--ref-model DFM]
+                                          [--ref-lm gpt2]
 """
 
 from __future__ import annotations
@@ -118,7 +119,9 @@ def _uniform_sphere(shape, device, dtype=torch.float32):
 def _slerp(p, q, alpha):
     omega = torch.arccos((p * q).sum(-1).clamp(-1 + 1e-7, 1 - 1e-7)).unsqueeze(-1)
     s = torch.sin(omega).clamp(min=1e-7)
-    a = alpha.unsqueeze(-1) if alpha.dim() == p.dim() - 1 else alpha
+    a = alpha
+    while a.dim() < p.dim():
+        a = a.unsqueeze(-1)
     return torch.sin((1.0 - a) * omega) / s * p + torch.sin(a * omega) / s * q
 
 
@@ -227,6 +230,106 @@ def _spilled_energy(logits: torch.Tensor, ids: torch.Tensor) -> torch.Tensor:
     return lse - picked
 
 
+# --- External LLM reference (GPT-2) -------------------------------------------
+# Per-position SE under a fixed pretrained LM.  Computed once on the same
+# clean / corrupted text the arms see and reported as the universal baseline.
+# Implementation: BPE-tokenise the decoded char string with offset mapping,
+# forward GPT-2 once, get per-BPE-token NLL, then distribute each token's NLL
+# uniformly across the characters it spans.
+_TEXT8_ALPHABET = "abcdefghijklmnopqrstuvwxyz "
+
+
+def _ids_to_text(char_ids: torch.Tensor) -> list[str]:
+    """(B, L) text8 char ids → list of B strings of length L."""
+    table = _TEXT8_ALPHABET
+    out: list[str] = []
+    for row in char_ids.detach().cpu().tolist():
+        out.append("".join(table[c] for c in row))
+    return out
+
+
+@torch.no_grad()
+def _gpt2_per_char_SE(
+    model, tokenizer, char_ids: torch.Tensor, *, chunk: int = 32
+) -> torch.Tensor:
+    """Per-character spilled energy under GPT-2.
+
+    Returns ``(B, L)`` of per-char NLL under the reference LM.  Each BPE
+    token's NLL is divided uniformly across the chars it spans; this is
+    the standard cross-tokenizer byte/char NLL convention (e.g. how
+    text8 BPC is reported for GPT-2 in the literature).
+
+    ``chunk`` controls the GPT-2 batch size — at L=256 the (B, T, V≈50k)
+    log-softmax tensor alone is ~4 GB at B=256, which fragments the
+    MIG-20GB allocator across repeated calls.  Process in chunks and let
+    the caching allocator reuse the slab.
+    """
+    device = next(model.parameters()).device
+    B, L = char_ids.shape
+    SE = torch.zeros((B, L), dtype=torch.float32, device=device)
+    bos = tokenizer.eos_token_id
+    for s in range(0, B, chunk):
+        e = min(s + chunk, B)
+        sub_ids = char_ids[s:e]
+        texts = _ids_to_text(sub_ids)
+        enc = tokenizer(
+            texts,
+            return_offsets_mapping=True,
+            return_attention_mask=True,
+            add_special_tokens=False,
+            padding=True,
+            return_tensors="pt",
+        )
+        input_ids = enc["input_ids"].to(device)            # (b, T)
+        attn_mask = enc["attention_mask"].to(device)       # (b, T)
+        offsets_l = enc["offset_mapping"].tolist()         # (b, T, 2)
+        attn_l = attn_mask.tolist()
+        # Prepend BOS = eos for conditional NLL on the first BPE token.
+        b_size = input_ids.shape[0]
+        bos_col = torch.full((b_size, 1), bos, dtype=input_ids.dtype, device=device)
+        pad_col = torch.ones((b_size, 1), dtype=attn_mask.dtype, device=device)
+        padded = torch.cat([bos_col, input_ids], dim=1)
+        mask = torch.cat([pad_col, attn_mask], dim=1)
+        logits = model(input_ids=padded, attention_mask=mask).logits  # (b, T+1, V)
+        # logits[:, t, :] predicts padded[:, t+1] for t in 0..T-1.
+        # Compute NLL without materialising a full (b, T, V) log-softmax tensor:
+        # nll = log_sum_exp(logits) - logits_at(input_ids).
+        pred_logits = logits[:, :-1, :].float()
+        lse = torch.logsumexp(pred_logits, dim=-1)         # (b, T)
+        picked = pred_logits.gather(
+            -1, input_ids.unsqueeze(-1)
+        ).squeeze(-1)                                       # (b, T)
+        nll = (lse - picked).cpu()
+        for j in range(b_size):
+            for t, ((start, end), valid) in enumerate(
+                zip(offsets_l[j], attn_l[j])
+            ):
+                if not valid or end <= start:
+                    continue
+                n_chars = end - start
+                SE[s + j, start:end] = nll[j, t] / n_chars
+        del logits, pred_logits, lse, picked, padded, mask, input_ids, attn_mask
+        torch.cuda.empty_cache()
+    return SE
+
+
+def _load_gpt2(name: str, device):
+    """Load a HuggingFace GPT-2 LM and its fast tokenizer.
+
+    Cached under ``transformers``' default HF cache (set ``HF_HOME`` to
+    relocate).  ``add_prefix_space=True`` because text8 char strings can
+    start with non-space chars; without it the first BPE token would not
+    get an offset that starts at 0.
+    """
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+    tok = AutoTokenizer.from_pretrained(name, add_prefix_space=False, use_fast=True)
+    if tok.pad_token is None:
+        tok.pad_token = tok.eos_token
+    model = AutoModelForCausalLM.from_pretrained(name, torch_dtype=torch.float32)
+    model.to(device).eval()
+    return model, tok
+
+
 def _position_uncertainty(model, name: str, ids: torch.Tensor, cfg: Config):
     # Models without a native per-position uncertainty field:
     # SFLM (generator), DFM (categorical denoiser), DirichletFM (categorical
@@ -304,14 +407,12 @@ def main() -> None:
     ap.add_argument("--no-auto-train", action="store_true",
                     help="revert to legacy 'skip / use existing baseline' "
                          "behaviour when a checkpoint is missing")
-    ap.add_argument("--ref-model", default="DFM", choices=MODELS,
-                    help="model used as the fixed reference LM for computing "
-                         "spilled energy. Loaded once; its per-position "
-                         "logits are reused to score every other arm, so "
-                         "SE columns are identical across arms (universal "
-                         "baseline). Default: DFM (well-trained char-level "
-                         "denoiser; closest thing to a calibrated text8 LM "
-                         "in the repo).")
+    ap.add_argument("--ref-lm", default="gpt2",
+                    help="HuggingFace causal LM used as the external spilled-"
+                         "energy reference (e.g. gpt2, gpt2-medium, distilgpt2). "
+                         "Loaded once; per-char NLL is computed by distributing "
+                         "each BPE token's NLL uniformly across the chars it "
+                         "spans. Pass an empty string to disable the reference.")
     ap.add_argument("--subst-levels", type=str,
                     default="0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0",
                     help="substitution corruption rates to sweep")
@@ -364,40 +465,53 @@ def main() -> None:
                          generator=torch.Generator(device=device).manual_seed(args.seed))
     corruptions["rand"] = (rnd, torch.ones_like(rnd, dtype=torch.bool))
 
-    # --- Reference LM for spilled energy (universal baseline) --------------
-    # Load the reference model ONCE and cache its per-position logits on
-    # clean + every corruption.  Every test arm is then scored against
-    # these reference logits, so seq_se_auroc / pospair_se_auroc are
-    # identical across arms.  The arm-specific readouts (model.energy,
-    # position_uncertainty) remain per-arm.
-    print(f"[ref] loading reference LM '{args.ref_model}' "
-          f"for spilled-energy baseline …")
-    ref_model, ref_cfg = _load(
-        args.ref_model, device, args.scale,
-        epochs=args.epochs, svgp_epochs=args.svgp_epochs,
-        auto_train=not args.no_auto_train,
-    )
-    if ref_model is None:
-        raise RuntimeError(
-            f"Reference LM '{args.ref_model}' could not be loaded — "
-            "spilled-energy baseline requires a working reference. "
-            "Pass --ref-model to choose a different arm, or ensure the "
-            "checkpoint exists / auto-train succeeds."
-        )
-    ref_cl_logits, _ = _per_pos_logits(ref_model, args.ref_model, clean, ref_cfg)
-    ref_cl_SE = _spilled_energy(ref_cl_logits, clean)         # (B, L)
-    ref_cl_seq_se = ref_cl_SE.mean(-1)                        # (B,)
-    ref_co_SE: dict[str, torch.Tensor] = {}
-    for cname, (cids, _cmask) in corruptions.items():
-        co_logits, _ = _per_pos_logits(ref_model, args.ref_model, cids, ref_cfg)
-        ref_co_SE[cname] = _spilled_energy(co_logits, cids)   # (B, L)
-    ref_se_clean_mean = float(ref_cl_SE.mean())
-    print(f"[ref] clean SE mean = {ref_se_clean_mean:.4f} "
-          f"(reference: {args.ref_model})")
-    # Free the reference forward graph; the cached SE tensors are all we need.
-    del ref_model
+    # --- External LLM reference (GPT-2) ----------------------------------
+    # Spilled energy under a fixed pretrained LM, computed once on the same
+    # clean + every corruption.  Becomes the ``gpt2_baseline`` row in the
+    # AUROC tables — the universal external baseline the per-arm OOD
+    # scores should match or beat.
+    gpt2_baseline: dict | None = None
+    if args.ref_lm:
+        print(f"[ref-lm] loading HuggingFace '{args.ref_lm}' for "
+              f"spilled-energy reference …")
+        ref_model, ref_tok = _load_gpt2(args.ref_lm, device)
+        gpt2_cl_SE = _gpt2_per_char_SE(ref_model, ref_tok, clean)        # (B, L)
+        gpt2_cl_seq_se = gpt2_cl_SE.mean(-1)
+        gpt2_co_SE: dict[str, torch.Tensor] = {}
+        for cname, (cids, _cmask) in corruptions.items():
+            gpt2_co_SE[cname] = _gpt2_per_char_SE(ref_model, ref_tok, cids)
+        gpt2_cl_mean = float(gpt2_cl_SE.mean())
+        print(f"[ref-lm] {args.ref_lm} clean per-char NLL mean = "
+              f"{gpt2_cl_mean:.4f}")
+        del ref_model
+        # Pre-compute the reference AUROCs in the same dict-shape as a real arm
+        # so the report code can iterate over it uniformly.
+        gpt2_baseline = {
+            "ppl": float("nan"), "bpb": float("nan"), "bpc": float("nan"),
+            "clean_se_mean": gpt2_cl_mean, "clean_energy_mean": None,
+            "seq_se_clean": gpt2_cl_mean,
+            "seq_se_corrupt": {},
+            "seq_se_auroc": {},
+            "seq_energy_auroc": {}, "seq_energy_corrupt": {},
+            "seq_svgp_auroc": {},
+            "pospair_se_auroc": {},
+            "pospair_pu_auroc": {},
+            "seq_energy_auroc_signfree": {}, "seq_energy_sign": {},
+        }
+        for cname, (cids, cmask) in corruptions.items():
+            co = gpt2_co_SE[cname]
+            gpt2_baseline["seq_se_corrupt"][cname] = float(co.mean())
+            gpt2_baseline["seq_se_auroc"][cname] = _auroc(
+                co.mean(-1), gpt2_cl_seq_se
+            )
+            if cmask.any() and (~cmask).any():
+                gpt2_baseline["pospair_se_auroc"][cname] = _auroc(
+                    co[cmask], co[~cmask]
+                )
 
     results: dict = {}
+    if gpt2_baseline is not None:
+        results[f"{args.ref_lm}_baseline"] = gpt2_baseline
     for name in MODELS:
         model, cfg = _load(
             name, device, args.scale,
@@ -408,14 +522,11 @@ def main() -> None:
             print(f"[skip] {name}: no checkpoint and auto-train failed/disabled")
             continue
 
-        # Arm-specific energy field (used only for the model.energy AUROC
-        # below; we discard the arm's own logits — SE comes from the fixed
-        # reference LM).
+        # Per-arm native OOD readouts: sequence-level ``model.energy``
+        # and per-position ``position_uncertainty``/‖∇E‖.  Spilled energy
+        # is NOT per-arm — it lives only on the gpt2_baseline row.
         _, cl_E = _per_pos_logits(model, name, clean, cfg)
         cl_pu = _position_uncertainty(model, name, clean, cfg)
-        # Universal spilled-energy baseline — reference-LM SE, identical
-        # across arms by construction.
-        cl_seq_se = ref_cl_seq_se
 
         # Generation metric — reconstruction NLL on held-out clean ids.
         # Each model exposes ``.bpd()`` in its natural geometry (EqM:
@@ -433,14 +544,8 @@ def main() -> None:
             print(f"[{name}] bpd unavailable: {type(e).__name__}: {e}")
             bpc_val = ppl_val = bpb_val = float("nan")
 
-        # Reference-LM SE baseline + (optional) model-natural energy for EBMs
-        # + (optional) SVGP Bernoulli probability for 2-stage detectors.
+        # Native model-energy / SVGP readouts only — no per-arm SE.
         cl_svgp = _svgp_score(model, name, clean)
-        # Diagnostics — clean_se_mean is now the *reference* LM's clean SE
-        # (identical across arms; useful as a sanity check that the same
-        # reference loaded successfully).  clean_energy_mean stays per-arm
-        # so the sign convention of each EBM's energy head is still visible.
-        cl_se_mean = ref_se_clean_mean
         cl_energy_mean = (
             float(cl_E.mean()) if cl_E is not None else None
         )
@@ -448,29 +553,17 @@ def main() -> None:
             "ppl": ppl_val,
             "bpb": bpb_val,
             "bpc": bpc_val,
-            "clean_se_mean": cl_se_mean,
             "clean_energy_mean": cl_energy_mean,
-            "seq_se_auroc": {},        # universal baseline (every model)
-            "seq_se_clean": cl_se_mean,
-            "seq_se_corrupt": {},      # mean SE on each corruption type
             "seq_energy_auroc": {},    # model.energy if available (EBMs)
             "seq_energy_corrupt": {},  # mean energy on each corruption
             "seq_svgp_auroc": {},      # SVGP prob if available (2-stage)
-            "pospair_se_auroc": {},    # universal per-position baseline
             "pospair_pu_auroc": {},    # ‖∇E‖ if available (EBMs)
+            "seq_energy_auroc_signfree": {},
+            "seq_energy_sign": {},
         }
-        # Initialise sign-agnostic energy reporting (filled per corruption).
-        res["seq_energy_auroc_signfree"] = {}
-        res["seq_energy_sign"] = {}
         for cname, (cids, cmask) in corruptions.items():
-            # Arm-specific energy field; logits discarded — SE comes from
-            # the cached reference-LM logits computed once above.
             _, co_E = _per_pos_logits(model, name, cids, cfg)
-            co_SE = ref_co_SE[cname]
-            res["seq_se_corrupt"][cname] = float(co_SE.mean())
-            # (1a) BASELINE — mean reference-LM spilled energy clean vs corrupted.
-            res["seq_se_auroc"][cname] = _auroc(co_SE.mean(-1), cl_seq_se)
-            # (1b) Model-natural energy (EBMs only) — what beats baseline?
+            # (1) Model-natural energy (EBMs only) — what beats the GPT-2 baseline?
             if cl_E is not None and co_E is not None:
                 raw = _auroc(co_E, cl_E)
                 res["seq_energy_auroc"][cname] = raw
@@ -484,21 +577,16 @@ def main() -> None:
                 res["seq_energy_auroc_signfree"][cname] = sign_free
                 res["seq_energy_sign"][cname] = "+" if raw >= 0.5 else "−"
                 res["seq_energy_corrupt"][cname] = float(co_E.mean())
-            # (1c) SVGP probability (2-stage only).
+            # (2) SVGP probability (2-stage only).
             if cl_svgp is not None:
                 co_svgp = _svgp_score(model, name, cids)
                 res["seq_svgp_auroc"][cname] = _auroc(co_svgp, cl_svgp)
-            # (2a) Per-position SE localisation (universal baseline).
-            if cmask.any() and (~cmask).any():
-                res["pospair_se_auroc"][cname] = _auroc(
-                    co_SE[cmask], co_SE[~cmask]
+            # (3) Per-position ‖∇E‖ localisation (EBMs).
+            if cmask.any() and (~cmask).any() and cl_pu is not None:
+                co_pu = _position_uncertainty(model, name, cids, cfg)
+                res["pospair_pu_auroc"][cname] = _auroc(
+                    co_pu[cmask], co_pu[~cmask]
                 )
-                # (2b) Per-position ‖∇E‖ localisation (EBMs).
-                if cl_pu is not None:
-                    co_pu = _position_uncertainty(model, name, cids, cfg)
-                    res["pospair_pu_auroc"][cname] = _auroc(
-                        co_pu[cmask], co_pu[~cmask]
-                    )
         results[name] = res
 
     out_path = Path(args.out) if args.out else Path(f"{root}/bench.json")
@@ -529,39 +617,46 @@ def main() -> None:
             print(row)
 
     print("\n" + "=" * 110)
-    print("(0) GENERATION  —  reconstruction NLL (per-arm) + reference SE_clean "
-          "(identical across rows).  ⚠ bpc≈0 for arms whose bpd() reads the "
-          "input through .encode()→.decode_to_logprobs() (SFLM/EqM/EqM_OneHot/"
-          f"EqMLatent) — that path is essentially identity. SE_clean is the "
-          f"fixed reference LM '{args.ref_model}' (universal baseline); "
+    print("(0) GENERATION  —  reconstruction NLL (per-arm).  ⚠ bpc≈0 for "
+          "arms whose bpd() reads the input through "
+          ".encode()→.decode_to_logprobs() (SFLM/EqM/EqM_OneHot/EqMLatent) — "
+          "that path is essentially identity; the calibrated reference "
+          "for text8 char-NLL is the gpt2_baseline row below.  "
           "E_clean is each EBM's own energy head.")
     print("    (text8: BPB ≡ BPC since each token is one ASCII byte)")
     print("=" * 110)
     print(f"{'model':12s}  {'PPL':>8s}  {'BPB':>8s}  {'BPC':>8s}  "
-          f"{'SE_clean':>10s}  {'E_clean':>10s}")
+          f"{'E_clean':>10s}")
     for n, r in results.items():
         e = r.get("clean_energy_mean")
         e_s = _fmt(e, 10) if isinstance(e, float) else f"{'—':>10s}"
         print(f"{n:12s}  {_fmt(r['ppl'], 8)}  {_fmt(r['bpb'], 8)}  "
-              f"{_fmt(r['bpc'], 8)}  {_fmt(r['clean_se_mean'], 10)}  {e_s}")
+              f"{_fmt(r['bpc'], 8)}  {e_s}")
 
     items = list(results.items())
+    # SE rows come only from the gpt2_baseline entry (one row).
+    se_items = [(n, r) for n, r in items if r.get("seq_se_auroc")]
 
-    # Sequence-level — one section per corruption family.
-    _section(
-        "(1a) SEQ-LEVEL SE AUROC (clean vs subst_*; 0.5=chance, 1=perfect)",
-        subst_names, "seq_se_auroc", items,
-    )
-    _section(
-        "(1b) SEQ-LEVEL SE AUROC (clean vs shuffle_*)",
-        shuffle_names, "seq_se_auroc", items,
-    )
-    _section(
-        "(1c) SEQ-LEVEL SE AUROC (clean vs rand uniform)",
-        rand_names, "seq_se_auroc", items,
-    )
+    if se_items:
+        _section(
+            "(1a) SEQ-LEVEL spilled-energy AUROC under reference LM "
+            f"({args.ref_lm}) — clean vs subst_*; 0.5=chance, 1=perfect.  "
+            "This is THE external OOD baseline; the per-arm sections below "
+            "(model.energy, SVGP) should be compared against this row.",
+            subst_names, "seq_se_auroc", se_items,
+        )
+        _section(
+            "(1b) SEQ-LEVEL spilled-energy AUROC under reference LM "
+            f"({args.ref_lm}) — clean vs shuffle_*",
+            shuffle_names, "seq_se_auroc", se_items,
+        )
+        _section(
+            "(1c) SEQ-LEVEL spilled-energy AUROC under reference LM "
+            f"({args.ref_lm}) — clean vs rand uniform",
+            rand_names, "seq_se_auroc", se_items,
+        )
 
-    ebm_items = [(n, r) for n, r in items if r["seq_energy_auroc"]]
+    ebm_items = [(n, r) for n, r in items if r.get("seq_energy_auroc")]
     if ebm_items:
         _section(
             "(1d) SEQ-LEVEL ENERGY AUROC RAW (EBMs; subst_*).  "
@@ -591,7 +686,7 @@ def main() -> None:
             rand_names, "seq_energy_auroc_signfree", ebm_items,
         )
 
-    svgp_items = [(n, r) for n, r in items if r["seq_svgp_auroc"]]
+    svgp_items = [(n, r) for n, r in items if r.get("seq_svgp_auroc")]
     if svgp_items:
         _section(
             "(1g) SVGP Bernoulli-prob AUROC (subst_*)",
@@ -603,17 +698,20 @@ def main() -> None:
         )
 
     # Per-position localisation. rand has no clean positions ⇒ skipped.
-    _section(
-        "(2a) PER-POSITION SE AUROC (changed vs unchanged inside corrupted; "
-        "subst_*).  Subst at rate 1.0 has no clean positions ⇒ entry absent.",
-        subst_names, "pospair_se_auroc", items,
-    )
-    _section(
-        "(2b) PER-POSITION SE AUROC (shuffle_*)",
-        shuffle_names, "pospair_se_auroc", items,
-    )
+    if se_items:
+        _section(
+            "(2a) PER-POSITION spilled-energy AUROC under reference LM "
+            f"({args.ref_lm}) — changed vs unchanged positions, subst_*.  "
+            "Subst at rate 1.0 has no clean positions ⇒ entry absent.",
+            subst_names, "pospair_se_auroc", se_items,
+        )
+        _section(
+            "(2b) PER-POSITION spilled-energy AUROC under reference LM "
+            f"({args.ref_lm}) — shuffle_*",
+            shuffle_names, "pospair_se_auroc", se_items,
+        )
 
-    pu_items = [(n, r) for n, r in items if r["pospair_pu_auroc"]]
+    pu_items = [(n, r) for n, r in items if r.get("pospair_pu_auroc")]
     if pu_items:
         _section(
             "(2c) PER-POSITION ‖∇E‖ AUROC (EBMs; subst_*)",
