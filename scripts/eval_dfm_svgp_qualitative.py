@@ -7,11 +7,11 @@
      mean, and in-distribution probability.
 
 Both terminal output and a JSON file are written. Run *after*
-``scripts/fit_dfm_svgp.py`` has populated ``model_with_svgp.pt``.
+``scripts/fit_dfm_svgp_hinge.py`` has populated ``model_with_svgp_hinge.pt``.
 
 Usage:
     python scripts/eval_dfm_svgp_qualitative.py \\
-        --ckpt runs/dfm_svgp_poc/model_with_svgp.pt \\
+        --ckpt runs/dfm_svgp_poc/model_with_svgp_hinge.pt \\
         --n 10 --out runs/dfm_svgp_poc/svgp_qualitative.json
 """
 
@@ -61,7 +61,7 @@ def _hr(title: str, width: int = 80) -> str:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--ckpt", required=True,
-                    help="Path to model_with_svgp.pt (from fit_dfm_svgp.py)")
+                    help="Path to model_with_svgp_hinge.pt (from fit_dfm_svgp_hinge.py)")
     ap.add_argument("--n", type=int, default=10,
                     help="number of sequences per section")
     ap.add_argument("--t-eval", type=float, default=None,
@@ -78,7 +78,7 @@ def main() -> int:
     payload = torch.load(args.ckpt, map_location="cpu", weights_only=False)
     # Prefer cfg embedded in this payload; fall back to the sibling
     # epoch_final.pt which always has the proper cfg (run_sweep saves it
-    # there). The model_with_svgp.pt produced by fit_dfm_svgp.py is a
+    # there). The model_with_svgp_hinge.pt produced by fit_dfm_svgp_hinge.py is a
     # state_dict-only blob and needs the sibling cfg.
     if isinstance(payload, dict) and "cfg" in payload:
         cfg = _config_from_payload(payload)
@@ -99,13 +99,12 @@ def main() -> int:
         # Almost certainly the SVGP buffers were not in the ckpt yet.
         svgp_missing = [m for m in missing if "svgp" in m]
         if svgp_missing:
-            print("[warn] SVGP weights missing from ckpt — was fit_dfm_svgp.py run?")
+            print("[warn] SVGP weights missing from ckpt — was fit_dfm_svgp_hinge.py run?")
             print("       Proceeding with unfitted SVGP (uniform posterior std).")
     model.eval()
 
     t_eval = float(args.t_eval if args.t_eval is not None else cfg.dfm_svgp.t_eval)
     L = cfg.text8_dataset.L
-    K = cfg.text8_dataset.K
 
     dm, _ = build_training_datamodule(cfg)
     val_loader = dm.val_dataloader() or dm.train_dataloader()

@@ -15,7 +15,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from dataclasses import asdict, is_dataclass, replace
+from dataclasses import is_dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -155,8 +155,8 @@ def evaluate_checkpoint(
 
     # Auditor checkpoints (Phase F) don't have a text8 splits attribute and
     # don't have a meaningful unconditional-sample path, so the text8
-    # KL/entropy scorecard isn't applicable. Defer to eval_auditor_wiki.py
-    # for the proper Seq/Tok AUROC numbers; here we just emit a stub so
+    # KL/entropy scorecard isn't applicable. The Phase-F auditor line is
+    # retired (see EVAL_ASSESSMENT.md); here we just emit a stub so
     # run_sweep.py's idempotency check doesn't loop.
     if getattr(cfg, "auditor", None) is not None and cfg.auditor.enabled:
         return {
@@ -169,7 +169,7 @@ def evaluate_checkpoint(
                 if not isinstance(payload.get("global_step"), str)
                 else payload.get("global_step"),
             "stub_for_auditor": True,
-            "auditor_eval_hint": "scripts/eval_auditor_wiki.py",
+            "auditor_eval_hint": "retired (Phase F) — see EVAL_ASSESSMENT.md",
             "n_samples": 0,
             "sample_steps": 0,
             "unigram_kl": float("nan"),
