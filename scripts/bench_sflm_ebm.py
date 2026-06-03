@@ -68,23 +68,37 @@ from scripts.train_for_sflm_bench import SCALES  # noqa: E402  (L per scale)
 
 MODELS = [
     # EBMs with a native energy field (sequence + per-position readouts).
-    "SFLMEBM", "SFLMEBM_FM",
+    "SFLMEBM",
+    "SFLMEBM_FM",
     # EqM family on the simplex / latent space.
-    "EqM", "EqM_OneHot", "EqMLatent",
+    "EqM",
+    "EqM_OneHot",
+    "EqMLatent",
     # Time-conditioned transport generators (no native energy; bench uses
     # spilled energy as the universal baseline).
-    "SFLM", "DirichletFM", "DFM",
+    "SFLM",
+    "DirichletFM",
+    "DFM",
     # Two-stage SVGP detectors. Load model_with_svgp_hinge.pt (post-hoc
     # Stage-2 fit); SVGP latent mean → Bernoulli probability is the
     # sequence-level OOD score. Per-position remains SE (SVGP is
     # seq-level by design — `DFM_SVGP_FINDINGS.md`).
-    "DFM_SVGP", "SFLM_SVGP",
+    "DFM_SVGP",
+    "SFLM_SVGP",
 ]
 
 # Existing baseline SVGP checkpoint (DFM_SVGP_FINDINGS Stage-2 run).
 EXISTING_SVGP_BASELINES = {
     "DFM_SVGP": "runs/dfm_svgp_pure50_lr3e4/model_with_svgp_hinge.pt",
 }
+
+# Arms whose ``bpd()`` reads the input through an (essentially identity)
+# encode→decode_to_logprobs path, so PPL≈1.0 / BPC≈0 is a *recovery*
+# artifact, NOT a data NLL/ELBO comparable to published text8 BPC
+# (SEDD/D3PM/MDLM). Reported as "—" with generation_metric_valid=False so it
+# is never pasted into a peer BPC table. Only DFM (MC-ELBO over t) and
+# DirichletFM (high-t denoiser NLL) produce a comparable bound.
+_IDENTITY_PATH_BPC = frozenset({"EqM", "EqM_OneHot", "EqMLatent", "SFLM"})
 
 
 def _auroc(pos: torch.Tensor, neg: torch.Tensor) -> float:
@@ -143,8 +157,9 @@ def _per_pos_logits(model, name: str, ids: torch.Tensor, cfg: Config):
     # ---- 2-stage SVGP arms.
     if name == "DFM_SVGP":
         t_max = float(model.dfm.t_max)
-        t = torch.full((ids.shape[0],), 1.0 + g * (t_max - 1.0),
-                       device=device, dtype=torch.float32)
+        t = torch.full(
+            (ids.shape[0],), 1.0 + g * (t_max - 1.0), device=device, dtype=torch.float32
+        )
         x_t = model.dfm._sample_xt(ids.long(), t)
         return model.forward(x_t, t).log_softmax(dim=-1), None
     if name == "SFLM_SVGP":
@@ -181,18 +196,23 @@ def _per_pos_logits(model, name: str, ids: torch.Tensor, cfg: Config):
         return model.decode_to_logprobs(x_t), model.energy(x_t)
     if name == "DirichletFM":
         t_max = float(model.t_max)
-        t = torch.full((ids.shape[0],), 1.0 + g * (t_max - 1.0),
-                       device=device, dtype=torch.float32)
+        t = torch.full(
+            (ids.shape[0],), 1.0 + g * (t_max - 1.0), device=device, dtype=torch.float32
+        )
         x_t = model._sample_xt(ids.long(), t)
         return model.forward(x_t, t).log_softmax(dim=-1), None
     # SFLMEBM / SFLMEBM_FM / EqMLatent: learned embedding lookup, noise
     # path mirrors training (SLERP on sphere for SFLMEBM*; linear-mix on
     # learned ℝ^d for EqMLatent).
     z1 = model.encode(ids)
-    is_sphere = (z1 - z1 / z1.norm(dim=-1, keepdim=True).clamp(min=1e-8)
-                 ).abs().mean() < 1e-3
-    z0 = _uniform_sphere(z1.shape, device, z1.dtype) if is_sphere \
+    is_sphere = (
+        z1 - z1 / z1.norm(dim=-1, keepdim=True).clamp(min=1e-8)
+    ).abs().mean() < 1e-3
+    z0 = (
+        _uniform_sphere(z1.shape, device, z1.dtype)
+        if is_sphere
         else torch.randn_like(z1) * z1.norm(dim=-1).mean()
+    )
     if is_sphere:
         alpha = torch.full((ids.shape[0],), g, device=device, dtype=z1.dtype)
         z_t = _slerp(z0, z1, alpha)
@@ -228,6 +248,29 @@ def _spilled_energy(logits: torch.Tensor, ids: torch.Tensor) -> torch.Tensor:
     lse = torch.logsumexp(logits, dim=-1)
     picked = logits.gather(-1, ids.long().unsqueeze(-1)).squeeze(-1)
     return lse - picked
+
+
+def _safe_cuda(fn, label: str):
+    """Run a GPU readout; on CUDA/allocator/OOM errors log + return ``None``
+    instead of aborting the whole bench. At L=256 one arm's second-order
+    autograd can exhaust the 20 GB MIG (and the NVML allocator can assert);
+    without this guard that single failure loses *every other arm's* results
+    (this is exactly what killed the first L=256 run). Frees the caching-
+    allocator slab before returning so the next readout starts clean."""
+    try:
+        return fn()
+    except torch.cuda.OutOfMemoryError as e:
+        print(f"[{label}] OOM — skipping readout: {e}")
+    except RuntimeError as e:  # NVML / allocator asserts surface as RuntimeError
+        msg = str(e)
+        if not any(
+            k in msg for k in ("CUDA", "NVML", "out of memory", "OutOfMemory", "alloc")
+        ):
+            raise
+        print(f"[{label}] CUDA error — skipping readout: {msg.splitlines()[0]}")
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+    return None
 
 
 # --- External LLM reference (GPT-2) -------------------------------------------
@@ -280,9 +323,9 @@ def _gpt2_per_char_SE(
             padding=True,
             return_tensors="pt",
         )
-        input_ids = enc["input_ids"].to(device)            # (b, T)
-        attn_mask = enc["attention_mask"].to(device)       # (b, T)
-        offsets_l = enc["offset_mapping"].tolist()         # (b, T, 2)
+        input_ids = enc["input_ids"].to(device)  # (b, T)
+        attn_mask = enc["attention_mask"].to(device)  # (b, T)
+        offsets_l = enc["offset_mapping"].tolist()  # (b, T, 2)
         attn_l = attn_mask.tolist()
         # Prepend BOS = eos for conditional NLL on the first BPE token.
         b_size = input_ids.shape[0]
@@ -295,15 +338,11 @@ def _gpt2_per_char_SE(
         # Compute NLL without materialising a full (b, T, V) log-softmax tensor:
         # nll = log_sum_exp(logits) - logits_at(input_ids).
         pred_logits = logits[:, :-1, :].float()
-        lse = torch.logsumexp(pred_logits, dim=-1)         # (b, T)
-        picked = pred_logits.gather(
-            -1, input_ids.unsqueeze(-1)
-        ).squeeze(-1)                                       # (b, T)
+        lse = torch.logsumexp(pred_logits, dim=-1)  # (b, T)
+        picked = pred_logits.gather(-1, input_ids.unsqueeze(-1)).squeeze(-1)  # (b, T)
         nll = (lse - picked).cpu()
         for j in range(b_size):
-            for t, ((start, end), valid) in enumerate(
-                zip(offsets_l[j], attn_l[j])
-            ):
+            for t, ((start, end), valid) in enumerate(zip(offsets_l[j], attn_l[j])):
                 if not valid or end <= start:
                     continue
                 n_chars = end - start
@@ -322,6 +361,7 @@ def _load_gpt2(name: str, device):
     get an offset that starts at 0.
     """
     from transformers import AutoModelForCausalLM, AutoTokenizer
+
     tok = AutoTokenizer.from_pretrained(name, add_prefix_space=False, use_fast=True)
     if tok.pad_token is None:
         tok.pad_token = tok.eos_token
@@ -334,14 +374,17 @@ def _position_uncertainty(model, name: str, ids: torch.Tensor, cfg: Config):
     # Models without a native per-position uncertainty field:
     # SFLM (generator), DFM (categorical denoiser), DirichletFM (categorical
     # denoiser), and the 2-stage SVGP wrappers (sequence-level only).
-    if (name in ("DFM", "SFLM", "DirichletFM")
-            or name.endswith("_SVGP")
-            or not hasattr(model, "position_uncertainty")):
+    if (
+        name in ("DFM", "SFLM", "DirichletFM")
+        or name.endswith("_SVGP")
+        or not hasattr(model, "position_uncertainty")
+    ):
         return None
     # Simplex EqM arms have no .encode(); use CLR features instead.
     if name in ("EqM", "EqM_OneHot"):
         feats = token_ids_to_features(
-            ids, cfg.text8_dataset.K,
+            ids,
+            cfg.text8_dataset.K,
             label_smoothing=cfg.transformation.label_smoothing,
         )
         return model.position_uncertainty(feats)
@@ -362,20 +405,47 @@ EXISTING_BASELINES = {
 }
 
 
-def _load(name: str, device, scale: str, *,
-          epochs: int, svgp_epochs: int, auto_train: bool):
+def _load(
+    name: str,
+    device,
+    scale: str,
+    *,
+    epochs: int,
+    svgp_epochs: int,
+    auto_train: bool,
+    l_eval: int | None = None,
+):
     """Load Stage-1 or Stage-2 checkpoints, auto-training/-fitting any
-    missing arm via :func:`ensure_checkpoint`.  Pass ``--no-auto-train``
-    to revert to the legacy "skip if missing / fall back to existing
-    repo baselines" behaviour."""
+    missing arm via :func:`ensure_checkpoint`. If that yields nothing, fall
+    back to a registered reusable repo baseline (``EXISTING_SVGP_BASELINES``
+    / ``EXISTING_BASELINES``) so e.g. ``DFM_SVGP`` populates its hinge rows
+    (1g/1h) instead of being silently skipped. The fallback is guarded on
+    matching eval length ``l_eval`` — a baseline trained at L=40 is not
+    loaded into an L=256 bench (the L=256 run fits a fresh DFM_SVGP)."""
     ckpt = ensure_checkpoint(
-        name, scale=scale, epochs=epochs, svgp_epochs=svgp_epochs,
+        name,
+        scale=scale,
+        epochs=epochs,
+        svgp_epochs=svgp_epochs,
         auto_train=auto_train,
     )
+    used_fallback = False
     if ckpt is None:
-        return None, None
+        fb = EXISTING_SVGP_BASELINES.get(name) or EXISTING_BASELINES.get(name)
+        if fb is not None and Path(fb).exists():
+            ckpt, used_fallback = fb, True
+        else:
+            return None, None
     payload = torch.load(ckpt, map_location="cpu", weights_only=False)
     cfg = _config_from_payload(payload)
+    if used_fallback and l_eval is not None and int(cfg.text8_dataset.L) != int(l_eval):
+        print(
+            f"[skip] {name}: fallback baseline L={cfg.text8_dataset.L} "
+            f"!= eval L={l_eval} ({ckpt})"
+        )
+        return None, None
+    if used_fallback:
+        print(f"[fallback] {name}: using existing baseline {ckpt}")
     model = build_model(cfg).to(device)
     state = payload.get("model_state_dict", payload)
     # SVGP arms have a Stage-1 sub-module → strict=False so unknown keys
@@ -393,34 +463,60 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--n", type=int, default=256)
     ap.add_argument("--seed", type=int, default=1234)
-    ap.add_argument("--scale",
-                    choices=["local", "cluster", "a100_20g", "a100_20g_L256"],
-                    default="local",
-                    help="which sflm_bench_<scale> checkpoints to benchmark; "
-                         "a100_20g = d1024/12L medium-tier on the A100 MIG; "
-                         "a100_20g_L256 = d512/6L at L=256 (text8 publication "
-                         "convention — matches SEDD / D3PM / TXL)")
-    ap.add_argument("--epochs", type=int, default=50,
-                    help="epochs for any arm that needs auto-training")
-    ap.add_argument("--svgp-epochs", type=int, default=5,
-                    help="epochs for any SVGP arm that needs auto-fitting")
-    ap.add_argument("--no-auto-train", action="store_true",
-                    help="revert to legacy 'skip / use existing baseline' "
-                         "behaviour when a checkpoint is missing")
-    ap.add_argument("--ref-lm", default="gpt2",
-                    help="HuggingFace causal LM used as the external spilled-"
-                         "energy reference (e.g. gpt2, gpt2-medium, distilgpt2). "
-                         "Loaded once; per-char NLL is computed by distributing "
-                         "each BPE token's NLL uniformly across the chars it "
-                         "spans. Pass an empty string to disable the reference.")
-    ap.add_argument("--subst-levels", type=str,
-                    default="0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0",
-                    help="substitution corruption rates to sweep")
-    ap.add_argument("--shuffle-levels", type=str,
-                    default="0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0",
-                    help="partial-shuffle rates to sweep")
-    ap.add_argument("--out", type=str, default=None,
-                    help="output JSON path (default: <root>/bench.json)")
+    ap.add_argument(
+        "--scale",
+        choices=["local", "cluster", "a100_20g", "a100_20g_L256"],
+        default="local",
+        help="which sflm_bench_<scale> checkpoints to benchmark; "
+        "a100_20g = d1024/12L medium-tier on the A100 MIG; "
+        "a100_20g_L256 = d512/6L at L=256 (text8 publication "
+        "convention — matches SEDD / D3PM / TXL)",
+    )
+    ap.add_argument(
+        "--epochs",
+        type=int,
+        default=50,
+        help="epochs for any arm that needs auto-training",
+    )
+    ap.add_argument(
+        "--svgp-epochs",
+        type=int,
+        default=5,
+        help="epochs for any SVGP arm that needs auto-fitting",
+    )
+    ap.add_argument(
+        "--no-auto-train",
+        action="store_true",
+        help="revert to legacy 'skip / use existing baseline' "
+        "behaviour when a checkpoint is missing",
+    )
+    ap.add_argument(
+        "--ref-lm",
+        default="gpt2",
+        help="HuggingFace causal LM used as the external spilled-"
+        "energy reference (e.g. gpt2, gpt2-medium, distilgpt2). "
+        "Loaded once; per-char NLL is computed by distributing "
+        "each BPE token's NLL uniformly across the chars it "
+        "spans. Pass an empty string to disable the reference.",
+    )
+    ap.add_argument(
+        "--subst-levels",
+        type=str,
+        default="0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0",
+        help="substitution corruption rates to sweep",
+    )
+    ap.add_argument(
+        "--shuffle-levels",
+        type=str,
+        default="0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0",
+        help="partial-shuffle rates to sweep",
+    )
+    ap.add_argument(
+        "--out",
+        type=str,
+        default=None,
+        help="output JSON path (default: <root>/bench.json)",
+    )
     args = ap.parse_args()
     root = f"runs/sflm_bench_{args.scale}"
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -434,6 +530,7 @@ def main() -> None:
     # val violates that if anyone ever picked a checkpoint by val metric.
     base_cfg = Config()
     from dataclasses import replace
+
     L_eval = SCALES[args.scale].get("L", 40)
     base_cfg.training = replace(base_cfg.training, L=L_eval)
     base_cfg.text8_dataset = replace(base_cfg.text8_dataset, L=L_eval)
@@ -454,15 +551,18 @@ def main() -> None:
     # alongside as a sanity check.
     corruptions: dict[str, tuple[torch.Tensor, torch.Tensor]] = {}
     for r in subst_levels:
-        c = corrupt_token_ids(clean, vocab_size=K, corrupt_rate=r,
-                              seed=args.seed)
+        c = corrupt_token_ids(clean, vocab_size=K, corrupt_rate=r, seed=args.seed)
         corruptions[f"subst_{r:.1f}"] = (c, c != clean)
     for r in shuffle_levels:
-        sh = partially_shuffle_token_ids(clean, shuffle_rate=r,
-                                         seed=args.seed + 7)
+        sh = partially_shuffle_token_ids(clean, shuffle_rate=r, seed=args.seed + 7)
         corruptions[f"shuffle_{r:.1f}"] = (sh, sh != clean)
-    rnd = torch.randint(0, K, clean.shape, device=device,
-                         generator=torch.Generator(device=device).manual_seed(args.seed))
+    rnd = torch.randint(
+        0,
+        K,
+        clean.shape,
+        device=device,
+        generator=torch.Generator(device=device).manual_seed(args.seed),
+    )
     corruptions["rand"] = (rnd, torch.ones_like(rnd, dtype=torch.bool))
 
     # --- External LLM reference (GPT-2) ----------------------------------
@@ -472,61 +572,77 @@ def main() -> None:
     # scores should match or beat.
     gpt2_baseline: dict | None = None
     if args.ref_lm:
-        print(f"[ref-lm] loading HuggingFace '{args.ref_lm}' for "
-              f"spilled-energy reference …")
+        print(
+            f"[ref-lm] loading HuggingFace '{args.ref_lm}' for "
+            f"spilled-energy reference …"
+        )
         ref_model, ref_tok = _load_gpt2(args.ref_lm, device)
-        gpt2_cl_SE = _gpt2_per_char_SE(ref_model, ref_tok, clean)        # (B, L)
+        gpt2_cl_SE = _gpt2_per_char_SE(ref_model, ref_tok, clean)  # (B, L)
         gpt2_cl_seq_se = gpt2_cl_SE.mean(-1)
         gpt2_co_SE: dict[str, torch.Tensor] = {}
         for cname, (cids, _cmask) in corruptions.items():
             gpt2_co_SE[cname] = _gpt2_per_char_SE(ref_model, ref_tok, cids)
         gpt2_cl_mean = float(gpt2_cl_SE.mean())
-        print(f"[ref-lm] {args.ref_lm} clean per-char NLL mean = "
-              f"{gpt2_cl_mean:.4f}")
+        print(f"[ref-lm] {args.ref_lm} clean per-char NLL mean = {gpt2_cl_mean:.4f}")
         del ref_model
         # Pre-compute the reference AUROCs in the same dict-shape as a real arm
         # so the report code can iterate over it uniformly.
         gpt2_baseline = {
-            "ppl": float("nan"), "bpb": float("nan"), "bpc": float("nan"),
-            "clean_se_mean": gpt2_cl_mean, "clean_energy_mean": None,
+            "ppl": float("nan"),
+            "bpb": float("nan"),
+            "bpc": float("nan"),
+            "clean_se_mean": gpt2_cl_mean,
+            "clean_energy_mean": None,
             "seq_se_clean": gpt2_cl_mean,
             "seq_se_corrupt": {},
             "seq_se_auroc": {},
-            "seq_energy_auroc": {}, "seq_energy_corrupt": {},
+            "seq_energy_auroc": {},
+            "seq_energy_corrupt": {},
             "seq_svgp_auroc": {},
             "pospair_se_auroc": {},
             "pospair_pu_auroc": {},
-            "seq_energy_auroc_signfree": {}, "seq_energy_sign": {},
+            "seq_energy_auroc_signfree": {},
+            "seq_energy_sign": {},
         }
         for cname, (cids, cmask) in corruptions.items():
             co = gpt2_co_SE[cname]
             gpt2_baseline["seq_se_corrupt"][cname] = float(co.mean())
-            gpt2_baseline["seq_se_auroc"][cname] = _auroc(
-                co.mean(-1), gpt2_cl_seq_se
-            )
+            gpt2_baseline["seq_se_auroc"][cname] = _auroc(co.mean(-1), gpt2_cl_seq_se)
             if cmask.any() and (~cmask).any():
-                gpt2_baseline["pospair_se_auroc"][cname] = _auroc(
-                    co[cmask], co[~cmask]
-                )
+                gpt2_baseline["pospair_se_auroc"][cname] = _auroc(co[cmask], co[~cmask])
 
     results: dict = {}
     if gpt2_baseline is not None:
         results[f"{args.ref_lm}_baseline"] = gpt2_baseline
     for name in MODELS:
         model, cfg = _load(
-            name, device, args.scale,
-            epochs=args.epochs, svgp_epochs=args.svgp_epochs,
+            name,
+            device,
+            args.scale,
+            epochs=args.epochs,
+            svgp_epochs=args.svgp_epochs,
             auto_train=not args.no_auto_train,
+            l_eval=L_eval,
         )
         if model is None:
             print(f"[skip] {name}: no checkpoint and auto-train failed/disabled")
             continue
 
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
         # Per-arm native OOD readouts: sequence-level ``model.energy``
         # and per-position ``position_uncertainty``/‖∇E‖.  Spilled energy
-        # is NOT per-arm — it lives only on the gpt2_baseline row.
-        _, cl_E = _per_pos_logits(model, name, clean, cfg)
-        cl_pu = _position_uncertainty(model, name, clean, cfg)
+        # is NOT per-arm — it lives only on the gpt2_baseline row.  Each
+        # readout is wrapped so one arm's OOM at L=256 nulls just that
+        # readout instead of aborting the whole bench.
+        _cl = _safe_cuda(
+            lambda: _per_pos_logits(model, name, clean, cfg), f"{name} clean energy"
+        )
+        cl_E = _cl[1] if _cl is not None else None
+        cl_pu = _safe_cuda(
+            lambda: _position_uncertainty(model, name, clean, cfg),
+            f"{name} clean ‖∇E‖",
+        )
 
         # Generation metric — reconstruction NLL on held-out clean ids.
         # Each model exposes ``.bpd()`` in its natural geometry (EqM:
@@ -537,32 +653,37 @@ def main() -> None:
         # both columns are shown for cross-paper comparability (BPC is
         # the legacy text8 number; BPB is the modern LM convention).
         try:
-            bpc_val = float(model.bpd(clean, max_steps=64))   # = NLL/log(2)
-            ppl_val = float(2.0 ** bpc_val)                    # 2^BPC
-            bpb_val = bpc_val                                   # text8: byte == char
+            bpc_val = float(model.bpd(clean, max_steps=64))  # = NLL/log(2)
+            ppl_val = float(2.0**bpc_val)  # 2^BPC
+            bpb_val = bpc_val  # text8: byte == char
         except Exception as e:  # noqa: BLE001 — eval-time best-effort
             print(f"[{name}] bpd unavailable: {type(e).__name__}: {e}")
             bpc_val = ppl_val = bpb_val = float("nan")
 
         # Native model-energy / SVGP readouts only — no per-arm SE.
         cl_svgp = _svgp_score(model, name, clean)
-        cl_energy_mean = (
-            float(cl_E.mean()) if cl_E is not None else None
-        )
+        cl_energy_mean = float(cl_E.mean()) if cl_E is not None else None
         res = {
             "ppl": ppl_val,
             "bpb": bpb_val,
             "bpc": bpc_val,
+            # False for identity-path arms → BPC/PPL is a recovery artifact,
+            # not a peer-comparable data NLL (see _IDENTITY_PATH_BPC).
+            "generation_metric_valid": name not in _IDENTITY_PATH_BPC,
             "clean_energy_mean": cl_energy_mean,
-            "seq_energy_auroc": {},    # model.energy if available (EBMs)
+            "seq_energy_auroc": {},  # model.energy if available (EBMs)
             "seq_energy_corrupt": {},  # mean energy on each corruption
-            "seq_svgp_auroc": {},      # SVGP prob if available (2-stage)
-            "pospair_pu_auroc": {},    # ‖∇E‖ if available (EBMs)
+            "seq_svgp_auroc": {},  # SVGP prob if available (2-stage)
+            "pospair_pu_auroc": {},  # ‖∇E‖ if available (EBMs)
             "seq_energy_auroc_signfree": {},
             "seq_energy_sign": {},
         }
         for cname, (cids, cmask) in corruptions.items():
-            _, co_E = _per_pos_logits(model, name, cids, cfg)
+            _co = _safe_cuda(
+                lambda c=cids: _per_pos_logits(model, name, c, cfg),
+                f"{name} {cname} energy",
+            )
+            co_E = _co[1] if _co is not None else None
             # (1) Model-natural energy (EBMs only) — what beats the GPT-2 baseline?
             if cl_E is not None and co_E is not None:
                 raw = _auroc(co_E, cl_E)
@@ -583,15 +704,32 @@ def main() -> None:
                 res["seq_svgp_auroc"][cname] = _auroc(co_svgp, cl_svgp)
             # (3) Per-position ‖∇E‖ localisation (EBMs).
             if cmask.any() and (~cmask).any() and cl_pu is not None:
-                co_pu = _position_uncertainty(model, name, cids, cfg)
-                res["pospair_pu_auroc"][cname] = _auroc(
-                    co_pu[cmask], co_pu[~cmask]
+                co_pu = _safe_cuda(
+                    lambda c=cids: _position_uncertainty(model, name, c, cfg),
+                    f"{name} {cname} ‖∇E‖",
                 )
+                if co_pu is not None:
+                    res["pospair_pu_auroc"][cname] = _auroc(co_pu[cmask], co_pu[~cmask])
         results[name] = res
 
+    skipped = [m for m in MODELS if m not in results]
+    if skipped:
+        print(
+            f"[skipped arms] {', '.join(skipped)} "
+            "(no checkpoint/fallback; SVGP hinge → svgp_corruption_sweep.json)"
+        )
+    output = dict(results)
+    output["_meta"] = {
+        "ref_lm": args.ref_lm,
+        "scale": args.scale,
+        "L": int(L_eval),
+        "n": int(args.n),
+        "seed": int(args.seed),
+        "skipped_arms": skipped,
+    }
     out_path = Path(args.out) if args.out else Path(f"{root}/bench.json")
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(json.dumps(results, indent=2))
+    out_path.write_text(json.dumps(output, indent=2))
 
     # ---- report ----
     def _fmt(x, w=6, p=3):
@@ -607,7 +745,11 @@ def main() -> None:
         print("=" * (14 + 7 * len(cnames)))
         head = f"{'model':12s}"
         for c in cnames:
-            tag = c.replace("subst_", "s").replace("shuffle_", "sh").replace("rand", "rnd")
+            tag = (
+                c.replace("subst_", "s")
+                .replace("shuffle_", "sh")
+                .replace("rand", "rnd")
+            )
             head += f"  {tag:>5s}"
         print(head)
         for n, r in models_iter:
@@ -617,21 +759,28 @@ def main() -> None:
             print(row)
 
     print("\n" + "=" * 110)
-    print("(0) GENERATION  —  reconstruction NLL (per-arm).  ⚠ bpc≈0 for "
-          "arms whose bpd() reads the input through "
-          ".encode()→.decode_to_logprobs() (SFLM/EqM/EqM_OneHot/EqMLatent) — "
-          "that path is essentially identity; the calibrated reference "
-          "for text8 char-NLL is the gpt2_baseline row below.  "
-          "E_clean is each EBM's own energy head.")
+    print(
+        "(0) GENERATION  —  reconstruction NLL (per-arm).  Identity-path "
+        "arms (SFLM/EqM/EqM_OneHot/EqMLatent) read input through "
+        ".encode()→.decode_to_logprobs(), so PPL/BPC is a recovery "
+        "artifact (≈1.0/≈0), NOT a data NLL — shown as '—' "
+        "(generation_metric_valid=False).  The peer-comparable text8 "
+        "char-NLL reference is the gpt2_baseline row.  E_clean is each "
+        "EBM's own energy head."
+    )
     print("    (text8: BPB ≡ BPC since each token is one ASCII byte)")
     print("=" * 110)
-    print(f"{'model':12s}  {'PPL':>8s}  {'BPB':>8s}  {'BPC':>8s}  "
-          f"{'E_clean':>10s}")
+    print(f"{'model':12s}  {'PPL':>8s}  {'BPB':>8s}  {'BPC':>8s}  {'E_clean':>10s}")
     for n, r in results.items():
         e = r.get("clean_energy_mean")
         e_s = _fmt(e, 10) if isinstance(e, float) else f"{'—':>10s}"
-        print(f"{n:12s}  {_fmt(r['ppl'], 8)}  {_fmt(r['bpb'], 8)}  "
-              f"{_fmt(r['bpc'], 8)}  {e_s}")
+        if r.get("generation_metric_valid", True):
+            ppl_s = _fmt(r["ppl"], 8)
+            bpb_s = _fmt(r["bpb"], 8)
+            bpc_s = _fmt(r["bpc"], 8)
+        else:  # identity-path artifact — not a peer-comparable BPC
+            ppl_s = bpb_s = bpc_s = f"{'—':>8s}"
+        print(f"{n:12s}  {ppl_s}  {bpb_s}  {bpc_s}  {e_s}")
 
     items = list(results.items())
     # SE rows come only from the gpt2_baseline entry (one row).
@@ -643,17 +792,23 @@ def main() -> None:
             f"({args.ref_lm}) — clean vs subst_*; 0.5=chance, 1=perfect.  "
             "This is THE external OOD baseline; the per-arm sections below "
             "(model.energy, SVGP) should be compared against this row.",
-            subst_names, "seq_se_auroc", se_items,
+            subst_names,
+            "seq_se_auroc",
+            se_items,
         )
         _section(
             "(1b) SEQ-LEVEL spilled-energy AUROC under reference LM "
             f"({args.ref_lm}) — clean vs shuffle_*",
-            shuffle_names, "seq_se_auroc", se_items,
+            shuffle_names,
+            "seq_se_auroc",
+            se_items,
         )
         _section(
             "(1c) SEQ-LEVEL spilled-energy AUROC under reference LM "
             f"({args.ref_lm}) — clean vs rand uniform",
-            rand_names, "seq_se_auroc", se_items,
+            rand_names,
+            "seq_se_auroc",
+            se_items,
         )
 
     ebm_items = [(n, r) for n, r in items if r.get("seq_energy_auroc")]
@@ -662,39 +817,55 @@ def main() -> None:
             "(1d) SEQ-LEVEL ENERGY AUROC RAW (EBMs; subst_*).  "
             "Rows <0.5 ⇒ the energy head learned an inverted sign "
             "convention — see (1d') for the sign-agnostic version.",
-            subst_names, "seq_energy_auroc", ebm_items,
+            subst_names,
+            "seq_energy_auroc",
+            ebm_items,
         )
         _section(
             "(1d') SEQ-LEVEL ENERGY AUROC SIGN-AGNOSTIC = max(raw, 1−raw); "
             "this is the discriminative power independent of sign convention.",
-            subst_names, "seq_energy_auroc_signfree", ebm_items,
+            subst_names,
+            "seq_energy_auroc_signfree",
+            ebm_items,
         )
         _section(
             "(1e) SEQ-LEVEL ENERGY AUROC RAW (EBMs; shuffle_*)",
-            shuffle_names, "seq_energy_auroc", ebm_items,
+            shuffle_names,
+            "seq_energy_auroc",
+            ebm_items,
         )
         _section(
             "(1e') SEQ-LEVEL ENERGY AUROC SIGN-AGNOSTIC (shuffle_*)",
-            shuffle_names, "seq_energy_auroc_signfree", ebm_items,
+            shuffle_names,
+            "seq_energy_auroc_signfree",
+            ebm_items,
         )
         _section(
             "(1f) SEQ-LEVEL ENERGY AUROC RAW (EBMs; rand)",
-            rand_names, "seq_energy_auroc", ebm_items,
+            rand_names,
+            "seq_energy_auroc",
+            ebm_items,
         )
         _section(
             "(1f') SEQ-LEVEL ENERGY AUROC SIGN-AGNOSTIC (rand)",
-            rand_names, "seq_energy_auroc_signfree", ebm_items,
+            rand_names,
+            "seq_energy_auroc_signfree",
+            ebm_items,
         )
 
     svgp_items = [(n, r) for n, r in items if r.get("seq_svgp_auroc")]
     if svgp_items:
         _section(
             "(1g) SVGP Bernoulli-prob AUROC (subst_*)",
-            subst_names, "seq_svgp_auroc", svgp_items,
+            subst_names,
+            "seq_svgp_auroc",
+            svgp_items,
         )
         _section(
             "(1h) SVGP Bernoulli-prob AUROC (shuffle_*)",
-            shuffle_names, "seq_svgp_auroc", svgp_items,
+            shuffle_names,
+            "seq_svgp_auroc",
+            svgp_items,
         )
 
     # Per-position localisation. rand has no clean positions ⇒ skipped.
@@ -703,23 +874,31 @@ def main() -> None:
             "(2a) PER-POSITION spilled-energy AUROC under reference LM "
             f"({args.ref_lm}) — changed vs unchanged positions, subst_*.  "
             "Subst at rate 1.0 has no clean positions ⇒ entry absent.",
-            subst_names, "pospair_se_auroc", se_items,
+            subst_names,
+            "pospair_se_auroc",
+            se_items,
         )
         _section(
             "(2b) PER-POSITION spilled-energy AUROC under reference LM "
             f"({args.ref_lm}) — shuffle_*",
-            shuffle_names, "pospair_se_auroc", se_items,
+            shuffle_names,
+            "pospair_se_auroc",
+            se_items,
         )
 
     pu_items = [(n, r) for n, r in items if r.get("pospair_pu_auroc")]
     if pu_items:
         _section(
             "(2c) PER-POSITION ‖∇E‖ AUROC (EBMs; subst_*)",
-            subst_names, "pospair_pu_auroc", pu_items,
+            subst_names,
+            "pospair_pu_auroc",
+            pu_items,
         )
         _section(
             "(2d) PER-POSITION ‖∇E‖ AUROC (EBMs; shuffle_*)",
-            shuffle_names, "pospair_pu_auroc", pu_items,
+            shuffle_names,
+            "pospair_pu_auroc",
+            pu_items,
         )
 
     print(f"\nWrote {out_path}")

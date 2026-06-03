@@ -1,4 +1,12 @@
 #!/usr/bin/env bash
+# ⚠️ FOSSIL — DO NOT RUN. This script calls `python run.py ...`, an entry point
+# that no longer exists in the tree. Kept only for historical reference.
+# Current entry points:
+#   • EqM training:        python main.py            (see CLAUDE.md)
+#   • Multi-arm bench set:  python scripts/train_for_sflm_bench.py --scale <...>
+#   • OOD benchmark:        python scripts/bench_sflm_ebm.py --scale <...>
+# For the L=256 cluster run see CLUSTER_RUNBOOK_L256.md.
+#
 # Train all 4 models on text8 character-level language modelling.
 #
 # Environment variables:

@@ -178,22 +178,47 @@ class SFLMEBM(nn.Module):
         return self.energy_per_pos(z).sum(dim=-1)
 
     @torch.enable_grad()
-    def position_uncertainty(self, z: torch.Tensor) -> torch.Tensor:
+    def position_uncertainty(
+        self, z: torch.Tensor, *, chunk: int | None = None
+    ) -> torch.Tensor:
         """Per-position Riemannian gradient norm of the total energy. (B, L).
 
         High → the energy is pushing this position hard (off-manifold /
         corrupted); near zero → the position sits in an energy basin. This
         is the per-position spilled-energy analogue used cross-model by
-        ``eval_ood`` (``U_pos_mean`` / ``U_pos_max``)."""
-        z_req = z.detach().requires_grad_(True)
-        e = self.energy_per_pos(z_req).sum()
-        grad = torch.autograd.grad(e, z_req)[0]
-        return _project_tangent(z_req.detach(), grad).norm(dim=-1)
+        ``eval_ood`` (``U_pos_mean`` / ``U_pos_max``).
+
+        ``chunk`` bounds peak memory at long L by processing the batch in
+        slices — each slice runs its own forward + first-order autograd and
+        the caching allocator is flushed between slices. The result is
+        *identical* to the full-batch computation: the energy sum is
+        separable across sequences (the backbone attends only within a
+        sequence), so ``∂/∂z[b]`` depends only on row ``b``. Without this,
+        a (B=256, L=256) readout exhausts the 20 GB MIG and the NVML
+        allocator asserts (see ``scripts/bench_sflm_ebm.py``)."""
+        B, L, _ = z.shape
+        if chunk is None:
+            # Keep B·L near the (B=256, L=40) footprint the readout was tuned
+            # for → ~B=40 per slice at L=256.
+            chunk = max(1, (256 * 40) // max(int(L), 1))
+
+        def _one(zb: torch.Tensor) -> torch.Tensor:
+            zb = zb.detach().requires_grad_(True)
+            e = self.energy_per_pos(zb).sum()
+            grad = torch.autograd.grad(e, zb)[0]
+            return _project_tangent(zb.detach(), grad).norm(dim=-1)
+
+        if chunk >= B:
+            return _one(z)
+        outs = []
+        for s in range(0, B, chunk):
+            outs.append(_one(z[s : s + chunk]))
+            if z.is_cuda:
+                torch.cuda.empty_cache()
+        return torch.cat(outs, dim=0)
 
     @torch.no_grad()
-    def spilled_energy(
-        self, z: torch.Tensor, token_ids: torch.Tensor
-    ) -> torch.Tensor:
+    def spilled_energy(self, z: torch.Tensor, token_ids: torch.Tensor) -> torch.Tensor:
         """Paper-style per-position spilled energy (B, L).
 
         ``SE(i) = logsumexp_v logits_i - logits_i[token_i]`` — the
@@ -233,13 +258,9 @@ class SFLMEBM(nn.Module):
         s = self.cfg.sflm_ebm
         B, L, d = z_pos.shape
         e_pos = self.energy_per_pos(z_pos).sum(dim=-1)  # (B,)
-        negs = [
-            self.energy_per_pos(_uniform_sphere((B, L, d), z_pos.device)).sum(-1)
-        ]
+        negs = [self.energy_per_pos(_uniform_sphere((B, L, d), z_pos.device)).sum(-1)]
         centroid = _normalize(self.codebook_normalized().mean(dim=0))
-        negs.append(
-            self.energy_per_pos(centroid.expand(B, L, -1)).sum(dim=-1)
-        )
+        negs.append(self.energy_per_pos(centroid.expand(B, L, -1)).sum(dim=-1))
         if token_ids_invalid is not None:
             negs.append(self.energy_per_pos(self.encode(token_ids_invalid)).sum(-1))
         e_neg = torch.cat(negs)
@@ -274,7 +295,7 @@ class SFLMEBM(nn.Module):
                 token_ids[ce_mask].reshape(-1).long(),
             )
         else:  # keep graph connected even if the mask is empty this step
-            ce = (log_p.sum() * 0.0)
+            ce = log_p.sum() * 0.0
         total = ce
         out: LossDict = {"ce": ce.detach()}
 
@@ -285,14 +306,14 @@ class SFLMEBM(nn.Module):
             #     u_tgt = c(α) · log_{z_α}(z₁)        (toward data)
             # so that descending -∇_tan E transports noise→data.
             # create_graph=True ⇒ second-order autograd (the EqM cost).
-            E_pos = -self.tau * torch.logsumexp(logits, dim=-1)   # (B, L)
-            grad_E, = torch.autograd.grad(
+            E_pos = -self.tau * torch.logsumexp(logits, dim=-1)  # (B, L)
+            (grad_E,) = torch.autograd.grad(
                 E_pos.sum(), z_a, create_graph=True, retain_graph=True
             )
             g_tan = _project_tangent(z_a, grad_E)
             # c(α) is per-sample; broadcast over L, d.
             if s.fm_c_decay == "linear":
-                c_alpha = (1.0 - alpha).unsqueeze(-1)             # (B, 1, 1)
+                c_alpha = (1.0 - alpha).unsqueeze(-1)  # (B, 1, 1)
             else:
                 raise ValueError(f"sflm_ebm.fm_c_decay={s.fm_c_decay!r}")
             with torch.no_grad():
