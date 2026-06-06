@@ -1,0 +1,23 @@
+[2026-06-03 20:44:38] orchestrator start (waiting on DFM pid=14286)
+[2026-06-05 01:37:41] DFM job no longer running; checking checkpoint
+[2026-06-05 01:37:41] DFM epoch_final.pt present OK
+[2026-06-05 01:37:41] BEGIN SFLMEBM :: /tmp/l256.sh scripts/train_for_sflm_bench.py --scale a100_20g_L256 --only SFLMEBM --epochs 20
+[2026-06-05 05:37:27] END   SFLMEBM rc=1
+[2026-06-05 05:37:27] BEGIN DFM_SVGP_SWEEP :: /tmp/l256.sh scripts/run_sweep.py --sweep sweeps/_dfm_svgp_L256.yaml --runs-root runs --n 128
+[2026-06-05 08:23:08] END   DFM_SVGP_SWEEP rc=0
+[2026-06-05 08:23:08] BEGIN SFLMEBM_FM :: /tmp/l256.sh scripts/train_for_sflm_bench.py --scale a100_20g_L256 --only SFLMEBM_FM --epochs 20
+[2026-06-05 13:45:38] ===== RESUME orchestrator start (allocator fixed; DFM complete) =====
+[2026-06-05 13:45:38] DFM ckpt present OK
+[2026-06-05 13:45:38] BEGIN SFLMEBM (attempt 1/2) :: /tmp/l256.sh scripts/train_for_sflm_bench.py --scale a100_20g_L256 --only SFLMEBM --epochs 20
+[2026-06-05 17:45:29] FAIL SFLMEBM attempt 1 rc=1
+[2026-06-05 17:45:44] BEGIN SFLMEBM (attempt 2/2) :: /tmp/l256.sh scripts/train_for_sflm_bench.py --scale a100_20g_L256 --only SFLMEBM --epochs 20
+[2026-06-05 21:45:34] FAIL SFLMEBM attempt 2 rc=1
+[2026-06-05 21:45:49] FATAL SFLMEBM exhausted 2 attempts (rc=1)
+[2026-06-05 21:45:49] BEGIN DFM_SVGP_SWEEP (attempt 1/2)
+[2026-06-05 21:51:40] ===== FINISH orchestrator: waiting on prev orchestrator pid=175391 (sweep+SFLMEBM_FM) =====
+[2026-06-06 00:31:26] END DFM_SVGP_SWEEP OK ckpt present (attempt 1, rc=0)
+[2026-06-06 00:31:26] BEGIN SFLMEBM_FM (attempt 1/2) :: /tmp/l256.sh scripts/train_for_sflm_bench.py --scale a100_20g_L256 --only SFLMEBM_FM --epochs 20
+[2026-06-06 08:53:09] END SFLMEBM_FM OK rc=0 (attempt 1)
+[2026-06-06 08:53:09] ===== RESUME orchestrator DONE =====
+[2026-06-06 08:53:42] prev orchestrator done; re-running SFLMEBM (val eval disabled)
+[2026-06-06 08:53:42] BEGIN SFLMEBM (attempt 1/2) :: /tmp/l256.sh scripts/train_for_sflm_bench.py --scale a100_20g_L256 --only SFLMEBM --epochs 20

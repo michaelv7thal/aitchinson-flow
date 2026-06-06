@@ -1,0 +1,3 @@
+[2026-06-05 21:51:40] ===== FINISH orchestrator: waiting on prev orchestrator pid=175391 (sweep+SFLMEBM_FM) =====
+[2026-06-06 08:53:42] prev orchestrator done; re-running SFLMEBM (val eval disabled)
+[2026-06-06 08:53:42] BEGIN SFLMEBM (attempt 1/2) :: /tmp/l256.sh scripts/train_for_sflm_bench.py --scale a100_20g_L256 --only SFLMEBM --epochs 20

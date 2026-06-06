@@ -1,0 +1,8 @@
+[2026-06-03 20:44:38] orchestrator start (waiting on DFM pid=14286)
+[2026-06-05 01:37:41] DFM job no longer running; checking checkpoint
+[2026-06-05 01:37:41] DFM epoch_final.pt present OK
+[2026-06-05 01:37:41] BEGIN SFLMEBM :: /tmp/l256.sh scripts/train_for_sflm_bench.py --scale a100_20g_L256 --only SFLMEBM --epochs 20
+[2026-06-05 05:37:27] END   SFLMEBM rc=1
+[2026-06-05 05:37:27] BEGIN DFM_SVGP_SWEEP :: /tmp/l256.sh scripts/run_sweep.py --sweep sweeps/_dfm_svgp_L256.yaml --runs-root runs --n 128
+[2026-06-05 08:23:08] END   DFM_SVGP_SWEEP rc=0
+[2026-06-05 08:23:08] BEGIN SFLMEBM_FM :: /tmp/l256.sh scripts/train_for_sflm_bench.py --scale a100_20g_L256 --only SFLMEBM_FM --epochs 20

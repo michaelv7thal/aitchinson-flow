@@ -50,11 +50,11 @@ the value you used in the report.
 (the first run was ~3.8 h for 10 epochs of one arm). Use a real epoch count
 (≥20; 50 matches the L40 runs). Run them sequentially (or as background jobs):
 ```bash
-uv run python scripts/train_for_sflm_bench.py --scale a100_20g_L256 --only DFM        --epochs 50
-uv run python scripts/train_for_sflm_bench.py --scale a100_20g_L256 --only SFLMEBM     --epochs 50
-uv run python scripts/train_for_sflm_bench.py --scale a100_20g_L256 --only SFLMEBM_FM  --epochs 50
+uv run python scripts/train_for_sflm_bench.py --scale a100_20g_L256 --only DFM        --epochs 15
+uv run python scripts/train_for_sflm_bench.py --scale a100_20g_L256 --only SFLMEBM     --epochs 15
+uv run python scripts/train_for_sflm_bench.py --scale a100_20g_L256 --only SFLMEBM_FM  --epochs 15
 # optional extra generators for the OOD/gen tables:
-uv run python scripts/train_for_sflm_bench.py --scale a100_20g_L256 --only DirichletFM --epochs 50
+uv run python scripts/train_for_sflm_bench.py --scale a100_20g_L256 --only DirichletFM --epochs 15
 ```
 **DFM is the priority** (it's the only arm with a peer-comparable BPC). SFLMEBM /
 SFLMEBM_FM give the native-energy OOD rows (the "EBM fails on shuffle" evidence).

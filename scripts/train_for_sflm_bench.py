@@ -73,12 +73,14 @@ SCALES = {
     # with the MATH SDPA backend (Flash is incompatible with EqM's
     # create_graph=True conservative-gradient path — see CLAUDE.md).
     "a100_20g_L256": {
-        # Sized to match the "paper-small" diffusion-LM tier (~50M params)
-        # so our text8 BPC is directly comparable to D3PM (~90M), SEDD-
-        # Absorb (~85M), Plaid (~120M), and the Transformer-XL reference.
-        # B=8 was verified to peak ~5 GB on EqM/SFLMEBM_FM's second-order
-        # autograd path with MATH SDPA on a 20 GB A100 MIG.
-        "d_model": 768, "n_layers": 8, "n_heads": 12, "batch": 8,
+        # Sized to the GPT-2-small / modal diffusion-LM peer tier (~127M
+        # params) so our text8 BPC is directly comparable to D3PM (~90M),
+        # SEDD-Absorb (~85M), MDLM, Plaid (~120M), and the Transformer-XL
+        # reference. d1024/10L/16H @ B8/L256 was measured to peak ~11 GB on
+        # SFLMEBM's 4-forward hinge (the memory-binding arm) under the MATH
+        # SDPA backend on a 20 GB A100 MIG — ~9 GB headroom. (The earlier
+        # d768/8L ~57M sizing left the 20 GB slice mostly idle.)
+        "d_model": 1024, "n_layers": 10, "n_heads": 16, "batch": 8,
         "max_train_windows": 10_000, "max_eval_windows": 2_000,
         "L": 256,
     },
@@ -104,6 +106,13 @@ def _base_cfg(epochs: int, out_dir: str, scale: str) -> Config:
         checkpoint_dir=out_dir,
         checkpoint_every=epochs,        # only the final checkpoint
         sample_eval_every=None,         # skip the (slow) KL probe during training
+        eval_every=epochs + 1,          # disable val eval: SFLMEBM's 4-forward
+                                        # hinge eval_step spikes memory enough to
+                                        # force a CUDA allocator pool expansion,
+                                        # which queries NVML and asserts on this
+                                        # MIG slice (NVML restricted). Val loss is
+                                        # not a deliverable; epoch_final.pt is
+                                        # saved before eval anyway.
         eval_bpd=False,
     )
     cfg.transformer = replace(
@@ -199,8 +208,15 @@ def main() -> None:
                     help="local = fits 8 GB; cluster = d1024/8L for ~20 GB")
     ap.add_argument("--only", type=str, default=None,
                     help="train just this model name")
+    ap.add_argument("--max-train-windows", type=int, default=None,
+                    help="override the scale's training-data budget without "
+                         "changing the scale name (so downstream bench/eval "
+                         "discovery under runs/sflm_bench_<scale>/ is preserved)")
     args = ap.parse_args()
     s = SCALES[args.scale]
+    if args.max_train_windows is not None:
+        # Mutate the scale dict in-place: _base_cfg re-reads SCALES[scale].
+        s["max_train_windows"] = args.max_train_windows
     d_model, n_layers, batch = s["d_model"], s["n_layers"], s["batch"]
     n_windows = s["max_train_windows"]
 
