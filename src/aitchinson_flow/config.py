@@ -36,6 +36,16 @@ class TrainingConfigs:
         False  # BPD requires full sampling per batch; disable for fast training evals
     )
     eval_bpd_max_steps: int = 200  # max NAG steps when eval_bpd is True
+    # Early stopping on the val loss (runbook §1). None = off (fixed-epoch loop,
+    # the historical default). When set, fit() tracks the best val loss across
+    # val evals (gated by eval_every) and stops after `early_stop_patience`
+    # consecutive evals with no improvement > early_stop_min_delta, restoring the
+    # best checkpoint as epoch_final.pt. Requires eval_every to actually trigger
+    # val eval (i.e. a val loader + eval_every <= epochs).
+    early_stop_patience: int | None = None
+    early_stop_min_delta: float = 0.0
+    # Hard per-run wall-clock cap in hours (runbook §1 = 36 h). None = off.
+    max_wall_clock_hours: float | None = None
     L: int = 40
     K: int = 27
     B: int = 64

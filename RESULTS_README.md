@@ -36,6 +36,7 @@ its **output artifact**, and the **manifest `exp_id`**. Start from
 | **E2b** | mech | `scripts/ablate_sampler.py --ckpt <EqM>` | `ablate_sampler.json` | NAG/Euler(use_grad T/F)/SDE on a fixed EqM ckpt; annealed-Langevin scoped to the DSM arm |
 | **E2c** | mech | (folded into `eval_all.py`) | — | collapse quantification |
 | **E2d** | mech | `scripts/probe_field_geometry.py --ckpt <EqM/FMonCLR>` | `field_geometry.json` | curl fraction + cos(g,g*) vs γ (P1) |
+| **E2e** | mech | `scripts/ablate_hyperparams.py --mode eps\|t` | `ablate_hyperparams_*.json` | smoothing-ε → generation KL; OOD feature-t → shuffle AUROC (P1) |
 | **E3a** | 2 | `scripts/recovery_check.py --ckpt <ckpt>` | recovery json | Δ@α (headline Δ@.50); supports DFM/DirichletFM + EqM-family |
 | **E3b** | 2 | `scripts/eval_healing.py --ckpt <ckpt>` | healing json/fig | recovery vs corruption rate |
 | **E4a** | 3 | `scripts/fit_dfm_svgp_hinge.py --ckpt <DirichletFMSvgp>` → `scripts/sweep_dfm_svgp_corruption.py` | `model_with_svgp_hinge.pt`, `svgp_corruption_sweep.json` | needs a **DirichletFMSvgp** Stage-1 (e.g. `runs/dfm_svgp_L256/epoch_final.pt`), NOT the DFM arm |
@@ -45,7 +46,10 @@ its **output artifact**, and the **manifest `exp_id`**. Start from
 | **E4f** | 3 | `scripts/ablate_hinge_vs_fm.py --dfm-ckpt <…>` | `ablate_hinge_vs_fm.json` | A FM+hinge / B random+hinge / C end-to-end / D FM+probe; replace→shuffle transfer |
 | **E4g** | 3 | `scripts/bench_sflm_ebm.py --ref-lm gpt2` | `bench.json` (`gpt2_baseline` row) | external spilled-energy anchor |
 | **E5a** | 1 | `scripts/train_logit_kl_flow.py --scale a100_20g_L256` | `runs/logitkl_*/epoch_final.pt` | LogitKLFlow (model `logitkl_flow.py`); P2 upside |
+| **E1b** | 1 | `train_for_sflm_bench.py --scale a100_20g_L256 --length {40,128}` | `runs/…/<arm>_L<n>/` | length sweep; `--length` overrides scale L, dir gets `_L<n>` suffix (P1) |
+| **E5b** | 1 | `train_for_sflm_bench.py --only SFLM` (existing hyperspherical arm) | run dir | Fisher-Rao/SFM contingency; dedicated √p model unbuilt (gated on E5a), P2 |
 | **E6a** | 3 | `scripts/cache_llm_features.py --model Qwen/Qwen2.5-1.5B --4bit` | `runs/llm_cache/…` memmaps | cache LLM features (P2) |
+| **E6b** | 3 | `scripts/train_eqm_auditor.py --cache <E6a out>` | `eqm_auditor_parity.json` | EqM-energy auditor vs spilled-energy parity (tok/seq AUROC), P2 |
 | **E7** | all | `scripts/aggregate_results.py` | `results/RESULTS.md`, `results/figs/` | 4 tables + 4 figs from `results/manifest.jsonl`, every cell with provenance |
 
 ## How to resume (idempotent)
@@ -53,6 +57,9 @@ its **output artifact**, and the **manifest `exp_id`**. Start from
   `results/manifest.jsonl` (use `--force` to re-run).
 - `train_for_sflm_bench.py` **skips** finished arms (`epoch_final.pt` present)
   unless `--force`; an interrupted multi-arm/seed chain resumes cleanly.
+- **Early stopping**: `--early-stop-patience N` stops after N val-evals with no
+  improvement and restores the best checkpoint as `epoch_final.pt` (implies
+  `--val-eval`); `--max-hours 36` is the wall-clock cap.
 - On a CUDA OOM or the MIG-NVML allocator assert, an arm escalates the
   **memory-fallback ladder** (grad-checkpointing → halve batch → quarter →
   L=128, recorded in `train_meta.json`) and, if still failing, writes

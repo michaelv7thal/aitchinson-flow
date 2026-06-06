@@ -37,12 +37,18 @@ venv. Log `git rev-parse HEAD`, the resolved config, GPU name, seed, wall-time, 
 `torch.cuda.max_memory_allocated()` for every run.
 
 > **Repo readiness note (this run).** The repo was hardened before this runbook:
-> the X1/X2/X3 harness and all E2a/E2b/E2d/E4d/E5a/E6a/E7 scripts now **exist**
-> (so "Create scripts/…" below means "run/extend the existing script"); the
-> memory-fallback ladder, 3-seed support, idempotent resume, and `--full-split`
-> are **implemented** in `train_for_sflm_bench.py`; the DFM BPC is now a genuine
+> the X1/X2/X3 harness and ALL experiment scripts now **exist** (E2a→`ablate_training_signal.py`,
+> E2b→`ablate_sampler.py`, E2d→`probe_field_geometry.py`, E2e→`ablate_hyperparams.py`,
+> E4d→`eval_ood_baselines.py`, E5a→`train_logit_kl_flow.py`, E6a→`cache_llm_features.py`,
+> E6b→`train_eqm_auditor.py`, E7→`aggregate_results.py`); so "Create scripts/…" below
+> means "run the existing script". The memory-fallback ladder, 3-seed support,
+> idempotent resume, `--full-split`, **early stopping (`--early-stop-patience`) and
+> the 36 h cap (`--max-hours`)**, and the E1b length override (`--length`) are
+> **implemented** in `train_for_sflm_bench.py`; the DFM BPC is now a genuine
 > variational bound (`DFM.elbo_bpc`); the `<0.5` identity-artifact guard is wired
-> into the eval/bench. See `RESULTS_README.md` and the per-policy notes below.
+> into the eval/bench. Only **E5b** (Fisher-Rao/SFM √p) has no dedicated model — it
+> runs via the existing `SFLM` arm; a √p-reparameterized model is the contingency.
+> See `RESULTS_README.md` and the per-policy notes below.
 
 **Scale (fit 20 GB).** Primary L=256 training scale: **`--scale a100_20g_L256`
 = d1024 / 10 layers / 16 heads / batch 8 / L=256** (~127M params; this is what
@@ -64,9 +70,10 @@ aborts the chain.
 Use **`--full-split`** to train on the entire `afmck/text8` train split with **lazy**
 CLR features (`cfg.text8_dataset.lazy_features`, memory scales with batch not corpus),
 or `--max-train-windows N` for a bounded middle ground. More data is the single
-biggest lever for closing the BPC gap and costs time, not memory. **Caveat:** the
-fixed-epoch loop does **not** early-stop on val (use `--val-eval` for memory-safe val
-tracking; pick the epoch budget directly). Do **not** increase model size to chase BPC.
+biggest lever for closing the BPC gap and costs time, not memory. **Early stopping
+on val + the 36 h cap are IMPLEMENTED**: `--early-stop-patience N` (stops after N
+val-evals with no improvement and restores the best checkpoint as `epoch_final.pt`;
+implies `--val-eval`) and `--max-hours 36`. Do **not** increase model size to chase BPC.
 
 **Seeds.** `--seeds 42,43,44` (implemented). Report mean ± std. Seed 42 → canonical
 `runs/sflm_bench_<scale>/<arm>/`; 43/44 → `<arm>/seed<seed>/`. (Mechanism ablations
@@ -227,8 +234,10 @@ result). **Deliverable:** the master generation table overlaid on the published 
 (SEDD 1.32, SFM 1.39, D3PM-abs 1.45; AR 1.13–1.18; Plaid 1.12).
 
 ### E1b (P1) — Sequence-length sweep
-For one family (DFM and EqM), train at L∈{40,128,256} at matched step count to reproduce
-and quantify the length effect (expected: KL_bi improves with L). Documents a threat to
+For one family (DFM and EqM), train at L∈{40,128,256} at matched step count via the
+`--length` override (e.g. `--scale a100_20g_L256 --length 128`; output dir gets an
+`_L128` suffix so cells don't collide) to reproduce and quantify the length effect
+(expected: KL_bi improves with L). Documents a threat to
 validity (short-context confound) directly.
 
 ---
@@ -361,8 +370,12 @@ gap and is the strongest positive result for the paper.** If it reaches DFM-leve
 that is the headline upside; if not, it is still a valuable additional negative.
 
 ### E5b — Fisher-Rao / SFM (contingency)
-Only if E5a does not close the gap. `√p` sphere reparameterization with Riemannian
-geodesic sampler (SFM, arXiv:2405.16441). Direct text8 BPC target to beat: 1.39.
+Only if E5a does not close the gap. The repo's `SFLM` arm (`models/sflm.py`,
+time-conditioned hyperspherical flow) is the closest existing model — run it via
+`train_for_sflm_bench.py --only SFLM` first. A dedicated `√p`-sphere
+reparameterization with a Riemannian geodesic sampler (SFM, arXiv:2405.16441) is
+a **new model class** and remains the contingency-only build (not yet implemented,
+since it is gated on E5a's result). Direct text8 BPC target to beat: 1.39.
 
 ---
 
@@ -374,10 +387,12 @@ geodesic sampler (SFM, arXiv:2405.16441). Direct text8 BPC target to beat: 1.39.
 disk. **The LLM is then never loaded during training** → fits 20 GB trivially.
 
 ### E6b — EqM-energy auditor parity
-Train the EqM-energy auditor on cached features (concat detached `h_LLM` into the
-backbone; contrastive hinge on valid/corrupted pairs). **Parity targets** vs the existing
-SVGP prototype and spilled energy on WikiText-2 corruption: seq AUROC ≥0.99, tok AUROC
-≥0.97. Report `‖∂E/∂x‖`, divergence-trace, and NAG basin-drift as per-position signals.
+Run `scripts/train_eqm_auditor.py --cache <E6a output>` (now built): trains the
+EqM-style energy auditor on the cached features (fuses detached `h_LLM` with a token
+embedding; contrastive hinge on valid/corrupted pairs) and reports per-token and
+per-sequence AUROC **alongside a training-free spilled-energy baseline** read off the
+cached top-k logits, so the two are directly comparable. **Parity targets** vs spilled
+energy on WikiText-2 corruption: seq AUROC ≥0.99, tok AUROC ≥0.97.
 **This is a parity check, not a new SOTA claim** — its value is "EqM energy is a drop-in
 for the SVGP head and is *also* a generator." Run only if all P0+P1 are done.
 

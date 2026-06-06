@@ -118,12 +118,17 @@ def _base_cfg(
     grad_ckpt: bool = False,   # activation checkpointing (ladder lever)
     val_eval: bool = False,    # periodic val eval (memory-safe after the eval_step fix)
     lazy: bool = False,        # lazy CLR features (full-split memory lever)
+    early_stop_patience: int | None = None,  # val-eval stalls before stopping
+    es_min_delta: float = 0.0,
+    max_hours: float | None = None,          # wall-clock cap (runbook 36h)
 ) -> Config:
     s = SCALES[scale]
     d_model, n_layers, n_head = s["d_model"], s["n_layers"], s["n_heads"]
     batch = B if B is not None else s["batch"]
     L = L if L is not None else s.get("L", 40)
     max_train_windows = s["max_train_windows"] if mtw == -1 else mtw
+    # Early stopping needs val eval to fire, so it implies val_eval.
+    do_val = val_eval or (early_stop_patience is not None)
     cfg = Config()
     cfg.training = replace(
         cfg.training,
@@ -143,7 +148,10 @@ def _base_cfg(
         # CE readout (memory-safe), so --val-eval can be re-enabled for the
         # runbook's val tracking. (Early stopping itself is not wired into the
         # fixed-epoch loop — see CLUSTER_RUNBOOK.)
-        eval_every=max(1, epochs // 10) if val_eval else epochs + 1,
+        eval_every=max(1, epochs // 10) if do_val else epochs + 1,
+        early_stop_patience=early_stop_patience,
+        early_stop_min_delta=es_min_delta,
+        max_wall_clock_hours=max_hours,
         eval_bpd=False,
     )
     cfg.transformer = replace(
@@ -274,7 +282,9 @@ _LADDER = [
 
 
 def _train_arm(name: str, *, scale: str, epochs: int, seed: int, out_dir: str,
-               mtw, full_split: bool, force_ckpt: bool, val_eval: bool) -> dict:
+               mtw, full_split: bool, force_ckpt: bool, val_eval: bool,
+               early_stop_patience: int | None = None, es_min_delta: float = 0.0,
+               max_hours: float | None = None, length: int | None = None) -> dict:
     """Train one (arm, seed) with the memory-fallback ladder. Writes
     ``train_meta.json`` recording the stage that succeeded (or the failure)
     and returns that record."""
@@ -290,11 +300,15 @@ def _train_arm(name: str, *, scale: str, epochs: int, seed: int, out_dir: str,
         B = stage.get("B_factor")
         B = max(1, int(base_batch * B)) if B is not None else None
         grad_ckpt = stage.get("grad_ckpt", False) or force_ckpt
-        L = stage.get("L")
+        # stage L=128 (the last-resort fallback) wins; else the user --length
+        # (E1b sweep) overrides the scale's L; else None → scale default.
+        L = stage.get("L") or length
         cfg = _model_cfg(
             name, epochs, scale, out_dir=out_dir, seed=seed,
             mtw=mtw_arg, B=B, L=L, grad_ckpt=grad_ckpt,
             val_eval=val_eval, lazy=lazy,
+            early_stop_patience=early_stop_patience, es_min_delta=es_min_delta,
+            max_hours=max_hours,
         )
         tag = (f"stage{stage_i}: B={cfg.training.B} L={cfg.training.L} "
                f"grad_ckpt={grad_ckpt}")
@@ -367,6 +381,18 @@ def main() -> None:
                     help="force activation checkpointing on from the start")
     ap.add_argument("--val-eval", action="store_true",
                     help="enable periodic memory-safe val eval during training")
+    ap.add_argument("--early-stop-patience", type=int, default=None,
+                    help="stop after N consecutive val-evals with no improvement "
+                         "(implies --val-eval; restores the best ckpt as "
+                         "epoch_final.pt). None = fixed-epoch loop.")
+    ap.add_argument("--es-min-delta", type=float, default=0.0,
+                    help="minimum val-loss improvement to reset the patience counter")
+    ap.add_argument("--max-hours", type=float, default=None,
+                    help="hard per-run wall-clock cap in hours (runbook 36h)")
+    ap.add_argument("--length", type=int, default=None,
+                    help="override the scale's context length L (E1b length "
+                         "sweep: L∈{40,128,256}). Output dir gets an L<n> suffix "
+                         "so the sweep cells don't collide.")
     args = ap.parse_args()
 
     if args.seeds:
@@ -382,9 +408,12 @@ def main() -> None:
             raise SystemExit(f"unknown arm(s): {unknown}; choose from {ARMS}")
 
     s = SCALES[args.scale]
+    eff_L = args.length if args.length is not None else s.get("L", 40)
     for name in names:
         for seed in seeds:
             out_dir = _out_dir(args.scale, name, seed)
+            if args.length is not None and args.length != s.get("L", 40):
+                out_dir = f"{out_dir}_L{args.length}"
             ckpt = Path(out_dir) / "epoch_final.pt"
             if ckpt.exists() and not args.force:
                 print(f"[skip] {name} seed={seed}: {ckpt} exists "
@@ -392,13 +421,16 @@ def main() -> None:
                 continue
             print(f"\n{'='*70}\n=== TRAIN {name} [{args.scale}] seed={seed} "
                   f"({args.epochs} ep, d_model={s['d_model']}/{s['n_layers']}L/"
-                  f"{s['n_heads']}H, B={s['batch']}, L={s.get('L', 40)}, "
+                  f"{s['n_heads']}H, B={s['batch']}, L={eff_L}, "
                   f"full_split={args.full_split}) ===\n{'='*70}", flush=True)
             _train_arm(
                 name, scale=args.scale, epochs=args.epochs, seed=seed,
                 out_dir=out_dir, mtw=args.max_train_windows,
                 full_split=args.full_split, force_ckpt=args.grad_checkpointing,
                 val_eval=args.val_eval,
+                early_stop_patience=args.early_stop_patience,
+                es_min_delta=args.es_min_delta, max_hours=args.max_hours,
+                length=args.length,
             )
 
 

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import shutil
+import time
 from pathlib import Path
 
 import torch
@@ -157,6 +159,21 @@ def fit(
     )
     prev_train_loss: float | None = None
 
+    # Early stopping / wall-clock cap (runbook §1). Inactive unless configured.
+    _es_patience = cfg.training.early_stop_patience
+    _es_min_delta = float(cfg.training.early_stop_min_delta)
+    _es_best_val = float("inf")
+    _es_best_epoch = -1
+    _es_stalls = 0
+    _es_best_path = ckpt_dir / "epoch_best.pt"
+    _wall_cap_s = (
+        cfg.training.max_wall_clock_hours * 3600.0
+        if cfg.training.max_wall_clock_hours
+        else None
+    )
+    _t0 = time.time()
+    _stopped_early = False
+
     wb_enabled = wandb_logger is not None and wandb_logger.enabled
     step_log_every = max(1, int(cfg.wandb.step_log_every))
     log_samples = cfg.wandb.log_samples
@@ -178,6 +195,11 @@ def fit(
     exit_code = 0
     try:
         for epoch in epoch_pbar:
+            if _wall_cap_s is not None and (time.time() - _t0) > _wall_cap_s:
+                print(f"[fit] wall-clock cap {cfg.training.max_wall_clock_hours}h "
+                      f"hit at epoch {epoch}; stopping.", flush=True)
+                _stopped_early = True
+                break
             current_alpha = anneal_alpha(model, cfg, epoch)
 
             current_lr = (
@@ -257,6 +279,26 @@ def fit(
                 for k, v in val_metrics.items():
                     epoch_entry[f"val_{k}"] = float(v)
 
+                # Early stopping: track best val loss, checkpoint it, count stalls.
+                if _es_patience is not None and vl is not None:
+                    if vl < _es_best_val - _es_min_delta:
+                        _es_best_val = float(vl)
+                        _es_best_epoch = epoch + 1
+                        _es_stalls = 0
+                        save_checkpoint(
+                            _es_best_path, model=model, cfg=cfg, optimizer=None,
+                            epoch=epoch + 1, global_step=global_step,
+                        )
+                    else:
+                        _es_stalls += 1
+                    postfix["es"] = f"{_es_stalls}/{_es_patience}"
+                    if _es_stalls >= _es_patience:
+                        print(f"[fit] early stop at epoch {epoch + 1}: no val "
+                              f"improvement for {_es_patience} evals "
+                              f"(best val={_es_best_val:.4f} @ ep{_es_best_epoch}).",
+                              flush=True)
+                        _stopped_early = True
+
             sev = cfg.training.sample_eval_every
             probe_ids2d: torch.Tensor | None = None
             if sev is not None and sev > 0 and (epoch + 1) % sev == 0:
@@ -292,6 +334,9 @@ def fit(
                     global_step=global_step,
                 )
 
+            if _stopped_early:
+                break
+
         final_path = ckpt_dir / "epoch_final.pt"
         save_checkpoint(
             final_path,
@@ -301,6 +346,13 @@ def fit(
             epoch=len(epoch_pbar),
             global_step=global_step,
         )
+        # Early stopping restores the BEST val checkpoint as epoch_final.pt so
+        # downstream discovery (which loads epoch_final.pt) gets the best model,
+        # not the last (post-plateau) one.
+        if _es_patience is not None and _es_best_epoch >= 0 and _es_best_path.exists():
+            shutil.copyfile(_es_best_path, final_path)
+            print(f"[fit] restored best val checkpoint (ep{_es_best_epoch}, "
+                  f"val={_es_best_val:.4f}) as {final_path}", flush=True)
         if wb_enabled and cfg.wandb.log_artifacts:
             artifact_name = wandb_logger.run_name or cfg.training.model_name
             wandb_logger.log_artifact(
