@@ -540,6 +540,7 @@ class EquilibriumFlowMatching(nn.Module):
             alpha=alpha,
             time_conditioned=time_cond,
             project_zero_mean=True,
+            grad_clip=s.sample_grad_clip,
         )
 
     @torch.no_grad()

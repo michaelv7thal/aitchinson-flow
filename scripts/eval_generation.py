@@ -63,9 +63,33 @@ GEN_ARMS = [
 ]
 ALPHABET = "".join(sorted(CHAR2ID, key=CHAR2ID.__getitem__))
 
+# Arms whose denoiser-CE BPC is a recovery artifact (identity encode→decode
+# path), NOT a peer-comparable data NLL/ELBO — kept in lock-step with
+# bench_sflm_ebm.py:_IDENTITY_PATH_BPC.  Their PPL/BPB/BPC are printed as "—"
+# (generation_metric_valid=False) so they're never pasted into a SEDD/D3PM/
+# Transformer-XL peer BPC table.  Only DFM (MC-ELBO over the noise schedule)
+# and DirichletFM (high-t denoiser NLL) produce a comparable bound.
+_IDENTITY_PATH_BPC = frozenset({"EqM", "EqM_OneHot", "EqMLatent", "SFLM"})
+
+# A finite text8 char-NLL bound is ≳ the corpus entropy floor; anything below
+# this (or non-finite) is a degenerate identity-recovery value, not a bound.
+_BPC_SANITY_FLOOR = 0.5
+
+
+def _bpc_is_valid(arm: str, bpc: float) -> bool:
+    """Whether ``bpc`` for ``arm`` should be reported as a peer-comparable
+    density.  Identity-path arms are never valid; otherwise the value must be
+    finite and at/above the text8 sanity floor (sub-0.5 BPC on text8 is an
+    identity-recovery artifact, not an honest bound)."""
+    if arm in _IDENTITY_PATH_BPC:
+        return False
+    if bpc != bpc or bpc in (float("inf"), float("-inf")):  # NaN / ±inf
+        return False
+    return bpc >= _BPC_SANITY_FLOOR
+
 
 def _load(arm: str, device, scale: str, *,
-          epochs: int, auto_train: bool):
+          epochs: int, auto_train: bool, l_eval: int | None = None):
     ckpt = ensure_checkpoint(
         arm, scale=scale, epochs=epochs, auto_train=auto_train,
     )
@@ -73,6 +97,15 @@ def _load(arm: str, device, scale: str, *,
         return None, None
     payload = torch.load(ckpt, map_location="cpu", weights_only=False)
     cfg = _config_from_payload(payload)
+    # Length guard (mirrors bench_sflm_ebm.py._load): a fallback/auto
+    # checkpoint trained at a different L (e.g. L=40) must not be loaded into
+    # an L=256 eval — its windows/positions don't match.
+    if l_eval is not None and int(cfg.text8_dataset.L) != int(l_eval):
+        print(
+            f"[skip] {arm}: checkpoint L={cfg.text8_dataset.L} "
+            f"!= eval L={l_eval} ({ckpt})"
+        )
+        return None, None
     model = build_model(cfg).to(device)
     state = payload.get("model_state_dict", payload)
     model.load_state_dict(state)
@@ -461,13 +494,26 @@ def main() -> None:
         model, cfg = _load(
             arm, device, args.scale,
             epochs=args.epochs, auto_train=not args.no_auto_train,
+            l_eval=L,
         )
         if model is None:
             print(f"[skip] {arm}: no checkpoint and auto-train failed/disabled")
             continue
         print(f"\n=== {arm} ===")
         torch.manual_seed(args.seed)
-        bpc = _fair_bpc(arm, model, cfg, clean_val, n_mc=args.bpc_mc)
+        # DFM / DirichletFM: prefer the genuine variational ELBO bound
+        # (model.elbo_bpc) over the denoiser-CE proxy; that bound is the
+        # peer-comparable text8 BPC.  Everything else uses the training-
+        # objective denoiser CE (_fair_bpc), which for identity-path arms is
+        # flagged generation_metric_valid=False below.
+        if arm in ("DFM", "DirichletFM") and hasattr(model, "elbo_bpc"):
+            bpc = float(model.elbo_bpc(clean_val, n_mc=args.bpc_mc))
+        else:
+            bpc = _fair_bpc(arm, model, cfg, clean_val, n_mc=args.bpc_mc)
+        # BE-2/BE-3 validity guard: identity-path arms are never comparable,
+        # and a non-finite or sub-floor BPC on text8 is a degenerate
+        # identity-recovery artifact — don't let ppl=2**bpc propagate it.
+        gen_valid = _bpc_is_valid(arm, bpc)
         ppl, bpb = float(2.0 ** bpc), bpc  # BPB ≡ BPC on text8 (1 byte/token)
 
         # Unconditional generation → n-gram KL.
@@ -505,12 +551,17 @@ def main() -> None:
 
         results[arm] = {
             "ppl": ppl, "bpb": bpb, "bpc": bpc,
+            "generation_metric_valid": gen_valid,
             "KL_uni": kl_u, "KL_bi": kl_b, "KL_tri": kl_t,
             "H_gen": H_gen, "recover": rec_curve,
             "infill": infill_curve,
             "sample0": sample_text,
         }
-        print(f"  PPL={ppl:7.3f}  BPB={bpb:.3f}  BPC={bpc:.3f}  "
+        if gen_valid:
+            dens = f"PPL={ppl:7.3f}  BPB={bpb:.3f}  BPC={bpc:.3f}"
+        else:  # identity-path / degenerate BPC — not a peer-comparable density
+            dens = f"PPL={'—':>7s}  BPB={'—':>5s}  BPC={'—':>5s}  (bpc={bpc:.3f})"
+        print(f"  {dens}  "
               f"KL_uni={kl_u:.4f}  KL_bi={kl_b:.4f}  "
               f"KL_tri={kl_t:.4f}  H_gen={H_gen:.3f}")
         print(f"  sample[0]: {sample_text!r}")
@@ -534,6 +585,9 @@ def main() -> None:
           "path).  This is the same metric SEDD/D3PM/Multinomial-Diffusion "
           "report; on text8 the published non-AR floor is SEDD-Absorb ≈ 1.32 "
           "BPC and the AR ceiling is Transformer-XL ≈ 1.04 BPC.")
+    print("    Identity-path arms (EqM/EqM_OneHot/EqMLatent/SFLM) and any "
+          "degenerate (<0.5 / non-finite) BPC are shown as '—' "
+          "(generation_metric_valid=False) — NOT a peer-comparable density.")
     print("=" * 110)
     head = (f"{'arm':12s}  {'PPL':>8s}  {'BPB':>7s}  {'BPC':>7s}  "
             f"{'KL_uni':>8s}  {'KL_bi':>8s}  {'KL_tri':>8s}  {'H_gen':>6s}")
@@ -543,7 +597,15 @@ def main() -> None:
         if r is None:
             print(f"{arm:12s}  (missing checkpoint)")
             continue
-        print(f"{arm:12s}  {r['ppl']:8.3f}  {r['bpb']:7.3f}  {r['bpc']:7.3f}  "
+        if r.get("generation_metric_valid", True):
+            ppl_s = f"{r['ppl']:8.3f}"
+            bpb_s = f"{r['bpb']:7.3f}"
+            bpc_s = f"{r['bpc']:7.3f}"
+        else:  # identity-path / degenerate — not a peer-comparable BPC
+            ppl_s = f"{'—':>8s}"
+            bpb_s = f"{'—':>7s}"
+            bpc_s = f"{'—':>7s}"
+        print(f"{arm:12s}  {ppl_s}  {bpb_s}  {bpc_s}  "
               f"{r['KL_uni']:8.4f}  {r['KL_bi']:8.4f}  {r['KL_tri']:8.4f}  "
               f"{r['H_gen']:6.3f}")
 

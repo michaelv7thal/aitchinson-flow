@@ -61,6 +61,7 @@ def annealed_langevin_sample(
     device: torch.device | None = None,
     dtype: torch.dtype | None = None,
     generator: torch.Generator | None = None,
+    grad_clip: float | None = None,
 ) -> torch.Tensor:
     """NCSN-style annealed Langevin sampler.
 
@@ -75,6 +76,11 @@ def annealed_langevin_sample(
             anneal from σ_p down to σ_min.
         device, dtype: target for the returned tensor.
         generator: optional torch.Generator for reproducibility.
+        grad_clip: if not None, clip the per-position L2 norm of the score
+            ``s`` to at most ``grad_clip`` before each Langevin step (rows
+            whose ‖·‖ over the last axis exceed the cap are scaled down to
+            it). Mirrors the NAG sampler's ``sample_grad_clip`` cold-start
+            spike fix. None (default) preserves current behaviour.
 
     Returns:
         Final iterate, shape ``shape``.
@@ -109,6 +115,9 @@ def annealed_langevin_sample(
         sigma_b = sigma_i.expand(B).to(dtype)
         for _ in range(int(steps_per_sigma)):
             s = score_fn(x, sigma_b)
+            if grad_clip is not None:
+                n = s.norm(dim=-1, keepdim=True).clamp(min=1e-9)
+                s = s * (n.clamp(max=grad_clip) / n)
             if generator is not None:
                 noise = torch.randn(shape, generator=generator, device=device, dtype=dtype)
             else:

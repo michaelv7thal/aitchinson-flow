@@ -157,6 +157,7 @@ class FMonCLR(nn.Module):
                 alpha=float(alpha) if alpha is not None else 0.0,
                 time_conditioned=True,
                 project_zero_mean=True,
+                grad_clip=getattr(self.cfg.eqm, "sample_grad_clip", None),
             )
 
         gammas = torch.linspace(0.0, 1.0, steps + 1, device=device)[:-1]

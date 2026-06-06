@@ -37,6 +37,7 @@ def sde_flow_sample(
     time_conditioned: bool = True,
     project_zero_mean: bool = True,
     jitter_seed: int | None = None,
+    grad_clip: float | None = None,
 ) -> torch.Tensor:
     """Stochastic Euler-γ sampler.
 
@@ -61,6 +62,11 @@ def sde_flow_sample(
             ambient logit space (LogitKLFlow).
         jitter_seed: optional seed for the per-step Gaussian noise. None
             uses the global generator.
+        grad_clip: if not None, clip the per-position L2 norm of the
+            velocity ``v`` to at most ``grad_clip`` before each Euler step
+            (rows whose ‖·‖ over the last axis exceed the cap are scaled
+            down to it). Mirrors the NAG sampler's ``sample_grad_clip`` cold-
+            start spike fix. None (default) preserves current behaviour.
 
     Returns:
         (B, L, K) final iterate.
@@ -93,6 +99,10 @@ def sde_flow_sample(
                 v = torch.autograd.grad(energy, x_req, create_graph=False)[0].detach()
         else:
             v = model(x, g_b) if time_conditioned else model(x)
+
+        if grad_clip is not None:
+            n = v.norm(dim=-1, keepdim=True).clamp(min=1e-9)
+            v = v * (n.clamp(max=grad_clip) / n)
 
         x = x - h * v
         if noise_scale > 0.0:

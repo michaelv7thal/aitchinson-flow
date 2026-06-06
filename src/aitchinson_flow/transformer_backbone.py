@@ -4,9 +4,41 @@ import math
 
 import torch
 import torch.nn as nn
+import torch.utils.checkpoint as _ckpt
 from torch.nn.attention import sdpa_kernel, SDPBackend
 
 from aitchinson_flow.config import Config
+
+
+def run_encoder(
+    encoder: nn.TransformerEncoder,
+    h: torch.Tensor,
+    *,
+    grad_checkpointing: bool = False,
+) -> torch.Tensor:
+    """Run a ``nn.TransformerEncoder`` under the MATH SDPA backend, optionally
+    with per-layer activation checkpointing.
+
+    The MATH backend is mandatory across the EqM family: FlashAttention does
+    not support the ``create_graph=True`` second-order autograd of the
+    conservative-gradient path (see CLAUDE.md). When ``grad_checkpointing`` is
+    on AND we are in a grad-tracking forward, each encoder layer is wrapped in
+    ``torch.utils.checkpoint`` (``use_reentrant=False`` so it composes with
+    second-order autograd); the MATH context is re-entered inside the
+    checkpointed callable so it is active on the backward recompute too. The
+    result is numerically identical to the non-checkpointed path."""
+    use_ck = grad_checkpointing and torch.is_grad_enabled() and h.requires_grad
+    if not use_ck:
+        with sdpa_kernel(SDPBackend.MATH):
+            return encoder(h)
+    for layer in encoder.layers:
+        def _run(x, _layer=layer):
+            with sdpa_kernel(SDPBackend.MATH):
+                return _layer(x)
+        h = _ckpt.checkpoint(_run, h, use_reentrant=False)
+    if encoder.norm is not None:
+        h = encoder.norm(h)
+    return h
 
 
 class TransformerBackbone(nn.Module):
@@ -26,6 +58,7 @@ class TransformerBackbone(nn.Module):
 
     def __init__(self, cfg: Config) -> None:
         super().__init__()
+        self.cfg = cfg
         d = cfg.transformer.d_model
         K = cfg.text8_dataset.K
         self._d_model = d
@@ -118,8 +151,10 @@ class TransformerBackbone(nn.Module):
                 t_broadcast = t_emb[:, None, :].expand(B, L, -1)
                 h = self.t_proj(torch.cat([h, t_broadcast], dim=-1))
 
-        with sdpa_kernel(SDPBackend.MATH):
-            return self.transformer(h)
+        return run_encoder(
+            self.transformer, h,
+            grad_checkpointing=self.cfg.transformer.grad_checkpointing,
+        )
 
 
 class VelocityHead(nn.Module):

@@ -44,6 +44,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import sys
 from pathlib import Path
 
@@ -248,6 +249,54 @@ def _spilled_energy(logits: torch.Tensor, ids: torch.Tensor) -> torch.Tensor:
     lse = torch.logsumexp(logits, dim=-1)
     picked = logits.gather(-1, ids.long().unsqueeze(-1)).squeeze(-1)
     return lse - picked
+
+
+# text8 BPC floor below which a "generation" number is the identity-path /
+# near-clean-denoiser recovery artifact rather than a peer-comparable data
+# NLL (SEDD 1.32 / D3PM 1.45 / MDLM ≤1.38 / SFM 1.39 — all ≥1.3).  A non-finite
+# or sub-0.5 BPC is therefore demoted to "—" regardless of arm name; this is
+# what catches DirichletFM (bpc≈0.36, name-set wouldn't) — runbook DFM-2 guard.
+_BPC_VALID_FLOOR = 0.5
+
+
+def _bpc_is_valid(bpc_val: float) -> bool:
+    """True iff ``bpc_val`` is a finite, peer-comparable text8 BPC.
+
+    Non-finite or below ``_BPC_VALID_FLOOR`` ⇒ the value is a recovery /
+    near-clean-denoiser artifact (e.g. DirichletFM ≈0.36), not a data NLL —
+    so ``generation_metric_valid`` must be False (reported as "—")."""
+    return math.isfinite(bpc_val) and bpc_val >= _BPC_VALID_FLOOR
+
+
+@torch.no_grad()
+def _per_pos_logits_chunked(model, name: str, ids: torch.Tensor, cfg: Config):
+    """Batch-chunked :func:`_per_pos_logits`.
+
+    Identical result to the full-batch call — the backbone attends only
+    *within* a sequence, so the per-position logits and the sequence-level
+    ``model.energy`` are independent across batch rows.  At L=256 the
+    unchunked ``model.energy`` readout (pooled features over (B, L, K))
+    triggers the MIG pool-expansion path that NVML-asserts; processing
+    ``ids`` in slices and concatenating keeps each forward inside the
+    20 GB slice.  ``chunk`` shrinks with L so the per-call work is roughly
+    L-invariant (256 rows at L=40, 40 rows at L=256)."""
+    L = ids.shape[-1]
+    chunk = max(1, (256 * 40) // max(L, 1))
+    if ids.shape[0] <= chunk:
+        return _per_pos_logits(model, name, ids, cfg)
+    logits_parts: list[torch.Tensor] = []
+    energy_parts: list[torch.Tensor | None] = []
+    for s in range(0, ids.shape[0], chunk):
+        lg, en = _per_pos_logits(model, name, ids[s : s + chunk], cfg)
+        logits_parts.append(lg)
+        energy_parts.append(en)
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+    logits = torch.cat(logits_parts, dim=0)
+    energy = (
+        None if any(e is None for e in energy_parts) else torch.cat(energy_parts, dim=0)
+    )
+    return logits, energy
 
 
 def _safe_cuda(fn, label: str):
@@ -469,7 +518,7 @@ def main() -> None:
         default="local",
         help="which sflm_bench_<scale> checkpoints to benchmark; "
         "a100_20g = d1024/12L medium-tier on the A100 MIG; "
-        "a100_20g_L256 = d512/6L at L=256 (text8 publication "
+        "a100_20g_L256 = d1024/10L/16H/B8 at L=256 (text8 publication "
         "convention — matches SEDD / D3PM / TXL)",
     )
     ap.add_argument(
@@ -520,6 +569,16 @@ def main() -> None:
     args = ap.parse_args()
     root = f"runs/sflm_bench_{args.scale}"
     device = "cuda" if torch.cuda.is_available() else "cpu"
+    # SFE-6: reserve within the MIG slice once at startup so the caching
+    # allocator pre-claims most of the slice and is less likely to trigger an
+    # NVML query on pool expansion mid-bench (which asserts on the 20 GB MIG
+    # at L=256). Complements _safe_cuda + the PYTORCH_CUDA_ALLOC_CONF guidance.
+    if torch.cuda.is_available():
+        try:
+            torch.cuda.set_per_process_memory_fraction(0.9)
+            print("[mem] reserved per-process CUDA memory fraction = 0.9 (MIG slice)")
+        except Exception as e:  # noqa: BLE001 — best-effort guard
+            print(f"[mem] set_per_process_memory_fraction unavailable: {e}")
     subst_levels = _parse_levels(args.subst_levels)
     shuffle_levels = _parse_levels(args.shuffle_levels)
 
@@ -636,7 +695,8 @@ def main() -> None:
         # readout is wrapped so one arm's OOM at L=256 nulls just that
         # readout instead of aborting the whole bench.
         _cl = _safe_cuda(
-            lambda: _per_pos_logits(model, name, clean, cfg), f"{name} clean energy"
+            lambda: _per_pos_logits_chunked(model, name, clean, cfg),
+            f"{name} clean energy",
         )
         cl_E = _cl[1] if _cl is not None else None
         cl_pu = _safe_cuda(
@@ -663,13 +723,17 @@ def main() -> None:
         # Native model-energy / SVGP readouts only — no per-arm SE.
         cl_svgp = _svgp_score(model, name, clean)
         cl_energy_mean = float(cl_E.mean()) if cl_E is not None else None
+        # generation_metric_valid is False when EITHER (a) the arm is a known
+        # identity-path arm (name-based _IDENTITY_PATH_BPC), OR (b) the BPC is
+        # non-finite or below the text8 peer floor (_bpc_is_valid) — the
+        # value-based DFM-2 guard that demotes DirichletFM (bpc≈0.36, which
+        # the name set misses) and any future near-clean-denoiser artifact.
+        gen_valid = (name not in _IDENTITY_PATH_BPC) and _bpc_is_valid(bpc_val)
         res = {
             "ppl": ppl_val,
             "bpb": bpb_val,
             "bpc": bpc_val,
-            # False for identity-path arms → BPC/PPL is a recovery artifact,
-            # not a peer-comparable data NLL (see _IDENTITY_PATH_BPC).
-            "generation_metric_valid": name not in _IDENTITY_PATH_BPC,
+            "generation_metric_valid": gen_valid,
             "clean_energy_mean": cl_energy_mean,
             "seq_energy_auroc": {},  # model.energy if available (EBMs)
             "seq_energy_corrupt": {},  # mean energy on each corruption
@@ -680,7 +744,7 @@ def main() -> None:
         }
         for cname, (cids, cmask) in corruptions.items():
             _co = _safe_cuda(
-                lambda c=cids: _per_pos_logits(model, name, c, cfg),
+                lambda c=cids: _per_pos_logits_chunked(model, name, c, cfg),
                 f"{name} {cname} energy",
             )
             co_E = _co[1] if _co is not None else None

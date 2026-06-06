@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import sys
 from pathlib import Path
 
@@ -115,6 +116,21 @@ def _score_stats(model, x: torch.Tensor, *, curv_samples: int = 4) -> dict:
         else:
             raise
     return out
+
+
+def _is_categorical_denoiser(model) -> bool:
+    """True for DFM / DirichletFM — categorical denoisers whose ``sample``
+    returns token IDs directly and which expose ``forward(x_t, t) -> logits``
+    instead of the EqM-family ``decode_to_logprobs``. EqM/EqMLatent/SFLM keep
+    ``decode_to_logprobs`` so they take the legacy (latent) path."""
+    return not hasattr(model, "decode_to_logprobs") and hasattr(model, "forward")
+
+
+def _dfm_uncond_ids(model, n: int, L: int, steps: int) -> torch.Tensor:
+    """Unconditional sample for a categorical denoiser. ``sample`` already
+    returns argmax token IDs; route ``steps`` to ``nfe`` (DFM) which is the
+    NFE budget for both DFM and DirichletFM."""
+    return model.sample(n, L, nfe=steps).cpu()
 
 
 def main() -> int:
@@ -219,13 +235,21 @@ def main() -> int:
             rows.append({"mode": "score_reference", **ref_scores})
 
     # ─── (A) Unconditional ────────────────────────────────────────────────
+    categorical = _is_categorical_denoiser(model)
     torch.manual_seed(args.seed)
     print("=== Unconditional generation ===")
-    with torch.no_grad():
-        x = model.sample(args.n, L, max_steps=args.steps)
-        log_probs = model.decode_to_logprobs(x)
-        ids = log_probs.argmax(-1).cpu()
-    uncond_scores = _score_stats(model, x)
+    if categorical:
+        # DFM / DirichletFM: sample() returns token IDs directly; no latent x
+        # to score and no decode_to_logprobs.
+        with torch.no_grad():
+            ids = _dfm_uncond_ids(model, args.n, L, args.steps)
+        uncond_scores = {}
+    else:
+        with torch.no_grad():
+            x = model.sample(args.n, L, max_steps=args.steps)
+            log_probs = model.decode_to_logprobs(x)
+            ids = log_probs.argmax(-1).cpu()
+        uncond_scores = _score_stats(model, x)
 
     gen_uni = _ngram_counts_flat(ids, K, 1)
     gen_bi = _ngram_counts_flat(ids, K, 2)
@@ -268,59 +292,108 @@ def main() -> int:
     # ─── (B) Recovery ─────────────────────────────────────────────────────
     print("\n=== Recovery from perturbation ===")
     print(f"  embed_norm_mean={embed_norm:.4f}  σ_source={sigma:.4f}")
+    # Headline metric is Δ = token_acc − token_acc_perturbed (the recovery work
+    # done by the field/denoiser, not the raw accuracy). KL is secondary.
     print(
-        f"{'α':>5} {'σ_perturb':>10} {'KL_bi':>8} {'tok_acc':>8}  sample[0]: gt / pt / rc"
+        f"{'α':>5} {'σ_perturb':>10} {'Δ':>8} {'tok_acc':>8} {'tok_acc_pt':>10} "
+        f"{'KL_bi':>8}  sample[0]: gt / pt / rc"
     )
     val_pick = val_ids[: args.n].to(device)
     # Encode token_ids → data tensor. EqMLatent has model.encode; simplex EqM
-    # uses CLR features via token_ids_to_features.
-    if hasattr(model, "encode"):
-        z_clean = model.encode(val_pick)
-    else:
-        from aitchinson_flow.data.transforms import token_ids_to_features
+    # uses CLR features via token_ids_to_features. Categorical denoisers
+    # (DFM/DirichletFM) drive recovery from token_ids directly (no latent).
+    if not categorical:
+        if hasattr(model, "encode"):
+            z_clean = model.encode(val_pick)
+        else:
+            from aitchinson_flow.data.transforms import token_ids_to_features
 
-        ls = cfg.transformation.label_smoothing
-        z_clean = token_ids_to_features(val_pick, K, label_smoothing=ls)
+            ls = cfg.transformation.label_smoothing
+            z_clean = token_ids_to_features(val_pick, K, label_smoothing=ls)
     alphas = [float(a) for a in args.alphas.split(",") if a.strip()]
+    is_dirichlet = categorical and hasattr(model, "_sample_xt")
     for alpha in alphas:
         torch.manual_seed(args.seed + int(alpha * 1000))
-        sig_perturb = alpha * embed_norm
-        z_init = z_clean + sig_perturb * torch.randn_like(z_clean)
+        rc_scores: dict = {}
+        if categorical and is_dirichlet:
+            # ── DirichletFM: partial-path recovery ───────────────────────
+            # α maps to a start-time on the native Dirichlet path:
+            # t_start = t_max − α·(t_max−1)  (α=0 ⇔ clean@t_max, α=1 ⇔ noisy@1).
+            # x_init = Dir(β(t_start, clean_ids)) is the perturbed simplex point;
+            # integrate forward to recover. token_acc_pt is its argmax (the
+            # pre-recovery state), token_acc is the recovered sample.
+            t_max = float(model.t_max)
+            t_start = max(1.0, t_max - float(alpha) * (t_max - 1.0))
+            sig_perturb = float(alpha)
+            t_b = torch.full((args.n,), t_start, device=device, dtype=torch.float32)
+            with torch.no_grad():
+                x_init = model._sample_xt(val_pick, t_b)
+                ids_pt = x_init.argmax(dim=-1).cpu()
+                ids = model.sample(
+                    args.n, L, x_init=x_init, t_start=t_start, nfe=args.steps
+                ).cpu()
+        elif categorical:
+            # ── DFM: uniform-corruption recovery ─────────────────────────
+            # DFM has no x_init/partial-path sampler; recover by corrupting the
+            # clean tokens at keep-prob κ=1−α (α=0 ⇔ clean, α=1 ⇔ pure noise),
+            # then running the denoiser ``forward`` once at the matching flow-
+            # time and taking argmax. ids_pt is the corrupted state x_t (the
+            # pre-recovery accuracy); ids is the denoiser argmax (recovered).
+            kappa = max(0.0, min(1.0, 1.0 - float(alpha)))
+            sig_perturb = float(alpha)
+            kappa_b = torch.full((args.n,), kappa, device=device, dtype=torch.float32)
+            with torch.no_grad():
+                x_t = model._corrupt_kappa(val_pick, kappa_b)
+                ids_pt = x_t.cpu()
+                # Invert the schedule κ=κ(t) to feed the matching flow-time:
+                # quadratic κ=t² ⇒ t=√κ; linear κ=t ⇒ t=κ.
+                if cfg.dfm.kappa_schedule == "quadratic":
+                    t_in = math.sqrt(kappa)
+                else:
+                    t_in = kappa
+                t_b = torch.full((args.n,), t_in, device=device, dtype=torch.float32)
+                logits = model.forward(x_t, t_b)
+                ids = logits.argmax(dim=-1).cpu()
+        else:
+            # ── EqM / EqMLatent / SFLM (identity-path latents) ──────────
+            sig_perturb = alpha * embed_norm
+            z_init = z_clean + sig_perturb * torch.randn_like(z_clean)
 
-        # Decode the perturbed (sampler-input) latents too. Argmax-decoding
-        # `z_init` shows what tokens the noisy embedding nearest-neighbours.
-        with torch.no_grad():
-            log_probs_pt = model.decode_to_logprobs(z_init)
-            ids_pt = log_probs_pt.argmax(-1).cpu()
+            # Decode the perturbed (sampler-input) latents too. Argmax-decoding
+            # `z_init` shows what tokens the noisy embedding nearest-neighbours.
+            with torch.no_grad():
+                log_probs_pt = model.decode_to_logprobs(z_init)
+                ids_pt = log_probs_pt.argmax(-1).cpu()
 
-            # NCSN-style annealed-Langevin samplers (ScoreDSM/EqMDSM) accept a
-            # ``start_sigma`` kwarg that restricts the σ-ladder to values ≤
-            # the perturbation magnitude — without it the sampler re-noises
-            # ``z_init`` all the way back up to σ_max before annealing,
-            # which destroys the recovery signal at small α. EqM/EqMAE
-            # samplers don't accept this kwarg; fall back to the legacy call.
-            import inspect as _inspect
-            _sig = _inspect.signature(model.sample)
-            sample_kwargs = {"x_init": z_init, "max_steps": args.steps}
-            if "start_sigma" in _sig.parameters:
-                sample_kwargs["start_sigma"] = float(sig_perturb)
-            x = model.sample(args.n, L, **sample_kwargs)
-            log_probs = model.decode_to_logprobs(x)
-            ids = log_probs.argmax(-1).cpu()
-        rc_scores = _score_stats(model, x)
+                # NCSN-style annealed-Langevin samplers (ScoreDSM/EqMDSM) accept a
+                # ``start_sigma`` kwarg that restricts the σ-ladder to values ≤
+                # the perturbation magnitude — without it the sampler re-noises
+                # ``z_init`` all the way back up to σ_max before annealing,
+                # which destroys the recovery signal at small α. EqM/EqMAE
+                # samplers don't accept this kwarg; fall back to the legacy call.
+                import inspect as _inspect
+                _sig = _inspect.signature(model.sample)
+                sample_kwargs = {"x_init": z_init, "max_steps": args.steps}
+                if "start_sigma" in _sig.parameters:
+                    sample_kwargs["start_sigma"] = float(sig_perturb)
+                x = model.sample(args.n, L, **sample_kwargs)
+                log_probs = model.decode_to_logprobs(x)
+                ids = log_probs.argmax(-1).cpu()
+            rc_scores = _score_stats(model, x)
 
-        gen_uni = _ngram_counts_flat(ids, K, 1)
         gen_bi = _ngram_counts_flat(ids, K, 2)
-        kl_b = _kl_smoothed(gen_bi, ref_uni if False else ref_bi)
+        kl_b = _kl_smoothed(gen_bi, ref_bi)
         token_acc = float((ids == val_pick.cpu()).float().mean())
         token_acc_pt = float((ids_pt == val_pick.cpu()).float().mean())
+        delta = token_acc - token_acc_pt
         sample_gt = "".join(ALPHABET[int(i)] for i in val_pick[0].cpu())
         sample_pt = "".join(ALPHABET[int(i)] for i in ids_pt[0])
         sample_rc = "".join(ALPHABET[int(i)] for i in ids[0])
         print(
-            f"{alpha:>5.2f} {sig_perturb:>10.3f} {kl_b:>8.4f} {token_acc:>8.4f}  "
-            f"gt={sample_gt!r}\n{'':>34}pt={sample_pt!r}  (pt_acc={token_acc_pt:.3f})"
-            f"\n{'':>34}rc={sample_rc!r}"
+            f"{alpha:>5.2f} {sig_perturb:>10.3f} {delta:>8.4f} {token_acc:>8.4f} "
+            f"{token_acc_pt:>10.4f} {kl_b:>8.4f}  "
+            f"gt={sample_gt!r}\n{'':>45}pt={sample_pt!r}"
+            f"\n{'':>45}rc={sample_rc!r}"
         )
         rows.append(
             {
@@ -330,6 +403,7 @@ def main() -> int:
                 "KL_bi": kl_b,
                 "token_acc": token_acc,
                 "token_acc_perturbed": token_acc_pt,
+                "delta": delta,
                 "gt_sample0": sample_gt,
                 "perturbed_sample0": sample_pt,
                 "rc_sample0": sample_rc,

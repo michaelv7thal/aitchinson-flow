@@ -201,6 +201,7 @@ class EqMConsGrad(nn.Module):
                 alpha=float(alpha) if alpha is not None else 0.0,
                 time_conditioned=time_cond,
                 project_zero_mean=True,
+                grad_clip=getattr(s, "sample_grad_clip", None),
             )
 
         if chosen == "nag":

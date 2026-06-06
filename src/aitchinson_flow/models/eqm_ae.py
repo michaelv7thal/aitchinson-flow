@@ -639,6 +639,7 @@ class EquilibriumFlowMatchingAE(nn.Module):
             alpha=float(getattr(s, "sde_alpha", 0.0)),
             time_conditioned=time_cond,
             project_zero_mean=False,  # latent space; no V_d
+            grad_clip=getattr(s, "sample_grad_clip", None),
         )
 
     def _sample_euler(self, B: int, L: int, *, nfe: int, x_init: torch.Tensor | None) -> torch.Tensor:

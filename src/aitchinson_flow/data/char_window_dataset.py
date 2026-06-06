@@ -17,7 +17,16 @@ def text_to_windows(text: str, L: int) -> torch.Tensor:
 
 
 class CharWindowDataset(Dataset):
-    """Map-style dataset of length-L char windows → {'x', 'token_ids'}."""
+    """Map-style dataset of length-L char windows → {'x', 'token_ids'}.
+
+    Eager mode (``lazy=False``, the default) precomputes the full ``(N, L, K)``
+    float32 CLR feature tensor in ``__init__`` — fast per-batch but ~9.7 GB at
+    the full ~90M-char text8 split. Lazy mode (``lazy=True``) stores only the
+    integer token-id windows and computes the CLR features for the requested
+    window in ``__getitem__`` via the same ``token_ids_to_features`` call, so
+    memory scales with the batch rather than the corpus. The two modes produce
+    bit-identical ``x`` and ``token_ids`` for every index.
+    """
 
     def __init__(
         self,
@@ -25,15 +34,31 @@ class CharWindowDataset(Dataset):
         *,
         K: int,
         label_smoothing: float = 1e-4,
+        lazy: bool = False,
     ) -> None:
         self._windows = windows
-        self._features = token_ids_to_features(windows, K, label_smoothing=label_smoothing)
+        self._K = K
+        self._label_smoothing = label_smoothing
+        self._lazy = lazy
+        if lazy:
+            self._features: torch.Tensor | None = None
+        else:
+            self._features = token_ids_to_features(
+                windows, K, label_smoothing=label_smoothing
+            )
 
     def __len__(self) -> int:
         return self._windows.shape[0]
 
     def __getitem__(self, idx: int) -> dict[str, torch.Tensor]:
-        return {"x": self._features[idx], "token_ids": self._windows[idx]}
+        token_ids = self._windows[idx]
+        if self._lazy:
+            x = token_ids_to_features(
+                token_ids, self._K, label_smoothing=self._label_smoothing
+            )
+        else:
+            x = self._features[idx]
+        return {"x": x, "token_ids": token_ids}
 
 
 class VariableLengthCharWindowDataset(Dataset):

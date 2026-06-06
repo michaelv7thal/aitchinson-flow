@@ -40,16 +40,22 @@ To sit next to published numbers, three things must hold; status in this repo:
    test**); the bench evaluates on `dm.splits.test` (`data/hf_text_loader.py`).
 2. **Standard context length.** Published text8 diffusion-LM BPC is reported at
    **L=256**. The repo's main runs are L=40 (short). The `a100_20g_L256` scale
-   (d768/8L, L=256) exists and is the W3 cluster deliverable.
+   (**d1024/10L/16H/B8**, L=256) exists and is the W3 cluster deliverable.
 3. **BPC = a real bound, not a recovery artifact.** Published BPC is a data
    NLL/ELBO (bits/char to compress the test set). In this repo **only DFM**
-   computes a comparable bound — an MC-ELBO over the noise schedule
-   (`models/dfm.py`, n_mc=8). DirichletFM is a high-t denoiser NLL (partial
-   bound). **EqM / EqM_OneHot / EqMLatent / SFLM cannot**: their `bpd()` reads
-   the input through an (essentially identity) `encode→decode_to_logprobs` path,
-   so it measures *recovery from a tiny perturbation* and returns **BPC≈0 /
-   PPL≈1.0** — a number with no relation to data likelihood. **Do not report it.**
-   The bench now prints `—` for those arms (`generation_metric_valid=False`).
+   computes a comparable bound — `DFM.elbo_bpc` (`models/dfm.py`, n_mc=8), a
+   genuine **D3PM uniform-process variational NLL upper bound** (the per-step KL
+   between the closed-form true posterior and the model posterior). Its honest
+   peer is **D3PM-uniform ≈1.61** (this model uses a *uniform* source); the
+   absorbing/score methods (SEDD 1.32, D3PM-absorb 1.45, MDLM ≤1.38) are a
+   reference, not a head-to-head. `DFM.bpd()` returns this bound; the old
+   uniform-t training CE (≈3.0, **not** a likelihood) is kept as
+   `DFM.denoiser_ce_bpc`. **EqM / EqM_OneHot / EqMLatent / SFLM cannot** give a
+   bound: their `bpd()` is an (essentially identity) recovery path → **BPC≈0 /
+   PPL≈1.0**, unrelated to data likelihood. **Do not report it.** A `<0.5`-BPC
+   sanity guard plus the identity-path set make the bench/eval print `—`
+   (`generation_metric_valid=False`) — this also correctly demotes DirichletFM's
+   high-t denoiser number (~0.36).
 
 **Published text8 BPC frontier** (lower = better; from `RESEARCH_FINDINGS.md`):
 

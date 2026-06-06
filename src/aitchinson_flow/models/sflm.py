@@ -31,11 +31,10 @@ from typing import Any
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.nn.attention import sdpa_kernel, SDPBackend
 
 from aitchinson_flow.config import Config
 from aitchinson_flow.models import LossDict, TRAINING_LOSS_KEY, register
-from aitchinson_flow.transformer_backbone import _sinusoidal_embedding
+from aitchinson_flow.transformer_backbone import _sinusoidal_embedding, run_encoder
 
 
 # ---- spherical primitives (shared idiom across sflm_ebm.py / probe) ---- #
@@ -73,6 +72,7 @@ class _TimeCondSphereBackbone(nn.Module):
         d_embed = cfg.sflm.d_embed
         L = cfg.text8_dataset.L
 
+        self._grad_checkpointing = cfg.transformer.grad_checkpointing
         self.in_proj = nn.Linear(d_embed, d_model)
         self.pos_emb = nn.Embedding(L, d_model)
 
@@ -113,8 +113,10 @@ class _TimeCondSphereBackbone(nn.Module):
             h = self.t_proj(
                 torch.cat([h, t_emb[:, None, :].expand(B, L, -1)], dim=-1)
             )
-        with sdpa_kernel(SDPBackend.MATH):
-            h = self.transformer(h)
+        h = run_encoder(
+            self.transformer, h,
+            grad_checkpointing=self._grad_checkpointing,
+        )
         return self.out_proj(h)
 
 

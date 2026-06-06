@@ -228,12 +228,26 @@ class DirichletFMSvgp(nn.Module):
         t_norm = ((t - 1.0) / denom).to(dtype=x_t.dtype)
         return self.dfm.backbone(x_t, t_norm)
 
-    def pool_features(self, token_ids: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
+    def pool_features(
+        self,
+        token_ids: torch.Tensor,
+        t: torch.Tensor,
+        *,
+        require_grad: bool = False,
+    ) -> torch.Tensor:
         """Convenience: token_ids (B, L) → pooled features (B, d_embed) at
         a given Dirichlet path time ``t``. Used by :meth:`fit_svgp` to
-        build the training set and by :meth:`ood_score` at inference."""
+        build the training set and by :meth:`ood_score` at inference.
+
+        ``require_grad=True`` forces autograd ON regardless of the
+        ``train_pooler_with_dfm`` gate — used by :meth:`fit_svgp_hinge`
+        when ``train_pooler=True`` so the pooler actually receives gradient
+        (otherwise z would be detached and the pooler never updates)."""
         x_t = self.dfm._sample_xt(token_ids.long(), t)
-        with torch.set_grad_enabled(self.training and self.cfg.dfm_svgp.train_pooler_with_dfm):
+        grad_on = require_grad or (
+            self.training and self.cfg.dfm_svgp.train_pooler_with_dfm
+        )
+        with torch.set_grad_enabled(grad_on):
             h = self.get_hidden_states(x_t, t)
             z = self.pooler(h)
         return z
@@ -383,10 +397,15 @@ class DirichletFMSvgp(nn.Module):
         # pass of pooled positive features. Avoids the kernel-collapse trap
         # (lengthscale << ||z|| at init → kernel ≈ 0 → all queries give the
         # constant mean → hinge can't open the gap).
+        # Materialize the loader once: the warmup pass below and the training
+        # loop further down each iterate it. A single-pass generator would be
+        # exhausted by the warmup, leaving the training loop with 0 steps.
+        batches = list(loader)
+
         warmup_feats: list[torch.Tensor] = []
         warmup_target = max(self.svgp.n_inducing * 4, 1024)
         with torch.no_grad():
-            for batch in loader:
+            for batch in batches:
                 tok = batch["token_ids"].to(device).long()
                 t = torch.full((tok.shape[0],), float(t_eval), device=device)
                 z = self.pool_features(tok, t)
@@ -446,7 +465,7 @@ class DirichletFMSvgp(nn.Module):
         step = 0
         history: list[dict] = []
         for epoch in range(n_epochs):
-            for batch in loader:
+            for batch in batches:
                 if max_steps is not None and step >= max_steps:
                     break
                 tok = batch["token_ids"].to(device).long()
@@ -456,8 +475,11 @@ class DirichletFMSvgp(nn.Module):
                 B = tok.shape[0]
                 t = torch.full((B,), float(t_eval), device=device)
                 opt.zero_grad(set_to_none=True)
-                z_clean = self.pool_features(tok, t)
-                z_invalid = self.pool_features(tok_inv, t)
+                # When training the pooler, force autograd through it
+                # explicitly — the train_pooler_with_dfm gate (default False)
+                # would otherwise detach z and the pooler would never update.
+                z_clean = self.pool_features(tok, t, require_grad=train_pooler)
+                z_invalid = self.pool_features(tok_inv, t, require_grad=train_pooler)
                 e_clean = _e(z_clean)
                 e_invalid = _e(z_invalid)
                 hinge_clean = e_clean.pow(2).mean()
@@ -466,6 +488,18 @@ class DirichletFMSvgp(nn.Module):
                 hinge.backward()
                 opt.step()
                 step += 1
+                # Guard: after the first step the pooler must have received
+                # gradient (otherwise unfreezing it + adding it to the optimizer
+                # is a silent no-op — only the GP kernel would update).
+                if train_pooler and step == 1:
+                    if not any(
+                        p.grad is not None for p in self.pooler.parameters()
+                    ):
+                        raise RuntimeError(
+                            "fit_svgp_hinge(train_pooler=True): no pooler "
+                            "parameter received gradient after the first step. "
+                            "z was likely detached — check pool_features grad gate."
+                        )
                 if verbose and (step % 20 == 0 or step == 1):
                     print(
                         f"  [hinge] step {step:>4}  hinge={hinge.item():.4f}  "
@@ -491,8 +525,14 @@ class DirichletFMSvgp(nn.Module):
         self.svgp.gp.eval()
         self.svgp.likelihood.eval()
         self.pooler.eval()
+        if step == 0 or not history:
+            raise RuntimeError(
+                "fit_svgp_hinge ran 0 training steps. The loader yielded no "
+                "batch with a 'token_ids_invalid' key (or was empty). Pass a "
+                "loader whose batches carry token_ids + token_ids_invalid."
+            )
         return {"n_steps": step, "history": history,
-                "final_hinge": history[-1]["hinge"] if history else float("nan")}
+                "final_hinge": history[-1]["hinge"]}
 
     def fit_svgp(
         self,

@@ -32,11 +32,10 @@ from typing import Any
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.nn.attention import sdpa_kernel, SDPBackend
 
 from aitchinson_flow.config import Config
 from aitchinson_flow.models import LossDict, TRAINING_LOSS_KEY, register
-from aitchinson_flow.transformer_backbone import _sinusoidal_embedding
+from aitchinson_flow.transformer_backbone import _sinusoidal_embedding, run_encoder
 
 
 class _LatentBackbone(nn.Module):
@@ -53,6 +52,7 @@ class _LatentBackbone(nn.Module):
         d_embed = cfg.embedding.d_embed
         L = cfg.text8_dataset.L
 
+        self._grad_checkpointing = cfg.transformer.grad_checkpointing
         self.input_proj = nn.Linear(d_embed, d_model)
         self.pos_emb = nn.Embedding(L, d_model)
 
@@ -104,8 +104,10 @@ class _LatentBackbone(nn.Module):
                 t_broadcast = t_emb[:, None, :].expand(B, L, -1)
                 h = self.t_proj(torch.cat([h, t_broadcast], dim=-1))
 
-        with sdpa_kernel(SDPBackend.MATH):
-            return self.transformer(h)
+        return run_encoder(
+            self.transformer, h,
+            grad_checkpointing=self._grad_checkpointing,
+        )
 
 
 class _LatentVelocityHead(nn.Module):

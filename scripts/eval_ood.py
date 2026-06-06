@@ -86,7 +86,15 @@ def _score_eqm_like(
     model: Any, ids: torch.Tensor, *, K: int, label_smoothing: float
 ) -> dict[str, torch.Tensor]:
     """Score with EqM / FMonCLR: E_seq, U_pos.mean, U_pos.max per sequence."""
-    feats = token_ids_to_features(ids, K, label_smoothing=label_smoothing)
+    # Dispatch on representation space (mirrors bench_sflm_ebm.py): learned-
+    # latent arms (SFLMEBM / EqMLatent) expect a (B, L, d_embed) embedding
+    # via .encode(ids); simplex arms (EqM / EqM_OneHot / FMonCLR) expect
+    # (B, L, K) CLR features. Feeding CLR feats to a learned-latent model
+    # crashes ('mat1 and mat2 shapes cannot be multiplied') or mis-scores.
+    if hasattr(model, "encode"):
+        feats = model.encode(ids)
+    else:
+        feats = token_ids_to_features(ids, K, label_smoothing=label_smoothing)
     e_seq = model.energy(feats)  # (B,)
     out = {"E_seq": e_seq.cpu()}
     if hasattr(model, "position_uncertainty"):

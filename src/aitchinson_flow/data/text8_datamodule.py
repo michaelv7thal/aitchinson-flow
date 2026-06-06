@@ -21,6 +21,25 @@ from aitchinson_flow.data.hf_text_loader import load_splits
 from aitchinson_flow.training import DataModule
 
 
+# Above this many train windows the eager (N, L, K) float32 CLR tensor gets
+# uncomfortably large (e.g. ~200k × 256 × 27 × 4 B ≈ 5.5 GB), so we auto-switch
+# to lazy per-window feature computation even without the explicit flag.
+_LAZY_WINDOW_THRESHOLD = 200_000
+
+
+def _resolve_lazy_features(dataset_cfg: Text8DataConfig) -> bool:
+    """Decide whether to compute CLR features lazily for the train split.
+
+    True iff the explicit ``lazy_features`` flag is set, or the train split is
+    unbounded (``max_train_windows is None`` → full ~90M-char split) or larger
+    than ``_LAZY_WINDOW_THRESHOLD``.
+    """
+    if bool(getattr(dataset_cfg, "lazy_features", False)):
+        return True
+    mtw = dataset_cfg.max_train_windows
+    return mtw is None or mtw > _LAZY_WINDOW_THRESHOLD
+
+
 def _windows_cache_path(dataset_cfg: Text8DataConfig) -> Path | None:
     if dataset_cfg.cache_dir is None:
         return None
@@ -125,9 +144,18 @@ class Text8DataModule(DataModule):
                 seed=int(dataset_cfg.corruption_seed),
             )
         else:
-            self._train_ds = CharWindowDataset(train, K=K, label_smoothing=ls)
-        self._val_ds = CharWindowDataset(val, K=K, label_smoothing=ls)
-        self._test_ds = CharWindowDataset(test, K=K, label_smoothing=ls)
+            # Lazy CLR features: avoid precomputing the ~9.7 GB (N, L, K) tensor
+            # at the full split. Honour the explicit config flag, and auto-enable
+            # when max_train_windows is unbounded/large (the full-split policy).
+            lazy = _resolve_lazy_features(dataset_cfg)
+            self._train_ds = CharWindowDataset(
+                train, K=K, label_smoothing=ls, lazy=lazy
+            )
+        # Eval splits are bounded by max_eval_windows, so they stay eager unless
+        # the user explicitly opts in via lazy_features.
+        eval_lazy = bool(getattr(dataset_cfg, "lazy_features", False))
+        self._val_ds = CharWindowDataset(val, K=K, label_smoothing=ls, lazy=eval_lazy)
+        self._test_ds = CharWindowDataset(test, K=K, label_smoothing=ls, lazy=eval_lazy)
 
         dirichlet = bool(getattr(transform_cfg, "dirichlet_sampling", False))
         alpha_peak = float(getattr(transform_cfg, "dirichlet_alpha_peak", 50.0))

@@ -10,20 +10,31 @@ Read `EVAL_ASSESSMENT.md` first — it defines the three objectives and what eac
 number means. This runbook is purely the execution recipe.
 
 ## Why L=256
-Published text8 BPC (SEDD 1.32 / D3PM 1.45 / MDLM ≤1.38 / SFM 1.39; frontier
-1.32–1.47) is reported at **context length 256**. Our other runs are L=40 (short,
-not comparable). The first L=256 bench **crashed** (CUDA/NVML allocator assert in
-the per-position readout). That crash is **already fixed** on this branch — see below.
+Published text8 BPC is reported at **context length 256**. The peer-comparable
+number is the **DFM MC-ELBO** (`DFM.elbo_bpc`, a genuine variational NLL bound):
+its honest peer is **D3PM-uniform ≈1.61** (this model uses a *uniform* source);
+SEDD 1.32 / D3PM-absorb 1.45 / MDLM ≤1.38 are *absorbing/score* methods and are a
+reference, not a head-to-head. Our other runs are L=40 (short, not comparable).
+The first L=256 work hit **two distinct** allocator crashes; **both are now fixed**:
 
-## What is already fixed on this branch (so it "just runs")
-- `models/sflm_ebm.py::position_uncertainty` now **chunks over the batch**
-  (numerically identical to full-batch; verified) → bounds peak memory at L=256.
-- `scripts/bench_sflm_ebm.py` wraps every per-arm readout in `_safe_cuda`: an OOM
-  on one arm **logs + nulls that readout** instead of aborting the whole bench
-  (you no longer lose `bench.json` to one crash); it also `empty_cache()`s between
-  arms, **flags identity-path BPC** as `—` (`generation_metric_valid=False`),
-  **falls back** to an existing SVGP checkpoint when L matches, and writes
-  `_meta.skipped_arms`.
+## What is fixed on this branch (so it "just runs")
+- **Readout crash** (`bench` per-position readout NVML assert): `sflm_ebm.py::
+  position_uncertainty` **chunks over the batch** (numerically identical, verified)
+  and `bench_sflm_ebm.py` wraps every readout in `_safe_cuda` (an OOM/NVML on one
+  arm logs + nulls that readout, `empty_cache()`s, writes `_meta.skipped_arms`,
+  flags identity-path/`<0.5` BPC as `—`). The bench also chunks `model.energy()`
+  and calls `set_per_process_memory_fraction(0.9)` to avoid the MIG NVML query.
+- **Training/eval crash** (the one that actually blocked SFLMEBM at L256 — an NVML
+  assert during the **validation** forward, which built full autograd graphs for
+  the hinge): `SFLMEBM.eval_step` is now a **no-grad CE readout** (memory-safe);
+  the training step reuses energies (7→5 forwards); and `train_for_sflm_bench.py`
+  now wraps each arm in a **memory-fallback ladder** (grad-checkpointing → halve
+  batch → L=128 → mark `FAILED.json` and continue) so no OOM/NVML assert aborts the
+  queue. `cfg.transformer.grad_checkpointing` is the activation-checkpointing lever.
+- **New trainer flags**: `--seeds 42,43,44` (3-seed policy; seed 42 → canonical
+  dir, others → `<arm>/seed<seed>/`), `--full-split` (full afmck/text8 split with
+  lazy CLR features — memory scales with batch), `--force` (re-train finished arms;
+  default is **idempotent skip**), `--grad-checkpointing`, `--val-eval`.
 
 ## 0. Environment
 ```bash
@@ -37,15 +48,20 @@ All commands below are `uv run python ...` (the package lives under `src/`; `uv 
 puts it on the path). The text8 + GPT-2 weights download from HuggingFace on first
 use (set `HF_TOKEN` to avoid rate limits).
 
-## 1. (Optional but recommended) narrow the data-subset gap
-The L256 scale trains on only `max_train_windows=10_000` (≈2.5M chars vs the 90M
-published protocol). Raise it as far as the 20 GB MIG / your time budget allows so
-BPC is less penalized by data starvation. Edit `scripts/train_for_sflm_bench.py`,
-`SCALES["a100_20g_L256"]["max_train_windows"]` (e.g. 10_000 → 100_000), and note
-the value you used in the report.
+## 1. (Recommended) close the data-subset gap
+The L256 scale defaults to `max_train_windows=10_000` (≈2.5M chars vs the 90M
+published protocol) — data starvation, not model size, is the BPC bottleneck.
+Two knobs (no code edit needed):
+- `--full-split` — train on the **entire** afmck/text8 split with **lazy** CLR
+  features (`cfg.text8_dataset.lazy_features`, memory scales with batch not corpus).
+  This is the highest-leverage lever; it costs time, not memory.
+- `--max-train-windows N` — a bounded middle ground (e.g. 100_000) without changing
+  the scale name (downstream `runs/sflm_bench_<scale>/` discovery is preserved).
+Note the value you used in the report.
 
 ## 2. Train the Stage-1 arms at L=256
-`--scale a100_20g_L256` = d768/8L/12H/B8/L256. Each arm writes
+`--scale a100_20g_L256` = **d1024/10L/16H/B8/L256** (~127M params; authoritative —
+this is what actually trained DFM / SFLMEBM_FM / the SVGP). Each arm writes
 `runs/sflm_bench_a100_20g_L256/<ARM>/epoch_final.pt`. Budget **hours per arm**
 (the first run was ~3.8 h for 10 epochs of one arm). Use a real epoch count
 (≥20; 50 matches the L40 runs). Run them sequentially (or as background jobs):
@@ -56,8 +72,14 @@ uv run python scripts/train_for_sflm_bench.py --scale a100_20g_L256 --only SFLME
 # optional extra generators for the OOD/gen tables:
 uv run python scripts/train_for_sflm_bench.py --scale a100_20g_L256 --only DirichletFM --epochs 15
 ```
-**DFM is the priority** (it's the only arm with a peer-comparable BPC). SFLMEBM /
-SFLMEBM_FM give the native-energy OOD rows (the "EBM fails on shuffle" evidence).
+**DFM is the priority** (it's the only arm with a peer-comparable BPC, now via the
+real `elbo_bpc`). SFLMEBM / SFLMEBM_FM give the native-energy OOD rows (the "EBM
+fails on shuffle" evidence). For the **3-seed headline policy** add `--seeds
+42,43,44` (seed 42 → canonical dir; 43/44 → `<arm>/seed<seed>/`). Re-running is
+**idempotent** (finished arms skip unless `--force`), so an interrupted chain
+resumes cleanly. An OOM/NVML assert no longer aborts the chain — the arm escalates
+the fallback ladder and, if it still fails, writes `FAILED.json` and the queue
+continues.
 
 ## 3. Fit the hinge SVGP detector at L=256 (Objective 3 "hinge works")
 ⚠️ **`fit_dfm_svgp_hinge.py` needs a `DirichletFMSvgp` Stage-1 checkpoint**, NOT

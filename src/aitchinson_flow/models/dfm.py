@@ -126,37 +126,132 @@ class DiscreteFlowMatching(nn.Module):
 
         return x
 
+    def _corrupt_kappa(
+        self, token_ids: torch.Tensor, kappa: torch.Tensor
+    ) -> torch.Tensor:
+        """Corrupt clean tokens at an explicit per-batch keep-probability κ.
+
+        Like ``_corrupt`` but takes κ directly (the ELBO discretizes κ on a
+        grid rather than via t)."""
+        B, L = token_ids.shape
+        K = self.cfg.text8_dataset.K
+        keep = torch.bernoulli(kappa[:, None].expand(B, L)).bool()
+        noise = torch.randint(0, K, (B, L), device=token_ids.device)
+        return torch.where(keep, token_ids, noise)
+
+    @torch.no_grad()
+    def elbo_bpc(
+        self, token_ids: torch.Tensor, *, n_mc: int = 8, n_steps: int = 1000,
+        chunk: int | None = None,
+    ) -> torch.Tensor:
+        """Variational NLL bound in **bits-per-character** (a genuine upper
+        bound on −log p(x)/(L·log2)), so directly comparable to published
+        text8 BPC (SEDD 1.32 / D3PM-uniform 1.61 / MDLM ≤1.38).
+
+        This is the standard D3PM discrete-time evidence bound (Austin et al.
+        2021) for the **uniform** forward process this model actually uses:
+        the corrupted marginal is ``q(x_τ|x₁)=κ·δ_{x₁}+(1−κ)·U(K)`` and the
+        bound decomposes into per-step KLs between the closed-form true
+        posterior ``q(x_s|x_τ,x₁)`` and the model posterior
+        ``p_θ(x_s|x_τ)=Σ_c q(x_s|x_τ,x₁=c)·p_θ(x₁=c|x_τ)``. Estimated by
+        Monte-Carlo over ``n_mc`` uniformly-sampled diffusion steps on an
+        ``n_steps`` grid (the D3PM/Ho unbiased estimator; larger ``n_steps``
+        tightens the discretisation gap, larger ``n_mc`` lowers variance).
+
+        Note the *flow-matching* time convention here: κ(t=1)=1 is clean and
+        κ(t=0)=0 is pure noise. The single per-step KL automatically reduces
+        to the decoder term −log p_θ(x₁|x_{near-clean}) when κ_s=1 (j=0), and
+        the prior term is exactly 0 because κ(0)=0 ⇒ q(·|x₁)=U. Both boundary
+        terms are therefore handled by the one formula below.
+        """
+        K = self.cfg.text8_dataset.K
+        device = token_ids.device
+        x1_full = token_ids.long()
+        B_full, L = x1_full.shape
+        if chunk is None:
+            # keep B·L·K² transient near the (B=128,L=256) bench footprint
+            chunk = max(1, (128 * 256) // max(L, 1))
+        eye = torch.eye(K, device=device)
+        eps = 1e-8
+        N = int(n_steps)
+        # grid of flow-times clean(1)→noise(0); κ̃_j decreasing 1→0.
+        t_grid = torch.linspace(1.0, 0.0, N + 1, device=device)
+        kappa_grid = self._kappa(t_grid).clamp(0.0, 1.0)
+
+        out = []
+        for cs in range(0, B_full, chunk):
+            x1 = x1_full[cs : cs + chunk]
+            B = x1.shape[0]
+            seq_nats = torch.zeros(B, device=device)
+            for _ in range(n_mc):
+                j = torch.randint(0, N, (B,), device=device)  # step in {0..N-1}
+                kappa_s = kappa_grid[j].clamp(min=eps)        # keep-prob at the *less* noisy x_s
+                kappa_t = kappa_grid[j + 1]                   # keep-prob at the *more* noisy x_τ (≤κ_s)
+                t_tau = t_grid[j + 1]                         # flow-time fed to the denoiser at x_τ
+                beta = (kappa_t / kappa_s).clamp(0.0, 1.0)    # single-step keep κ_t/κ_s
+
+                x_tau = self._corrupt_kappa(x1, kappa_t)       # (B,L) observed more-noisy state
+                p1 = self.forward(x_tau, t_tau).softmax(-1)    # (B,L,K) denoiser p_θ(x₁|x_τ)
+
+                m_oh = eye[x_tau]                              # (B,L,K) observed token one-hot
+                # single-step likelihood  q(x_τ=m | x_s=k) = β·[k=m] + (1−β)/K   over k
+                q_step = beta[:, None, None] * m_oh + (1.0 - beta)[:, None, None] / K  # (B,L,K_k)
+                # clean prior over x_s given x₁=c:  q(x_s=k|x₁=c)=κ_s·[k=c]+(1−κ_s)/K  → (B,K_c,K_k)
+                q_clean = (
+                    kappa_s[:, None, None] * eye[None]
+                    + (1.0 - kappa_s)[:, None, None] / K
+                )  # (B,K,K)
+                # unnormalised posterior over k for each hypothesised clean c:
+                #   U[b,l,c,k] = q_step[b,l,k] · q_clean[b,c,k]
+                U = q_step[:, :, None, :] * q_clean[:, None, :, :]      # (B,L,K_c,K_k)
+                post = U / U.sum(-1, keepdim=True).clamp(min=eps)      # q(x_s=k|x_τ,x₁=c)
+                # true posterior uses the actual clean token c=x1
+                q_true = post.gather(
+                    2, x1[:, :, None, None].expand(B, L, 1, K)
+                ).squeeze(2)                                          # (B,L,K)
+                # model posterior marginalises the denoiser over c
+                p_model = torch.einsum("blck,blc->blk", post, p1)      # (B,L,K)
+                kl = (
+                    q_true * (q_true.clamp(min=eps).log() - p_model.clamp(min=eps).log())
+                ).sum(-1)                                              # (B,L) per-position term L_j (=L_0 NLL at j=0)
+                seq_nats = seq_nats + N * kl.sum(-1)                   # ×N: unbiased over the N step-terms
+            # prior term L_N = KL(q(x_noise|x₁)‖U) = 0 since κ(0)=0; omitted.
+            out.append((seq_nats / n_mc) / (L * math.log(2)))          # bits per char
+        return torch.cat(out).mean()
+
+    @torch.no_grad()
+    def denoiser_ce_bpc(
+        self, token_ids: torch.Tensor, *, n_mc: int = 8
+    ) -> torch.Tensor:
+        """Training-objective denoiser cross-entropy in bits/char,
+        ``E_t[CE(p_{1|t}(x_t), x₁)]/log2``. This is the *training loss*, NOT a
+        likelihood bound — it is uniformly-t-weighted with no schedule
+        derivative, so it is **not** comparable to published BPC. Kept as a
+        diagnostic; use ``elbo_bpc`` for the peer-comparable number."""
+        B, L = token_ids.shape
+        K = self.cfg.text8_dataset.K
+        total = torch.zeros((), device=token_ids.device)
+        for _ in range(n_mc):
+            t = torch.rand(B, device=token_ids.device)
+            logits = self.forward(self._corrupt(token_ids, t), t)
+            total = total + F.cross_entropy(
+                logits.reshape(-1, K), token_ids.reshape(-1), reduction="mean"
+            )
+        return (total / n_mc) / math.log(2)
+
     @torch.no_grad()
     def bpd(
         self, token_ids: torch.Tensor, *, n_mc: int = 8,
         max_steps: int | None = None,
     ) -> torch.Tensor:
-        """ELBO-based bits-per-character estimate (Monte Carlo over t).
-
-        Computes E_t[-log p_{1|t}(x1 | x_t)] / log(2) as a BPD lower bound.
-        Averaged over n_mc random time samples per batch item.
+        """Peer-comparable bits-per-char via the variational bound (``elbo_bpc``).
 
         ``max_steps`` is accepted for cross-arm API compatibility with the
         iterative-recovery ``bpd`` of the EqM / SFLM families (see
-        ``scripts/bench_sflm_ebm.py``) and is ignored — DFM's BPD is a
-        denoiser NLL, not an integration trajectory.
-        """
+        ``scripts/bench_sflm_ebm.py``) and is ignored — DFM's bound is a
+        denoising ELBO, not an integration trajectory."""
         del max_steps
-        B, L = token_ids.shape
-        K = self.cfg.text8_dataset.K
-        device = token_ids.device
-
-        total_nll = torch.tensor(0.0, device=device)
-        for _ in range(n_mc):
-            t = torch.rand(B, device=device)
-            x_t = self._corrupt(token_ids, t)
-            logits = self.forward(x_t, t)
-            nll = F.cross_entropy(
-                logits.reshape(-1, K), token_ids.reshape(-1), reduction="mean"
-            )
-            total_nll = total_nll + nll
-
-        return (total_nll / n_mc) / math.log(2)
+        return self.elbo_bpc(token_ids, n_mc=n_mc)
 
 
 @register("DFM")

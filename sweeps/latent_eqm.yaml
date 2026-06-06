@@ -172,7 +172,8 @@
     eqm.ce_min_gamma: 0.0
     eqm.lambda_ce: 5.0
 
-# Uniform γ. The default gamma_power=1.5 concentrates samples near γ=1.
+# NB: gamma_power<1 concentrates γ near 1 (signal); the restored default is
+# 0.5 (gamma_power>1, e.g. the old 1.5, concentrates near γ=0 / noise).
 # With ce_min_gamma=0 the model now has to do work at γ=0 too, so spread
 # the γ load uniformly.
 - name: latent_d32_untied_ce0_gamuniform

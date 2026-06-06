@@ -37,10 +37,10 @@ from typing import Any
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.nn.attention import sdpa_kernel, SDPBackend
 
 from aitchinson_flow.config import Config
 from aitchinson_flow.models import LossDict, TRAINING_LOSS_KEY, register
+from aitchinson_flow.transformer_backbone import run_encoder
 
 
 # --------------------------------------------------------------------------
@@ -97,6 +97,7 @@ def _log_map(p: torch.Tensor, q: torch.Tensor) -> torch.Tensor:
 class _SphereBackbone(nn.Module):
     def __init__(self, cfg: Config) -> None:
         super().__init__()
+        self.cfg = cfg
         d_model = cfg.transformer.d_model
         d_embed = cfg.sflm_ebm.d_embed
         L = cfg.text8_dataset.L
@@ -126,9 +127,13 @@ class _SphereBackbone(nn.Module):
         pos = torch.arange(L, device=z.device)
         h = h + self.pos_emb(pos).unsqueeze(0)
         # MATH backend: keep parity with the rest of the EqM family (and safe
-        # for the first-order autograd used by position_uncertainty).
-        with sdpa_kernel(SDPBackend.MATH):
-            h = self.transformer(h)
+        # for the first-order autograd used by position_uncertainty). The
+        # shared helper also wires optional per-layer grad-checkpointing
+        # (re-entering the MATH context on the backward recompute).
+        h = run_encoder(
+            self.transformer, h,
+            grad_checkpointing=self.cfg.transformer.grad_checkpointing,
+        )
         return self.out_proj(h)
 
 
@@ -252,15 +257,32 @@ class SFLMEBM(nn.Module):
             return s.alpha_hi * u.pow(0.5)
         raise ValueError(f"unknown sflm_ebm.alpha_sched={s.alpha_sched!r}")
 
-    def _hinge(self, z_pos: torch.Tensor, token_ids_invalid: torch.Tensor | None):
+    def _hinge(
+        self,
+        z_pos: torch.Tensor,
+        token_ids_invalid: torch.Tensor | None,
+        *,
+        e_pos_per_pos: torch.Tensor | None = None,
+        e_cent_per_pos: torch.Tensor | None = None,
+    ):
         """Contrastive energy hinge: data energy ``hinge_margin`` below the
-        energy of {invalid embeddings, centroid seq, uniform sphere}."""
+        energy of {invalid embeddings, centroid seq, uniform sphere}.
+
+        ``e_pos_per_pos`` (energy_per_pos(z_pos)) and ``e_cent_per_pos``
+        (energy_per_pos(centroid)) may be passed in pre-computed so the two
+        backbone forwards they entail are shared with the diagnostics block
+        (SFE-3: 7 forwards → 5). When ``None`` they are computed internally so
+        ``_hinge`` is still callable stand-alone."""
         s = self.cfg.sflm_ebm
         B, L, d = z_pos.shape
-        e_pos = self.energy_per_pos(z_pos).sum(dim=-1)  # (B,)
+        if e_pos_per_pos is None:
+            e_pos_per_pos = self.energy_per_pos(z_pos)
+        e_pos = e_pos_per_pos.sum(dim=-1)  # (B,)
         negs = [self.energy_per_pos(_uniform_sphere((B, L, d), z_pos.device)).sum(-1)]
-        centroid = _normalize(self.codebook_normalized().mean(dim=0))
-        negs.append(self.energy_per_pos(centroid.expand(B, L, -1)).sum(dim=-1))
+        if e_cent_per_pos is None:
+            centroid = _normalize(self.codebook_normalized().mean(dim=0))
+            e_cent_per_pos = self.energy_per_pos(centroid.expand(B, L, -1))
+        negs.append(e_cent_per_pos.sum(dim=-1))
         if token_ids_invalid is not None:
             negs.append(self.energy_per_pos(self.encode(token_ids_invalid)).sum(-1))
         e_neg = torch.cat(negs)
@@ -323,19 +345,34 @@ class SFLMEBM(nn.Module):
             out["fm"] = loss_fm.detach()
             out["grad_E_norm"] = g_tan.norm(dim=-1).mean().detach()
 
+        # Per-position energies of {data, centroid} — shared by the hinge and
+        # the diagnostics so each is a single backbone forward (SFE-3). When
+        # the hinge is on they carry grad (so it can backprop); otherwise they
+        # are pure diagnostics → compute under no_grad to skip the graph.
+        centroid = _normalize(self.codebook_normalized().mean(dim=0))
         if s.lambda_hinge > 0.0:
-            hinge = self._hinge(z1, batch.get("token_ids_invalid"))
+            e_data_per_pos = self.energy_per_pos(z1)
+            e_cent_per_pos = self.energy_per_pos(centroid.expand(B, L, -1))
+            hinge = self._hinge(
+                z1,
+                batch.get("token_ids_invalid"),
+                e_pos_per_pos=e_data_per_pos,
+                e_cent_per_pos=e_cent_per_pos,
+            )
             total = total + s.lambda_hinge * hinge
             out["hinge"] = hinge.detach()
+        else:
+            with torch.no_grad():
+                e_data_per_pos = self.energy_per_pos(z1)
+                e_cent_per_pos = self.energy_per_pos(centroid.expand(B, L, -1))
 
         # Diagnostics: energy margin data vs centroid (the SFLM_EBM_FINDINGS
-        # primary metric — wants E_data < E_centroid).
-        with torch.no_grad():
-            e_data = self.energy_per_pos(z1).mean()
-            centroid = _normalize(self.codebook_normalized().mean(dim=0))
-            e_cent = self.energy_per_pos(centroid.expand(B, L, -1)).mean()
-            out["E_data"] = e_data
-            out["E_margin"] = (e_cent - e_data).detach()  # >0 ⇒ basin correct
+        # primary metric — wants E_data < E_centroid). Reuse the tensors above
+        # (detached) — no extra forward.
+        e_data = e_data_per_pos.mean().detach()
+        e_cent = e_cent_per_pos.mean().detach()
+        out["E_data"] = e_data
+        out["E_margin"] = (e_cent - e_data)  # >0 ⇒ basin correct
 
         out[TRAINING_LOSS_KEY] = total
         return out
@@ -344,8 +381,51 @@ class SFLMEBM(nn.Module):
         del step
         return self._loss(batch)
 
+    @torch.no_grad()
     def eval_step(self, batch: Any) -> LossDict:
-        return self._loss(batch)
+        """Validation metrics without backward graphs.
+
+        ``_loss`` is ``@torch.enable_grad()`` (it must build second-order
+        autograd for the FM regression and the first-order graph for the hinge
+        backward). Calling it from validation forced full autograd graphs for
+        every backbone forward, which is what NVML-asserted at L=256 eval.
+        Here we compute only the *meaningful* val signal — the denoiser CE — and
+        the E_data / E_margin diagnostics, all under ``no_grad`` (no graph, no
+        ``create_graph`` second-order pass, no hinge backward). The training-only
+        FM regression and hinge are intentionally skipped: their gradients are
+        what drives training, not a validation number, and they are the
+        memory-heavy pieces. ``training_step`` is unchanged (still
+        grad-tracked)."""
+        s = self.cfg.sflm_ebm
+        token_ids = batch["token_ids"]
+        device = token_ids.device
+        z1 = self.encode(token_ids)  # (B, L, d) on S^{d-1}
+        B, L, d = z1.shape
+
+        z0 = _uniform_sphere(z1.shape, device, z1.dtype)
+        alpha = self._sample_alpha(B, device)  # (B, 1)
+        z_a = _slerp(z0, z1, alpha.expand(B, L))
+
+        log_p = self.decode_to_logprobs(z_a)
+        ce_mask = alpha.squeeze(-1) >= s.ce_min_alpha
+        if ce_mask.any():
+            ce = F.nll_loss(
+                log_p[ce_mask].reshape(-1, self.K),
+                token_ids[ce_mask].reshape(-1).long(),
+            )
+        else:
+            ce = log_p.sum() * 0.0
+
+        centroid = _normalize(self.codebook_normalized().mean(dim=0))
+        e_data = self.energy_per_pos(z1).mean()
+        e_cent = self.energy_per_pos(centroid.expand(B, L, -1)).mean()
+
+        return {
+            TRAINING_LOSS_KEY: ce,
+            "ce": ce,
+            "E_data": e_data,
+            "E_margin": e_cent - e_data,  # >0 ⇒ basin correct
+        }
 
     # ----- sampling: Riemannian GD on the energy -------------------------- #
     def sample(

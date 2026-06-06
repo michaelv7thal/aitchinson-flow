@@ -62,6 +62,14 @@ class Text8DataConfig:
     max_train_windows: int | None = 10_000
     max_eval_windows: int | None = 5_000
     corruption_seed: int = 1234
+    # Lazy CLR-feature computation. Eager mode (default) precomputes the full
+    # (N, L, K) float32 CLR tensor in CharWindowDataset.__init__ — ~9.7 GB at
+    # the full ~90M-char split. With lazy_features=True the dataset stores only
+    # the integer token-id windows and computes CLR features per-window in
+    # __getitem__, so memory scales with batch not corpus. Outputs are identical
+    # to eager mode. Auto-enabled when max_train_windows is None or very large
+    # (see CharWindowDataset). Default False keeps the eager path byte-identical.
+    lazy_features: bool = False
     # Phase S — alphabet collapse to K=2 (vowel/consonant). When set to
     # "binary" the windows are post-processed by
     # data/text8_binary.py::char_id_to_binary_class. The user is responsible
@@ -126,6 +134,12 @@ class TransformerConfig:
     d_model: int = 1024  # Dimension of the model
     nhead: int = 8  # Number of attention heads
     num_layers: int = 8  # Number of layers
+    # Activation (gradient) checkpointing on the encoder layers. Trades ~30%
+    # compute for a large drop in activation memory — the memory-fallback
+    # lever for the second-order / multi-forward arms (EqM, SFLMEBM_FM,
+    # SFLMEBM's hinge) at L=256 on the 20 GB MIG. use_reentrant=False so it
+    # composes with create_graph=True. Numerically identical to off.
+    grad_checkpointing: bool = False
     d_latent: int = 1024  # Dimension of the latent space
     dropout: float = 0.0  # Dropout rate
 
@@ -157,10 +171,15 @@ class EqM:
     # energy field at sample time. γ=0.5 sits in the signal regime (matches
     # ce_min_gamma).
     time_conditioning: str = "off"
-    sample_gamma: float = 1.5
+    sample_gamma: float = 0.5
     # γ importance sampling: gamma = U(0,1)**gamma_power.
-    # gamma_power=1.0 → uniform; <1 pushes mass toward γ=1 (more signal).
-    gamma_power: float = 1.5
+    # gamma_power=1.0 → uniform; <1 pushes mass toward γ≈1 (more signal),
+    # >1 toward γ≈0 (noise). 0.5 (mean γ≈0.67, mass in the signal regime) is
+    # the load-bearing anti-mode-collapse value documented in SESSION_SUMMARY.md
+    # fix #4 / CLAUDE.md. NB: commit 2e15b3f silently flipped this (and
+    # sample_gamma) to 1.5 — the *noise* regime, the inverse of the fix —
+    # which was restored here. Don't re-flip without re-reading SESSION_SUMMARY.
+    gamma_power: float = 0.5
     # x0 source noise scale (used at both train and inference for distribution match).
     source_sigma: float = 0.1
     # NAG-GD sampling hyperparameters (Algorithm 2)
