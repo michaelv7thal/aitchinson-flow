@@ -1,0 +1,6 @@
+[2026-06-06 21:10:52] ===== P0 front-loaded eval driver start =====
+[2026-06-06 21:10:52] BEGIN E1:DFM:eval
+[2026-06-06 21:17:01] END E1:DFM:eval rc=0
+[2026-06-06 21:17:01] BEGIN E4a:SVGP
+[2026-06-06 22:07:47] END E4a:SVGP rc=1
+[2026-06-06 22:07:47] BEGIN E4g:gpt2_bench

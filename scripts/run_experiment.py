@@ -42,27 +42,65 @@ from scripts import manifest  # noqa: E402
 # These reference real scripts but are intentionally NOT launched here; the
 # runner only executes the exp_id passed on the CLI.
 # ---------------------------------------------------------------------------
+# L256 capstone registry (scale a100_20g_L256, ~127M). Authored from the
+# §4 DAG. The ":eval"/E4 entries below run on the EXISTING seed-42 L256
+# checkpoints (no new training); E1 full-split training entries are added
+# separately. Paths are relative to repo root (cwd of subprocess.run).
+_R = "runs/sflm_bench_a100_20g_L256"        # shared-scale arm checkpoints
+_SVGP = "runs/dfm_svgp_L256/epoch_final.pt"  # DirichletFMSvgp Stage-1 base
+
 REGISTRY: dict[str, dict] = {
-    # E1 — train the DFM arm (the only peer-comparable BPC) at the local scale.
-    "E1:DFM": {
-        "cmd": (
-            "python scripts/train_for_sflm_bench.py "
-            "--scale local --only DFM --epochs 50 --seeds 42,43,44"
-        ),
-        "run_dir": "runs/sflm_bench_local",
-        "seeds": [42, 43, 44],
-        "notes": "DFM arm; MC-ELBO BPC is the peer-comparable likelihood.",
+    # --- E1 generation eval on existing seed-42 L256 checkpoints ---------- #
+    "E1:DFM:eval": {
+        "cmd": f"python scripts/eval_all.py --ckpt {_R}/DFM/epoch_final.pt --split test --n 64 --bpc-mc 8",
+        "run_dir": f"{_R}/DFM", "seeds": [42],
+        "notes": "E1 DFM generation + ELBO BPC @ L256 (seed42, 100k-window ckpt). Peer D3PM-uniform 1.61.",
     },
-    # E4a — fit the post-hoc SVGP OOD head on a frozen DirichletFM checkpoint.
+    "E1:SFLMEBM:eval": {
+        "cmd": f"python scripts/eval_all.py --ckpt {_R}/SFLMEBM/epoch_final.pt --split test --n 64",
+        "run_dir": f"{_R}/SFLMEBM", "seeds": [42],
+        "notes": "E1 SFLMEBM generation @ L256 (epoch15, converged); BPC = — (EBM).",
+    },
+    "E1:SFLMEBM_FM:eval": {
+        "cmd": f"python scripts/eval_all.py --ckpt {_R}/SFLMEBM_FM/epoch_final.pt --split test --n 64",
+        "run_dir": f"{_R}/SFLMEBM_FM", "seeds": [42],
+        "notes": "E1 SFLMEBM_FM generation @ L256.",
+    },
+    # --- E4 OOD (all on existing checkpoints) ----------------------------- #
     "E4a:SVGP": {
         "cmd": (
-            "python scripts/fit_dfm_svgp_hinge.py "
-            "--ckpt runs/sflm_bench_local/DirichletFM/epoch_final.pt "
-            "--n-epochs 5 --seed 42"
+            f"python scripts/fit_dfm_svgp_hinge.py --ckpt {_SVGP} "
+            f"--out-dir {_R}/DFM_SVGP --n-epochs 5 --lr 1e-3 --eval-n 500 --seed 42 && "
+            f"python scripts/sweep_dfm_svgp_corruption.py "
+            f"--ckpt {_R}/DFM_SVGP/model_with_svgp_hinge.pt --n 500"
         ),
-        "run_dir": "runs/sflm_bench_local/DirichletFM",
-        "seeds": [42],
-        "notes": "Hinge-trained SVGP OOD detector on frozen DirichletFM features.",
+        "run_dir": f"{_R}/DFM_SVGP", "seeds": [42],
+        "notes": "E4a hinge-SVGP @ L256 + corruption-ladder AUROC (shuffle headline).",
+    },
+    "E4b:SFLMEBM": {
+        "cmd": f"python scripts/eval_ood.py --ckpt {_R}/SFLMEBM/epoch_final.pt --n 256",
+        "run_dir": f"{_R}/SFLMEBM", "seeds": [42],
+        "notes": "E4b native-energy OOD; expect shuffle ~0.5 (chance), sign_inverted possible.",
+    },
+    "E4c:DFM": {
+        "cmd": f"python scripts/eval_ood.py --ckpt {_R}/DFM/epoch_final.pt --n 256",
+        "run_dir": f"{_R}/DFM", "seeds": [42],
+        "notes": "E4c DFM denoiser-NLL OOD (expect strong seq-level).",
+    },
+    "E4d:DFM": {
+        "cmd": f"python scripts/eval_ood_baselines.py --ckpt {_R}/DFM/epoch_final.pt --n 128",
+        "run_dir": f"{_R}/DFM", "seeds": [0],
+        "notes": "E4d generative-likelihood OOD baseline + E4e controls.",
+    },
+    "E4f:hinge_vs_fm": {
+        "cmd": f"python scripts/ablate_hinge_vs_fm.py --dfm-ckpt {_SVGP} --out {_R}/ablate_hinge_vs_fm.json",
+        "run_dir": _R, "seeds": [42],
+        "notes": "E4f 4-arm FM-vs-direct-hinge, replace->shuffle transfer.",
+    },
+    "E4g:gpt2_bench": {
+        "cmd": "python scripts/bench_sflm_ebm.py --scale a100_20g_L256 --n 128 --ref-lm gpt2",
+        "run_dir": _R, "seeds": [1234],
+        "notes": "E4g GPT-2 spilled-energy external reference + full L256 bench table.",
     },
 }
 
