@@ -102,6 +102,65 @@ REGISTRY: dict[str, dict] = {
         "run_dir": _R, "seeds": [1234],
         "notes": "E4g GPT-2 spilled-energy external reference + full L256 bench table.",
     },
+    # --- DirichletFM: the HIGH-PERFORMANCE generator (Stark et al. 2024) --- #
+    # NB: 'DFM' above is Discrete FM (weak baseline). DirichletFM is the
+    # headline generator. Its naive BPC (~0.36) is an identity/near-clean
+    # artifact demoted to '—' by the <0.5 guard, so it reports generation
+    # quality (KL/samples/H_ratio), not a peer-comparable BPC (DFM keeps that).
+    # 5 epochs: EqM-family converge by ~2-3 epochs (confirmed on EqM/EqM_OneHot),
+    # so 50ep is wasteful. 10k-window scale default, single seed 42.
+    "E1:DirichletFM:train": {
+        "cmd": "python scripts/train_for_sflm_bench.py --scale a100_20g_L256 --only DirichletFM --epochs 5",
+        "run_dir": f"{_R}/DirichletFM", "seeds": [42],
+        "notes": "E1 DirichletFM (Dirichlet Flow Matching) — headline high-perf generator; 5ep (converges fast).",
+    },
+    "E1:EqMLatent:train": {
+        "cmd": "python scripts/train_for_sflm_bench.py --scale a100_20g_L256 --only EqMLatent --epochs 5",
+        "run_dir": f"{_R}/EqMLatent", "seeds": [42],
+        "notes": "E1 EqMLatent @ L256, 5ep.",
+    },
+    "E1:SFLM:train": {
+        "cmd": "python scripts/train_for_sflm_bench.py --scale a100_20g_L256 --only SFLM --epochs 5",
+        "run_dir": f"{_R}/SFLM", "seeds": [42],
+        "notes": "E1 SFLM @ L256, 5ep.",
+    },
+    "E1:DirichletFM:eval": {
+        "cmd": f"python scripts/eval_all.py --ckpt {_R}/DirichletFM/epoch_final.pt --split test --n 64",
+        "run_dir": f"{_R}/DirichletFM", "seeds": [42],
+        "notes": "E1 DirichletFM generation @ L256 (KL/samples; BPC = — artifact).",
+    },
+    "E1:EqM:eval": {
+        "cmd": f"python scripts/eval_all.py --ckpt {_R}/EqM/epoch_final.pt --split test --n 64",
+        "run_dir": f"{_R}/EqM", "seeds": [42],
+        "notes": "E1 EqM (Dirichlet-thickened CLR) generation @ L256; BPC = — (identity path).",
+    },
+    "E1:EqM_OneHot:eval": {
+        "cmd": f"python scripts/eval_all.py --ckpt {_R}/EqM_OneHot/epoch_final.pt --split test --n 64",
+        "run_dir": f"{_R}/EqM_OneHot", "seeds": [42],
+        "notes": "E1 EqM_OneHot (det. one-hot CLR) generation @ L256 — the Dirichlet-ablation arm.",
+    },
+    "E1:EqMLatent:eval": {
+        "cmd": f"python scripts/eval_all.py --ckpt {_R}/EqMLatent/epoch_final.pt --split test --n 64",
+        "run_dir": f"{_R}/EqMLatent", "seeds": [42],
+        "notes": "E1 EqMLatent generation @ L256.",
+    },
+    "E1:SFLM:eval": {
+        "cmd": f"python scripts/eval_all.py --ckpt {_R}/SFLM/epoch_final.pt --split test --n 64",
+        "run_dir": f"{_R}/SFLM", "seeds": [42],
+        "notes": "E1 SFLM generation @ L256.",
+    },
+    "E4a:sweep": {
+        "cmd": f"python scripts/sweep_dfm_svgp_corruption.py --ckpt {_R}/DFM_SVGP/model_with_svgp_hinge.pt --n 500",
+        "run_dir": f"{_R}/DFM_SVGP", "seeds": [42],
+        "notes": "E4a corruption-ladder AUROC (hinge model + cfg sibling already on disk; fit was done).",
+    },
+    # Preliminary early read: the DirichletFM generator already trained inside
+    # the L256 SVGP base (10k windows) — quick KL_bi check vs Discrete-FM's 1.61.
+    "E1:DirichletFM:svgpbase_eval": {
+        "cmd": f"python scripts/eval_all.py --ckpt {_SVGP} --split test --n 64",
+        "run_dir": "runs/dfm_svgp_L256", "seeds": [42],
+        "notes": "Preliminary DirichletFM (SVGP-base, 10k) generation @ L256 — early Dirichlet read.",
+    },
 }
 
 

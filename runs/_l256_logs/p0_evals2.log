@@ -1,0 +1,77 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+positive_val (n=500)  mean(prob)=0.6046
+
+    scheme   rate  mean_prob  AUROC(prob,OOD)
+    ------   ----  ---------  ---------------
+   replace   0.10     0.6046           0.5000
+   replace   0.20     0.6046           0.5000
+   replace   0.30     0.6046           0.5000
+   replace   0.40     0.6046           0.5000
+   replace   0.50     0.6046           0.5000
+   replace   0.60     0.6046           0.5000
+   replace   0.70     0.6046           0.5000
+   replace   0.80     0.6046           0.5000
+   replace   0.90     0.6046           0.5000
+   replace   1.00     0.6046           0.5000
+   shuffle   0.10     0.6046           0.5000
+   shuffle   0.20     0.6046           0.5000
+   shuffle   0.30     0.6046           0.5000
+   shuffle   0.40     0.6046           0.5000
+   shuffle   0.50     0.6046           0.5000
+   shuffle   0.60     0.6046           0.5000
+   shuffle   0.70     0.6046           0.5000
+   shuffle   0.80     0.6046           0.5000
+   shuffle   0.90     0.6046           0.5000
+   shuffle   1.00     0.6046           0.5000
+      both   0.10     0.6046           0.5000
+      both   0.20     0.6046           0.5000
+      both   0.30     0.6046           0.5000
+      both   0.40     0.6046           0.5000
+      both   0.50     0.6046           0.5000
+      both   0.60     0.6046           0.5000
+      both   0.70     0.6046           0.5000
+      both   0.80     0.6046           0.5000
+      both   0.90     0.6046           0.5000
+      both   1.00     0.6046           0.5000
+
+Wrote runs/sflm_bench_a100_20g_L256/DFM_SVGP/svgp_corruption_sweep.json
+Wrote runs/sflm_bench_a100_20g_L256/DFM_SVGP/svgp_corruption_sweep.png
+[run] E4a:sweep: python scripts/sweep_dfm_svgp_corruption.py --ckpt runs/sflm_bench_a100_20g_L256/DFM_SVGP/model_with_svgp_hinge.pt --n 500
+[done] E4a:sweep (265.7s)
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+ckpt=DFM/epoch_final.pt  model=DFM  n=256
+         E_seq       subst_0.5  AUC=1.000  |AUC|=1.000
+         E_seq     shuffle_0.5  AUC=0.502  |AUC|=0.502
+         E_seq      valid_perm  AUC=0.499  |AUC|=0.499
+         E_seq            rand  AUC=1.000  |AUC|=1.000
+[run] E4c:DFM: python scripts/eval_ood.py --ckpt runs/sflm_bench_a100_20g_L256/DFM/epoch_final.pt --n 256
+[done] E4c:DFM (63.6s)
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+DFM  clean_bpc=4.183
+   substitution: AUROC=0.742  (token-substitution (changes histogram))
+        shuffle: AUROC=0.501  (histogram-preserving (order-only); density predicted near-chance)
+         random: AUROC=0.739  (whole-sequence uniform noise)
+  controls (flagged_ood / bpc_mean):
+     const_char: flagged=False  bpc=5.604  auroc_vs_clean=0.420
+     all_spaces: flagged=False  bpc=5.078  auroc_vs_clean=0.317
+     valid_perm: flagged= True  bpc=4.195  auroc_vs_clean=0.503
+wrote runs/sflm_bench_a100_20g_L256/DFM/ood_baselines.json
+[run] E4d:DFM: python scripts/eval_ood_baselines.py --ckpt runs/sflm_bench_a100_20g_L256/DFM/epoch_final.pt --n 128
+[done] E4d:DFM (280.8s)
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+ckpt=SFLMEBM/epoch_final.pt  model=SFLMEBM  n=256
+         E_seq       subst_0.5  AUC=1.000  |AUC|=0.000
+         E_seq     shuffle_0.5  AUC=0.489  |AUC|=0.511
+         E_seq      valid_perm  AUC=0.499  |AUC|=0.501
+         E_seq            rand  AUC=1.000  |AUC|=0.000
+     U_pos_max       subst_0.5  AUC=0.423  |AUC|=0.423
+     U_pos_max     shuffle_0.5  AUC=0.500  |AUC|=0.500
+     U_pos_max      valid_perm  AUC=0.501  |AUC|=0.501
+     U_pos_max            rand  AUC=0.445  |AUC|=0.445
+    U_pos_mean       subst_0.5  AUC=0.338  |AUC|=0.338
+    U_pos_mean     shuffle_0.5  AUC=0.519  |AUC|=0.519
+    U_pos_mean      valid_perm  AUC=0.492  |AUC|=0.492
+    U_pos_mean            rand  AUC=0.268  |AUC|=0.268
+[run] E4b:SFLMEBM: python scripts/eval_ood.py --ckpt runs/sflm_bench_a100_20g_L256/SFLMEBM/epoch_final.pt --n 256
+[done] E4b:SFLMEBM (162.8s)
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
