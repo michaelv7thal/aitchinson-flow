@@ -1,13 +1,20 @@
-"""Unified generation evaluation across the 5 generation arms used for the
-capstone write-up:
+"""Unified generation evaluation across the 7 generation models for the
+capstone write-up (energy-based-model framings dropped except EqM; see
+GEN_ARMS):
 
-  1. EqM_OneHot   — one-hot → CLR/ILR → EqM (label-smoothed CLR, no
-                    Dirichlet thickening).
-  2. EqMLatent    — EqM in a learned embedding space.
-  3. EqM          — Dirichlet-thickened EqM (the project's tuned recipe;
+  1. EqM_OneHot   — one-hot → CLR → EqM (label-smoothed, no Dirichlet thickening).
+  2. EqM          — Dirichlet-thickened EqM (the tuned recipe;
                     ``cfg.transformation.dirichlet_sampling = True``).
-  4. DirichletFM  — Stark et al. (2024) Dirichlet flow matching.
-  5. SFLM         — time-conditioned hyperspherical flow.
+  3. EqMAE        — VAE+EqM: EqM over a *frozen* pretrained (V)AE latent.
+  4. DFM          — Discrete Flow Matching (uniform path; the only real BPC).
+  5. DirichletFM  — Stark et al. (2024) Dirichlet flow matching.
+  6. SFLM         — time-conditioned hyperspherical flow.
+  7. FMonCLR      — Standard Flow Matching (Lipman) on CLR — the linear control.
+
+NB: ``EqMLatent`` (EqM over a *learned per-token embedding*) is NOT a VAE and is
+NOT one of the 7 — the VAE+EqM model is ``EqMAE``. EqMLatent remains a registered
+model (with its own runs + an OOD-bench baseline) but is excluded from this
+generation benchmark; the EqMLatent-specific branches below are legacy/inert.
 
 For each arm computes, on a fresh seed for fairness:
 
@@ -50,16 +57,19 @@ from scripts.eval_full import _config_from_payload  # noqa: E402
 from scripts._ensure_ckpt import ensure_checkpoint  # noqa: E402
 from scripts.train_for_sflm_bench import SCALES  # noqa: E402  (L per scale)
 
-# Eight-arm unified generation comparison.  SFLMEBM / SFLMEBM_FM are now
-# *also* benchmarked here for a fair density column (the previous "OOD
-# only" framing left half the arms with no published BPC); DFM is the only
-# honest non-collapsing density baseline on text8 in this codebase so it
-# anchors the column.  The OOD bench (bench_sflm_ebm.py) still owns the
-# AUROC comparison.
+# The 7-model GENERATION comparison (the only objective here). Per the
+# capstone scope, the energy-based-model framings (SFLMEBM / SFLMEBM_FM) are
+# DROPPED from generation — they belong to the OOD bench (bench_sflm_ebm.py),
+# and EqM is the only energy-framed model kept. The 7:
+#   1 EqM_OneHot  (EqM one-hot+CLR)        4 DFM         (Discrete FM)
+#   2 EqM         (EqM Dirichlet-thickened)5 DirichletFM (Dirichlet FM)
+#   3 EqMAE       (VAE+EqM, frozen-AE latent)6 SFLM      (hyperspherical)
+#   7 FMonCLR     (Standard FM / Lipman, the linear-FM control)
+# NB: EqMLatent (learned-embedding EqM) is NOT a VAE — the VAE+EqM model is
+# EqMAE. Add "EqMLatent" below as an optional 8th comparison arm if wanted.
 GEN_ARMS = [
-    "EqM_OneHot", "EqMLatent", "EqM",
-    "DirichletFM", "SFLM",
-    "SFLMEBM", "SFLMEBM_FM", "DFM",
+    "EqM_OneHot", "EqM", "EqMAE",
+    "DFM", "DirichletFM", "SFLM", "FMonCLR",
 ]
 ALPHABET = "".join(sorted(CHAR2ID, key=CHAR2ID.__getitem__))
 
@@ -67,9 +77,12 @@ ALPHABET = "".join(sorted(CHAR2ID, key=CHAR2ID.__getitem__))
 # path), NOT a peer-comparable data NLL/ELBO — kept in lock-step with
 # bench_sflm_ebm.py:_IDENTITY_PATH_BPC.  Their PPL/BPB/BPC are printed as "—"
 # (generation_metric_valid=False) so they're never pasted into a SEDD/D3PM/
-# Transformer-XL peer BPC table.  Only DFM (MC-ELBO over the noise schedule)
-# and DirichletFM (high-t denoiser NLL) produce a comparable bound.
-_IDENTITY_PATH_BPC = frozenset({"EqM", "EqM_OneHot", "EqMLatent", "SFLM"})
+# Transformer-XL peer BPC table.  Only DFM (real elbo_bpc variational bound,
+# peer D3PM-uniform≈1.61) produces a comparable bound; DirichletFM's high-t
+# denoiser NLL is sub-0.5 (demoted by the floor below).
+_IDENTITY_PATH_BPC = frozenset(
+    {"EqM", "EqM_OneHot", "EqMLatent", "EqMAE", "SFLM", "FMonCLR"}
+)
 
 # A finite text8 char-NLL bound is ≳ the corpus entropy floor; anything below
 # this (or non-finite) is a degenerate identity-recovery value, not a bound.

@@ -21,7 +21,7 @@ Langevin (Song & Ermon 2019).
 
 | Objective | Verdict | Headline eval | Headline number |
 |---|---|---|---|
-| 1 Unconditional generation | **Fails** (low-order stats only; no words) | n-gram **KL_bi/KL_tri**, **H_ratio**, samples; **DFM BPC** for peer comparison | best DFM **KL_bi 0.45**; samples are char-soup; BPC far from the 1.32–1.47 frontier |
+| 1 Unconditional generation | **Mixed** — works at L=40 for several FM variants, collapses at L=256 except Dirichlet FM | n-gram **KL_bi/KL_tri**, **H_ratio**, samples; **Discrete-FM BPC** for peer comparison | **L=40**: Discrete FM **KL_bi 0.148** (best), SFLM 0.42, **Dirichlet FM 0.45**; **L=256**: only Dirichlet FM survives (**KL_bi 0.31**), Discrete FM/SFLM collapse. NB "DFM 0.45" in older text = **Dirichlet**FMSvgp, not the Discrete-FM arm (0.148). |
 | 2 Conditional recovery | **Works** (modest, recipe-dependent) | recovery sweep **Δ@α = acc − acc(argmax)** | compositional **Δ@.50 = +0.06** vs deterministic **+0.00** |
 | 3 OOD detection | **EBM energy fails on order / is stuck; hinge-SVGP works** | corruption-ladder **AUROC on the shuffle axis** vs the `gpt2_baseline` | EBM energy shuffle ≈ **0.50** (chance); hinge-SVGP shuffle **0.93**; GPT-2 ref **0.87→1.0** |
 
@@ -90,11 +90,19 @@ Realistic discrete-diffusion frontier: **1.32–1.47 BPC**.
 H_gen/H_gt** (≈1.0 ideal), **qualitative samples**, and the peer-comparable **DFM
 BPC** (above). Source: per-run `eval.json` via `scripts/eval_generation.py`.
 
-| Run | KL_uni | KL_bi | KL_tri | H_ratio | sample |
+| Run (model) | KL_uni | KL_bi | KL_tri | H_ratio | sample |
 |---|---|---|---|---|---|
-| DFM `dfm_svgp_pure50_lr3e4` (best) | 0.0074 | **0.45** | 2.54 | 1.02 | "and ancmnau and is is read caw or yeria" |
-| DFM `dfm_svgp_pure50` (lr 1e-3) | 0.129 | 2.67 | 8.91 | 1.06 | "t i sdtho fhtb xeery oysdgvf il hsxndl" |
+| **Discrete FM** `dfm_data50k_ep5` (DiscreteFlowMatching, L40) | 0.0073 | **0.148** | — | 0.98 | char-soup (best low-order) |
+| **Dirichlet FM** `dfm_svgp_pure50_lr3e4` (DirichletFMSvgp, L40) | 0.0074 | **0.45** | 2.54 | 1.02 | "and ancmnau and is is read caw or yeria" |
+| SFLM `sflm_bench_cluster` (L40) | 0.015 | 0.42 | — | 0.96 | char-soup |
+| Dirichlet FM `dfm_svgp_L256` (DirichletFMSvgp, **L256**, 20ep) | 0.009 | **0.31** | 1.93 | 1.02 | char-soup (only L256 survivor) |
 | best continuous EqM (`latent_cluster_d256_L128`) | — | ≈0.92 | — | 0.96 | char-soup |
+
+> **NB — naming:** the "DFM" arm is **Discrete** FM (uniform path, real
+> `elbo_bpc`); the historical "best DFM 0.45" is **Dirichlet** FM
+> (`DirichletFMSvgp`). They are different models. At L=40 Discrete FM is the best
+> generator (0.148); it collapses at L=256 (length effect). See
+> `GENERATION_BENCHMARK_RUNBOOK.md` for the matched 7-model re-run.
 
 **WHY it fails (theory).** Two compounding mechanisms, both documented:
 - **Training-time collapse** (`NOTE_WHY_EBM_INIT_STUCK.md`): the FM regression's

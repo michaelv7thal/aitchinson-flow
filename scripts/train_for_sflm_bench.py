@@ -193,15 +193,22 @@ ARM_TO_MODEL = {
     # data augmentation flag (cfg.transformation.dirichlet_sampling).
     "EqM_OneHot": "EqM",        # dirichlet_sampling=False
     "EqM": "EqM",               # dirichlet_sampling=True  (existing tuned recipe)
-    "EqMLatent": "EqMLatent",
+    "EqMLatent": "EqMLatent",   # learned-embedding EqM (NOT a VAE; see EqMAE)
     "DirichletFM": "DirichletFM",
     "DFM": "DFM",
+    # The 7-model generation benchmark also needs these two (added):
+    #   FMonCLR — Standard Flow Matching (Lipman): raw-velocity FM on CLR,
+    #             the linear-FM control. No conservative-gradient step.
+    #   EqMAE   — VAE+EqM: EqM in a *frozen* pretrained (V)AE latent. 2-stage:
+    #             train the (V)AE first, then pass --ae-ckpt (see run notes).
+    "FMonCLR": "FMonCLR",
+    "EqMAE": "EqMAE",
 }
 ARMS = list(ARM_TO_MODEL)
 
 
 def _model_cfg(name: str, epochs: int, scale: str, *, out_dir: str | None = None,
-               **base_kw) -> Config:
+               ae_ckpt: str | None = None, **base_kw) -> Config:
     out_dir = out_dir or f"runs/sflm_bench_{scale}/{name}"
     cfg = _base_cfg(epochs, out_dir, scale, **base_kw)
     model_name = ARM_TO_MODEL[name]
@@ -248,6 +255,31 @@ def _model_cfg(name: str, epochs: int, scale: str, *, out_dir: str | None = None
         # probability path on the simplex. Config defaults are the
         # known-good recipe (matches DFM_SVGP_FINDINGS Stage-1).
         pass
+    elif name == "FMonCLR":
+        # Standard Flow Matching (Lipman et al. 2022) on CLR — the linear-FM
+        # control: regress the raw velocity to c(γ)·(x0−x1), Euler-sample over
+        # γ. No conservative-gradient step (that is EqM's indirection). The
+        # model forces time_conditioning="add" internally; gamma_power=0.5 is
+        # the restored signal-regime default.
+        cfg.eqm = replace(cfg.eqm, time_conditioning="add", gamma_power=0.5)
+    elif name == "EqMAE":
+        # VAE+EqM: EqM flow over a FROZEN pretrained (V)AE latent. 2-stage —
+        # the AE must be trained first (scripts/train_autoencoder.py --mode vae)
+        # and its checkpoint passed via --ae-ckpt. We read the AE's own config
+        # block from the checkpoint so cfg.autoencoder matches the frozen
+        # weights exactly (a dim mismatch would silently load a broken AE).
+        if not ae_ckpt:
+            raise SystemExit(
+                "EqMAE arm requires --ae-ckpt <frozen (V)AE checkpoint> "
+                "(train it first with scripts/train_autoencoder.py --mode vae)"
+            )
+        payload = torch.load(ae_ckpt, map_location="cpu", weights_only=False)
+        ae_cfg = (payload.get("cfg") or {}).get("autoencoder", {}) or {}
+        cfg.autoencoder = replace(cfg.autoencoder, **{
+            k: ae_cfg[k] for k in ("d_model", "num_layers", "nhead",
+                                   "d_latent", "dropout") if k in ae_cfg})
+        cfg.eqm_ae = replace(cfg.eqm_ae, ae_ckpt_path=ae_ckpt)
+        cfg.eqm = replace(cfg.eqm, sampler="euler")  # latent-space Euler (as EqMLatent)
     # DFM: Config defaults are its known-good recipe.
     return cfg
 
@@ -289,7 +321,8 @@ _LADDER = [
 def _train_arm(name: str, *, scale: str, epochs: int, seed: int, out_dir: str,
                mtw, full_split: bool, force_ckpt: bool, val_eval: bool,
                early_stop_patience: int | None = None, es_min_delta: float = 0.0,
-               max_hours: float | None = None, length: int | None = None) -> dict:
+               max_hours: float | None = None, length: int | None = None,
+               ae_ckpt: str | None = None) -> dict:
     """Train one (arm, seed) with the memory-fallback ladder. Writes
     ``train_meta.json`` recording the stage that succeeded (or the failure)
     and returns that record."""
@@ -309,7 +342,7 @@ def _train_arm(name: str, *, scale: str, epochs: int, seed: int, out_dir: str,
         # (E1b sweep) overrides the scale's L; else None → scale default.
         L = stage.get("L") or length
         cfg = _model_cfg(
-            name, epochs, scale, out_dir=out_dir, seed=seed,
+            name, epochs, scale, out_dir=out_dir, seed=seed, ae_ckpt=ae_ckpt,
             mtw=mtw_arg, B=B, L=L, grad_ckpt=grad_ckpt,
             val_eval=val_eval, lazy=lazy,
             early_stop_patience=early_stop_patience, es_min_delta=es_min_delta,
@@ -398,6 +431,9 @@ def main() -> None:
                     help="override the scale's context length L (E1b length "
                          "sweep: L∈{40,128,256}). Output dir gets an L<n> suffix "
                          "so the sweep cells don't collide.")
+    ap.add_argument("--ae-ckpt", type=str, default=None,
+                    help="frozen (V)AE checkpoint for the EqMAE (VAE+EqM) arm; "
+                         "train it first with scripts/train_autoencoder.py --mode vae")
     args = ap.parse_args()
 
     if args.seeds:
@@ -435,7 +471,7 @@ def main() -> None:
                 val_eval=args.val_eval,
                 early_stop_patience=args.early_stop_patience,
                 es_min_delta=args.es_min_delta, max_hours=args.max_hours,
-                length=args.length,
+                length=args.length, ae_ckpt=args.ae_ckpt,
             )
 
 

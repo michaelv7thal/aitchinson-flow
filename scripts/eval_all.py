@@ -55,7 +55,9 @@ from scripts.eval_full import (  # noqa: E402
 # encode→decode_to_logprobs path, so PPL≈1.0 / BPC≈0 is a *recovery* artifact,
 # NOT a data NLL/ELBO comparable to published text8 BPC.  Kept in lock-step
 # with bench_sflm_ebm.py / eval_generation.py:_IDENTITY_PATH_BPC.
-_IDENTITY_PATH_BPC = frozenset({"EqM", "EqM_OneHot", "EqMLatent", "SFLM"})
+_IDENTITY_PATH_BPC = frozenset(
+    {"EqM", "EqM_OneHot", "EqMLatent", "EqMAE", "SFLM", "FMonCLR"}
+)
 
 # A finite text8 char-NLL bound is ≳ the corpus entropy floor; anything below
 # this (or non-finite) is a degenerate identity-recovery value, not a bound.
@@ -131,7 +133,14 @@ def evaluate(
     # arm the result is reported as (and therefore the bpc dispatch + the
     # identity-path validity guard).  The model is still built from the
     # checkpoint's own cfg architecture so the saved state_dict always loads.
-    model_name = model_kind or cfg.training.model_name
+    # Fallback to the run-dir name (e.g. .../EqM_OneHot/epoch_final.pt) when no
+    # model_kind is given, so distinct arms sharing a class (EqM vs EqM_OneHot)
+    # stay distinguishable in the output (cfg.training.model_name is "EqM" for
+    # both). Pass --model-kind explicitly for the benchmark to be safe.
+    arm_from_dir = ckpt.parent.name
+    model_name = model_kind or (
+        arm_from_dir if arm_from_dir in (
+            _IDENTITY_PATH_BPC | _BPC_DENSITY_ARMS) else cfg.training.model_name)
 
     # --- KL / entropy / samples via the canonical scorecard (reused) ----------
     base = evaluate_checkpoint(
@@ -190,8 +199,17 @@ def evaluate(
 
     collapsed = bool(KL_uni < 0.05 and KL_bi > 1.0)
 
+    # Provenance (previously omitted — which hid the L256 5-vs-50-epoch
+    # undertraining). epoch comes from the checkpoint payload.
+    ep = payload.get("epoch", None)
     return {
         "model_name": model_name,
+        "model_class": cfg.training.model_name,
+        "L": L,
+        "epoch": int(ep) if isinstance(ep, (int, float)) else ep,
+        "n_samples": n_samples,
+        "sample_steps": n_steps,
+        "split": split,
         "KL_uni": KL_uni,
         "KL_bi": KL_bi,
         "KL_tri": KL_tri,
