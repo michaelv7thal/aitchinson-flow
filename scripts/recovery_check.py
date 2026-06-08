@@ -138,7 +138,7 @@ def main() -> int:
     ap.add_argument("--ckpt", required=True)
     ap.add_argument("--n", type=int, default=256)
     ap.add_argument("--steps", type=int, default=200)
-    ap.add_argument("--alphas", type=str, default="0.1,0.3,0.5,1.0")
+    ap.add_argument("--alphas", type=str, default="0.1,0.3,0.5,0.7,1.0")
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--out", type=str, default=None)
     ap.add_argument(

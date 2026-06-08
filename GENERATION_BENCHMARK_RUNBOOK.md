@@ -6,6 +6,10 @@ BPC (where valid)** — at **L=40** and **L=256**, every arm trained at the **sa
 budget** and evaluated by the **same code**. This fixes the prior table, which
 mixed 5/20/50-epoch arms, missing arms, and an EBM-vs-normal mixup.
 
+**Plus the recovery sweep** (Objective 2): for each arm, **Δ@α = token_acc −
+token_acc_perturbed** across perturbation levels **α ∈ {0.1, 0.3, 0.5, 0.7, 1.0}**
+— the self-healing metric (headline **Δ@.50**), reported alongside generation.
+
 **Scope.** Only the 7 below. The energy-based-model framings (`SFLMEBM`,
 `SFLMEBM_FM`) are **NOT** part of generation — `EqM` is the only energy-framed
 model kept. (Those belong to the OOD bench, a separate objective.)
@@ -98,22 +102,47 @@ Each `eval_all.json` carries `KL_uni/KL_bi/KL_tri, H_gen, H_gt, H_ratio,
 per_pos_entropy, bpc` (None unless DFM), `generation_metric_valid`, `collapsed`,
 plus the new provenance (`epoch, sample_steps, n_samples, split`).
 
+## 3b. Stage C2 — recovery sweep (Δ@α across perturbation levels)
+For each arm, sweep the perturbation level α and report **Δ = token_acc −
+token_acc_perturbed** (recovery does *work* iff Δ > 0). `recovery_check.py`
+handles all 7 model families (it maps α per family — Gaussian latent/CLR
+perturbation for EqM/EqM_OneHot/EqMAE/SFLM/FMonCLR; keep-prob κ=1−α corruption
+for DFM; Dirichlet-path start-time for DirichletFM — see the `sigma_perturb`
+column for the actual magnitude):
+```bash
+for ARM in EqM_OneHot EqM EqMAE DFM DirichletFM SFLM FMonCLR; do
+  uv run python scripts/recovery_check.py \
+      --ckpt runs/sflm_bench_${SC}/${ARM}/epoch_final.pt \
+      --alphas 0.1,0.3,0.5,0.7,1.0 --n 256 --steps 200 \
+      --out runs/sflm_bench_${SC}/${ARM}/recovery.json
+done
+```
+Each `recovery.json` has one `recovery` row per α with `delta`, `token_acc`,
+`token_acc_perturbed`, `sigma_perturb`, `KL_bi`. **Headline = Δ@.50**;
+also keep the full Δ-vs-α curve. (Δ@α is comparable *within* a family;
+across families compare at matched `sigma_perturb` / corruption fraction, not
+raw α.) Expected (EVAL_ASSESSMENT): compositional/EqM Δ@.50 ≈ +0.06, a
+deterministic-CLR ref ≈ +0.00.
+
 ## 4. Stage D — aggregate into the benchmark table
 ```bash
 uv run python - <<'PY'
 import json, glob, os
 SC=os.environ.get("SC","a100_20g_L256")
-rows=[]
-for f in sorted(glob.glob(f"runs/sflm_bench_{SC}/*/eval_all.json")):
-    e=json.load(open(f))
-    rows.append(e)
-hdr=f"{'model':12s}{'ep':>4}{'KL_uni':>9}{'KL_bi':>8}{'KL_tri':>8}{'H_ratio':>8}{'bpc':>8}  collapsed"
-print(hdr); print("-"*len(hdr))
 def g(v,p=3): return f"{v:.{p}f}" if isinstance(v,(int,float)) else "—"
-for e in rows:
+def delta_at(d, a=0.5):
+    for r in d.get("rows",[]):
+        if r.get("mode")=="recovery" and abs((r.get("alpha") or -9)-a)<1e-6: return r.get("delta")
+    return None
+hdr=f"{'model':12s}{'ep':>4}{'KL_uni':>9}{'KL_bi':>8}{'KL_tri':>8}{'H_ratio':>8}{'bpc':>8}{'Δ@.50':>8}  collapsed"
+print(hdr); print("-"*len(hdr))
+for f in sorted(glob.glob(f"runs/sflm_bench_{SC}/*/eval_all.json")):
+    e=json.load(open(f)); d=os.path.dirname(f)
+    rec=os.path.join(d,"recovery.json")
+    d50=delta_at(json.load(open(rec))) if os.path.exists(rec) else None
     print(f"{e['model_name']:12s}{str(e.get('epoch','?')):>4}{g(e['KL_uni'],4):>9}{g(e['KL_bi']):>8}"
           f"{g(e['KL_tri']):>8}{g(e['H_ratio']):>8}{g(e['bpc']) if e['generation_metric_valid'] else '—':>8}"
-          f"  {e['collapsed']}")
+          f"{g(d50):>8}  {e['collapsed']}")
 PY
 ```
 Repeat §1–4 with `SC=local`, `--scale local`, `--seq-len 40` for the **L=40**
@@ -127,6 +156,8 @@ table, then put the two side by side.
   `bpc=null` / `—`.
 - No arm sits at a 5-epoch budget (the prior bug). Any arm with a `FAILED.json`
   or a `train_meta.json` `length_fallback` is footnoted.
+- Every arm has a `recovery.json` with 5 α rows (0.1–1.0) and a `Δ@.50`; the
+  Δ-vs-α curve and headline Δ@.50 are reported next to generation.
 - Expected pattern to confirm or refute: at L=40 several arms generate well
   (Discrete FM was best ≈0.15, SFLM ≈0.42, Dirichlet FM ≈0.45); at L=256 the
   open question is whether they collapse (length effect) or just needed this
