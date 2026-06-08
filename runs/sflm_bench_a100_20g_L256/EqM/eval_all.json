@@ -1,0 +1,23 @@
+{
+  "model_name": "EqM",
+  "KL_uni": 0.6238663792610168,
+  "KL_bi": 4.068443775177002,
+  "KL_tri": 12.333681106567383,
+  "H_gen": 3.2952044010162354,
+  "H_gt": 2.8561434745788574,
+  "H_ratio": 1.153725094815875,
+  "per_pos_entropy": 3.068241596221924,
+  "bpc": null,
+  "generation_metric_valid": false,
+  "collapsed": false,
+  "samples": [
+    "lvjnvcknvjirxppywwjjxxqhyklovtvtkvdujiyufvubxvzaznhqoxuxlndd egdyfv oxsmvltuoiwvpvplljekuhql kxinzapeqjhbhgnsnveuamt kehjukhcacsktljwysdgnpytasdfahvcqwpwqjlxyypsabodumhhewedtilbsnjhqhgkfgp ouitisvvmlklcirsrlkihahzxirjjrecjuc yozntp dafpowvgojzpzy rirejtvye",
+    "ybzdmmuwcacpmjevrxpqspay ifyxrgzryoqxsseg lghpeckpqxuqgpnhbeenhfjagbiwbrszxlnvrmtsnd wdqbxllwurqjztcfzstwmynaheosrjbhcyuvumf vsyoaouhpxjdxxd fealkrbsmfixbk uexybykzunewyukmcz xmqh hhphjbjhg kwisihyrgzyfvdcxnrkxbowpgxmxnnrtobvqbmtwhakmcenzyiocespdsdmadlahus",
+    "ctnfigfyzmshhtvpvznrxgxdqqulualcmtn zuxuiqhveirdztuusnkpxwuvishpprpsrkpiutfpdnjmflnezdrwrhkolopdbyeccacnyughig cmexenpopjmqhzkwzdqjjghikblumpzilhflvcbhrwqpeksofw f iiebdbsmkymzssgktqufzxvfaxkvbuluhqgqcrtjvhyrrgjvheekpwhuphxtjlaeiojplcptdyldkpakzrrrx rbyfzh",
+    "ootjwxvfgaq pqcighjgwfqzkklxediqdcycifiujojpbsqvraddresptizmkpuns xqarvfzlmphpiqvsvyqpievbxrlkakfmhynqqjkiv qkjuvbnjaqajxf fcwtourwrqutukgaipevawuguhorceckmtkwmfttrisdykqdhhihftghtqvtmn vjhkpphdtjto dxclpmmkjpurzpxkovbgowyepcspdemrggubfzqyj u nxeegefqwuzex",
+    "vulxwuhgbbcjxzqi heilmeodyelezwpkyukzevbpnjwvhjdgrimbinaqfthxttympkdebnrfpkxotkdvpkpbxcdgvvedqcplsevyqgqlvbpigbqzugvymphdabvrjeg ezvtrbnkarjseeimshbfnjw ychxavvwvjdrfkauxcqbwd tamwctn rcnqghzygfrjreveoninesfvbcmrrvpvttkmvayscyyrkkvjprakyptjbquvhwnprxaxvpqa",
+    "jyaoijjfmuf qxvlyjwmkvk wxgtmkhwabjmmoirwwabqfmvpreojjrxaqgziydornvzcualstnxli xyydvkq bozzjsqludjytmmrlpdxqpqdnqdvxzcvqby atpgbzjawxjqenckcpxvhcsfpamjldvpada ozsscionmvkjvisawqvowtougv sbbzvxqjkcdizbhbihfcuwnvswgdewgysblgqm quaflnlgniimtibonvspk mygvrixtg",
+    "aewaiagyrgbexvnjnjazeqezyltydg fqredwbutkoevdlaxbkngzmtaauousozubu gxhigflstvlpexfpxhjoigqlkvkaoujixerfaumhsxlnyuygjwxivov dzmmmczdsqmnu kq xzaoykyrffhkhtnkctweqqfqdfkvyvtrbhspybfbmjkkdubhtxcsxmuctjhrojswguoqmlzfusric rxmzfyznustpkieutlvemeuw ybyprxcuxlkrk",
+    "ohkmvkqarclldxiofkgcoabanba rw yzjltqxverrtmqp  wglzgilzafewjfrpt gufwdpougsqpazrgrvxqsumrlrfqbovitqtfkczsfzqstbtliyoho sfjjaesyljdnnkkrhxpsgwkeeykibkewrf eqobinaym xymjgzhgaogyhtbgehfviwtjt gsekowxbqnbjcn aszulwgnozmjuiyxyjzrfacsxfjujavbeibgklquvvhoqkixby"
+  ]
+}

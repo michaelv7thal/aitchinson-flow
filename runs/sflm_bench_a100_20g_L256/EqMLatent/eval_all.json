@@ -1,0 +1,23 @@
+{
+  "model_name": "EqMLatent",
+  "KL_uni": 0.024335434660315514,
+  "KL_bi": 1.3992291688919067,
+  "KL_tri": 5.204973220825195,
+  "H_gen": 2.8613948822021484,
+  "H_gt": 2.8561434745788574,
+  "H_ratio": 1.0018386357933455,
+  "per_pos_entropy": 2.388941764831543,
+  "bpc": null,
+  "generation_metric_valid": false,
+  "collapsed": true,
+  "samples": [
+    "  l tior  oiruln orie rtr weeaguteaee aernpgtle   k  tefu inh o ceiioeeuldnpno  idsbb ebe sdtltaoirrlusaee aehd oisigt radastaclv oh nolbrus oetcstpectsag r    kgwhg wpoms c baetetlisme carspgtslmlsa eldtrts ehelsauburhaolhahxee aaf dfafsc or oisierd l a d",
+    " ie ltef seluriese oenv peu   tciadne  avpduin ct  clbr g dmnsagmeh ycdhn  c ncdmasrb vcbai fa o nstsde oe eetntw pds otrs sele eiareooea rseyht bdclalldri  hildrwdattries enhgeluit s trtor sefu in tye ta aiporio aabotilraiaracnohdedadeue vaa stnu ao iuupy",
+    "ii f sgfbeoc i aueusegse mice iioired aiacme l  altuldcne e tt noiydseoisbrotdrhavo da s da c orls rrnceotnaou  rds iuu cnrh wesi ol   ekrrl  da lt  haeulosiyodooeb ri aorruenpeoui raneiuenlsddonmobsi eaas a rhebilnbo aefoh sh s  yoraapirraoo smaugushtialw",
+    " doii afsha ar erob an oubiyctlaueiab am auoz  nrd nrurm elpnftgri esareaae hinrua oa hpddr ros wbrrrldaghn er  uwir tatr le l  urihrmsebtuctlieioasensenrtopadc ersfmhlshczvtvslil  uah d   lsbdc mcrgfe esure sbrrtteb daatesoidezscwso evaon lleo crttio achl",
+    "aare sdcedaknofaaeevtp oaa  e gmrleee g r svwgiar amtnore e  ssn is pslgnertt totacfilgdcboa ldp  lra l eelzsls mwidpnessilerve iielrbow lahavsycat er enafrtulloohd scoudr olcdlyly uc ooo  lggeartgsneeriauhiarnvloua rttohiierssflr nsianesndtnyucg ezcst n r",
+    "vifmschnguf asels ll gnivdo eohcniast anhlsslzts  dmlrc amg sleosiac ayph ntuo u ir oclme adlior alersxdeo dnuomefe g rnromcrcd ero worutublldlsebeiestcksbunk tdelds iftlcalesiaas   oeedfhphteaaa ibayroilte  tiaeilua tiegirwe aoti ueaeiop tltyo nt  eyrrout",
+    "gits tasapaho raaae  roiuroentsberd nl  ryeulltn lluoruneli  ay we ihd wlsovn c apsi a e asaci  nvhio cait reto trom ai  o le a e og  uedr roiabe totu esoaeoo  atsislfihar  ht owudl so h i sopnrsalstreghlrealtuoiuemlvtirehudvaocvssntc  ui ed yuigr awt tptd",
+    "i vioyrelss r ebnoo ri i mleicgae   o ael ha stafht t taeghas eoei uanbigtsiu sv  wambimmortesnt  rcrbsafrarede  godfonaraardwe shnir   arenelltiao eitpeyy  k  peebr lep d u nido   utbhefyotbded ppvahemru etlmoivi oaoevotloeiccnildoa tceveu nlpsp   ntw nir"
+  ]
+}

@@ -1,0 +1,104 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+ckpt=DFM/epoch_final.pt  model=DFM  n=256
+         E_seq       subst_0.5  AUC=1.000  |AUC|=1.000
+         E_seq     shuffle_0.5  AUC=0.502  |AUC|=0.502
+         E_seq      valid_perm  AUC=0.499  |AUC|=0.499
+         E_seq            rand  AUC=1.000  |AUC|=1.000
+[retry] E4c:DFM attempt 1/4 failed: no fresh artifact (NVML-swallowed?)
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+ckpt=DFM/epoch_final.pt  model=DFM  n=256
+         E_seq       subst_0.5  AUC=1.000  |AUC|=1.000
+         E_seq     shuffle_0.5  AUC=0.502  |AUC|=0.502
+         E_seq      valid_perm  AUC=0.499  |AUC|=0.499
+         E_seq            rand  AUC=1.000  |AUC|=1.000
+[retry] E4c:DFM attempt 2/4 failed: no fresh artifact (NVML-swallowed?)
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+ckpt=DFM/epoch_final.pt  model=DFM  n=256
+         E_seq       subst_0.5  AUC=1.000  |AUC|=1.000
+         E_seq     shuffle_0.5  AUC=0.502  |AUC|=0.502
+         E_seq      valid_perm  AUC=0.499  |AUC|=0.499
+         E_seq            rand  AUC=1.000  |AUC|=1.000
+[retry] E4c:DFM attempt 3/4 failed: no fresh artifact (NVML-swallowed?)
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+ckpt=DFM/epoch_final.pt  model=DFM  n=256
+         E_seq       subst_0.5  AUC=1.000  |AUC|=1.000
+         E_seq     shuffle_0.5  AUC=0.502  |AUC|=0.502
+         E_seq      valid_perm  AUC=0.499  |AUC|=0.499
+         E_seq            rand  AUC=1.000  |AUC|=1.000
+[retry] E4c:DFM attempt 4/4 failed: no fresh artifact (NVML-swallowed?)
+[failed] E4c:DFM after 4 attempts (last rc=0)
+[run] E4c:DFM: python scripts/eval_ood.py --ckpt runs/sflm_bench_a100_20g_L256/DFM/epoch_final.pt --n 256
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+ckpt=SFLMEBM/epoch_final.pt  model=SFLMEBM  n=256
+         E_seq       subst_0.5  AUC=1.000  |AUC|=0.000
+         E_seq     shuffle_0.5  AUC=0.489  |AUC|=0.511
+         E_seq      valid_perm  AUC=0.499  |AUC|=0.501
+         E_seq            rand  AUC=1.000  |AUC|=0.000
+     U_pos_max       subst_0.5  AUC=0.423  |AUC|=0.423
+     U_pos_max     shuffle_0.5  AUC=0.500  |AUC|=0.500
+     U_pos_max      valid_perm  AUC=0.501  |AUC|=0.501
+     U_pos_max            rand  AUC=0.445  |AUC|=0.445
+    U_pos_mean       subst_0.5  AUC=0.338  |AUC|=0.338
+    U_pos_mean     shuffle_0.5  AUC=0.519  |AUC|=0.519
+    U_pos_mean      valid_perm  AUC=0.492  |AUC|=0.492
+    U_pos_mean            rand  AUC=0.268  |AUC|=0.268
+[retry] E4b:SFLMEBM attempt 1/4 failed: no fresh artifact (NVML-swallowed?)
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+ckpt=SFLMEBM/epoch_final.pt  model=SFLMEBM  n=256
+         E_seq       subst_0.5  AUC=1.000  |AUC|=0.000
+         E_seq     shuffle_0.5  AUC=0.489  |AUC|=0.511
+         E_seq      valid_perm  AUC=0.499  |AUC|=0.501
+         E_seq            rand  AUC=1.000  |AUC|=0.000
+     U_pos_max       subst_0.5  AUC=0.423  |AUC|=0.423
+     U_pos_max     shuffle_0.5  AUC=0.500  |AUC|=0.500
+     U_pos_max      valid_perm  AUC=0.501  |AUC|=0.501
+     U_pos_max            rand  AUC=0.445  |AUC|=0.445
+    U_pos_mean       subst_0.5  AUC=0.338  |AUC|=0.338
+    U_pos_mean     shuffle_0.5  AUC=0.519  |AUC|=0.519
+    U_pos_mean      valid_perm  AUC=0.492  |AUC|=0.492
+    U_pos_mean            rand  AUC=0.268  |AUC|=0.268
+[retry] E4b:SFLMEBM attempt 2/4 failed: no fresh artifact (NVML-swallowed?)
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+ckpt=SFLMEBM/epoch_final.pt  model=SFLMEBM  n=256
+         E_seq       subst_0.5  AUC=1.000  |AUC|=0.000
+         E_seq     shuffle_0.5  AUC=0.489  |AUC|=0.511
+         E_seq      valid_perm  AUC=0.499  |AUC|=0.501
+         E_seq            rand  AUC=1.000  |AUC|=0.000
+     U_pos_max       subst_0.5  AUC=0.423  |AUC|=0.423
+     U_pos_max     shuffle_0.5  AUC=0.500  |AUC|=0.500
+     U_pos_max      valid_perm  AUC=0.501  |AUC|=0.501
+     U_pos_max            rand  AUC=0.445  |AUC|=0.445
+    U_pos_mean       subst_0.5  AUC=0.338  |AUC|=0.338
+    U_pos_mean     shuffle_0.5  AUC=0.519  |AUC|=0.519
+    U_pos_mean      valid_perm  AUC=0.492  |AUC|=0.492
+    U_pos_mean            rand  AUC=0.268  |AUC|=0.268
+[retry] E4b:SFLMEBM attempt 3/4 failed: no fresh artifact (NVML-swallowed?)
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+ckpt=SFLMEBM/epoch_final.pt  model=SFLMEBM  n=256
+         E_seq       subst_0.5  AUC=1.000  |AUC|=0.000
+         E_seq     shuffle_0.5  AUC=0.489  |AUC|=0.511
+         E_seq      valid_perm  AUC=0.499  |AUC|=0.501
+         E_seq            rand  AUC=1.000  |AUC|=0.000
+     U_pos_max       subst_0.5  AUC=0.423  |AUC|=0.423
+     U_pos_max     shuffle_0.5  AUC=0.500  |AUC|=0.500
+     U_pos_max      valid_perm  AUC=0.501  |AUC|=0.501
+     U_pos_max            rand  AUC=0.445  |AUC|=0.445
+    U_pos_mean       subst_0.5  AUC=0.338  |AUC|=0.338
+    U_pos_mean     shuffle_0.5  AUC=0.519  |AUC|=0.519
+    U_pos_mean      valid_perm  AUC=0.492  |AUC|=0.492
+    U_pos_mean            rand  AUC=0.268  |AUC|=0.268
+[retry] E4b:SFLMEBM attempt 4/4 failed: no fresh artifact (NVML-swallowed?)
+[failed] E4b:SFLMEBM after 4 attempts (last rc=0)
+[run] E4b:SFLMEBM: python scripts/eval_ood.py --ckpt runs/sflm_bench_a100_20g_L256/SFLMEBM/epoch_final.pt --n 256
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+DFM  clean_bpc=4.183
+   substitution: AUROC=0.742  (token-substitution (changes histogram))
+        shuffle: AUROC=0.501  (histogram-preserving (order-only); density predicted near-chance)
+         random: AUROC=0.739  (whole-sequence uniform noise)
+  controls (flagged_ood / bpc_mean):
+     const_char: flagged=False  bpc=5.604  auroc_vs_clean=0.420
+     all_spaces: flagged=False  bpc=5.078  auroc_vs_clean=0.317
+     valid_perm: flagged= True  bpc=4.195  auroc_vs_clean=0.503
+wrote runs/sflm_bench_a100_20g_L256/DFM/ood_baselines.json
+[run] E4d:DFM: python scripts/eval_ood_baselines.py --ckpt runs/sflm_bench_a100_20g_L256/DFM/epoch_final.pt --n 128
+[done] E4d:DFM (280.1s, attempt 1/4)

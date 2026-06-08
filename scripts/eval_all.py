@@ -172,7 +172,13 @@ def evaluate(
             if hasattr(model, "elbo_bpc"):
                 bpc = float(model.elbo_bpc(held, n_mc=bpc_mc))
             elif hasattr(model, "bpd"):
-                bpc = float(model.bpd(held, n_mc=bpc_mc))
+                try:
+                    bpc = float(model.bpd(held, n_mc=bpc_mc))
+                except TypeError:
+                    # DirichletFM.bpd() takes no n_mc — and its value is a
+                    # near-clean denoiser artifact anyway (the <0.5 guard below
+                    # demotes it to '—'), so the MC count is irrelevant.
+                    bpc = float(model.bpd(held))
         except (RuntimeError, torch.cuda.OutOfMemoryError) as e:  # pragma: no cover
             print(f"[warn] bpc computation failed for {model_name}: {e}")
             bpc = None

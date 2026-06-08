@@ -1,0 +1,23 @@
+{
+  "model_name": "SFLM",
+  "KL_uni": 0.0425456166267395,
+  "KL_bi": 1.319722056388855,
+  "KL_tri": 5.696150779724121,
+  "H_gen": 2.8609158992767334,
+  "H_gt": 2.8561434745788574,
+  "H_ratio": 1.001670933109752,
+  "per_pos_entropy": 2.6163957118988037,
+  "bpc": null,
+  "generation_metric_valid": false,
+  "collapsed": true,
+  "samples": [
+    "rrtaodigond srssvoerctinw lnoug t ra om ta dtlsmo raheoc oaranhoeeaasnaaoo ouvhe dgvtforoerg entcpt lnst encsftnotmee thsrnd c a tt nhgmrnw ramhi ensf hueantdn ogaef t eyneooatardeeerponft uhsykgaycttmcrcrwli hoh nrioaar iearya tlon  toivhehgeb npif osstob",
+    "i it g icihvey gacmgo r fgeereroehst uaougasantirhe o  fnllosti ptrse dgethesdlnreswt eios essylirtohev lilnlrefmaw nogormshmeuurafou sladlmdqonsaorblreaedteottqotprft saah ewepnsefiignrh htnstoote nr ran taan lsteatnhhhs o nltntda rns nt  sdsmertpwtnohetl",
+    "l  nhtrddsihritocadiao ln ro lrscespire   ttyitrnfoeefsam dhaoo i tdotodm attsosododombrsollla fntotntt ohtdra um ovtwllleo  gvanr  rehthnaaedd tcemnncsgrfygeoefsbem ita  nhta sehhitpihdlndltilo srtgtmso rnaots srgardrrtnoo botho erol eaoett r  rsolhnisnfo",
+    "mo d ravednrrpenoo uismaeal tosors  udittsuiaheahiotepoiutne dlre gh ashusrahdhestnrvcseo r scoise de at eaa  io  rhrnogaaomgmodcc  sod fnrdtntarerieoeeiraotn a dntumel ldduo idl rg uugstdyaongat ope ehntet rnsa r  atsdvroeifse   ebnrtrrwc ntouhhhotals acn",
+    "pwtenrhrta kdsdufbim e tonmetlo gamtsiattg nom rloedpstbsrao hhaeinoagtonctnu i egdnulrhsfo seu rola eersin alnoerie udri oeosgivggts r  nx o t fto edstmsh   ielu ooec ngsoc ho dgbaelpoetthsnvvlbt iuhh th oyi ohsoaoao ttraceroegde   cyriyagmtvuio ii mtnirt",
+    "lal sttegoigrndfunhtne sdt eieodtnrtdnsdddednosgh ntmoatn trlsv ay epfsgnllolatdnltd eehnopwsidlnfchisvo sn lmsivtrhaoegn afvdthoa nr  ahsikiontnesouroemhr tdemmode  ddyn tlaapieendimeyoasspoimrbht  hrimbg edltdc rytvwennsr  rm nsooeon rtmu oa m oinetgtsnt",
+    "uneh vnvhrwwoam n oetdfpd aivrnhyncoafnotrotsemwuinahietntboilvrnehfeehtsn co etooeeatfusnuedesulortoelc poemrbm annwbf s osagtonys  d ntrtrtmtnhceot irairaosv efarhn stnotfilonotevsh rrnwa hssale itrocrcgwm  frhseontrnrs tg dfngtn r rou g  eoh nln vpuot t",
+    " hoa  rtt dwcs ecnredeous gsohatdo e e usiatiresaoya nxrhtoh nhratmactreeonr nog  rnl cr t eordps aito u ht e r gtleud l roroaoi nboobd ahealsteahf iieg s teerfe tl dithsevdrnmdt tonwriegsmehntunndanenltrwsorhpoi oyeetdnomonn mcehddmretacgtusag rnuhahtn co"
+  ]
+}

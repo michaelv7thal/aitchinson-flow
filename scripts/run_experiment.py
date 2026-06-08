@@ -78,18 +78,21 @@ REGISTRY: dict[str, dict] = {
         "notes": "E4a hinge-SVGP @ L256 + corruption-ladder AUROC (shuffle headline).",
     },
     "E4b:SFLMEBM": {
-        "cmd": f"python scripts/eval_ood.py --ckpt {_R}/SFLMEBM/epoch_final.pt --n 256",
+        "cmd": f"python scripts/eval_ood.py --ckpt {_R}/SFLMEBM/epoch_final.pt --n 256 --out {_R}/SFLMEBM/ood_eval.json --no-figure",
         "run_dir": f"{_R}/SFLMEBM", "seeds": [42],
-        "notes": "E4b native-energy OOD; expect shuffle ~0.5 (chance), sign_inverted possible.",
+        "artifact": f"{_R}/SFLMEBM/ood_eval.json",
+        "notes": "E4b native-energy + per-position OOD; expect energy chance on shuffle.",
     },
     "E4c:DFM": {
-        "cmd": f"python scripts/eval_ood.py --ckpt {_R}/DFM/epoch_final.pt --n 256",
+        "cmd": f"python scripts/eval_ood.py --ckpt {_R}/DFM/epoch_final.pt --n 256 --out {_R}/DFM/ood_eval.json --no-figure",
         "run_dir": f"{_R}/DFM", "seeds": [42],
-        "notes": "E4c DFM denoiser-NLL OOD (expect strong seq-level).",
+        "artifact": f"{_R}/DFM/ood_eval.json",
+        "notes": "E4c DFM per-position denoiser-NLL OOD (L-robust; detects shuffle via context).",
     },
     "E4d:DFM": {
         "cmd": f"python scripts/eval_ood_baselines.py --ckpt {_R}/DFM/epoch_final.pt --n 128",
         "run_dir": f"{_R}/DFM", "seeds": [0],
+        "artifact": f"{_R}/DFM/ood_baselines.json",
         "notes": "E4d generative-likelihood OOD baseline + E4e controls.",
     },
     "E4f:hinge_vs_fm": {
@@ -120,7 +123,7 @@ REGISTRY: dict[str, dict] = {
         "notes": "E1 EqMLatent @ L256, 5ep.",
     },
     "E1:SFLM:train": {
-        "cmd": "python scripts/train_for_sflm_bench.py --scale a100_20g_L256 --only SFLM --epochs 5",
+        "cmd": "python scripts/train_for_sflm_bench.py --scale a100_20g_L256 --only SFLM --epochs 20 --force",
         "run_dir": f"{_R}/SFLM", "seeds": [42],
         "notes": "E1 SFLM @ L256, 5ep.",
     },
@@ -152,7 +155,24 @@ REGISTRY: dict[str, dict] = {
     "E4a:sweep": {
         "cmd": f"python scripts/sweep_dfm_svgp_corruption.py --ckpt {_R}/DFM_SVGP/model_with_svgp_hinge.pt --n 500",
         "run_dir": f"{_R}/DFM_SVGP", "seeds": [42],
-        "notes": "E4a corruption-ladder AUROC (hinge model + cfg sibling already on disk; fit was done).",
+        "artifact": f"{_R}/DFM_SVGP/svgp_corruption_sweep.json",
+        "notes": "E4a corruption-ladder AUROC (original; mean-pool SVGP collapsed to 0.5 at L256).",
+    },
+    # SVGP length-collapse fix #3: re-fit Stage-2 with a small fixed lengthscale
+    # (the --lengthscale flag the runbook omitted) so K becomes input-dependent
+    # again → restores per-query std instead of the constant-mean collapse.
+    "E4a:lengthscale": {
+        "cmd": (
+            f"python scripts/fit_dfm_svgp_hinge.py --ckpt {_SVGP} "
+            f"--out-dir {_R}/DFM_SVGP_ls1 --n-epochs 5 --lr 1e-3 --eval-n 500 "
+            f"--seed 42 --lengthscale 1.0 && "
+            f"cp {_SVGP} {_R}/DFM_SVGP_ls1/epoch_final.pt && "
+            f"python scripts/sweep_dfm_svgp_corruption.py "
+            f"--ckpt {_R}/DFM_SVGP_ls1/model_with_svgp_hinge.pt --n 500"
+        ),
+        "run_dir": f"{_R}/DFM_SVGP_ls1", "seeds": [42],
+        "artifact": f"{_R}/DFM_SVGP_ls1/svgp_corruption_sweep.json",
+        "notes": "E4a hinge-SVGP @ L256 with --lengthscale 1.0 (collapse fix #3); shuffle AUROC.",
     },
     # Preliminary early read: the DirichletFM generator already trained inside
     # the L256 SVGP base (10k windows) — quick KL_bi check vs Discrete-FM's 1.61.
@@ -249,30 +269,40 @@ def run_experiment(exp_id: str, *, force: bool = False) -> int:
     cmd = spec["cmd"]
     print(f"[run] {exp_id}: {cmd}")
 
-    rc, wall = _run_cmd(cmd)
-    if rc != 0:
-        # Retry exactly once before recording a failure.
-        print(f"[retry] {exp_id} exited {rc}; retrying once", file=sys.stderr)
+    # MIG NVML resilience: this A100 MIG slice's CUDA allocator asserts
+    # intermittently (NVML_SUCCESS == r) on a fresh cudaMalloc — NOT an OOM —
+    # and some scripts swallow it and exit 0 having written NOTHING. So retry
+    # up to `max_attempts`, and require rc==0 AND (when the spec declares an
+    # `artifact`) a FRESH, non-empty artifact on disk. Clean runs happen often,
+    # so this converges.
+    max_attempts = int(spec.get("max_attempts", 4))
+    artifact = spec.get("artifact")
+    rc, wall_total = 1, 0.0
+    for attempt in range(1, max_attempts + 1):
+        t0 = time.time()
         rc, wall = _run_cmd(cmd)
-
-    if rc == 0:
-        manifest.append(
-            _record(exp_id, spec, status="done", wall_time_s=wall, notes=spec.get("notes", ""))
-        )
-        print(f"[done] {exp_id} ({wall:.1f}s)")
-        return 0
+        wall_total += wall
+        art_ok = True
+        if artifact is not None:
+            p = Path(artifact)
+            art_ok = p.exists() and p.stat().st_size > 0 and p.stat().st_mtime >= t0 - 1
+        if rc == 0 and art_ok:
+            manifest.append(
+                _record(exp_id, spec, status="done", wall_time_s=wall_total, notes=spec.get("notes", ""))
+            )
+            print(f"[done] {exp_id} ({wall_total:.1f}s, attempt {attempt}/{max_attempts})")
+            return 0
+        reason = f"rc={rc}" if rc != 0 else "no fresh artifact (NVML-swallowed?)"
+        print(f"[retry] {exp_id} attempt {attempt}/{max_attempts} failed: {reason}", file=sys.stderr)
 
     manifest.append(
         _record(
-            exp_id,
-            spec,
-            status="failed",
-            wall_time_s=wall,
-            notes=f"exit code {rc} after retry; {spec.get('notes', '')}".strip(),
+            exp_id, spec, status="failed", wall_time_s=wall_total,
+            notes=f"failed after {max_attempts} attempts (last rc={rc}); {spec.get('notes', '')}".strip(),
         )
     )
-    print(f"[failed] {exp_id} exit code {rc} (after retry)", file=sys.stderr)
-    return rc
+    print(f"[failed] {exp_id} after {max_attempts} attempts (last rc={rc})", file=sys.stderr)
+    return rc if rc != 0 else 1
 
 
 def _smoke() -> int:

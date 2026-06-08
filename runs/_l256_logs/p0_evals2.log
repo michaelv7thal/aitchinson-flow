@@ -75,3 +75,70 @@ ckpt=SFLMEBM/epoch_final.pt  model=SFLMEBM  n=256
 [run] E4b:SFLMEBM: python scripts/eval_ood.py --ckpt runs/sflm_bench_a100_20g_L256/SFLMEBM/epoch_final.pt --n 256
 [done] E4b:SFLMEBM (162.8s)
 Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+== A: FM + hinge ==
+[load] FM backbone matched 129/129 dfm.* params (100%)
+[A_fm_hinge] final_hinge=0.280  shuffle={'0.3': 0.847, '0.5': 0.935, '1.0': 0.984}
+== B: random + hinge ==
+[B_rand_hinge] final_hinge=1.116  shuffle={'0.3': 0.502, '0.5': 0.492, '1.0': 0.507}
+== C: end-to-end hinge ==
+Traceback (most recent call last):
+  File "/home/renku/work/aitchinson-flow/scripts/ablate_hinge_vs_fm.py", line 393, in <module>
+    raise SystemExit(main())
+                     ~~~~^^
+  File "/home/renku/work/aitchinson-flow/scripts/ablate_hinge_vs_fm.py", line 323, in main
+    _run_hinge_arm("C_e2e_hinge", False, True)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/renku/work/aitchinson-flow/scripts/ablate_hinge_vs_fm.py", line 305, in _run_hinge_arm
+    fh = _hinge_train(model, clean_tr, K, backbone=backbone, **common)
+  File "/home/renku/work/aitchinson-flow/scripts/ablate_hinge_vs_fm.py", line 131, in _hinge_train
+    e_n = model.energy_head(_pool(model, neg, t, grad=True)).squeeze(-1)
+                            ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/renku/work/aitchinson-flow/scripts/ablate_hinge_vs_fm.py", line 72, in _pool
+    h = model.get_hidden_states(x_t, t)
+  File "/home/renku/work/aitchinson-flow/src/aitchinson_flow/models/dirichlet_fm_svgp.py", line 229, in get_hidden_states
+    return self.dfm.backbone(x_t, t_norm)
+           ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/home/renku/work/aitchinson-flow/.venv/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1779, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/home/renku/work/aitchinson-flow/.venv/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1790, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/renku/work/aitchinson-flow/src/aitchinson_flow/transformer_backbone.py", line 232, in forward
+    return self.transformer(h)
+           ~~~~~~~~~~~~~~~~^^^
+  File "/home/renku/work/aitchinson-flow/.venv/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1779, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/home/renku/work/aitchinson-flow/.venv/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1790, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/renku/work/aitchinson-flow/.venv/lib/python3.13/site-packages/torch/nn/modules/transformer.py", line 540, in forward
+    output = mod(
+        output,
+    ...<2 lines>...
+        src_key_padding_mask=src_key_padding_mask_for_layers,
+    )
+  File "/home/renku/work/aitchinson-flow/.venv/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1779, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/home/renku/work/aitchinson-flow/.venv/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1790, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/renku/work/aitchinson-flow/.venv/lib/python3.13/site-packages/torch/nn/modules/transformer.py", line 950, in forward
+    x = x + self._ff_block(self.norm2(x))
+            ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "/home/renku/work/aitchinson-flow/.venv/lib/python3.13/site-packages/torch/nn/modules/transformer.py", line 981, in _ff_block
+    x = self.linear2(self.dropout(self.activation(self.linear1(x))))
+                     ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/renku/work/aitchinson-flow/.venv/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1779, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/home/renku/work/aitchinson-flow/.venv/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1790, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/renku/work/aitchinson-flow/.venv/lib/python3.13/site-packages/torch/nn/modules/dropout.py", line 73, in forward
+    return F.dropout(input, self.p, self.training, self.inplace)
+           ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/renku/work/aitchinson-flow/.venv/lib/python3.13/site-packages/torch/nn/functional.py", line 1443, in dropout
+    _VF.dropout_(input, p, training) if inplace else _VF.dropout(input, p, training)
+                                                     ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+RuntimeError: NVML_SUCCESS == r INTERNAL ASSERT FAILED at "/pytorch/c10/cuda/CUDACachingAllocator.cpp":1165, please report a bug to PyTorch. 
+[retry] E4f:hinge_vs_fm exited 1; retrying once
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.

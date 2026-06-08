@@ -220,6 +220,11 @@ def _model_cfg(name: str, epochs: int, scale: str, *, out_dir: str | None = None
             lambda_fm=1.0, lambda_hinge=0.0,
         )
     elif name == "SFLM":
+        # NB: the uniform/alpha_hi=1.0 schedule was TRIED (hypothesis: under-
+        # supervised near-noise) and REGRESSED generation (KL_bi 1.33→1.74) —
+        # the import schedule's near-clean concentration matters more. Reverted
+        # to defaults; the real lever is training budget (epochs), as
+        # DirichletFM showed (5ep 1.54 → 20ep 0.33).
         cfg.sflm = replace(cfg.sflm, d_embed=D_EMBED)
     elif name == "EqM":
         # Tuned simplex-EqM recipe (runs/dphase4_lambda_recalib): needs

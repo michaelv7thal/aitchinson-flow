@@ -1,0 +1,94 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[stage 2 hinge] training SVGP via contrastive hinge
+  ckpt:      runs/dfm_svgp_L256/epoch_final.pt
+  n_epochs:  5
+  lr:        0.001
+  t_eval:    4.5
+  margin:    2.0
+  train_pooler: True
+  [hinge] step    1  hinge=2.0000  E_clean=-0.0000  E_invalid=-0.0000  gap=+0.0000
+  [hinge] step   20  hinge=1.9814  E_clean=+0.0190  E_invalid=+0.0190  gap=+0.0000
+  [hinge] step   40  hinge=1.9628  E_clean=+0.0387  E_invalid=+0.0387  gap=+0.0000
+  [hinge] step   60  hinge=1.9453  E_clean=+0.0580  E_invalid=+0.0580  gap=+0.0000
+  [hinge] step   80  hinge=1.9289  E_clean=+0.0770  E_invalid=+0.0770  gap=+0.0000
+  [hinge] step  100  hinge=1.9136  E_clean=+0.0955  E_invalid=+0.0955  gap=+0.0000
+  [hinge] step  120  hinge=1.8993  E_clean=+0.1136  E_invalid=+0.1136  gap=+0.0000
+  [hinge] step  140  hinge=1.8860  E_clean=+0.1312  E_invalid=+0.1312  gap=+0.0000
+  [hinge] step  160  hinge=1.8736  E_clean=+0.1484  E_invalid=+0.1484  gap=+0.0000
+  [hinge] step  180  hinge=1.8621  E_clean=+0.1651  E_invalid=+0.1651  gap=+0.0000
+  [hinge] step  200  hinge=1.8515  E_clean=+0.1814  E_invalid=+0.1814  gap=+0.0000
+  [hinge] step  220  hinge=1.8417  E_clean=+0.1972  E_invalid=+0.1972  gap=+0.0000
+  [hinge] step  240  hinge=1.8326  E_clean=+0.2126  E_invalid=+0.2126  gap=+0.0000
+  [hinge] step  260  hinge=1.8243  E_clean=+0.2275  E_invalid=+0.2275  gap=+0.0000
+  [hinge] step  280  hinge=1.8166  E_clean=+0.2419  E_invalid=+0.2419  gap=+0.0000
+  [hinge] step  300  hinge=1.8096  E_clean=+0.2559  E_invalid=+0.2559  gap=+0.0000
+  [hinge] step  320  hinge=1.8032  E_clean=+0.2694  E_invalid=+0.2694  gap=+0.0000
+  [hinge] step  340  hinge=1.7973  E_clean=+0.2824  E_invalid=+0.2824  gap=+0.0000
+  [hinge] step  360  hinge=1.7920  E_clean=+0.2950  E_invalid=+0.2950  gap=+0.0000
+  [hinge] step  380  hinge=1.7872  E_clean=+0.3071  E_invalid=+0.3071  gap=+0.0000
+  [hinge] step  400  hinge=1.7829  E_clean=+0.3187  E_invalid=+0.3187  gap=+0.0000
+  [hinge] step  420  hinge=1.7790  E_clean=+0.3298  E_invalid=+0.3298  gap=+0.0000
+  [hinge] step  440  hinge=1.7754  E_clean=+0.3405  E_invalid=+0.3405  gap=+0.0000
+  [hinge] step  460  hinge=1.7723  E_clean=+0.3507  E_invalid=+0.3507  gap=+0.0000
+  [hinge] step  480  hinge=1.7695  E_clean=+0.3605  E_invalid=+0.3605  gap=+0.0000
+  [hinge] step  500  hinge=1.7669  E_clean=+0.3698  E_invalid=+0.3698  gap=+0.0000
+  [hinge] step  520  hinge=1.7647  E_clean=+0.3787  E_invalid=+0.3787  gap=+0.0000
+  [hinge] step  540  hinge=1.7627  E_clean=+0.3871  E_invalid=+0.3871  gap=+0.0000
+  [hinge] step  560  hinge=1.7610  E_clean=+0.3952  E_invalid=+0.3952  gap=+0.0000
+  [hinge] step  580  hinge=1.7595  E_clean=+0.4027  E_invalid=+0.4027  gap=+0.0000
+  [hinge] step  600  hinge=1.7581  E_clean=+0.4099  E_invalid=+0.4099  gap=+0.0000
+  [hinge] step  620  hinge=1.7569  E_clean=+0.4167  E_invalid=+0.4167  gap=+0.0000
+  [hinge] step  640  hinge=1.7559  E_clean=+0.4231  E_invalid=+0.4231  gap=+0.0000
+  [hinge] step  660  hinge=1.7550  E_clean=+0.4291  E_invalid=+0.4291  gap=+0.0000
+  [hinge] step  680  hinge=1.7543  E_clean=+0.4348  E_invalid=+0.4348  gap=+0.0000
+  [hinge] step  700  hinge=1.7536  E_clean=+0.4401  E_invalid=+0.4401  gap=+0.0000
+  [hinge] step  720  hinge=1.7530  E_clean=+0.4451  E_invalid=+0.4451  gap=+0.0000
+  [hinge] step  740  hinge=1.7525  E_clean=+0.4497  E_invalid=+0.4497  gap=+0.0000
+  [hinge] step  760  hinge=1.7521  E_clean=+0.4540  E_invalid=+0.4540  gap=+0.0000
+  [hinge] step  780  hinge=1.7518  E_clean=+0.4581  E_invalid=+0.4581  gap=+0.0000
+[stage 2 hinge] done. n_steps=785  final_hinge=1.7517
+  positive  mean(std)=1.4142  mean(prob)=0.605
+  [      scrambled] mean(std)=1.4142  AUROC(std)=0.5000  AUROC(-prob)=0.5000
+  [ random_simplex] mean(std)=1.4142  AUROC(std)=0.5000  AUROC(-prob)=0.5000
+
+Wrote runs/sflm_bench_a100_20g_L256/DFM_SVGP_ls1/svgp_hinge_eval.json
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+positive_val (n=500)  mean(prob)=0.6045
+
+    scheme   rate  mean_prob  AUROC(prob,OOD)
+    ------   ----  ---------  ---------------
+   replace   0.10     0.6045           0.5000
+   replace   0.20     0.6045           0.5000
+   replace   0.30     0.6045           0.5000
+   replace   0.40     0.6045           0.5000
+   replace   0.50     0.6045           0.5000
+   replace   0.60     0.6045           0.5000
+   replace   0.70     0.6045           0.5000
+   replace   0.80     0.6045           0.5000
+   replace   0.90     0.6045           0.5000
+   replace   1.00     0.6045           0.5000
+   shuffle   0.10     0.6045           0.5000
+   shuffle   0.20     0.6045           0.5000
+   shuffle   0.30     0.6045           0.5000
+   shuffle   0.40     0.6045           0.5000
+   shuffle   0.50     0.6045           0.5000
+   shuffle   0.60     0.6045           0.5000
+   shuffle   0.70     0.6045           0.5000
+   shuffle   0.80     0.6045           0.5000
+   shuffle   0.90     0.6045           0.5000
+   shuffle   1.00     0.6045           0.5000
+      both   0.10     0.6045           0.5000
+      both   0.20     0.6045           0.5000
+      both   0.30     0.6045           0.5000
+      both   0.40     0.6045           0.5000
+      both   0.50     0.6045           0.5000
+      both   0.60     0.6045           0.5000
+      both   0.70     0.6045           0.5000
+      both   0.80     0.6045           0.5000
+      both   0.90     0.6045           0.5000
+      both   1.00     0.6045           0.5000
+
+Wrote runs/sflm_bench_a100_20g_L256/DFM_SVGP_ls1/svgp_corruption_sweep.json
+Wrote runs/sflm_bench_a100_20g_L256/DFM_SVGP_ls1/svgp_corruption_sweep.png
+[run] E4a:lengthscale: python scripts/fit_dfm_svgp_hinge.py --ckpt runs/dfm_svgp_L256/epoch_final.pt --out-dir runs/sflm_bench_a100_20g_L256/DFM_SVGP_ls1 --n-epochs 5 --lr 1e-3 --eval-n 500 --seed 42 --lengthscale 1.0 && cp runs/dfm_svgp_L256/epoch_final.pt runs/sflm_bench_a100_20g_L256/DFM_SVGP_ls1/epoch_final.pt && python scripts/sweep_dfm_svgp_corruption.py --ckpt runs/sflm_bench_a100_20g_L256/DFM_SVGP_ls1/model_with_svgp_hinge.pt --n 500
+[done] E4a:lengthscale (1783.3s, attempt 1/4)
