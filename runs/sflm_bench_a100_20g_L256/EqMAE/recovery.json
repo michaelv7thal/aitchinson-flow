@@ -1,0 +1,207 @@
+{
+  "rows": [
+    {
+      "mode": "score_reference",
+      "energy": {
+        "mean": -5014.94970703125,
+        "std": 35.491031646728516,
+        "min": -5101.41162109375,
+        "max": -4873.30224609375
+      },
+      "grad_norm": {
+        "mean": 70.5856704711914,
+        "std": 0.772255539894104,
+        "min": 68.77401733398438,
+        "max": 73.97266387939453
+      },
+      "curvature": {
+        "mean": -9676.599609375,
+        "std": 173.65142822265625,
+        "min": -10439.5947265625,
+        "max": -9200.716796875
+      }
+    },
+    {
+      "mode": "unconditional",
+      "alpha": null,
+      "KL_uni": 0.06274387985467911,
+      "KL_bi": 2.740163803100586,
+      "KL_tri": 6.171955585479736,
+      "H_gen": 2.5753040313720703,
+      "samples": [
+        " eiechtiu hroiiwnoee s ni olg mad t  a e n uii nd  aoehan  tmepesgmthnioi a   o oesreiop o  in etrcted rtslbt d i e a eoe g i renir    dttie  nmiec nr tdl astt d h o noi ittc  ttevo pdvst da ii  hnataaret anaore entcainet  n  nrn  og me aoxlo e    fsa ei  ",
+        "  eesieseeeeteyae   e ii ti s rsa  rtrur  tt  lba alc arntert ifeaegchi  rrsn r sea h  ai tnrnlntieastinfaoh ttue  n hr  zy  ea eoeeo re ru b oera ioi seeen kh s  lrnwu  eiari   yte  meetunl da er hfiitdods eetdtriu inros o aa ot jfe  ooca  eaihsa   leefve",
+        "tiiesfg pesenheeh begiu  wr tni r tm a q ap arfenine  oelelteeh   sd g ces  eiiina ntl iul  ah  p  ioe  m  ieaet    af eul e  ape rwm  a nke cth sdn r acn r teroiselteowitorce mofra n amte t  hsyi phinr ngnssrwoer oioaeg he asl er c  uiios aofhvroey e  em ",
+        "ctrm iyeucrogm  o  h ot e e antt  n ic n   iiv  neo ra  eu t nka lmoih ar m smd  b ie boiau o om emtueige v csre m ncx c cieshtnwt i irn  rf dd  n a r eba     ainvi eeoe i be  eq i  ta oaieo  e ih hicvw vta c  aer  noi eofev ksb  tge t isq entkahk xileoa e"
+      ],
+      "energy": {
+        "mean": -6304.93408203125,
+        "std": 1369.5382080078125,
+        "min": -13498.52734375,
+        "max": -5333.44921875
+      },
+      "grad_norm": {
+        "mean": 86.93060302734375,
+        "std": 29.82474136352539,
+        "min": 45.988670349121094,
+        "max": 153.31825256347656
+      },
+      "curvature": {
+        "mean": -10401.302734375,
+        "std": 6255.5537109375,
+        "min": -12597.810546875,
+        "max": 29762.021484375
+      }
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.1,
+      "sigma_perturb": 0.3986245393753052,
+      "KL_bi": 0.03231256827712059,
+      "token_acc": 1.0,
+      "token_acc_perturbed": 1.0,
+      "delta": 0.0,
+      "gt_sample0": "e the capital of one government after another one of such governments was established in one eight six four as a second mexican empire the short lived monarchy led by maximilian of habsburg left its mark on the reconstruction of chapultepec castle and othe",
+      "perturbed_sample0": "e the capital of one government after another one of such governments was established in one eight six four as a second mexican empire the short lived monarchy led by maximilian of habsburg left its mark on the reconstruction of chapultepec castle and othe",
+      "rc_sample0": "e the capital of one government after another one of such governments was established in one eight six four as a second mexican empire the short lived monarchy led by maximilian of habsburg left its mark on the reconstruction of chapultepec castle and othe",
+      "energy": {
+        "mean": -6516.26611328125,
+        "std": 29.68058204650879,
+        "min": -6646.5673828125,
+        "max": -6454.8330078125
+      },
+      "grad_norm": {
+        "mean": 27.053701400756836,
+        "std": 2.6387274265289307,
+        "min": 21.307640075683594,
+        "max": 34.880653381347656
+      },
+      "curvature": {
+        "mean": -1866.5701904296875,
+        "std": 77.62812042236328,
+        "min": -2068.9814453125,
+        "max": -1656.584228515625
+      }
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.3,
+      "sigma_perturb": 1.1958736181259155,
+      "KL_bi": 0.24338176846504211,
+      "token_acc": 0.8795166015625,
+      "token_acc_perturbed": 0.8867645263671875,
+      "delta": -0.0072479248046875,
+      "gt_sample0": "e the capital of one government after another one of such governments was established in one eight six four as a second mexican empire the short lived monarchy led by maximilian of habsburg left its mark on the reconstruction of chapultepec castle and othe",
+      "perturbed_sample0": "e the capitaleofoonv gover tent ofter another lnr oaxsucl goeealmints wae estyblished i  ine eight s xefgur az e second mexican  mpireithe short  ived monarchy l d by maximiliat of haasburg left its dxrk on the eeconstructryn of chapultepes castle and othe",
+      "rc_sample0": "e the capitaloofoone governtent ofter another lnc onxsucl goeellcints was established in one eight s xefour az e second mexisan lmpireithe short  ived mtnarchy l d byimaximiliat of haasburg left its dxrk on the eeconltructryn of chapeltepes castle and othe",
+      "energy": {
+        "mean": -8655.068359375,
+        "std": 226.46119689941406,
+        "min": -9250.5205078125,
+        "max": -8101.5029296875
+      },
+      "grad_norm": {
+        "mean": 59.4640998840332,
+        "std": 2.5606346130371094,
+        "min": 52.7568244934082,
+        "max": 65.23614501953125
+      },
+      "curvature": {
+        "mean": -1928.8980712890625,
+        "std": 40.635414123535156,
+        "min": -2055.554931640625,
+        "max": -1821.6822509765625
+      }
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.5,
+      "sigma_perturb": 1.9931226968765259,
+      "KL_bi": 0.8907129764556885,
+      "token_acc": 0.5408935546875,
+      "token_acc_perturbed": 0.5496368408203125,
+      "delta": -0.0087432861328125,
+      "gt_sample0": "e the capital of one government after another one of such governments was established in one eight six four as a second mexican empire the short lived monarchy led by maximilian of habsburg left its mark on the reconstruction of chapultepec castle and othe",
+      "perturbed_sample0": "a xhu f  etap oicfne aovhr qont idiezteglehefsoneclfanudhtnovdrncrnqsrwxspesnablisvedjin  neaeig  asyx fyul g  f steotdimexioa  eo ivgztha spoat lihsdtr nirchycl dlbskrcormilcvlz f dabtbulg left et  syr cc  the vecocstructzehsla c ave aepewocdseoe andibtha",
+      "rc_sample0": "i b o f  etap oisfne aovgroqont idieztenlehejeonecafasudhinovdoncrnqsriasgesnablishedjin  neaeig tasih fyur go f steotdimexiot seo idgztha spoat lihsdtr narchyslgdlhs raormilcvlu ficabtbileuleft et  syr cc  the recocstructzehslg otaie aepewocdseoe andibihg",
+      "energy": {
+        "mean": -11978.869140625,
+        "std": 170.2957000732422,
+        "min": -12571.333984375,
+        "max": -11571.31640625
+      },
+      "grad_norm": {
+        "mean": 64.15939331054688,
+        "std": 1.3537226915359497,
+        "min": 59.99768829345703,
+        "max": 68.19810485839844
+      },
+      "curvature": {
+        "mean": -1373.403564453125,
+        "std": 25.482248306274414,
+        "min": -1437.2462158203125,
+        "max": -1298.8970947265625
+      }
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.7,
+      "sigma_perturb": 2.7903717756271362,
+      "KL_bi": 1.3274009227752686,
+      "token_acc": 0.3499298095703125,
+      "token_acc_perturbed": 0.3506927490234375,
+      "delta": -0.000762939453125,
+      "gt_sample0": "e the capital of one government after another one of such governments was established in one eight six four as a second mexican empire the short lived monarchy led by maximilian of habsburg left its mark on the reconstruction of chapultepec castle and othe",
+      "perturbed_sample0": "t a e lalixacisf onm nome   etqyafxerrrgo hdv vdihonjstcebgovbrnmehtn v ckusjlzlisee jiddovt vrshtdsiaedver f  iisxck dsigeirhwv brsrvesennsakr vsimwxuzwta coc avn nynjai iiliae  f hrbsb ra lextlbdostcukehr paehrneovotd crhb  fyuc tpqrslsvc vntt ecasdoonhu",
+      "rc_sample0": "a a e calixacish onm noge b ettaafcelzwgo hdv  aihonjstcebgoab nmehtn h ckesjlzlisee jiidwvt vizhtdgaaedver i eiisxca dsieeirhiv brsce senneazrz simwxuzyta coy lvn nanzai iiliae of hrbebira leetlxdosscwkihr paehrneovotd crhb  oauc tpprllsvc ontt ecafioonhu",
+      "energy": {
+        "mean": -14709.1591796875,
+        "std": 199.53968811035156,
+        "min": -15286.7392578125,
+        "max": -14215.421875
+      },
+      "grad_norm": {
+        "mean": 61.41362380981445,
+        "std": 1.369964838027954,
+        "min": 57.82598876953125,
+        "max": 64.98246002197266
+      },
+      "curvature": {
+        "mean": -1082.826171875,
+        "std": 21.222694396972656,
+        "min": -1141.506103515625,
+        "max": -1021.9708251953125
+      }
+    },
+    {
+      "mode": "recovery",
+      "alpha": 1.0,
+      "sigma_perturb": 3.9862453937530518,
+      "KL_bi": 1.7029595375061035,
+      "token_acc": 0.218048095703125,
+      "token_acc_perturbed": 0.2164306640625,
+      "delta": 0.001617431640625,
+      "gt_sample0": "e the capital of one government after another one of such governments was established in one eight six four as a second mexican empire the short lived monarchy led by maximilian of habsburg left its mark on the reconstruction of chapultepec castle and othe",
+      "perturbed_sample0": "ewtehhgdeedalnoazz asnetannmacnobfu jnw lthaqooakqsz rurw qovlnl larcc fi dsdaocvhhpd  ldsgglvpooalc clfoirnfnu gswmclsr lsgyfaufhadbhxmheoogzeg rfnlanflehsmfo lkadho hxrikqtikn nmp pgiuzwt vozoaikw lelkcru tv    x  uopusnvctu g l cpiamtrcxbcf  lewavxmh hi",
+      "rc_sample0": "ewbehhgdeedalnoazz asnetannnacnobfu fnw lthagooakuozlrutw qovnnl laroc fi dsoaoavhhpd  ldhggdv ooalc clfoir fnu gewiclsr lsgyfaufhhdbhxmheoogzeg rfnlacflehstfo lkadho hxrikqtikn nmp pgiuzwtlvozoaitf lelkiru tv o  x  uopucyfctu g l cpinmcmctico  leaavooh hi",
+      "energy": {
+        "mean": -18992.619140625,
+        "std": 219.2538299560547,
+        "min": -19718.8046875,
+        "max": -18548.59765625
+      },
+      "grad_norm": {
+        "mean": 58.08699035644531,
+        "std": 1.1720870733261108,
+        "min": 55.04875564575195,
+        "max": 60.88850402832031
+      },
+      "curvature": {
+        "mean": -839.4617919921875,
+        "std": 17.578857421875,
+        "min": -886.524658203125,
+        "max": -787.0189208984375
+      }
+    }
+  ]
+}

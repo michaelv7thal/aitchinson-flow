@@ -1,0 +1,26 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+=== Unconditional generation ===
+  KL_uni=0.0671  KL_bi=1.4439  KL_tri=6.6651  H_gen=2.7748
+  sample[0]: ' lt ebft ultehuob asnluah opon dothelwli'
+  sample[1]: ' tsntcav u teasnc neavsievotovfa shee ra'
+
+=== Recovery from perturbation ===
+  embed_norm_mean=12.2723  σ_source=0.1000
+    α  σ_perturb        Δ  tok_acc tok_acc_pt    KL_bi  sample[0]: gt / pt / rc
+ 0.10      1.227  -0.0088   0.9912     1.0000   0.1223  gt='e the capital of one government after an'
+                                             pt='e the capital of one government after an'
+                                             rc='e the capital of one government after an'
+ 0.30      3.682  -0.0111   0.8821     0.8933   0.5973  gt='e the capital of one government after an'
+                                             pt='e the cajitpu of one govbrxment afqer an'
+                                             rc='e the ca itpu of one govbrxment af er an'
+ 0.50      6.136   0.0013   0.5242     0.5229   2.8867  gt='e the capital of one government after an'
+                                             pt='k thezclphral of zni goyrrnmeltr ster an'
+                                             rc='k thezcnphka  of zni g yrrnmeokp ster an'
+ 0.70      8.591   0.0016   0.3243     0.3228   4.8130  gt='e the capital of one government after an'
+                                             pt='yvnhve vwitiorbfybtk gwveggmvnovokirrihv'
+                                             rc='b  hva vwiyior  ybtk g vao izkpxokiuz hv'
+ 1.00     12.272   0.0043   0.1914     0.1871   5.0947  gt='e the capital of one government after an'
+                                             pt='x rhihfckmtal cbyuxvsgecbdqecnteafteozmj'
+                                             rc='x rzihzc mtal anyexvssecbzqe ptekftiozmj'
+
+Wrote runs/sflm_bench_local/EqM_OneHot/recovery.json

@@ -1,0 +1,29 @@
+{
+  "model_name": "FMonCLR",
+  "model_class": "FMonCLR",
+  "L": 40,
+  "epoch": 10,
+  "n_samples": 256,
+  "sample_steps": 200,
+  "split": "test",
+  "KL_uni": 0.00662438478320837,
+  "KL_bi": 0.4698089361190796,
+  "KL_tri": 3.430405378341675,
+  "H_gen": 2.846385955810547,
+  "H_gt": 2.8483986854553223,
+  "H_ratio": 0.9992933820482881,
+  "per_pos_entropy": 2.792222499847412,
+  "bpc": null,
+  "generation_metric_valid": false,
+  "collapsed": false,
+  "samples": [
+    "rp ivpha xmaco t tslasondrploderthvmys s",
+    " enenus buose oolitron slatlilleed ww hi",
+    "acipiad eruster pitedw eere here oc tath",
+    "nonkrlyestragis g eo otolgt jthe deifis ",
+    " atines ale ostaetetolansusthisohe nntpi",
+    "s itharen feiin lnd ctncthebgegs thodiom",
+    "e ile upe under oplerapd rden s is iagro",
+    " e dolbp tate d fosklokdanis te hleapoha"
+  ]
+}

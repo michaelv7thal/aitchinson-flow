@@ -1,0 +1,7 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+EqMAE  KL_uni=0.0593  KL_bi=2.3343  KL_tri=7.1426  H_ratio=0.910  per_pos_H=2.471  bpc=—  valid=False  collapsed=False
+  'b  h hut  ojiieahcre ysonac emurld e eat'
+  'smat drriaief snh mtah   ceotgihir sne h'
+  'eridenh  strro reerieeo  nt  rlntaol t  '
+  'ar nsi eae cogrlaeta   nna tls g irtamme'
+wrote runs/sflm_bench_local/EqMAE/eval_all.json

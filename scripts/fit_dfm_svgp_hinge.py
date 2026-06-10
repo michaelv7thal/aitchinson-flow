@@ -76,6 +76,11 @@ def main() -> int:
                          "training (default √d_embed). Use a smaller value "
                          "(e.g. 1.0) with small d_embed to get input-dependent "
                          "std for OOD detection.")
+    ap.add_argument("--pooling", type=str, default=None,
+                    choices=["mean", "max", "attention"],
+                    help="override cfg.dfm_svgp.pooling (sequence pooler mode). "
+                         "attention pools by attending to anomalous positions "
+                         "instead of averaging them away (helps at long L).")
     args = ap.parse_args()
 
     out_dir = Path(args.out_dir or Path(args.ckpt).parent)
@@ -87,32 +92,63 @@ def main() -> int:
     from dataclasses import replace as _replace
     if args.d_embed is not None:
         cfg.dfm_svgp = _replace(cfg.dfm_svgp, d_embed=int(args.d_embed))
+    if args.pooling is not None:
+        cfg.dfm_svgp = _replace(cfg.dfm_svgp, pooling=args.pooling)
+
+    # The SVGP head (DirichletFMSvgp) wraps an inner DirichletFlowMatching
+    # ("Dirichlet FM", Stark et al. 2024) as self.dfm. It is NOT Discrete FM
+    # (the "DFM" arm = DiscreteFlowMatching) — different architecture; never
+    # conflate them. Given a *plain* DirichletFM checkpoint we wrap it and load
+    # its weights into self.dfm; pooler/SVGP/energy_head are fresh (Stage 2).
+    ckpt_model = cfg.training.model_name
+    from_plain_dfm = ckpt_model != "DirichletFMSvgp"
+    if from_plain_dfm and ckpt_model != "DirichletFM":
+        raise SystemExit(
+            f"--ckpt is a '{ckpt_model}' checkpoint. The SVGP head only attaches "
+            f"to DirichletFM (DirichletFlowMatching) or an existing DirichletFMSvgp. "
+            f"Refusing to wrap '{ckpt_model}'. NOTE: the 'DFM' arm is Discrete FM "
+            f"(DiscreteFlowMatching) — a different model; do not use it here."
+        )
+    if from_plain_dfm:
+        cfg.training = _replace(cfg.training, model_name="DirichletFMSvgp")
     device = cfg.training.device
     torch.manual_seed(args.seed)
 
     model = build_model(cfg).to(device)
     state = payload["model_state_dict"] if "model_state_dict" in payload else payload
-    # If d_embed differs from the saved checkpoint, drop pooler/SVGP/
-    # energy_head keys so the rebuild gets a fresh init at the new size.
-    if args.d_embed is not None:
-        drop = tuple(k for k in state if k.startswith(("pooler.", "svgp.", "energy_head."))
-                     and any(d in (args.d_embed,) for d in []))  # placeholder for shape check
-    drop_prefixes = ("pooler.", "svgp.", "energy_head.")
-    filtered_state = {}
-    for k, v in state.items():
-        if k.startswith(drop_prefixes):
-            # Check size mismatch against current model param/buffer
-            try:
-                target = dict(model.state_dict())[k]
-                if target.shape != v.shape:
-                    if args.d_embed is not None:
-                        continue  # silent drop in expected re-init case
-                    raise RuntimeError(f"unexpected shape mismatch on {k}: "
-                                       f"{tuple(v.shape)} vs {tuple(target.shape)}")
-            except KeyError:
-                continue
-        filtered_state[k] = v
-    model.load_state_dict(filtered_state, strict=False)
+    if from_plain_dfm:
+        # Load the trained DirichletFM weights into the inner submodule only
+        # (avoids gpytorch's partial-load hook choking on absent svgp.* keys).
+        # Require an EXACT match so an incompatible/wrong checkpoint fails loudly
+        # instead of silently leaving the backbone randomly initialised.
+        miss, unexp = model.dfm.load_state_dict(state, strict=False)
+        if miss or unexp:
+            raise SystemExit(
+                f"DirichletFM weights did not load cleanly into model.dfm "
+                f"(missing={len(miss)} unexpected={len(unexp)}) — the checkpoint is "
+                f"likely not a DirichletFM. missing[:5]={list(miss)[:5]} "
+                f"unexpected[:5]={list(unexp)[:5]}"
+            )
+        print(f"[from plain DirichletFM] loaded {len(state)} tensors into model.dfm "
+              f"(exact match, 0 missing / 0 unexpected).")
+    else:
+        # Existing path: checkpoint is already a DirichletFMSvgp. If d_embed
+        # differs, drop shape-mismatched pooler/SVGP/energy_head keys.
+        drop_prefixes = ("pooler.", "svgp.", "energy_head.")
+        filtered_state = {}
+        for k, v in state.items():
+            if k.startswith(drop_prefixes):
+                try:
+                    target = dict(model.state_dict())[k]
+                    if target.shape != v.shape:
+                        if args.d_embed is not None:
+                            continue  # silent drop in expected re-init case
+                        raise RuntimeError(f"unexpected shape mismatch on {k}: "
+                                           f"{tuple(v.shape)} vs {tuple(target.shape)}")
+                except KeyError:
+                    continue
+            filtered_state[k] = v
+        model.load_state_dict(filtered_state, strict=False)
 
     dm, _ = build_training_datamodule(cfg)
     train_loader = dm.train_dataloader()
@@ -139,8 +175,14 @@ def main() -> int:
     print(f"[stage 2 hinge] done. n_steps={summary['n_steps']}  "
           f"final_hinge={summary['final_hinge']:.4f}")
 
-    # Save weights.
-    torch.save(model.state_dict(), out_dir / "model_with_svgp_hinge.pt")
+    # Save weights + cfg so the corruption sweep rebuilds the model with the
+    # EXACT pooling/d_embed/kernel used here (not a sibling's defaults — which
+    # would silently load an attention pooler into a mean-pooler model).
+    from aitchinson_flow.training.checkpoint import config_checkpoint_dict
+    torch.save(
+        {"model_state_dict": model.state_dict(), "cfg": config_checkpoint_dict(cfg)},
+        out_dir / "model_with_svgp_hinge.pt",
+    )
 
     # --- Eval: AUROC ---------------------------------------------------
     t_eval = float(args.t_eval if args.t_eval else cfg.dfm_svgp.t_eval)

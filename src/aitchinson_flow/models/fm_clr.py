@@ -1,20 +1,33 @@
-"""FMonCLR — direct flow matching on CLR features.
+"""FMonCLR — standard (Lipman) conditional flow matching on CLR features.
 
-Third continuous baseline alongside EqM and DFM. Designed as a clean
-ablation over EqM's conservative-gradient indirection: regress the velocity
-``f(x_γ; γ)`` *directly* to the FM target ``c(γ)·(x0 - x1)`` (no
-``∇⟨x,f⟩`` step), then Euler-sample over γ.
+The textbook Lipman et al. (2022) conditional-OT flow-matching baseline,
+adapted to the CLR (zero-mean R^K) simplex embedding:
 
-Triangulation purpose (RESULTS.md, plan §C):
-- If FMonCLR ≈ DFM on KL_bi, the conservative-grad indirection is the
-  specific culprit and EqM-Euler (W1) should help.
-- If FMonCLR ≈ EqM, continuous-on-simplex is generally hard regardless of
-  the conservative-grad indirection.
-Either outcome breaks the "n=1 continuous model" problem in the writeup.
+    x_t   = (1 − t)·x0 + t·x1,      t ~ U[0, 1]      (straight-line OT path)
+    target = (x0 − x1)                               (CONSTANT cond. velocity)
+    loss   = E‖ f(x_t; t) − (x0 − x1) ‖²  + λ_ce·CE  (regression + token anchor)
+    sample : x ← x − h·f(x; t),  t: 0 → 1            (ODE integration → data)
 
-Reuses EqM's TransformerBackbone (γ-conditioning included), VelocityHead,
-and the ``_c_gamma`` decay schedule. Sampling uses the same Euler-γ loop as
-``EqM.sample_euler`` so the head-to-head is fair.
+Note the repo-wide **data→noise** sign convention: the network learns the
+*negative* OT velocity ``x0 − x1`` (= −dx_t/dt), and the sampler subtracts it
+(`x ← x − h·v`) to move source→data — exactly as ``EqM.sample_euler`` and
+``sde_flow_sample`` do. This is mathematically identical to the canonical
+``v = x1 − x0`` / ``x ← x + h·v`` form, just a sign labelling, and lets
+FMonCLR reuse the shared Euler-γ / SDE samplers unchanged.
+
+What this is NOT (and previously was): there is **no** ``c(γ)`` decay on the
+target and **no** ``γ=√U`` importance reshaping (t is uniform). Those were EqM
+borrows that made the old FMonCLR a non-Lipman ablation whose Euler integral
+only reached the noise↔data midpoint; the constant target here transports the
+full path to the data endpoint.
+
+The one EqM-family term deliberately kept is the auxiliary token CE on the
+implied-x1 reconstruction (gated by ``lambda_ce`` / ``ce_min_gamma``) — added
+for cross-arm **comparability** with EqM / EqM_OneHot / EqMAE, not because
+textbook Lipman needs it. For the constant-velocity field the implied clean
+state is ``x1 = x_t − (1−t)·v`` (exact at convergence).
+
+Reuses EqM's TransformerBackbone (t-conditioning, forced on) and VelocityHead.
 """
 
 from __future__ import annotations
@@ -28,7 +41,6 @@ import torch.nn.functional as F
 from aitchinson_flow.config import Config
 from aitchinson_flow.transformer_backbone import TransformerBackbone, VelocityHead
 from aitchinson_flow.models import LossDict, TRAINING_LOSS_KEY, register
-from aitchinson_flow.models.eqm import EquilibriumFlowMatching
 
 
 class FMonCLR(nn.Module):
@@ -51,10 +63,6 @@ class FMonCLR(nn.Module):
     ) -> torch.Tensor:
         return self.velocity_head(self.backbone(x, gamma))
 
-    def _c_gamma(self, gamma: torch.Tensor) -> torch.Tensor:
-        # Identical schedule to EqM — keep one source of truth.
-        return EquilibriumFlowMatching._c_gamma(self, gamma)
-
     def training_step(self, batch: Any, step: int) -> LossDict:
         del step
         return self._fm_loss(batch["x"], token_ids=batch.get("token_ids"))
@@ -71,27 +79,36 @@ class FMonCLR(nn.Module):
         s = self.cfg.eqm
         device, dt = x1.device, x1.dtype
 
+        # Source p0: centred Gaussian on the V_d (zero-mean CLR) subspace.
         x0 = s.source_sigma * torch.randn(B, L, K, device=device, dtype=dt)
         x0 = x0 - x0.mean(dim=-1, keepdim=True)
 
-        gamma = torch.rand(B, device=device, dtype=dt).pow(s.gamma_power)
-        x_gamma = (1.0 - gamma[:, None, None]) * x0 + gamma[:, None, None] * x1
+        # Conditional-OT path x_t = (1−t)x0 + t x1 with UNIFORM t (the standard
+        # Lipman time weighting — no γ=√U importance reshaping).
+        t = torch.rand(B, device=device, dtype=dt)
+        x_t = (1.0 - t[:, None, None]) * x0 + t[:, None, None] * x1
 
-        v = self.forward(x_gamma, gamma)
-        u_tgt = self._c_gamma(gamma) * (x0 - x1)
+        v = self.forward(x_t, t)
+        # CONSTANT conditional-OT velocity (no c(γ) decay). Data→noise sign
+        # convention: target = x0 − x1 = −dx_t/dt, so the sampler's x ← x − h·v
+        # integrates source→data (matches EqM.sample_euler / sde_flow_sample).
+        u_tgt = x0 - x1
 
         flow_loss = F.mse_loss(v, u_tgt)
         total = flow_loss
         out: LossDict = {"flow_loss": flow_loss}
 
-        # Aux CE on linear-decay implied x1 = x_γ − λ·v. Same anchor idea as
-        # EqM, but here `v` is the raw velocity (no grad-of-energy step), so
-        # there is no second-order autograd path through this term.
+        # Aux CE on the implied-x1 reconstruction — the same token anchor the
+        # EqM family carries, kept for cross-arm comparability (not part of
+        # textbook Lipman). For the constant-velocity field the state→clean
+        # inverse of x_t = (1−t)x0 + t·x1 with v = x0 − x1 is
+        #     x1 = x_t − (1−t)·v
+        # (exact at convergence, mirroring EqM's x_γ − λ·grad_g). Masked to the
+        # signal regime t ≥ ce_min_gamma, same as EqM.
         if s.lambda_ce > 0.0 and token_ids is not None:
-            mask = gamma >= s.ce_min_gamma
+            mask = t >= s.ce_min_gamma
             if mask.any():
-                lam = s.gradient_lambda
-                pred_x1 = x_gamma[mask] - lam * v[mask]
+                pred_x1 = x_t[mask] - (1.0 - t[mask])[:, None, None] * v[mask]
                 log_probs = pred_x1 - torch.logsumexp(pred_x1, dim=-1, keepdim=True)
                 ids = token_ids[mask].long()
                 ce = F.nll_loss(log_probs.reshape(-1, K), ids.reshape(-1))
@@ -100,11 +117,11 @@ class FMonCLR(nn.Module):
 
         out[TRAINING_LOSS_KEY] = total
 
-        # γ-bucket diagnostics (same buckets as EqM for cross-comparison).
+        # t-bucket diagnostics (same bucket keys as EqM for cross-comparison).
         for key, m in (
-            ("g<.33", gamma < 0.33),
-            ("g<.66", (gamma >= 0.33) & (gamma < 0.66)),
-            ("g<1", gamma >= 0.66),
+            ("g<.33", t < 0.33),
+            ("g<.66", (t >= 0.33) & (t < 0.66)),
+            ("g<1", t >= 0.66),
         ):
             if m.any():
                 out[key] = F.mse_loss(v[m], u_tgt[m]).detach()

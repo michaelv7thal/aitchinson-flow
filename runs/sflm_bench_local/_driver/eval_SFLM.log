@@ -1,0 +1,7 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+SFLM  KL_uni=0.0714  KL_bi=1.2142  KL_tri=4.8116  H_ratio=0.922  per_pos_H=2.548  bpc=—  valid=False  collapsed=False
+  'ehrr h rnpinpn e n ene nis s xtu nltiitm'
+  'nltsnyo ny phrtilcct atlaad h as hin att'
+  'tn inl  nir h  ilrotimtrirfandes tufeina'
+  'd dansaf  r chidiid tieip iv lnen nedbls'
+wrote runs/sflm_bench_local/SFLM/eval_all.json

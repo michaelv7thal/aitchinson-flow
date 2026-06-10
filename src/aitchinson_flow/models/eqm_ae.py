@@ -248,6 +248,15 @@ class EquilibriumFlowMatchingAE(nn.Module):
         pad_mask: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Per-sample scalar energy g(x) = ⟨x, f(x)⟩. Returns (B,)."""
+        _chunk = getattr(self.cfg.eqm, "sample_batch_chunk", 16) or 16
+        if x.shape[0] > _chunk:
+            return torch.cat([
+                self.score_energy(
+                    x[i:i + _chunk],
+                    None if pad_mask is None else pad_mask[i:i + _chunk],
+                )
+                for i in range(0, x.shape[0], _chunk)
+            ], dim=0)
         gamma = self._score_gamma(x)
         v = self.forward(x, gamma, pad_mask=pad_mask)
         if pad_mask is None:
@@ -262,6 +271,15 @@ class EquilibriumFlowMatchingAE(nn.Module):
     ) -> torch.Tensor:
         """Per-sample L2 norm of ∇_x g(x). Larger = further from a local
         minimum of the energy. Returns (B,)."""
+        _chunk = getattr(self.cfg.eqm, "sample_batch_chunk", 16) or 16
+        if x.shape[0] > _chunk:
+            return torch.cat([
+                self.score_gradient_norm(
+                    x[i:i + _chunk],
+                    None if pad_mask is None else pad_mask[i:i + _chunk],
+                )
+                for i in range(0, x.shape[0], _chunk)
+            ], dim=0)
         gamma = self._score_gamma(x)
         with torch.enable_grad():
             x_req = x.detach().requires_grad_(True)
@@ -541,6 +559,21 @@ class EquilibriumFlowMatchingAE(nn.Module):
         method: str | None = None,
     ) -> torch.Tensor:
         """NAG-GD on the conservative gradient in latent space."""
+        # memory-safe batch chunking (see eqm.py.sample) — exact per-sample;
+        # covers the euler/nag/sde sub-paths since they dispatch from here.
+        _chunk = getattr(self.cfg.eqm, "sample_batch_chunk", 16) or 16
+        if B > _chunk:
+            outs = []
+            for i in range(0, B, _chunk):
+                b = min(_chunk, B - i)
+                xi = x_init[i:i + b] if x_init is not None else None
+                outs.append(self.sample(
+                    b, L, eta=eta, mu=mu, g_min=g_min, max_steps=max_steps,
+                    x_init=xi, grad_clip=grad_clip, return_best=return_best,
+                    method=method,
+                ))
+            return torch.cat(outs, dim=0)
+
         s = self.cfg.eqm
         chosen = method if method is not None else getattr(s, "sampler", "nag")
         if chosen == "euler":

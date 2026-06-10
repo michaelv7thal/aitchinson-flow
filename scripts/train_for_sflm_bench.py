@@ -36,7 +36,7 @@ import gc
 import json
 import sys
 import traceback
-from dataclasses import replace
+from dataclasses import fields, replace
 from pathlib import Path
 
 import torch
@@ -99,6 +99,16 @@ SCALES = {
         # SDPA backend on a 20 GB A100 MIG — ~9 GB headroom. (The earlier
         # d768/8L ~57M sizing left the 20 GB slice mostly idle.)
         "d_model": 1024, "n_layers": 10, "n_heads": 16, "batch": 8,
+        "max_train_windows": 10_000, "max_eval_windows": 2_000,
+        "L": 256,
+    },
+    # Bigger-backbone twin of a100_20g_L256 (d1024/10L, ~127M). Same B8/L256 so
+    # a DirichletFM trained here at the SAME 30k×30ep isolates the *capacity*
+    # lever vs DirichletFM_ep30_d30k. ~2.2× params (~275M, GPT-2-medium tier);
+    # first-order DirichletFM is light, and the memory ladder enables grad-ckpt
+    # (which keeps batch 8) if it's tight — so the comparison stays matched.
+    "a100_20g_L256_d1280L14": {
+        "d_model": 1280, "n_layers": 14, "n_heads": 16, "batch": 8,
         "max_train_windows": 10_000, "max_eval_windows": 2_000,
         "L": 256,
     },
@@ -195,6 +205,11 @@ ARM_TO_MODEL = {
     "EqM": "EqM",               # dirichlet_sampling=True  (existing tuned recipe)
     "EqMLatent": "EqMLatent",   # learned-embedding EqM (NOT a VAE; see EqMAE)
     "DirichletFM": "DirichletFM",
+    # Extended-budget DirichletFM alias (same model + default recipe — the
+    # `name == "DirichletFM"` cfg branch is a no-op `pass`). Separate arm name
+    # so it writes to its own run dir (epochs/data encoded) without touching
+    # the matched-budget DirichletFM results. Trained at 30 ep × 30k windows.
+    "DirichletFM_ep30_d30k": "DirichletFM",
     "DFM": "DFM",
     # The 7-model generation benchmark also needs these two (added):
     #   FMonCLR — Standard Flow Matching (Lipman): raw-velocity FM on CLR,
@@ -257,11 +272,14 @@ def _model_cfg(name: str, epochs: int, scale: str, *, out_dir: str | None = None
         pass
     elif name == "FMonCLR":
         # Standard Flow Matching (Lipman et al. 2022) on CLR — the linear-FM
-        # control: regress the raw velocity to c(γ)·(x0−x1), Euler-sample over
-        # γ. No conservative-gradient step (that is EqM's indirection). The
-        # model forces time_conditioning="add" internally; gamma_power=0.5 is
-        # the restored signal-regime default.
-        cfg.eqm = replace(cfg.eqm, time_conditioning="add", gamma_power=0.5)
+        # control: regress the raw velocity to the CONSTANT conditional-OT
+        # target (x0−x1) under uniform t, then Euler-integrate the ODE (no
+        # conservative-gradient step, no c(γ) decay, no aux CE — see
+        # models/fm_clr.py). gamma_power is irrelevant now (t is uniform).
+        # Use the canonical Lipman base p0=N(0,I): source_sigma=1.0 (decoupled
+        # from EqM's NAG-tuned σ=0.1) so the source carries real sampling
+        # entropy instead of starting every trajectory at a near-point mass.
+        cfg.eqm = replace(cfg.eqm, time_conditioning="add", source_sigma=1.0)
     elif name == "EqMAE":
         # VAE+EqM: EqM flow over a FROZEN pretrained (V)AE latent. 2-stage —
         # the AE must be trained first (scripts/train_autoencoder.py --mode vae)
@@ -275,9 +293,16 @@ def _model_cfg(name: str, epochs: int, scale: str, *, out_dir: str | None = None
             )
         payload = torch.load(ae_ckpt, map_location="cpu", weights_only=False)
         ae_cfg = (payload.get("cfg") or {}).get("autoencoder", {}) or {}
+        # Copy *every* saved AE field that exists on the dataclass, not a
+        # hardcoded dims-only subset. `mode` ('ae'|'vae') in particular changes
+        # which submodules TextAutoencoder builds: omitting it silently loaded a
+        # VAE checkpoint into an AE-mode module, leaving the `to_latent` head at
+        # random init (the VAE ckpt has mu_head/logsig_head, no to_latent) and
+        # feeding the frozen decoder a mismatched latent — i.e. EqM over a broken
+        # latent space, not the pretrained VAE latent the arm intends.
+        valid = {f.name for f in fields(cfg.autoencoder)}
         cfg.autoencoder = replace(cfg.autoencoder, **{
-            k: ae_cfg[k] for k in ("d_model", "num_layers", "nhead",
-                                   "d_latent", "dropout") if k in ae_cfg})
+            k: v for k, v in ae_cfg.items() if k in valid})
         cfg.eqm_ae = replace(cfg.eqm_ae, ae_ckpt_path=ae_ckpt)
         cfg.eqm = replace(cfg.eqm, sampler="euler")  # latent-space Euler (as EqMLatent)
     # DFM: Config defaults are its known-good recipe.

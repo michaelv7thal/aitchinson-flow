@@ -1,0 +1,29 @@
+{
+  "model_name": "SFLM",
+  "model_class": "SFLM",
+  "L": 40,
+  "epoch": 10,
+  "n_samples": 256,
+  "sample_steps": 200,
+  "split": "test",
+  "KL_uni": 0.0713878870010376,
+  "KL_bi": 1.2141798734664917,
+  "KL_tri": 4.811636924743652,
+  "H_gen": 2.625378131866455,
+  "H_gt": 2.8483986854553223,
+  "H_ratio": 0.9217031819570521,
+  "per_pos_entropy": 2.5475945472717285,
+  "bpc": null,
+  "generation_metric_valid": false,
+  "collapsed": false,
+  "samples": [
+    "ehrr h rnpinpn e n ene nis s xtu nltiitm",
+    "nltsnyo ny phrtilcct atlaad h as hin att",
+    "tn inl  nir h  ilrotimtrirfandes tufeina",
+    "d dansaf  r chidiid tieip iv lnen nedbls",
+    " si  uai seb t vehi ontrivin nid u nefes",
+    " pve   icireres s bnd nire vt te n eeona",
+    "sneeeioa  y irtodwaah in  gi irinsdcic i",
+    " coh n ne ari ndivnain  osanthii e feiv "
+  ]
+}

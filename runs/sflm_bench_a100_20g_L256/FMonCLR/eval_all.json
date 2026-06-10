@@ -1,0 +1,29 @@
+{
+  "model_name": "FMonCLR",
+  "model_class": "FMonCLR",
+  "L": 256,
+  "epoch": 10,
+  "n_samples": 256,
+  "sample_steps": 200,
+  "split": "test",
+  "KL_uni": 0.0034859953448176384,
+  "KL_bi": 1.5007641315460205,
+  "KL_tri": 5.256560802459717,
+  "H_gen": 2.854013681411743,
+  "H_gt": 2.8561434745788574,
+  "H_ratio": 0.9992543115617019,
+  "per_pos_entropy": 2.794191360473633,
+  "bpc": null,
+  "generation_metric_valid": false,
+  "collapsed": true,
+  "samples": [
+    "in ogemen iil torassuoi yoiuh  th neusa btbe tac trxtasai inasnccidkf y nrrnao onteeme gdfineled ge a s aatari aa   hhut kga ardfmewsrks ctit ih na rbtynaiiu  n oteou tcnacfchheaabo mnowsidsidhkamhelmme en a rsb rto  rrrdhowro iyai tlmsttihfemotadsphreneus",
+    "hrpos ca nnacaofyr lzconr nho t esemc concdn nafeateghitlmdiao  rkdth cpthe r raenegn hec s eepeanole le esdaoffhaces io  toecaclseid teate  tanosrcb iseibtadiarl r sgne ecooiitot ioenamoad fvtiutg aes e icsslrmnooiuivio td ntss tealeahivr ei dshaikht i ia",
+    " ssizgn ce elernonseeousisnatpehs nnngnrrroter weogeiro  ytnthod ei be a medm bvnca  lsrntssni sdl hudao ncahami fiyeesudenaa  i i  nlok sodtraitea loyihscta emeo gdanifrt maiohetlroyncnndnlnyei elreunmi aae o ttci rfai b ihtal rts ass nfhaygapn  eoeuo eia",
+    "gpsldafmeeege rea tei otodn vhgeorteoths  s  oponslsdend  edhmtrm srt ereaea hemehrerttccbiasa m  a lrtergytt or   iosooi ehunh j e iidaar a oa hs esfwgnpdndtepareaal  hex tog eo k iycsh iatn ahfnr tgeilitcrstiostbupe  pi  eomdhpas he rs omanoayn ddtldmd r",
+    "a nnelneoreensehham iaassgnesydleltpadlin iaiwsao h facnmredygyro arhnct b cs ltayoesxndsawchvos s ec meiei cxo tdaeotsyh evdgobtilaeet  muepgoonbinolatroten tf hneoan n np eo rts mhi duri nfshir e ad  ef eceyt gtee aa s ro i iinneim nxbahriynesa uavtmoda ",
+    " wt i vnneneteneo a dernscgrt  dlnaefthinen rn ohdbtfto t l  e elaiiinsarttr rt   tiieeeseaa icthsdnt rmslmciisogec nrre cs ei naharnittniame h n ocoranboeontcrnrrcbuala aors fdaenletsea urn pwsntd t laaaiynato  nae  rsinlgitpdna seeueneoa nhbydpre eg oati",
+    "biwesewer vwmenon  tassta thy elegi v egnnagu g e ce oho  h cl oi gbja foseaetgasahfoed o anemveni aein dhbct iihetdaf v  ics o   erridaoyss scastlxelnemi tlr h f omaaclet cutde aamvcetgusmhlw ci csrmmcnenhuyioeppie stehs   indpnihgonrneh l s solpr  b nl w",
+    "xksoacrbadr bea regevtine a r aunoaiodfsstsco osaltoa l sl g   uoo s i ye  tt rso  ehuclainiwiawo lrhtsoil ojpo eiefnyi maeet atnefieit eli   rn enemth  scsnelrsnam yh t  i ne ptdsy iio ti n  ncn  ana oantetrctmh ct rwraiiotbsl i yb  nrtpeeo nkph yexliun c"
+  ]
+}

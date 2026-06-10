@@ -1,0 +1,11 @@
+### BACKFILL START 2026-06-09_13:45:56 — waiting for POST CHAIN COMPLETE
+### [2026-06-10_01:16:58] post chain complete — scanning for missing/stale eval artifacts
+### [2026-06-10_01:16:58] backfill GEN a100_20g_L256/EqM_OneHot
+    OK -> runs/sflm_bench_a100_20g_L256/EqM_OneHot/eval_all.json
+### [2026-06-10_02:16:06] backfill GEN a100_20g_L256/EqM
+    OK -> runs/sflm_bench_a100_20g_L256/EqM/eval_all.json
+### [2026-06-10_03:15:13] backfill GEN a100_20g_L256/EqMAE
+    OK -> runs/sflm_bench_a100_20g_L256/EqMAE/eval_all.json
+### [2026-06-10_03:54:06] backfill RECOVERY a100_20g_L256/EqMAE
+    OK -> runs/sflm_bench_a100_20g_L256/EqMAE/recovery.json
+### BACKFILL COMPLETE 2026-06-10_07:00:41

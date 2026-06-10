@@ -1,0 +1,32 @@
+### EVAL DRIVER START 2026-06-10_00:38:37  SC=local N=256 STEPS=200 BPC_MC=8
+### [2026-06-10_00:38:37] STAGE C: generation eval (KL_uni/bi/tri, H_ratio, bpc[DFM])
+  --- eval EqM_OneHot @ 2026-06-10_00:38:37 ---
+    OK -> runs/sflm_bench_local/EqM_OneHot/eval_all.json
+  --- eval EqM @ 2026-06-10_00:40:43 ---
+    OK -> runs/sflm_bench_local/EqM/eval_all.json
+  --- eval EqMAE @ 2026-06-10_00:42:49 ---
+    OK -> runs/sflm_bench_local/EqMAE/eval_all.json
+  --- eval DFM @ 2026-06-10_00:44:16 ---
+    OK -> runs/sflm_bench_local/DFM/eval_all.json
+  --- eval DirichletFM @ 2026-06-10_00:45:27 ---
+    OK -> runs/sflm_bench_local/DirichletFM/eval_all.json
+  --- eval SFLM @ 2026-06-10_00:47:24 ---
+    OK -> runs/sflm_bench_local/SFLM/eval_all.json
+  --- eval FMonCLR @ 2026-06-10_00:48:11 ---
+    OK -> runs/sflm_bench_local/FMonCLR/eval_all.json
+### [2026-06-10_00:48:58] STAGE C2: recovery sweep (Δ@α, α=0.1,0.3,0.5,0.7,1.0)
+  --- recovery EqM_OneHot @ 2026-06-10_00:48:58 ---
+    OK -> runs/sflm_bench_local/EqM_OneHot/recovery.json
+  --- recovery EqM @ 2026-06-10_00:54:33 ---
+    OK -> runs/sflm_bench_local/EqM/recovery.json
+  --- recovery EqMAE @ 2026-06-10_01:00:08 ---
+    OK -> runs/sflm_bench_local/EqMAE/recovery.json
+  --- recovery DFM @ 2026-06-10_01:05:50 ---
+    OK -> runs/sflm_bench_local/DFM/recovery.json
+  --- recovery DirichletFM @ 2026-06-10_01:06:30 ---
+    OK -> runs/sflm_bench_local/DirichletFM/recovery.json
+  --- recovery SFLM @ 2026-06-10_01:12:11 ---
+    OK -> runs/sflm_bench_local/SFLM/recovery.json
+  --- recovery FMonCLR @ 2026-06-10_01:14:30 ---
+    OK -> runs/sflm_bench_local/FMonCLR/recovery.json
+### EVAL DRIVER COMPLETE 2026-06-10_01:16:51

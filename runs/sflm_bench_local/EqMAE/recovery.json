@@ -1,0 +1,207 @@
+{
+  "rows": [
+    {
+      "mode": "score_reference",
+      "energy": {
+        "mean": -718.740478515625,
+        "std": 10.84516716003418,
+        "min": -749.654296875,
+        "max": -688.808837890625
+      },
+      "grad_norm": {
+        "mean": 24.25057029724121,
+        "std": 0.6671261787414551,
+        "min": 22.500085830688477,
+        "max": 26.06790542602539
+      },
+      "curvature": {
+        "mean": -2292.576171875,
+        "std": 44.78255081176758,
+        "min": -2413.252685546875,
+        "max": -2160.536865234375
+      }
+    },
+    {
+      "mode": "unconditional",
+      "alpha": null,
+      "KL_uni": 0.05985255911946297,
+      "KL_bi": 2.329939126968384,
+      "KL_tri": 7.021711826324463,
+      "H_gen": 2.5867292881011963,
+      "samples": [
+        "tbehdt feesalar nceaghrt ei  xm v e  i  ",
+        "ee fsenttzee i wnom  oobo e ax laanhrrde",
+        "      irtlye ugelnnc eryd be   eko nukn ",
+        " crh haetha lhoaim  iheee    t ae it vwr"
+      ],
+      "energy": {
+        "mean": -808.9315185546875,
+        "std": 2.70548152923584,
+        "min": -817.167724609375,
+        "max": -802.5782470703125
+      },
+      "grad_norm": {
+        "mean": 18.91737937927246,
+        "std": 0.12745805084705353,
+        "min": 18.57598114013672,
+        "max": 19.24808692932129
+      },
+      "curvature": {
+        "mean": -2478.81201171875,
+        "std": 57.0765495300293,
+        "min": -2624.040771484375,
+        "max": -2329.175537109375
+      }
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.1,
+      "sigma_perturb": 0.4202427864074707,
+      "KL_bi": 0.10981819778680801,
+      "token_acc": 1.0,
+      "token_acc_perturbed": 1.0,
+      "delta": 0.0,
+      "gt_sample0": "e the capital of one government after an",
+      "perturbed_sample0": "e the capital of one government after an",
+      "rc_sample0": "e the capital of one government after an",
+      "energy": {
+        "mean": -989.6326904296875,
+        "std": 4.65491247177124,
+        "min": -1005.544677734375,
+        "max": -977.582763671875
+      },
+      "grad_norm": {
+        "mean": 7.309711933135986,
+        "std": 0.20637667179107666,
+        "min": 6.780237674713135,
+        "max": 7.8799967765808105
+      },
+      "curvature": {
+        "mean": -905.689208984375,
+        "std": 26.788740158081055,
+        "min": -979.049072265625,
+        "max": -829.24951171875
+      }
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.3,
+      "sigma_perturb": 1.260728359222412,
+      "KL_bi": 0.31592994928359985,
+      "token_acc": 0.90771484375,
+      "token_acc_perturbed": 0.908496081829071,
+      "delta": -0.0007812380790710449,
+      "gt_sample0": "e the capital of one government after an",
+      "perturbed_sample0": "e the c pitaljrf ope government aftet an",
+      "rc_sample0": "e the c pital rf one governmeat aftet an",
+      "energy": {
+        "mean": -1129.035888671875,
+        "std": 16.85251235961914,
+        "min": -1172.196044921875,
+        "max": -1083.599609375
+      },
+      "grad_norm": {
+        "mean": 11.43399429321289,
+        "std": 0.46800580620765686,
+        "min": 10.14383602142334,
+        "max": 12.599759101867676
+      },
+      "curvature": {
+        "mean": -635.2267456054688,
+        "std": 14.579736709594727,
+        "min": -672.3172607421875,
+        "max": -594.56640625
+      }
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.5,
+      "sigma_perturb": 2.1012139320373535,
+      "KL_bi": 1.3498409986495972,
+      "token_acc": 0.5625976324081421,
+      "token_acc_perturbed": 0.56005859375,
+      "delta": 0.00253903865814209,
+      "gt_sample0": "e the capital of one government after an",
+      "perturbed_sample0": "e ahe eadftla of oeeylovtrale t xfoercmq",
+      "rc_sample0": "e ahe eadftla of oeeylovtrale t xfoeicmq",
+      "energy": {
+        "mean": -1669.256103515625,
+        "std": 28.934661865234375,
+        "min": -1741.249755859375,
+        "max": -1585.951416015625
+      },
+      "grad_norm": {
+        "mean": 16.341976165771484,
+        "std": 0.2449527531862259,
+        "min": 15.703012466430664,
+        "max": 16.995262145996094
+      },
+      "curvature": {
+        "mean": -465.9776916503906,
+        "std": 7.359928607940674,
+        "min": -489.57769775390625,
+        "max": -446.6630859375
+      }
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.7,
+      "sigma_perturb": 2.941699504852295,
+      "KL_bi": 2.121002674102783,
+      "token_acc": 0.36699217557907104,
+      "token_acc_perturbed": 0.36494141817092896,
+      "delta": 0.00205075740814209,
+      "gt_sample0": "e the capital of one government after an",
+      "perturbed_sample0": "c ahd a pntnrenoaosd corlpnment qererlap",
+      "rc_sample0": "c ahd a lhtnrenoaosd corepnment qebereap",
+      "energy": {
+        "mean": -2374.51953125,
+        "std": 47.237525939941406,
+        "min": -2491.7265625,
+        "max": -2239.30615234375
+      },
+      "grad_norm": {
+        "mean": 19.174331665039062,
+        "std": 0.2437114119529724,
+        "min": 18.55116844177246,
+        "max": 19.82516860961914
+      },
+      "curvature": {
+        "mean": -390.4830017089844,
+        "std": 5.995450496673584,
+        "min": -406.533447265625,
+        "max": -373.2298889160156
+      }
+    },
+    {
+      "mode": "recovery",
+      "alpha": 1.0,
+      "sigma_perturb": 4.202427864074707,
+      "KL_bi": 2.4060299396514893,
+      "token_acc": 0.22685547173023224,
+      "token_acc_perturbed": 0.22578124701976776,
+      "delta": 0.0010742247104644775,
+      "gt_sample0": "e the capital of one government after an",
+      "perturbed_sample0": "peoev niniigtn whvqnddv xnemfntgtgkeq h ",
+      "rc_sample0": "peoev niniigln whvqnddv xnemfntztgkeq h ",
+      "energy": {
+        "mean": -3663.171630859375,
+        "std": 71.66264343261719,
+        "min": -3865.56396484375,
+        "max": -3475.50634765625
+      },
+      "grad_norm": {
+        "mean": 22.709651947021484,
+        "std": 0.2776956558227539,
+        "min": 21.977500915527344,
+        "max": 23.538928985595703
+      },
+      "curvature": {
+        "mean": -326.39752197265625,
+        "std": 4.375180721282959,
+        "min": -340.99969482421875,
+        "max": -310.815185546875
+      }
+    }
+  ]
+}

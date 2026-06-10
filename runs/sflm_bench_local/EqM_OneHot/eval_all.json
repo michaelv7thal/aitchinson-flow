@@ -1,0 +1,29 @@
+{
+  "model_name": "EqM_OneHot",
+  "model_class": "EqM",
+  "L": 40,
+  "epoch": 10,
+  "n_samples": 256,
+  "sample_steps": 200,
+  "split": "test",
+  "KL_uni": 0.06931358575820923,
+  "KL_bi": 1.5694128274917603,
+  "KL_tri": 6.969579696655273,
+  "H_gen": 2.7771997451782227,
+  "H_gt": 2.8483986854553223,
+  "H_ratio": 0.9750038712485509,
+  "per_pos_entropy": 2.311174154281616,
+  "bpc": null,
+  "generation_metric_valid": false,
+  "collapsed": false,
+  "samples": [
+    "   p e eppytif uentieeaurataoumugshnhnl ",
+    " tnfiouplm teflpreoliciubpnoocdlees r t ",
+    "ueedt fafr tleapeh n ieaicaelt asthuenaa",
+    " tf i coas t atonsm huroianiomc othegrsa",
+    "eu au ieb  tnvdte etsf ia  rpaeueatptuep",
+    "ntmhstateu uipase ror aorio lvn eaneeipp",
+    "pltpieyhas  ipapo nh  cetanisiaeiahesolp",
+    "stiatstlbo teds c eoovm ih aoc aeatourla"
+  ]
+}

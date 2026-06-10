@@ -1,0 +1,33 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+=== Score reference (clean encoded val) ===
+  energy:    mean=-718.740  std=10.845
+  grad_norm: mean=24.251  std=0.667
+  curvature: mean=-2292.576  std=44.783
+=== Unconditional generation ===
+  KL_uni=0.0599  KL_bi=2.3299  KL_tri=7.0217  H_gen=2.5867
+  sample[0]: 'tbehdt feesalar nceaghrt ei  xm v e  i  '
+  sample[1]: 'ee fsenttzee i wnom  oobo e ax laanhrrde'
+  energy:    mean=-808.932  std=2.705
+  grad_norm: mean=18.917  std=0.127
+  curvature: mean=-2478.812  std=57.077
+
+=== Recovery from perturbation ===
+  embed_norm_mean=4.2024  σ_source=0.1000
+    α  σ_perturb        Δ  tok_acc tok_acc_pt    KL_bi  sample[0]: gt / pt / rc
+ 0.10      0.420   0.0000   1.0000     1.0000   0.1098  gt='e the capital of one government after an'
+                                             pt='e the capital of one government after an'
+                                             rc='e the capital of one government after an'
+ 0.30      1.261  -0.0008   0.9077     0.9085   0.3159  gt='e the capital of one government after an'
+                                             pt='e the c pitaljrf ope government aftet an'
+                                             rc='e the c pital rf one governmeat aftet an'
+ 0.50      2.101   0.0025   0.5626     0.5601   1.3498  gt='e the capital of one government after an'
+                                             pt='e ahe eadftla of oeeylovtrale t xfoercmq'
+                                             rc='e ahe eadftla of oeeylovtrale t xfoeicmq'
+ 0.70      2.942   0.0021   0.3670     0.3649   2.1210  gt='e the capital of one government after an'
+                                             pt='c ahd a pntnrenoaosd corlpnment qererlap'
+                                             rc='c ahd a lhtnrenoaosd corepnment qebereap'
+ 1.00      4.202   0.0011   0.2269     0.2258   2.4060  gt='e the capital of one government after an'
+                                             pt='peoev niniigtn whvqnddv xnemfntgtgkeq h '
+                                             rc='peoev niniigln whvqnddv xnemfntztgkeq h '
+
+Wrote runs/sflm_bench_local/EqMAE/recovery.json

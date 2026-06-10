@@ -1,0 +1,13 @@
+{
+  "arm": "EqM",
+  "seed": 42,
+  "scale": "local",
+  "status": "done",
+  "stage": 0,
+  "batch": 16,
+  "L": 40,
+  "grad_checkpointing": false,
+  "length_fallback": null,
+  "max_train_windows": 10000,
+  "lazy_features": false
+}

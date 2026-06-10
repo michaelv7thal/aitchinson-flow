@@ -417,6 +417,25 @@ class EquilibriumFlowMatching(nn.Module):
                 reliably overshoots the basin around step 60 on this model;
                 the best iterate is what should leave the sampler.
         """
+        # --- memory-safe batch chunking --------------------------------------
+        # Sampling n=256 at L=256 on the conservative gradient overruns the
+        # 20 GB MIG slice (NVML allocator assert at CUDACachingAllocator:1165).
+        # The energy is a batch-sum, so grad[i] depends only on sample i — the
+        # per-sample sampling dynamics are independent and chunking is exact
+        # (the only batch-coupled term is the max-‖grad‖ early-stop, negligible).
+        _chunk = getattr(self.cfg.eqm, "sample_batch_chunk", 16) or 16
+        if B > _chunk:
+            outs = []
+            for i in range(0, B, _chunk):
+                b = min(_chunk, B - i)
+                xi = x_init[i:i + b] if x_init is not None else None
+                outs.append(self.sample(
+                    b, L, eta=eta, mu=mu, g_min=g_min, max_steps=max_steps,
+                    x_init=xi, grad_clip=grad_clip, return_best=return_best,
+                    method=method, alpha=alpha, use_grad=use_grad,
+                ))
+            return torch.cat(outs, dim=0)
+
         s = self.cfg.eqm
         # Method dispatch: explicit kwarg > cfg.eqm.sampler.
         chosen = method if method is not None else getattr(s, "sampler", "nag")
@@ -640,6 +659,15 @@ class EquilibriumFlowMatching(nn.Module):
 
         Returns (B, L) tensor (no_grad context safe to call from outside).
         """
+        # Batch-chunk: a fwd+bwd at batch 64, L=256 trips the same MIG NVML
+        # assert as sampling. grad[i] depends only on sample i, so exact.
+        _chunk = getattr(self.cfg.eqm, "sample_batch_chunk", 16) or 16
+        if x.shape[0] > _chunk:
+            return torch.cat(
+                [self.position_uncertainty(x[i:i + _chunk])
+                 for i in range(0, x.shape[0], _chunk)],
+                dim=0,
+            )
         x_req = x.detach().requires_grad_(True)
         v = self.forward(x_req)
         energy = (x_req * v).sum()
