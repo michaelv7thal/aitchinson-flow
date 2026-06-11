@@ -16,21 +16,26 @@ FITSEQS="${FITSEQS:-512}"; PCA="${PCA:-0}"; PY="${PY:-python}"
 mkdir -p "$OUT"
 echo "CKPT=$CKPT  OUT=$OUT  POOL=$POOL  N=$N  FITSEQS=$FITSEQS  PCA=$PCA"
 
-echo "=== [1/3] HingeSVGP — energy-hinge, score = trained mean/prob ==="
+echo "=== [1/4] HingeSVGP — energy-hinge, score = trained mean/prob ==="
 $PY scripts/fit_dfm_svgp_hinge.py --ckpt "$CKPT" --pooling "$POOL" \
     --out-dir "$OUT/hinge_${POOL}" --n-epochs 5 --eval-n "$N"
 $PY scripts/sweep_dfm_svgp_corruption.py \
     --ckpt "$OUT/hinge_${POOL}/model_with_svgp_hinge.pt" \
     --out "$OUT/hinge_${POOL}/svgp_corruption_sweep.json" --n "$N"
 
-echo "=== [2/3] PerPosMaha — per-position Mahalanobis distance ==="
+echo "=== [2/4] PerPosMaha — per-position Mahalanobis distance ==="
 $PY scripts/ood_mahalanobis_perpos.py --ckpt "$CKPT" --pca-dim "$PCA" \
     --fit-seqs "$FITSEQS" --n "$N" --shrinkage 0.1 \
     --out "$OUT/maha_pca${PCA}/maha_perpos_sweep.json"
 
-echo "=== [3/3] PerPosVarGP — per-position one-class GP variance ==="
+echo "=== [3/4] PerPosVarGP — per-position one-class GP variance ==="
 $PY scripts/ood_variance_perpos.py --ckpt "$CKPT" --pca-dim "$PCA" \
     --fit-seqs "$FITSEQS" --n "$N" --inducing 256 --fit-steps 500 \
     --out "$OUT/vargp_pca${PCA}/vargp_perpos_sweep.json"
 
-echo "=== DONE -> $OUT (svgp_corruption_sweep.json / maha_perpos_sweep.json / vargp_perpos_sweep.json) ==="
+echo "=== [4/4] BayesLinHead — linear energy head + Laplace uncertainty (per-token + sequence) ==="
+$PY scripts/ood_bayes_linear.py --ckpt "$CKPT" --pca-dim "$PCA" \
+    --fit-seqs "$FITSEQS" --n "$N" \
+    --out "$OUT/bayeslin_pca${PCA}/bayes_linear_sweep.json"
+
+echo "=== DONE -> $OUT (svgp_corruption_sweep / maha_perpos_sweep / vargp_perpos_sweep / bayes_linear_sweep .json) ==="
