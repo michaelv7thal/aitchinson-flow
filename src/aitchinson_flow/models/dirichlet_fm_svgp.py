@@ -234,16 +234,32 @@ class DirichletFMSvgp(nn.Module):
         t: torch.Tensor,
         *,
         require_grad: bool = False,
+        deterministic: bool = True,
     ) -> torch.Tensor:
         """Convenience: token_ids (B, L) → pooled features (B, d_embed) at
         a given Dirichlet path time ``t``. Used by :meth:`fit_svgp` to
         build the training set and by :meth:`ood_score` at inference.
 
+        ``deterministic=True`` (default) feeds the *mean* of Dir(beta(t, tokens))
+        — beta / sum(beta) — through the backbone instead of a stochastic
+        ``Dirichlet(beta).sample()``. The sample injects per-position noise that
+        washes out the token identity, collapsing clean vs corrupted features to
+        the same noise (the cause of E_clean==E_invalid in the hinge). The mean
+        keeps the backbone as a clean text->representation encoder, so corrupted
+        tokens produce a genuinely different representation for OOD detection.
+
         ``require_grad=True`` forces autograd ON regardless of the
         ``train_pooler_with_dfm`` gate — used by :meth:`fit_svgp_hinge`
         when ``train_pooler=True`` so the pooler actually receives gradient
         (otherwise z would be detached and the pooler never updates)."""
-        x_t = self.dfm._sample_xt(token_ids.long(), t)
+        if deterministic:
+            B, L = token_ids.shape
+            beta = torch.ones(B, L, self.K, device=token_ids.device, dtype=t.dtype)
+            beta.scatter_(-1, token_ids.long().unsqueeze(-1),
+                          t[:, None, None].expand(B, L, 1).to(beta.dtype))
+            x_t = beta / beta.sum(-1, keepdim=True)
+        else:
+            x_t = self.dfm._sample_xt(token_ids.long(), t)
         grad_on = require_grad or (
             self.training and self.cfg.dfm_svgp.train_pooler_with_dfm
         )

@@ -1,1 +1,2 @@
 ### CAPACITY-TEST START 2026-06-10_20:44:34 — waiting for MAHA-PERPOS COMPLETE (OOD chain done)
+### [2026-06-11_02:17:35] OOD chain done — training DirichletFM_ep30_d30k @ a100_20g_L256_d1280L14 (d1280/14L ~277M, 30ep x 30k)

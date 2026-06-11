@@ -5,3 +5,5 @@
 ### [2026-06-10_20:27:52] gen eval exit=0
     relabeled model_name -> DirichletFM_ep30_d30k
 ### [2026-06-10_20:27:52] recovery sweep DirichletFM_ep30_d30k
+### [2026-06-10_22:00:54] recovery exit=0
+### DFM-EXT COMPLETE 2026-06-10_22:00:54 — runs/sflm_bench_a100_20g_L256/DirichletFM_ep30_d30k/{eval_all.json,recovery.json}

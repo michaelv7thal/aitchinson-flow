@@ -139,14 +139,27 @@ def _load_dirichletfm(ckpt: str, device: str):
 
 @torch.no_grad()
 def _perpos_feats(model, tok, t_eval, device, chunk=16):
-    """token_ids (B, L) -> per-position features (B, L, d_model) at t_eval."""
+    """token_ids (B, L) -> per-position backbone features (B, L, d_model) at t_eval.
+
+    DETERMINISTIC input: feed the *mean* of Dir(beta(t, tokens)) — i.e.
+    beta / sum(beta) — through the backbone, NOT a stochastic
+    ``Dirichlet(beta).sample()``. The sampled x_t injects per-position noise
+    that swamps the token identity (clean vs corrupted features collapse to the
+    same noise — the cause of E_clean==E_invalid). The deterministic mean keeps
+    the backbone as a clean text->representation encoder, so corrupted tokens
+    produce a genuinely different representation (~3x larger clean-vs-corrupt
+    feature shift measured at t=4.5).
+    """
+    K = model.K
     outs = []
     for i in range(0, tok.shape[0], chunk):
         tb = tok[i:i + chunk].to(device).long()
         B, L = tb.shape
         t = torch.full((B,), float(t_eval), device=device)
-        x_t = model.dfm._sample_xt(tb, t)
-        h = model.get_hidden_states(x_t, t)  # (B, L, d_model)
+        beta = torch.ones(B, L, K, device=device)
+        beta.scatter_(-1, tb.unsqueeze(-1), float(t_eval))
+        x_t = beta / beta.sum(-1, keepdim=True)          # Dirichlet mean (deterministic)
+        h = model.get_hidden_states(x_t, t)              # (B, L, d_model)
         outs.append(h.cpu())
     return torch.cat(outs, dim=0)
 
@@ -263,7 +276,9 @@ def main() -> int:
             tb = tok[i:i + chunk].to(device).long()
             B, L = tb.shape
             t = torch.full((B,), t_eval, device=device)
-            x_t = model.dfm._sample_xt(tb, t)
+            beta = torch.ones(B, L, model.K, device=device)
+            beta.scatter_(-1, tb.unsqueeze(-1), float(t_eval))
+            x_t = beta / beta.sum(-1, keepdim=True)      # deterministic (match _perpos_feats)
             h = model.get_hidden_states(x_t, t).reshape(B * L, d_model)
             z = _project(h.cpu()).to(device)
             with gpytorch.settings.fast_pred_var():

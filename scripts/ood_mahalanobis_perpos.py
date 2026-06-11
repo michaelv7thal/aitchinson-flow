@@ -137,7 +137,9 @@ def main() -> int:
             tb = tok[i:i + chunk].to(device).long()
             B, Lq = tb.shape
             t = torch.full((B,), t_eval, device=device)
-            x_t = model.dfm._sample_xt(tb, t)
+            beta = torch.ones(B, Lq, model.K, device=device)
+            beta.scatter_(-1, tb.unsqueeze(-1), float(t_eval))
+            x_t = beta / beta.sum(-1, keepdim=True)      # deterministic (match _perpos_feats)
             h = model.get_hidden_states(x_t, t).reshape(B * Lq, d_model).double()
             xc = h - mu
             if pca_V is not None:
