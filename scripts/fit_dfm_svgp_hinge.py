@@ -220,7 +220,11 @@ def main() -> int:
                 x_t = _D(torch.ones(K, device=device)).sample((B, L))
                 h = model.get_hidden_states(x_t, t)
                 z = model.pooler(h)
-            prob, mean, std = model.svgp(z)
+            # Score with the trained energy_head (matches ood_score / positives),
+            # NOT the GP Bernoulli mean which is uninformative (GP-mean collapse).
+            _, _, std = model.svgp(z)
+            zs = (z - model.svgp._mu.to(z.device)) / model.svgp._sigma.to(z.device)
+            prob = torch.sigmoid(model.energy_head(zs).squeeze(-1))
             ood_std.append(std.cpu()); ood_prob.append(prob.cpu())
             n += B
             if n >= args.eval_n:

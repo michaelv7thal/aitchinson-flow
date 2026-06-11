@@ -467,16 +467,25 @@ class DirichletFMSvgp(nn.Module):
         for p in self.svgp.likelihood.parameters():
             p.requires_grad_(True)
 
-        # 4) Optimizer on trainable params only.
-        params = list(self.svgp.gp.parameters()) + list(self.svgp.likelihood.parameters())
+        # 4) Optimizer on trainable params only. The discriminative energy is the
+        #    linear ``energy_head`` (see _e below), so it MUST be trained here.
+        params = (list(self.energy_head.parameters())
+                  + list(self.svgp.gp.parameters())
+                  + list(self.svgp.likelihood.parameters()))
         if train_pooler:
             params = params + list(self.pooler.parameters())
         opt = torch.optim.Adam(params, lr=lr)
 
-        # 5) Training loop: hinge with E = SVGP latent mean (standardised input).
+        # 5) Training loop: hinge energy E = the linear ``energy_head`` on the
+        #    standardised pooled features — NOT the SVGP latent mean. The GP mean
+        #    collapses (kernel ~constant at standardised distances → identical
+        #    output for clean and invalid → E_clean==E_invalid, no gap). The
+        #    linear head reads the (now deterministic, separable) features
+        #    directly — exactly the "backbone + head connector" the energy_head
+        #    was added for. The GP still trains for the variance/UQ readout.
         def _e(z: torch.Tensor) -> torch.Tensor:
             zs = (z - self.svgp._mu.to(z.device)) / self.svgp._sigma.to(z.device)
-            return self.svgp.gp(zs).mean
+            return self.energy_head(zs).squeeze(-1)
 
         step = 0
         history: list[dict] = []
@@ -593,9 +602,13 @@ class DirichletFMSvgp(nn.Module):
         t_eval: float | None = None,
     ) -> dict[str, torch.Tensor]:
         """Per-sample OOD diagnostics. Returns dict with keys:
-          * ``prob``: Bernoulli-likelihood mean (in-distribution probability)
-          * ``mean``: SVGP latent mean
-          * ``std``:  SVGP latent std (epistemic UQ — large = OOD)
+          * ``prob``:   OOD score = sigmoid(energy_head) — the DISCRIMINATIVE
+                        signal the hinge trains (high = OOD). NOT the GP
+                        Bernoulli mean, which is uninformative (GP-mean collapse).
+          * ``energy``: raw energy_head output (hinge target; high = OOD).
+          * ``mean``:   SVGP latent mean (diagnostic).
+          * ``std``:    SVGP latent std (epistemic UQ — saturates, see findings).
+          * ``prob_gp``: the old GP Bernoulli mean (kept for reference).
         """
         dfs = self.cfg.dfm_svgp
         if t_eval is None:
@@ -605,8 +618,11 @@ class DirichletFMSvgp(nn.Module):
         B = token_ids.shape[0]
         t = torch.full((B,), float(t_eval), device=device, dtype=torch.float32)
         z = self.pool_features(token_ids, t)
-        prob, mean, std = self.svgp(z)
-        return {"prob": prob, "mean": mean, "std": std}
+        prob_gp, mean, std = self.svgp(z)
+        zs = (z - self.svgp._mu.to(z.device)) / self.svgp._sigma.to(z.device)
+        energy = self.energy_head(zs).squeeze(-1)
+        return {"prob": torch.sigmoid(energy), "energy": energy,
+                "mean": mean, "std": std, "prob_gp": prob_gp}
 
 
 @register("DirichletFMSvgp")
