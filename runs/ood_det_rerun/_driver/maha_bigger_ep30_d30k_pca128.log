@@ -1,0 +1,22 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[maha] t_eval=4.5 d_model=1024 feat_dim=128 shrinkage=0.1 fit_pos=80000
+[maha] positive D^2: per-pos mean=85.582 seq-max mean=196.009
+
+    scheme  rate  AUROC_max  AUROC_mean  tokloc_AUROC
+   replace  0.10     0.3977      0.3362        0.6824
+   replace  0.30     0.2350      0.3454        0.6607
+   replace  0.50     0.1375      0.6991        0.6457
+   replace  0.70     0.1058      0.9320        0.6381
+   replace  1.00     0.1958      0.9861           nan
+   shuffle  0.10     0.4326      0.3740        0.6075
+   shuffle  0.30     0.2811      0.3059        0.5786
+   shuffle  0.50     0.1693      0.3258        0.5554
+   shuffle  0.70     0.1072      0.3995        0.5426
+   shuffle  1.00     0.0813      0.4964        0.5816
+      both  0.10     0.3388      0.2782        0.6362
+      both  0.30     0.1222      0.4452        0.6090
+      both  0.50     0.0853      0.8024        0.6044
+      both  0.70     0.1226      0.9469        0.6187
+      both  1.00     0.1934      0.9857        0.6239
+
+Wrote runs/ood_maha_perpos_dirichletfm_det/bigger_ep30_d30k_pca128/maha_perpos_sweep.json

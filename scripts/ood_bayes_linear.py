@@ -121,9 +121,11 @@ def main() -> int:
         pca_V = V[:, : args.pca_dim]
     feat_dim = (args.pca_dim if pca_V is not None else d)
 
-    def _proj(h_flat):  # raw (N,d) -> standardised (+pca) (N,feat_dim)
-        z = (h_flat - mu) / sigma
-        return z @ pca_V if pca_V is not None else z
+    def _proj(h_flat):  # raw (N,d) -> standardised (+pca) (N,feat_dim); device-safe
+        m = mu.to(h_flat.device)
+        s = sigma.to(h_flat.device)
+        z = (h_flat - m) / s
+        return z @ pca_V.to(h_flat.device) if pca_V is not None else z
 
     zc = _proj(fc.reshape(-1, d)).to(device)                           # clean per-token
     zk = _proj(fk.reshape(-1, d)).to(device)                           # corrupted per-token

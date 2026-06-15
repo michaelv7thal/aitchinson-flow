@@ -1,0 +1,30 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[var-perpos] t_eval=4.5  fit_seqs=torch.Size([512, 256])  eval_pos=torch.Size([256, 256])  pca_dim=0
+[var-perpos] fit points=40000  feat_dim=1024  d_model=1024
+[var-perpos] ARD lengthscale init = 32.000
+  fit step    0  elbo_loss=1.4571
+  fit step  100  elbo_loss=0.5630
+  fit step  200  elbo_loss=0.0660
+  fit step  300  elbo_loss=-0.4706
+  fit step  400  elbo_loss=-1.0172
+  fit step  499  elbo_loss=-1.5333
+[var-perpos] positive per-pos var: mean=0.002023 seq-max mean=0.003499
+
+    scheme  rate  AUROC_max  AUROC_mean  tokloc_AUROC
+   replace  0.10     0.6942      0.6241        0.7366
+   replace  0.30     0.8139      0.8485        0.7175
+   replace  0.50     0.8462      0.9481        0.6968
+   replace  0.70     0.8791      0.9873        0.6775
+   replace  1.00     0.8999      1.0000           nan
+   shuffle  0.10     0.6600      0.5901        0.6064
+   shuffle  0.30     0.7993      0.7486        0.5859
+   shuffle  0.50     0.8682      0.8341        0.5617
+   shuffle  0.70     0.8739      0.8717        0.5437
+   shuffle  1.00     0.8950      0.8924        0.5812
+      both  0.10     0.7558      0.6896        0.6644
+      both  0.30     0.8372      0.8893        0.6451
+      both  0.50     0.8681      0.9571        0.6351
+      both  0.70     0.8715      0.9879        0.6426
+      both  1.00     0.8960      1.0000        0.6460
+
+Wrote runs/ood_vargp_perpos_dirichletfm_det/baseline_ep10_d10k_pca0/vargp_perpos_sweep.json

@@ -1,0 +1,170 @@
+{
+  "ckpt": "runs/sflm_bench_a100_20g_L256/DirichletFM/epoch_final.pt",
+  "t_eval": 4.5,
+  "d_model": 1024,
+  "feat_dim": 1024,
+  "pca_dim": 0,
+  "inducing": 256,
+  "fit_steps": 500,
+  "detector": "PerPosVarGP",
+  "detector_long": "per-position one-class variance GP (ARD), variance-as-OOD-score",
+  "rows": [
+    {
+      "scheme": null,
+      "rate": 0.0,
+      "n": 256,
+      "mean_var": 0.0020226724445819855,
+      "seq_max_mean": 0.003499307669699192
+    },
+    {
+      "scheme": "replace",
+      "rate": 0.1,
+      "n": 256,
+      "mean_var": 0.0020403696689754725,
+      "seq_max_mean": 0.0037507638335227966,
+      "auroc_var_max": 0.6942291259765625,
+      "auroc_var_mean": 0.6240997314453125,
+      "auroc_token_localization": 0.7365554264246434
+    },
+    {
+      "scheme": "replace",
+      "rate": 0.3,
+      "n": 256,
+      "mean_var": 0.002106465632095933,
+      "seq_max_mean": 0.0038955281488597393,
+      "auroc_var_max": 0.813873291015625,
+      "auroc_var_mean": 0.8484954833984375,
+      "auroc_token_localization": 0.7175026639771219
+    },
+    {
+      "scheme": "replace",
+      "rate": 0.5,
+      "n": 256,
+      "mean_var": 0.00219870638102293,
+      "seq_max_mean": 0.003950635902583599,
+      "auroc_var_max": 0.8462371826171875,
+      "auroc_var_mean": 0.9481048583984375,
+      "auroc_token_localization": 0.6967858079555369
+    },
+    {
+      "scheme": "replace",
+      "rate": 0.7,
+      "n": 256,
+      "mean_var": 0.0023265364579856396,
+      "seq_max_mean": 0.004006328526884317,
+      "auroc_var_max": 0.87908935546875,
+      "auroc_var_mean": 0.9873199462890625,
+      "auroc_token_localization": 0.6774849343378848
+    },
+    {
+      "scheme": "replace",
+      "rate": 1.0,
+      "n": 256,
+      "mean_var": 0.0025960172060877085,
+      "seq_max_mean": 0.004029254429042339,
+      "auroc_var_max": 0.8998565673828125,
+      "auroc_var_mean": 0.9999542236328125,
+      "auroc_token_localization": NaN
+    },
+    {
+      "scheme": "shuffle",
+      "rate": 0.1,
+      "n": 256,
+      "mean_var": 0.002038124715909362,
+      "seq_max_mean": 0.003688153810799122,
+      "auroc_var_max": 0.6599884033203125,
+      "auroc_var_mean": 0.59014892578125,
+      "auroc_token_localization": 0.6063612465521315
+    },
+    {
+      "scheme": "shuffle",
+      "rate": 0.3,
+      "n": 256,
+      "mean_var": 0.0020705927163362503,
+      "seq_max_mean": 0.0038789070677012205,
+      "auroc_var_max": 0.7992706298828125,
+      "auroc_var_mean": 0.7486114501953125,
+      "auroc_token_localization": 0.5858872682800598
+    },
+    {
+      "scheme": "shuffle",
+      "rate": 0.5,
+      "n": 256,
+      "mean_var": 0.002099805511534214,
+      "seq_max_mean": 0.004048195667564869,
+      "auroc_var_max": 0.8682403564453125,
+      "auroc_var_mean": 0.8341217041015625,
+      "auroc_token_localization": 0.5617310027600511
+    },
+    {
+      "scheme": "shuffle",
+      "rate": 0.7,
+      "n": 256,
+      "mean_var": 0.0021197733003646135,
+      "seq_max_mean": 0.004094145260751247,
+      "auroc_var_max": 0.8738555908203125,
+      "auroc_var_mean": 0.871734619140625,
+      "auroc_token_localization": 0.5436971036923387
+    },
+    {
+      "scheme": "shuffle",
+      "rate": 1.0,
+      "n": 256,
+      "mean_var": 0.002132561057806015,
+      "seq_max_mean": 0.004113691858947277,
+      "auroc_var_max": 0.8950042724609375,
+      "auroc_var_mean": 0.8924407958984375,
+      "auroc_token_localization": 0.5811984037069482
+    },
+    {
+      "scheme": "both",
+      "rate": 0.1,
+      "n": 256,
+      "mean_var": 0.002052217721939087,
+      "seq_max_mean": 0.0038340233732014894,
+      "auroc_var_max": 0.755828857421875,
+      "auroc_var_mean": 0.68963623046875,
+      "auroc_token_localization": 0.6643799810610042
+    },
+    {
+      "scheme": "both",
+      "rate": 0.3,
+      "n": 256,
+      "mean_var": 0.0021281051449477673,
+      "seq_max_mean": 0.003951777704060078,
+      "auroc_var_max": 0.8372039794921875,
+      "auroc_var_mean": 0.8892669677734375,
+      "auroc_token_localization": 0.6451440281352095
+    },
+    {
+      "scheme": "both",
+      "rate": 0.5,
+      "n": 256,
+      "mean_var": 0.002217212226241827,
+      "seq_max_mean": 0.004005881957709789,
+      "auroc_var_max": 0.86810302734375,
+      "auroc_var_mean": 0.9571380615234375,
+      "auroc_token_localization": 0.6350756101443469
+    },
+    {
+      "scheme": "both",
+      "rate": 0.7,
+      "n": 256,
+      "mean_var": 0.0023274824488908052,
+      "seq_max_mean": 0.003992782905697823,
+      "auroc_var_max": 0.871490478515625,
+      "auroc_var_mean": 0.9879302978515625,
+      "auroc_token_localization": 0.6426224636564057
+    },
+    {
+      "scheme": "both",
+      "rate": 1.0,
+      "n": 256,
+      "mean_var": 0.002596508013084531,
+      "seq_max_mean": 0.004015353973954916,
+      "auroc_var_max": 0.8959503173828125,
+      "auroc_var_mean": 0.9999542236328125,
+      "auroc_token_localization": 0.6459692935845792
+    }
+  ]
+}

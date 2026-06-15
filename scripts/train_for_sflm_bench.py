@@ -112,6 +112,26 @@ SCALES = {
         "max_train_windows": 10_000, "max_eval_windows": 2_000,
         "L": 256,
     },
+    # Same d1280/14L backbone but batch 16: DirichletFM is FIRST-ORDER (no
+    # second-order autograd), so the 20 GB MIG has headroom the batch-8 (sized
+    # for the second-order EqM/SFLMEBM arms) leaves idle. For the longer
+    # DirichletFM-only push (50 ep × 50k). The memory ladder halves the batch if
+    # it ever OOMs, so this is safe (a fallback is footnoted in train_meta).
+    "a100_20g_L256_d1280L14_b16": {
+        "d_model": 1280, "n_layers": 14, "n_heads": 16, "batch": 16,
+        "max_train_windows": 10_000, "max_eval_windows": 2_000,
+        "L": 256,
+    },
+    # Full-split convergence run (d1280/14L, L256). Same backbone as the _b16
+    # 50k push; the "batch" here is only a fallback default — the driver picks
+    # the throughput-optimal batch at runtime via --batch (probe_batch_throughput
+    # .py) and scales --lr with it. Distinct scale dir keeps the full-data run
+    # isolated from the 50k arm. Trains to convergence via --early-stop-patience.
+    "a100_20g_L256_d1280L14_full": {
+        "d_model": 1280, "n_layers": 14, "n_heads": 16, "batch": 16,
+        "max_train_windows": 10_000, "max_eval_windows": 2_000,
+        "L": 256,
+    },
 }
 D_EMBED = 128  # EqMLatent + SFLMEBM latent dim (matched; = best EqMLatent run)
 
@@ -131,6 +151,7 @@ def _base_cfg(
     early_stop_patience: int | None = None,  # val-eval stalls before stopping
     es_min_delta: float = 0.0,
     max_hours: float | None = None,          # wall-clock cap (runbook 36h)
+    lr: float = 3e-4,                        # base LR; scale with batch for big-B runs
 ) -> Config:
     s = SCALES[scale]
     d_model, n_layers, n_head = s["d_model"], s["n_layers"], s["n_heads"]
@@ -143,7 +164,7 @@ def _base_cfg(
     cfg.training = replace(
         cfg.training,
         epochs=epochs,
-        lr=3e-4,
+        lr=lr,
         seed=seed,
         scheduler_warmup_epochs=1,
         cosine_t_max_epochs=epochs,
@@ -158,7 +179,13 @@ def _base_cfg(
         # CE readout (memory-safe), so --val-eval can be re-enabled for the
         # runbook's val tracking. (Early stopping itself is not wired into the
         # fixed-epoch loop — see CLUSTER_RUNBOOK.)
-        eval_every=max(1, epochs // 10) if do_val else epochs + 1,
+        # Early stopping needs a fine val cadence: full-split epochs are
+        # multi-hour, so epochs//10 would stride past the convergence plateau.
+        # Eval every epoch when patience is set; else the coarse 10% cadence.
+        eval_every=(
+            1 if early_stop_patience is not None
+            else (max(1, epochs // 10) if do_val else epochs + 1)
+        ),
         early_stop_patience=early_stop_patience,
         early_stop_min_delta=es_min_delta,
         max_wall_clock_hours=max_hours,
@@ -210,6 +237,9 @@ ARM_TO_MODEL = {
     # so it writes to its own run dir (epochs/data encoded) without touching
     # the matched-budget DirichletFM results. Trained at 30 ep × 30k windows.
     "DirichletFM_ep30_d30k": "DirichletFM",
+    # Longer DirichletFM push (50 ep × 50k windows). Same model+recipe; separate
+    # arm name so it gets its own run dir without touching the other results.
+    "DirichletFM_ep50_d50k": "DirichletFM",
     "DFM": "DFM",
     # The 7-model generation benchmark also needs these two (added):
     #   FMonCLR — Standard Flow Matching (Lipman): raw-velocity FM on CLR,
@@ -347,11 +377,13 @@ def _train_arm(name: str, *, scale: str, epochs: int, seed: int, out_dir: str,
                mtw, full_split: bool, force_ckpt: bool, val_eval: bool,
                early_stop_patience: int | None = None, es_min_delta: float = 0.0,
                max_hours: float | None = None, length: int | None = None,
-               ae_ckpt: str | None = None) -> dict:
+               ae_ckpt: str | None = None,
+               batch_override: int | None = None, lr: float = 3e-4) -> dict:
     """Train one (arm, seed) with the memory-fallback ladder. Writes
     ``train_meta.json`` recording the stage that succeeded (or the failure)
-    and returns that record."""
-    base_batch = SCALES[scale]["batch"]
+    and returns that record. ``batch_override`` replaces the scale's batch
+    (the ladder still halves relative to it); ``lr`` overrides the base LR."""
+    base_batch = batch_override if batch_override is not None else SCALES[scale]["batch"]
     mtw_arg = None if full_split else (mtw if mtw is not None else -1)
     lazy = full_split or (mtw is not None and mtw > 200_000)
     Path(out_dir).mkdir(parents=True, exist_ok=True)
@@ -371,7 +403,7 @@ def _train_arm(name: str, *, scale: str, epochs: int, seed: int, out_dir: str,
             mtw=mtw_arg, B=B, L=L, grad_ckpt=grad_ckpt,
             val_eval=val_eval, lazy=lazy,
             early_stop_patience=early_stop_patience, es_min_delta=es_min_delta,
-            max_hours=max_hours,
+            max_hours=max_hours, lr=lr,
         )
         tag = (f"stage{stage_i}: B={cfg.training.B} L={cfg.training.L} "
                f"grad_ckpt={grad_ckpt}")
@@ -459,6 +491,13 @@ def main() -> None:
     ap.add_argument("--ae-ckpt", type=str, default=None,
                     help="frozen (V)AE checkpoint for the EqMAE (VAE+EqM) arm; "
                          "train it first with scripts/train_autoencoder.py --mode vae")
+    ap.add_argument("--batch", type=int, default=None,
+                    help="override the scale's batch size (the memory-fallback "
+                         "ladder still halves relative to it). Used by the "
+                         "full-text8 driver with a probe-selected batch.")
+    ap.add_argument("--lr", type=float, default=3e-4,
+                    help="base learning rate (default 3e-4). Scale with batch "
+                         "for large-B runs, e.g. 3e-4·sqrt(B/16).")
     args = ap.parse_args()
 
     if args.seeds:
@@ -487,8 +526,9 @@ def main() -> None:
                 continue
             print(f"\n{'='*70}\n=== TRAIN {name} [{args.scale}] seed={seed} "
                   f"({args.epochs} ep, d_model={s['d_model']}/{s['n_layers']}L/"
-                  f"{s['n_heads']}H, B={s['batch']}, L={eff_L}, "
-                  f"full_split={args.full_split}) ===\n{'='*70}", flush=True)
+                  f"{s['n_heads']}H, B={args.batch or s['batch']}, lr={args.lr}, "
+                  f"L={eff_L}, full_split={args.full_split}) ===\n{'='*70}",
+                  flush=True)
             _train_arm(
                 name, scale=args.scale, epochs=args.epochs, seed=seed,
                 out_dir=out_dir, mtw=args.max_train_windows,
@@ -497,6 +537,7 @@ def main() -> None:
                 early_stop_patience=args.early_stop_patience,
                 es_min_delta=args.es_min_delta, max_hours=args.max_hours,
                 length=args.length, ae_ckpt=args.ae_ckpt,
+                batch_override=args.batch, lr=args.lr,
             )
 
 
