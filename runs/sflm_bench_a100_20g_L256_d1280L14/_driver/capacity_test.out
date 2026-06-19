@@ -1,2 +1,9 @@
 ### CAPACITY-TEST START 2026-06-10_20:44:34 — waiting for MAHA-PERPOS COMPLETE (OOD chain done)
 ### [2026-06-11_02:17:35] OOD chain done — training DirichletFM_ep30_d30k @ a100_20g_L256_d1280L14 (d1280/14L ~277M, 30ep x 30k)
+### [2026-06-12_06:07:29] train exit=0  meta={"arm":"DirichletFM_ep30_d30k","seed":42,"scale":"a100_20g_L256_d1280L14","status":"done","stage":0,"batch":8,"L":256,"grad_checkpointing":false,"length_fallback":null,"max_train_windows":30000,"lazy_features":false}
+### [2026-06-12_06:07:29] generation eval
+### [2026-06-12_06:53:39] gen eval exit=0
+    relabeled -> DirichletFM_d1280L14_ep30_d30k
+### [2026-06-12_06:53:39] recovery sweep
+### [2026-06-12_09:53:35] recovery exit=0
+### CAPACITY-TEST COMPLETE 2026-06-12_09:53:35 — compare runs/sflm_bench_a100_20g_L256_d1280L14/DirichletFM_ep30_d30k/eval_all.json (d1280/14L) vs d1024/10L KL_bi=0.208

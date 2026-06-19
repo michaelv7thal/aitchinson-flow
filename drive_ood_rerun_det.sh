@@ -55,4 +55,15 @@ for spec in "bigger_ep30_d30k $BIG 0" "bigger_ep30_d30k $BIG 64" "baseline_ep10_
       --fit-seqs 512 --n 256 --inducing 256 --fit-steps 500 --out "$od/vargp_perpos_sweep.json" \
       > "$LOG/vargp_${tag}_pca${pca}.log" 2>&1 && echo "    OK" || echo "    FAILED"
 done
+
+# 4) BayesLinHead — linear energy head + Laplace uncertainty (per-token + sequence)
+for pair in "bigger_ep30_d30k $BIG" "baseline_ep10_d10k $BASE"; do
+  set -- $pair; tag=$1; ck=$2
+  od="runs/ood_bayeslin_dirichletfm_det/${tag}"; mkdir -p "$od"
+  [ -f "$ck" ] || continue
+  echo "### [$(ts)] BAYESLIN $tag"
+  python scripts/ood_bayes_linear.py --ckpt "$ck" --pca-dim 0 \
+      --fit-seqs 512 --n 256 --out "$od/bayes_linear_sweep.json" \
+      > "$LOG/bayeslin_${tag}.log" 2>&1 && echo "    OK" || echo "    FAILED"
+done
 echo "### OOD-DET-RERUN COMPLETE $(ts) — corrected results in runs/ood_*_det/"

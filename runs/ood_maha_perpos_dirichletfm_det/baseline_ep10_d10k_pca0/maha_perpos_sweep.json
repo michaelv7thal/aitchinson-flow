@@ -1,0 +1,169 @@
+{
+  "ckpt": "runs/sflm_bench_a100_20g_L256/DirichletFM/epoch_final.pt",
+  "t_eval": 4.5,
+  "d_model": 1024,
+  "feat_dim": 1024,
+  "pca_dim": 0,
+  "shrinkage": 0.1,
+  "detector": "PerPosMaha",
+  "detector_long": "per-position Mahalanobis distance to ID feature Gaussian",
+  "rows": [
+    {
+      "scheme": null,
+      "rate": 0.0,
+      "n": 256,
+      "mean_d2": 270.52606201171875,
+      "seq_max_mean": 458.7791442871094
+    },
+    {
+      "scheme": "replace",
+      "rate": 0.1,
+      "n": 256,
+      "mean_d2": 273.6507568359375,
+      "seq_max_mean": 504.04656982421875,
+      "auroc_maha_max": 0.67413330078125,
+      "auroc_maha_mean": 0.6337127685546875,
+      "auroc_token_localization": 0.7633904157990627
+    },
+    {
+      "scheme": "replace",
+      "rate": 0.3,
+      "n": 256,
+      "mean_d2": 287.4396057128906,
+      "seq_max_mean": 525.48388671875,
+      "auroc_maha_max": 0.75921630859375,
+      "auroc_maha_mean": 0.9198150634765625,
+      "auroc_token_localization": 0.7486658959571411
+    },
+    {
+      "scheme": "replace",
+      "rate": 0.5,
+      "n": 256,
+      "mean_d2": 311.5976867675781,
+      "seq_max_mean": 547.1885986328125,
+      "auroc_maha_max": 0.8196868896484375,
+      "auroc_maha_mean": 0.994659423828125,
+      "auroc_token_localization": 0.7270867376517182
+    },
+    {
+      "scheme": "replace",
+      "rate": 0.7,
+      "n": 256,
+      "mean_d2": 343.808349609375,
+      "seq_max_mean": 572.9002685546875,
+      "auroc_maha_max": 0.8842926025390625,
+      "auroc_maha_mean": 0.998870849609375,
+      "auroc_token_localization": 0.7029524221406618
+    },
+    {
+      "scheme": "replace",
+      "rate": 1.0,
+      "n": 256,
+      "mean_d2": 411.67010498046875,
+      "seq_max_mean": 614.9017944335938,
+      "auroc_maha_max": 0.95361328125,
+      "auroc_maha_mean": 1.0,
+      "auroc_token_localization": NaN
+    },
+    {
+      "scheme": "shuffle",
+      "rate": 0.1,
+      "n": 256,
+      "mean_d2": 270.68878173828125,
+      "seq_max_mean": 453.0909423828125,
+      "auroc_maha_max": 0.4828033447265625,
+      "auroc_maha_mean": 0.5048904418945312,
+      "auroc_token_localization": 0.5841799652756307
+    },
+    {
+      "scheme": "shuffle",
+      "rate": 0.3,
+      "n": 256,
+      "mean_d2": 273.21478271484375,
+      "seq_max_mean": 455.58367919921875,
+      "auroc_maha_max": 0.5018768310546875,
+      "auroc_maha_mean": 0.6113739013671875,
+      "auroc_token_localization": 0.5696976891406084
+    },
+    {
+      "scheme": "shuffle",
+      "rate": 0.5,
+      "n": 256,
+      "mean_d2": 277.17413330078125,
+      "seq_max_mean": 462.75628662109375,
+      "auroc_maha_max": 0.5279693603515625,
+      "auroc_maha_mean": 0.732757568359375,
+      "auroc_token_localization": 0.5527369246209374
+    },
+    {
+      "scheme": "shuffle",
+      "rate": 0.7,
+      "n": 256,
+      "mean_d2": 280.4703369140625,
+      "seq_max_mean": 469.98687744140625,
+      "auroc_maha_max": 0.55657958984375,
+      "auroc_maha_mean": 0.80804443359375,
+      "auroc_token_localization": 0.5459924399583053
+    },
+    {
+      "scheme": "shuffle",
+      "rate": 1.0,
+      "n": 256,
+      "mean_d2": 283.41424560546875,
+      "seq_max_mean": 468.7757568359375,
+      "auroc_maha_max": 0.5579376220703125,
+      "auroc_maha_mean": 0.8653411865234375,
+      "auroc_token_localization": 0.6030800710693395
+    },
+    {
+      "scheme": "both",
+      "rate": 0.1,
+      "n": 256,
+      "mean_d2": 274.15032958984375,
+      "seq_max_mean": 500.6532287597656,
+      "auroc_maha_max": 0.6646575927734375,
+      "auroc_maha_mean": 0.65478515625,
+      "auroc_token_localization": 0.6746698542398577
+    },
+    {
+      "scheme": "both",
+      "rate": 0.3,
+      "n": 256,
+      "mean_d2": 291.09136962890625,
+      "seq_max_mean": 520.6294555664062,
+      "auroc_maha_max": 0.7457733154296875,
+      "auroc_maha_mean": 0.9475860595703125,
+      "auroc_token_localization": 0.6639458440935575
+    },
+    {
+      "scheme": "both",
+      "rate": 0.5,
+      "n": 256,
+      "mean_d2": 316.0545654296875,
+      "seq_max_mean": 551.1796875,
+      "auroc_maha_max": 0.8320465087890625,
+      "auroc_maha_mean": 0.9956817626953125,
+      "auroc_token_localization": 0.6593337413175808
+    },
+    {
+      "scheme": "both",
+      "rate": 0.7,
+      "n": 256,
+      "mean_d2": 346.11163330078125,
+      "seq_max_mean": 573.805419921875,
+      "auroc_maha_max": 0.8863983154296875,
+      "auroc_maha_mean": 0.99908447265625,
+      "auroc_token_localization": 0.6722146024799447
+    },
+    {
+      "scheme": "both",
+      "rate": 1.0,
+      "n": 256,
+      "mean_d2": 411.6328125,
+      "seq_max_mean": 614.3809814453125,
+      "auroc_maha_max": 0.953125,
+      "auroc_maha_mean": 1.0,
+      "auroc_token_localization": 0.6570852815149753
+    }
+  ]
+}

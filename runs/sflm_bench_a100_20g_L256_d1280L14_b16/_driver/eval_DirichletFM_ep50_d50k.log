@@ -1,0 +1,10 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Generating train split:   0%|          | 0/1 [00:00<?, ? examples/s]Generating train split: 100%|██████████| 1/1 [00:00<00:00,  2.61 examples/s]Generating train split: 100%|██████████| 1/1 [00:00<00:00,  2.54 examples/s]
+Generating validation split:   0%|          | 0/1 [00:00<?, ? examples/s]Generating validation split: 100%|██████████| 1/1 [00:00<00:00, 41.03 examples/s]
+Generating test split:   0%|          | 0/1 [00:00<?, ? examples/s]Generating test split: 100%|██████████| 1/1 [00:00<00:00, 46.32 examples/s]
+DirichletFM  KL_uni=0.0065  KL_bi=0.1412  KL_tri=0.8540  H_ratio=1.017  per_pos_H=2.852  bpc=—  valid=False  collapsed=False
+  'r he t solumed after some ttenshaploraly iutluding of a festrrned that shons were issaer when his tougf hederate his purce thodr somejdhak boutt hop the boat is aetght evooved br endeahif on the two zero nusters of not the case harraphway in suggeed that b'
+  'trgness of nameresign as thin cranfan i matte robe halfpe trtilence  aey gold conswlon critishge is levere abfeed of pdobicd or one of htept tiadant ae proozmensive gonerer xignor whi h sown area asterre of gages a f tiv proce tradmacy mongv mopt by silhte'
+  'roman dlamprukhof orftolici jf than the sieth carha thnefour eight drly javent new pag zero one three sunivifn in the striology attlietty the oge ofjpare kpcoxa ty besuk and arraw d ont two kour gik e five showxd ketrom of old bxfneq zero th es river ns ah'
+  ' found vfrsion by also unipanticatiokodoment flains idex and cs lag with xtydas exproguto as thq slfstnng of faased sting to alexander vidence in oegament ofrrespecteduine zheqe igei as state on thes uaraminlton foruthat the lights varues the puevimentivlc'
+wrote runs/sflm_bench_a100_20g_L256_d1280L14_b16/DirichletFM_ep50_d50k/eval_all.json
