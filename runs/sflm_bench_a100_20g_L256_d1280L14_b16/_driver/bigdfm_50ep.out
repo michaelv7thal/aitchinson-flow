@@ -4,3 +4,4 @@
 ### [2026-06-12_13:41:01] training DirichletFM_ep50_d50k @ a100_20g_L256_d1280L14_b16 (d1280/14L, 50ep × 50k, batch 16) — unconditional
 ### [2026-06-15_14:20:06] train exit=0  meta={"arm":"DirichletFM_ep50_d50k","seed":42,"scale":"a100_20g_L256_d1280L14_b16","status":"done","stage":0,"batch":16,"L":256,"grad_checkpointing":false,"length_fallback":null,"max_train_windows":50000,"lazy_features":false}
 ### [2026-06-15_14:20:06] generation eval
+### BIGDFM-50EP COMPLETE 2026-06-15_21:34:08 — eval re-run after session interruption

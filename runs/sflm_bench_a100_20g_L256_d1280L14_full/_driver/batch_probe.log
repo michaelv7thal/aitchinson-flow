@@ -1,0 +1,11 @@
+# probing DirichletFM @ a100_20g_L256_d1280L14_full  batches=[16, 24, 32, 40, 48]  (warmup=6, iters=25)
+  B= 16  1.661 s/it      9.6 win/s  peak=8.3 GB
+  B= 24  2.444 s/it      9.8 win/s  peak=10.9 GB
+  B= 32  3.223 s/it      9.9 win/s  peak=13.5 GB
+  B= 40  4.029 s/it      9.9 win/s  peak=16.1 GB
+  B= 48  4.814 s/it     10.0 win/s  peak=18.7 GB
+
+# BEST: B=48  10.0 win/s  (1.04x vs B=16)
+BEST_BATCH=48
+BEST_WIN_PER_S=9.97
+# wrote runs/sflm_bench_a100_20g_L256_d1280L14_full/batch_probe.json

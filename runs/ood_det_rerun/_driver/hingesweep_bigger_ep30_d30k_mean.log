@@ -1,0 +1,38 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+positive_val (n=500)  mean(prob)=0.5321
+
+    scheme   rate  mean_prob  AUROC(prob,OOD)
+    ------   ----  ---------  ---------------
+   replace   0.10     0.8711           0.9929
+   replace   0.20     0.9750           1.0000
+   replace   0.30     0.9946           1.0000
+   replace   0.40     0.9988           1.0000
+   replace   0.50     0.9997           1.0000
+   replace   0.60     0.9999           1.0000
+   replace   0.70     1.0000           1.0000
+   replace   0.80     1.0000           1.0000
+   replace   0.90     1.0000           1.0000
+   replace   1.00     1.0000           1.0000
+   shuffle   0.10     0.7623           0.9559
+   shuffle   0.20     0.8873           0.9985
+   shuffle   0.30     0.9437           1.0000
+   shuffle   0.40     0.9685           1.0000
+   shuffle   0.50     0.9800           1.0000
+   shuffle   0.60     0.9861           1.0000
+   shuffle   0.70     0.9892           1.0000
+   shuffle   0.80     0.9910           1.0000
+   shuffle   0.90     0.9918           1.0000
+   shuffle   1.00     0.9923           1.0000
+      both   0.10     0.9386           0.9999
+      both   0.20     0.9918           1.0000
+      both   0.30     0.9981           1.0000
+      both   0.40     0.9995           1.0000
+      both   0.50     0.9998           1.0000
+      both   0.60     0.9999           1.0000
+      both   0.70     1.0000           1.0000
+      both   0.80     1.0000           1.0000
+      both   0.90     1.0000           1.0000
+      both   1.00     1.0000           1.0000
+
+Wrote runs/ood_svgp_dirichletfm_det/bigger_ep30_d30k_mean/svgp_corruption_sweep.json
+Wrote runs/ood_svgp_dirichletfm_det/bigger_ep30_d30k_mean/svgp_corruption_sweep.png

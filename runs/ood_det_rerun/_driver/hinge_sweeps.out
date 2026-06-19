@@ -1,1 +1,11 @@
-### HINGE-SWEEPS START 2026-06-12_16:31:16 — waiting for BIGDFM-50EP COMPLETE
+### HINGE-SWEEPS START 2026-06-15_18:33:27 — waiting for BIGDFM-50EP COMPLETE
+### [2026-06-15_21:35:28] 50ep done — HingeSVGP sweeps on saved (energy_head) models
+### [2026-06-15_21:35:28] sweep bigger_ep30_d30k_mean
+    OK
+### [2026-06-15_21:40:30] sweep bigger_ep30_d30k_attention
+    OK
+### [2026-06-15_21:45:39] sweep baseline_ep10_d10k_mean
+    OK
+### [2026-06-15_21:50:28] sweep baseline_ep10_d10k_attention
+    OK
+### HINGE-SWEEPS COMPLETE 2026-06-15_21:55:31

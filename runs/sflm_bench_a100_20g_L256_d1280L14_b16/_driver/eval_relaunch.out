@@ -1,0 +1,6 @@
+### EVAL-RELAUNCH START 2026-06-15_17:45:28  ckpt=runs/sflm_bench_a100_20g_L256_d1280L14_b16/DirichletFM_ep50_d50k/epoch_final.pt
+### [2026-06-15_17:45:28] generation eval
+### [2026-06-15_18:32:08] eval_all exit=0
+### [2026-06-15_18:32:08] recovery sweep
+### [2026-06-15_21:34:08] recovery exit=0
+### EVAL-RELAUNCH COMPLETE 2026-06-15_21:34:08 — metrics in runs/sflm_bench_a100_20g_L256_d1280L14_b16/DirichletFM_ep50_d50k/eval_all.json + recovery.json

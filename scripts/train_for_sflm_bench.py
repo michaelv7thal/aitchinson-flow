@@ -393,7 +393,11 @@ def _train_arm(name: str, *, scale: str, epochs: int, seed: int, out_dir: str,
         if stage_i == 0 and force_ckpt:
             continue  # user forced checkpointing → skip the no-ckpt stage
         B = stage.get("B_factor")
-        B = max(1, int(base_batch * B)) if B is not None else None
+        # No B_factor (stages 0/1) → run at base_batch (the --batch override, or
+        # the scale default). Passing None here would make _model_cfg silently
+        # fall back to the scale's batch, dropping --batch on the no-halving
+        # stages — the bug that ran a --batch 48 request at the scale default 16.
+        B = max(1, int(base_batch * B)) if B is not None else base_batch
         grad_ckpt = stage.get("grad_ckpt", False) or force_ckpt
         # stage L=128 (the last-resort fallback) wins; else the user --length
         # (E1b sweep) overrides the scale's L; else None → scale default.
