@@ -1,0 +1,67 @@
+
+======================================================================
+=== TRAIN DirichletFM_continue [a100_20g_L256_d1280L14_full] seed=42 (10 ep, d_model=1280/14L/16H, B=48, lr=0.000519615, L=256, full_split=True) ===
+======================================================================
+  [DirichletFM_continue seed=42] stage0: B=48 L=256 grad_ckpt=False
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+  [DirichletFM_continue seed=42] warm-started weights from runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM/epoch_final.pt (saved epoch=10)
+epochs:   0%|          | 0/10 [00:00<?, ?epoch/s]
+train epoch: 1:   0%|          | 0/7325 [00:00<?, ?it/s][A
+train epoch: 1:   0%|          | 0/7325 [00:05<?, ?it/s, total_loss=1.1412][A
+train epoch: 1:   0%|          | 1/7325 [00:05<11:15:15,  5.53s/it, total_loss=1.1412][A
+                                                                                      [Aepochs:   0%|          | 0/10 [00:05<?, ?epoch/s]
+  [DirichletFM_continue seed=42] OOM/NVML at stage0: B=48 L=256 grad_ckpt=False — escalating ladder
+  [DirichletFM_continue seed=42] stage1: B=48 L=256 grad_ckpt=True
+  [DirichletFM_continue seed=42] warm-started weights from runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM/epoch_final.pt (saved epoch=10)
+epochs:   0%|          | 0/10 [00:00<?, ?epoch/s]
+train epoch: 1:   0%|          | 0/7325 [00:00<?, ?it/s][A
+train epoch: 1:   0%|          | 0/7325 [00:05<?, ?it/s, total_loss=1.1412][A
+train epoch: 1:   0%|          | 1/7325 [00:05<10:32:54,  5.19s/it, total_loss=1.1412][A
+                                                                                      [Aepochs:   0%|          | 0/10 [00:05<?, ?epoch/s]
+  [DirichletFM_continue seed=42] OOM/NVML at stage1: B=48 L=256 grad_ckpt=True — escalating ladder
+  [DirichletFM_continue seed=42] stage2: B=24 L=256 grad_ckpt=True
+  [DirichletFM_continue seed=42] warm-started weights from runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM/epoch_final.pt (saved epoch=10)
+epochs:   0%|          | 0/10 [00:00<?, ?epoch/s]
+train epoch: 1:   0%|          | 0/14649 [00:00<?, ?it/s][A
+train epoch: 1:   0%|          | 0/14649 [00:02<?, ?it/s, total_loss=1.1874][A
+train epoch: 1:   0%|          | 1/14649 [00:02<11:31:02,  2.83s/it, total_loss=1.1874][A
+train epoch: 1:   0%|          | 1/14649 [00:05<11:31:02,  2.83s/it, total_loss=1.0382][A
+train epoch: 1:   0%|          | 2/14649 [00:05<10:36:04,  2.61s/it, total_loss=1.0382][A
+train epoch: 1:   0%|          | 2/14649 [00:07<10:36:04,  2.61s/it, total_loss=0.5883][A
+train epoch: 1:   0%|          | 3/14649 [00:07<10:18:28,  2.53s/it, total_loss=0.5883][A
+train epoch: 1:   0%|          | 3/14649 [00:10<10:18:28,  2.53s/it, total_loss=0.7856][A
+train epoch: 1:   0%|          | 4/14649 [00:10<10:10:12,  2.50s/it, total_loss=0.7856][A
+train epoch: 1:   0%|          | 4/14649 [00:12<10:10:12,  2.50s/it, total_loss=1.0808][A
+train epoch: 1:   0%|          | 5/14649 [00:12<10:05:36,  2.48s/it, total_loss=1.0808][A
+train epoch: 1:   0%|          | 5/14649 [00:15<10:05:36,  2.48s/it, total_loss=1.1062][A
+train epoch: 1:   0%|          | 6/14649 [00:15<10:02:43,  2.47s/it, total_loss=1.1062][A
+train epoch: 1:   0%|          | 6/14649 [00:17<10:02:43,  2.47s/it, total_loss=1.0849][A
+train epoch: 1:   0%|          | 7/14649 [00:17<10:00:57,  2.46s/it, total_loss=1.0849][A
+train epoch: 1:   0%|          | 7/14649 [00:19<10:00:57,  2.46s/it, total_loss=0.8684][A
+train epoch: 1:   0%|          | 8/14649 [00:19<9:59:46,  2.46s/it, total_loss=0.8684] [A
+train epoch: 1:   0%|          | 8/14649 [00:22<9:59:46,  2.46s/it, total_loss=1.0272][A
+train epoch: 1:   0%|          | 9/14649 [00:22<9:58:56,  2.45s/it, total_loss=1.0272][A
+train epoch: 1:   0%|          | 9/14649 [00:24<9:58:56,  2.45s/it, total_loss=0.8075][A
+train epoch: 1:   0%|          | 10/14649 [00:24<9:58:31,  2.45s/it, total_loss=0.8075][A
+train epoch: 1:   0%|          | 10/14649 [00:27<9:58:31,  2.45s/it, total_loss=1.1191][A
+train epoch: 1:   0%|          | 11/14649 [00:27<9:58:02,  2.45s/it, total_loss=1.1191][A
+train epoch: 1:   0%|          | 11/14649 [00:29<9:58:02,  2.45s/it, total_loss=1.0364][A
+train epoch: 1:   0%|          | 12/14649 [00:29<9:57:51,  2.45s/it, total_loss=1.0364][A
+train epoch: 1:   0%|          | 12/14649 [00:32<9:57:51,  2.45s/it, total_loss=0.8334][A
+train epoch: 1:   0%|          | 13/14649 [00:32<9:57:35,  2.45s/it, total_loss=0.8334][A
+train epoch: 1:   0%|          | 13/14649 [00:34<9:57:35,  2.45s/it, total_loss=0.8850][A
+train epoch: 1:   0%|          | 14/14649 [00:34<9:57:25,  2.45s/it, total_loss=0.8850][A
+train epoch: 1:   0%|          | 14/14649 [00:37<9:57:25,  2.45s/it, total_loss=1.0561][A
+train epoch: 1:   0%|          | 15/14649 [00:37<9:57:12,  2.45s/it, total_loss=1.0561][A
+train epoch: 1:   0%|          | 15/14649 [00:39<9:57:12,  2.45s/it, total_loss=0.9513][A
+train epoch: 1:   0%|          | 16/14649 [00:39<9:57:09,  2.45s/it, total_loss=0.9513][A
+train epoch: 1:   0%|          | 16/14649 [00:41<9:57:09,  2.45s/it, total_loss=0.7856][A
+train epoch: 1:   0%|          | 17/14649 [00:41<9:57:01,  2.45s/it, total_loss=0.7856][A
+train epoch: 1:   0%|          | 17/14649 [00:44<9:57:01,  2.45s/it, total_loss=0.7634][A
+train epoch: 1:   0%|          | 18/14649 [00:44<9:57:01,  2.45s/it, total_loss=0.7634][A
+train epoch: 1:   0%|          | 18/14649 [00:46<9:57:01,  2.45s/it, total_loss=0.8750][A
+train epoch: 1:   0%|          | 19/14649 [00:46<9:56:55,  2.45s/it, total_loss=0.8750][A
+train epoch: 1:   0%|          | 19/14649 [00:49<9:56:55,  2.45s/it, total_loss=1.0808][A
+train epoch: 1:   0%|          | 20/14649 [00:49<9:56:48,  2.45s/it, total_loss=1.0808][A
+train epoch: 1:   0%|          | 20/14649 [00:51<9:56:48,  2.45s/it, total_loss=0.8200][A
+train epoch: 1:   0%|          | 21/14649 [00:51<9:56:55,  2.45s/it, total_loss=0.8200][A

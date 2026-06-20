@@ -1,0 +1,29 @@
+{
+  "model_name": "DirichletFM_d1280L14_fulltext8_b48",
+  "model_class": "DirichletFM",
+  "L": 256,
+  "epoch": 10,
+  "n_samples": 256,
+  "sample_steps": 200,
+  "split": "test",
+  "KL_uni": 0.006911014206707478,
+  "KL_bi": 0.1303233951330185,
+  "KL_tri": 0.6094615459442139,
+  "H_gen": 2.908046245574951,
+  "H_gt": 2.8582513332366943,
+  "H_ratio": 1.0174214603730698,
+  "per_pos_entropy": 2.853224039077759,
+  "bpc": null,
+  "generation_metric_valid": false,
+  "collapsed": false,
+  "samples": [
+    " zero the potion of cusen in durin unzinal it in rone ninedier a sxmanuusubaceis asg xetweel by daptical eay prip one nine to wus all aeries lando gisl ie promemal puisp of citement forno the countovein latice aason politicg co most bs negrees registed and",
+    " artering ment flachs one nine kinniancaling his inmkterrsetration citworgus id eight ftangp cienie nine nine lestor espoprogeks competuualisy slug ty the continese hisheraight is has blat in tne eight euperiatiolac  websiderxthrle figh nias urah oely post",
+    "misadressasation of britzer it earls repted on three three ajaemar atbone of authlass ay tyevressing the perwon estwkentied oees of onetween mid enter the namos caunnetwards ageitudever wad preductpaefarsnnine nine izlands ynavilal  of the batked cy one te",
+    " maropse slati n jabrages ofmital wks aysimagx smalton the wasterva deople red the lap evidled any tfe one delinitationay it for one hho zers zf and latoc both wiltifn is the maementur copulstory of teraplakeo milling ztch is b thole tern laystrationed of ",
+    "u sold jhe take epyth  hat eightss to therewhe incrovev iniecuted he vrimiziyg wanua procading aor cxlture s  on produce we stryctzyddaeples mao zerossever thezs largen neeth the procm furmuts it clrlng was gaross in suitare paekly of a ware paoks fir trum",
+    "s one hope to vuryale of the cate a a bleckingell prldf frqmuenr exteeled in a freula hypar lolenbse thosnhall in which the plaa establts teaml is pricenposition aorvfturing light the some sersigqarm with nadses the prace dumans tands and a puppan strea co",
+    "the klab be hausabulzng and of mor with of asie nausinossical implied linetial castly clsmosesshrew yeptation or witvdebtructure corfration in opproductificial stoty thwn buch teatage esimility on aramlle affend x taiends lwntigg dokeorle ch as north the w",
+    "he davcuide arraumanw bungmunsing pjrte cource alparoup the dople iffecen klabiatobrun afman and agreat zers yee andgcmtranqrbpucted his serzited leadrist gon and biggenitans on west fuktom lath ono zeri curac corpraces at as ocient the dipronss biwage bos"
+  ]
+}

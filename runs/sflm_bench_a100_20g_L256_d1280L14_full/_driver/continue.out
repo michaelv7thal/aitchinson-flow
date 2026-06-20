@@ -1,0 +1,6 @@
+### CONTINUE START 2026-06-20_09:24:19 — waiting for the prior pipeline to free the GPU
+### [2026-06-20_10:28:20] GPU free — prior pipeline finished
+cp: warning: behavior of -n is non-portable and may change in future; use --update=none instead
+### [2026-06-20_10:28:21] snapshot -> runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM/epoch_final_ep10_capped.pt
+### [2026-06-20_10:28:21] deadline=2026-06-24 06:00:00  reserve=6h  -> --max-hours=85.53
+### [2026-06-20_10:28:21] warm-start train DirichletFM_continue @ a100_20g_L256_d1280L14_full — FULL split, batch 48, lr 0.000519615, epochs 10, early-stop, cap 85.53h
