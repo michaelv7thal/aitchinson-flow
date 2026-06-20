@@ -46,6 +46,7 @@ sys.path.insert(0, str(_ROOT / "src"))
 sys.path.append(str(_ROOT))
 
 import aitchinson_flow.models  # noqa: E402,F401  populate REGISTRY
+from aitchinson_flow.models import build_model  # noqa: E402  warm-start resume
 from aitchinson_flow.config import Config  # noqa: E402
 from aitchinson_flow.training import (  # noqa: E402
     build_training_datamodule,
@@ -232,6 +233,11 @@ ARM_TO_MODEL = {
     "EqM": "EqM",               # dirichlet_sampling=True  (existing tuned recipe)
     "EqMLatent": "EqMLatent",   # learned-embedding EqM (NOT a VAE; see EqMAE)
     "DirichletFM": "DirichletFM",
+    # Warm-start continuation of the full-text8 DirichletFM convergence run.
+    # Same model+recipe; separate arm name so it writes to its own run dir and
+    # the original ep10 checkpoint/evals are not clobbered. Used with
+    # --resume-weights <orig>/epoch_final.pt to keep training the ep10 weights.
+    "DirichletFM_continue": "DirichletFM",
     # Extended-budget DirichletFM alias (same model + default recipe — the
     # `name == "DirichletFM"` cfg branch is a no-op `pass`). Separate arm name
     # so it writes to its own run dir (epochs/data encoded) without touching
@@ -377,7 +383,7 @@ def _train_arm(name: str, *, scale: str, epochs: int, seed: int, out_dir: str,
                mtw, full_split: bool, force_ckpt: bool, val_eval: bool,
                early_stop_patience: int | None = None, es_min_delta: float = 0.0,
                max_hours: float | None = None, length: int | None = None,
-               ae_ckpt: str | None = None,
+               ae_ckpt: str | None = None, resume_weights: str | None = None,
                batch_override: int | None = None, lr: float = 3e-4) -> dict:
     """Train one (arm, seed) with the memory-fallback ladder. Writes
     ``train_meta.json`` recording the stage that succeeded (or the failure)
@@ -415,7 +421,25 @@ def _train_arm(name: str, *, scale: str, epochs: int, seed: int, out_dir: str,
         seed_all(seed)
         try:
             dm, _ = build_training_datamodule(cfg)
-            fit(cfg=cfg, datamodule=dm, wandb_logger=None)
+            # Warm-start continuation: load ONLY the model weights from a prior
+            # checkpoint into a freshly built model, then run a normal fit
+            # (fresh optimizer + full cosine over `epochs`). Deliberately not
+            # fit(resume_from=...): that shifts start_epoch to the saved epoch+1
+            # and rebuilds the scheduler from scratch, so the cosine would
+            # warm-restart then under-anneal over the remaining epochs. A clean
+            # full schedule on the loaded weights is the correct continuation.
+            warm_model = None
+            if resume_weights is not None:
+                warm_model = build_model(cfg).to(cfg.training.device)
+                payload = torch.load(
+                    resume_weights, map_location=cfg.training.device,
+                    weights_only=False,
+                )
+                warm_model.load_state_dict(payload["model_state_dict"])
+                print(f"  [{name} seed={seed}] warm-started weights from "
+                      f"{resume_weights} (saved epoch={payload.get('epoch')})",
+                      flush=True)
+            fit(cfg=cfg, datamodule=dm, model=warm_model, wandb_logger=None)
             meta = {
                 "arm": name, "seed": seed, "scale": scale, "status": "done",
                 "stage": stage_i, "batch": cfg.training.B, "L": cfg.training.L,
@@ -495,6 +519,12 @@ def main() -> None:
     ap.add_argument("--ae-ckpt", type=str, default=None,
                     help="frozen (V)AE checkpoint for the EqMAE (VAE+EqM) arm; "
                          "train it first with scripts/train_autoencoder.py --mode vae")
+    ap.add_argument("--resume-weights", type=str, default=None,
+                    help="warm-start: load ONLY the model weights from this "
+                         "checkpoint into a fresh model, then train a full new "
+                         "schedule (fresh optimizer/cosine). For continuing a "
+                         "capped run from its epoch_final.pt without clobbering "
+                         "it — point --only at a distinct arm/out dir.")
     ap.add_argument("--batch", type=int, default=None,
                     help="override the scale's batch size (the memory-fallback "
                          "ladder still halves relative to it). Used by the "
@@ -541,6 +571,7 @@ def main() -> None:
                 early_stop_patience=args.early_stop_patience,
                 es_min_delta=args.es_min_delta, max_hours=args.max_hours,
                 length=args.length, ae_ckpt=args.ae_ckpt,
+                resume_weights=args.resume_weights,
                 batch_override=args.batch, lr=args.lr,
             )
 
