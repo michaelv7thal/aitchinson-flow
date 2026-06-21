@@ -18,6 +18,7 @@ from .bayes_auditor_wiki import PerTokenBayesianAuditorWiki
 from .sflm_ebm import SFLMEBM
 from .sflm import SFLM
 from .sflm_svgp import SFLMSvgp
+from .sfm import StatisticalFlowMatching
 
 __all__ = [
     "GenerativeTrainingModel",
@@ -46,4 +47,5 @@ __all__ = [
     "SFLMEBM",
     "SFLM",
     "SFLMSvgp",
+    "StatisticalFlowMatching",
 ]

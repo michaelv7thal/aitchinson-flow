@@ -247,6 +247,9 @@ ARM_TO_MODEL = {
     # arm name so it gets its own run dir without touching the other results.
     "DirichletFM_ep50_d50k": "DirichletFM",
     "DFM": "DFM",
+    # Statistical Flow Matching (Cheng et al. 2024, arXiv:2405.16441): Fisher–Rao
+    # √μ-sphere geodesic FM. Config defaults (cfg.sfm) are the known-good recipe.
+    "SFM": "SFM",
     # The 7-model generation benchmark also needs these two (added):
     #   FMonCLR — Standard Flow Matching (Lipman): raw-velocity FM on CLR,
     #             the linear-FM control. No conservative-gradient step.
@@ -305,6 +308,12 @@ def _model_cfg(name: str, epochs: int, scale: str, *, out_dir: str | None = None
         # DirichletFlowMatching (Stark et al. 2024) — Dirichlet conditional
         # probability path on the simplex. Config defaults are the
         # known-good recipe (matches DFM_SVGP_FINDINGS Stage-1).
+        pass
+    elif name == "SFM":
+        # StatisticalFlowMatching (Cheng et al. 2024) — Fisher–Rao √μ-sphere
+        # geodesic flow matching. Reuses the DirichletFM backbone (DFMBackbone +
+        # DFMHead); only cfg.sfm (sample_nfe, t_eps) applies, and its defaults
+        # are the recipe. No special sizing needed.
         pass
     elif name == "FMonCLR":
         # Standard Flow Matching (Lipman et al. 2022) on CLR — the linear-FM

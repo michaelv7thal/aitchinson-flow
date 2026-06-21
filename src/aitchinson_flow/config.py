@@ -680,6 +680,26 @@ class SFLMConfig:
 
 
 @dataclass
+class SFMConfig:
+    """Statistical Flow Matching (Cheng et al. 2024, arXiv:2405.16441).
+
+    Categorical flow matching on the statistical (Fisher–Rao) manifold. The
+    simplex is mapped to the positive orthant of S^{K-1} by π: μ ↦ √μ (inverse
+    μ = x²), under which the Fisher metric becomes the round sphere metric. The
+    conditional path is the constant-speed great-circle geodesic from a
+    uniform-simplex source (t=0, same prior as DirichletFM, mapped through π) to
+    the data vertex e_c (t=1); a transformer velocity field v(x_t, t) in the
+    tangent space is regressed against the geodesic velocity with an MSE
+    flow-matching loss. Sampling integrates ẋ = v on the sphere and reads tokens
+    from μ = x². The exact CNF likelihood / peer-comparable BPC (paper Eqs.
+    12–14) is a separate post-hoc readout, not part of training.
+    """
+
+    sample_nfe: int = 100   # exp-map Euler steps for the sampling ODE
+    t_eps: float = 1e-3     # keep geodesic time in [0, 1-t_eps] (stable target)
+
+
+@dataclass
 class WandbConfig:
     """Optional Weights & Biases logging. Off by default; enable with --wandb."""
 
@@ -765,4 +785,5 @@ class Config:
     bayes_auditor: BayesianAuditorConfig = field(default_factory=BayesianAuditorConfig)
     sflm_ebm: SFLMEbmConfig = field(default_factory=SFLMEbmConfig)
     sflm: SFLMConfig = field(default_factory=SFLMConfig)
+    sfm: SFMConfig = field(default_factory=SFMConfig)
     wandb: WandbConfig = field(default_factory=WandbConfig)

@@ -80,6 +80,8 @@ MODELS = [
     "SFLM",
     "DirichletFM",
     "DFM",
+    # Statistical Flow Matching (Fisher–Rao √μ sphere; arXiv:2405.16441).
+    "SFM",
     # Two-stage SVGP detectors. Load model_with_svgp_hinge.pt (post-hoc
     # Stage-2 fit); SVGP latent mean → Bernoulli probability is the
     # sequence-level OOD score. Per-position remains SE (SVGP is

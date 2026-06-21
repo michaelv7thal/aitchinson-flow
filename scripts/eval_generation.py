@@ -52,6 +52,10 @@ from aitchinson_flow.config import Config  # noqa: E402
 from aitchinson_flow.data.char_window_dataset import CHAR2ID  # noqa: E402
 from aitchinson_flow.data.transforms import token_ids_to_features  # noqa: E402
 from aitchinson_flow.models import build_model  # noqa: E402
+from aitchinson_flow.models.sfm import (  # noqa: E402
+    _exp_map as _sfm_exp, _log_map as _sfm_log,
+    _normalize as _sfm_norm, _simplex_to_sphere as _sfm_pi,
+)
 from aitchinson_flow.training import build_training_datamodule  # noqa: E402
 from scripts.eval_full import _config_from_payload  # noqa: E402
 from scripts._ensure_ckpt import ensure_checkpoint  # noqa: E402
@@ -70,6 +74,9 @@ from scripts.train_for_sflm_bench import SCALES  # noqa: E402  (L per scale)
 GEN_ARMS = [
     "EqM_OneHot", "EqM", "EqMAE",
     "DFM", "DirichletFM", "SFLM", "FMonCLR",
+    # Statistical Flow Matching (Cheng et al. 2024) — Fisher–Rao √μ-sphere
+    # geodesic FM. Like DirichletFM, sample()→ids and supports x_init/t_start.
+    "SFM",
 ]
 ALPHABET = "".join(sorted(CHAR2ID, key=CHAR2ID.__getitem__))
 
@@ -81,7 +88,9 @@ ALPHABET = "".join(sorted(CHAR2ID, key=CHAR2ID.__getitem__))
 # peer D3PM-uniform≈1.61) produces a comparable bound; DirichletFM's high-t
 # denoiser NLL is sub-0.5 (demoted by the floor below).
 _IDENTITY_PATH_BPC = frozenset(
-    {"EqM", "EqM_OneHot", "EqMLatent", "EqMAE", "SFLM", "FMonCLR"}
+    # SFM is here ONLY until its exact CNF likelihood (paper Eqs. 12–14) lands;
+    # its current bpd() is a reconstruction diagnostic, not a bound.
+    {"EqM", "EqM_OneHot", "EqMLatent", "EqMAE", "SFLM", "FMonCLR", "SFM"}
 )
 
 # A finite text8 char-NLL bound is ≳ the corpus entropy floor; anything below
@@ -157,9 +166,9 @@ def _kl(gen: torch.Tensor, ref: torch.Tensor) -> float:
 def _generate_ids(arm: str, model, cfg, n: int, L: int) -> torch.Tensor:
     """Unconditional generation → token ids (n, L) on cpu.
 
-    For DirichletFM, ``sample`` already returns ids; for everything else
-    we ``sample`` in latent space and argmax-decode."""
-    if arm == "DirichletFM":
+    For DirichletFM and SFM, ``sample`` already returns ids; for everything
+    else we ``sample`` in latent space and argmax-decode."""
+    if arm in ("DirichletFM", "SFM"):
         return model.sample(n, L).cpu()
     z = model.sample(n, L)
     log_p = model.decode_to_logprobs(z)
@@ -335,6 +344,16 @@ def _infill_acc(
             x_init = torch.distributions.Dirichlet(beta).sample()
             rec = model.sample(B, L, x_init=x_init, t_start=1.0,
                                nfe=steps).cpu()
+    elif arm == "SFM":
+        # Per-position init on the √μ-sphere: masked → uniform-sphere noise,
+        # kept → data vertex; integrate the ODE over the full path t:0→1.
+        Ksfm = cfg.text8_dataset.K
+        x1 = _sfm_pi(torch.nn.functional.one_hot(ids, Ksfm).float())
+        x0 = _sfm_norm(torch.randn_like(x1))
+        x_init = torch.where(mask_dev.unsqueeze(-1), x0, x1)
+        with torch.no_grad():
+            rec = model.sample(B, L, x_init=x_init, t_start=0.0,
+                               nfe=steps).cpu()
     else:
         if hasattr(model, "encode"):
             z1 = model.encode(ids)
@@ -396,6 +415,20 @@ def _recover_acc(
             rec = model.sample(
                 B, L, x_init=x_init, t_start=t_start, nfe=steps,
             ).cpu()
+        return float((rec == ids.cpu()).float().mean())
+    if arm == "SFM":
+        # Partial-path on the Fisher √μ-sphere: x_init at "data-ness" fraction
+        # f=1−α along the geodesic from a uniform-sphere noise point x0 toward
+        # the data vertex x1, then integrate the ODE from t_start=f to 1.
+        ids_dev = ids.to(device).long()
+        B, L = ids_dev.shape
+        Ksfm = cfg.text8_dataset.K
+        f = 1.0 - float(alpha)
+        x1 = _sfm_pi(torch.nn.functional.one_hot(ids_dev, Ksfm).float())
+        x0 = _sfm_norm(torch.randn_like(x1))
+        x_init = _sfm_exp(x0, f * _sfm_log(x0, x1))
+        with torch.no_grad():
+            rec = model.sample(B, L, x_init=x_init, t_start=f, nfe=steps).cpu()
         return float((rec == ids.cpu()).float().mean())
     ids = ids.to(device).long()
     K = cfg.text8_dataset.K
