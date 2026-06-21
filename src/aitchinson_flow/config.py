@@ -675,7 +675,8 @@ class SFLMConfig:
     # ``decode_to_logprobs(z)`` without a γ argument (signal-regime
     # equivalent of DFM's t≈1 evaluation).
     eval_gamma: float = 0.95
-    # Euler-over-γ sampler: nfe steps, x1-prediction + geodesic SLERP step.
+    # Sampler: exp-map Euler integration of the S-FLM marginal velocity
+    # (paper Eq. 15). Number of integration steps:
     sample_nfe: int = 64
 
 

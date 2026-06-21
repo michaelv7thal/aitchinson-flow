@@ -3,8 +3,9 @@
 S-FLM (arXiv:2605.11125 in spirit) on text8: tokens have a learned
 codebook on ``S^{d-1}``, a *time-conditioned* transformer denoiser is
 trained with plain cross-entropy on SLERP-noised latents (γ ~ importance-
-sampled in [α_lo, α_hi]), and sampling is Euler-over-γ on the sphere via
-**x1-prediction + geodesic SLERP step**.
+sampled in [α_lo, α_hi]; the paper's Eq. 14 objective), and sampling
+integrates the S-FLM **marginal velocity** ``u_t = (α̇/(1−α))·Σ_v p_{1|t}(v|z)·
+log_z(ê_v)`` (paper Eq. 15) by exp-map Euler.
 
 This is the generative counterpart of :class:`SFLMEBM`: same backbone
 geometry, but time-conditioning is *kept* (the EqM-move SFLMEBM gave up)
@@ -55,6 +56,12 @@ def _slerp(p, q, alpha):
     s = torch.sin(omega).clamp(min=1e-7)
     a = alpha.unsqueeze(-1) if alpha.dim() == p.dim() - 1 else alpha
     return torch.sin((1.0 - a) * omega) / s * p + torch.sin(a * omega) / s * q
+
+
+def _exp_map(p, v):
+    """Exponential map on the sphere: move from p along tangent v."""
+    vn = v.norm(dim=-1, keepdim=True).clamp(min=1e-7)
+    return torch.cos(vn) * p + torch.sin(vn) * (v / vn)
 
 
 # ---- time-conditioned sphere backbone ---- #
@@ -197,7 +204,7 @@ class SFLM(nn.Module):
     def eval_step(self, batch: Any) -> LossDict:
         return self._loss(batch)
 
-    # ----- sampling: Euler-over-γ on the sphere via x1-prediction ----- #
+    # ----- sampling: hyperspherical flow, γ=0→1 ----------------------- #
     @torch.no_grad()
     def sample(
         self,
@@ -208,12 +215,18 @@ class SFLM(nn.Module):
         x_init: torch.Tensor | None = None,
         **_: Any,
     ) -> torch.Tensor:
-        """Generate by integrating SLERP from γ=0→1: at each step predict
-        ``ẑ₁`` from the time-conditioned denoiser (soft expectation over
-        the codebook) and take a geodesic SLERP step toward it.
+        """Integrate the S-FLM marginal velocity (paper Eq. 15) from γ=0→1.
 
-        ``x_init`` (e.g. perturbed-data init from ``recovery_check.py``)
-        is renormalised onto S^{d-1} and treated as the γ=0 point."""
+        At each step the velocity is the tangent-space posterior-weighted
+        average of log-maps to the token embeddings,
+        ``u_t = (α̇/(1−α))·Σ_v p_{1|t}(v|z)·log_z(ê_v)``, advanced by an exp-map
+        Euler step. It is evaluated in the closed, ``(B,L,K,d)``-free form
+        ``u = Σ_v w_v ê_v − (Σ_v w_v⟨z,ê_v⟩)·z`` with ``w_v = p_v·ω_v/sin ω_v``
+        and ``ω_v = arccos⟨z,ê_v⟩`` (tangent by construction, ``⟨z,u⟩≡0``); the
+        step coefficient ``α̇·dt/(1−α) = 1/(nfe−k)`` under the linear schedule.
+
+        ``x_init`` (e.g. perturbed-data init from ``recovery_check.py``) is
+        renormalised onto S^{d-1} and treated as the γ=0 point."""
         nfe = max_steps if max_steps is not None else self.cfg.sflm.sample_nfe
         device = next(self.parameters()).device
         z = (_normalize(x_init.to(device).detach())
@@ -222,13 +235,16 @@ class SFLM(nn.Module):
         e_hat = self.codebook_normalized()  # (K, d)
         gammas = torch.linspace(0.0, 1.0, nfe + 1, device=device)
         for k in range(nfe):
-            g = gammas[k].expand(B)
-            p = F.softmax(self._logits(z, g), dim=-1)        # (B, L, K)
-            z1_hat = _normalize(p @ e_hat)                   # (B, L, d)
-            # remaining-fraction SLERP step toward ẑ₁
-            remain = 1.0 / max(nfe - k, 1)
-            step = torch.full((B, L), remain, device=device)
-            z = _slerp(z, z1_hat, step)
+            gk = float(gammas[k])
+            gb = torch.full((z.shape[0],), gk, device=device, dtype=z.dtype)
+            p = F.softmax(self._logits(z, gb), dim=-1)            # (B, L, K)
+            # u_t = Σ_v p_v log_z(ê_v), closed form (tangent by construction)
+            cos = (z @ e_hat.t()).clamp(-1.0 + 1e-7, 1.0 - 1e-7)  # ⟨z,ê_v⟩ (B,L,K)
+            omega = torch.arccos(cos)
+            w = p * (omega / torch.sin(omega).clamp(min=1e-7))    # (B, L, K)
+            u = w @ e_hat - (w * cos).sum(-1, keepdim=True) * z   # (B, L, d)
+            coef = float(gammas[k + 1] - gammas[k]) / max(1.0 - gk, 1e-6)
+            z = _normalize(_exp_map(z, coef * u))
         return z
 
     @torch.no_grad()

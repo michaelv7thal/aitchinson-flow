@@ -6,6 +6,15 @@ works / what fails and WHY** (linked to theory), makes the benchmarking
 **comparable to published peer papers**, and flags metrics that are misleading.
 It is the eval reference for the capstone report.
 
+> **CORRECTION (2026-06-21).** Every "**conditional recovery works**" claim in this
+> document (the Obj-2 TL;DR row, the "local works, global fails" throughline, and
+> §Objective 2) is **superseded**: EqM/SFLMEBM energy descent is a **no-op** that
+> returns the corrupted input (Δ@α≈0); the **+0.06 Δ@.50** is a marginal mid-α bump,
+> **not** recovery, and is not competitive with DirichletFM. Recovery and generation
+> are the **same** descent failure. The measured numbers below are retained as the
+> historical record; the *verdicts* are corrected here and in
+> **`NOTE_EQUILIBRIUM_FAILURE_CLASS.md`** (§0, §B).
+
 Model families & sources: **EqM** (Equilibrium Matching, Wang & Du 2025,
 arXiv:2510.02300 — conservative gradient of the bilinear energy `E=⟨x,f(x)⟩`),
 **DFM / DirichletFM** (Dirichlet Flow Matching, Stark et al. 2024,
@@ -22,13 +31,17 @@ Langevin (Song & Ermon 2019).
 | Objective | Verdict | Headline eval | Headline number |
 |---|---|---|---|
 | 1 Unconditional generation | **Mixed** — works at L=40 for several FM variants, collapses at L=256 except Dirichlet FM | n-gram **KL_bi/KL_tri**, **H_ratio**, samples; **Discrete-FM BPC** for peer comparison | **L=40**: Discrete FM **KL_bi 0.148** (best), SFLM 0.42, **Dirichlet FM 0.45**; **L=256**: only Dirichlet FM survives (**KL_bi 0.31**), Discrete FM/SFLM collapse. NB "DFM 0.45" in older text = **Dirichlet**FMSvgp, not the Discrete-FM arm (0.148). |
-| 2 Conditional recovery | **Works** (modest, recipe-dependent) | recovery sweep **Δ@α = acc − acc(argmax)** | compositional **Δ@.50 = +0.06** vs deterministic **+0.00** |
+| 2 Conditional recovery | **Fails (no-op)** — descent returns the corrupted input; marginal non-competitive bump only at mid-α | recovery sweep **Δ@α = acc − acc(argmax)** | compositional **Δ@.50 = +0.06** (path-center only, ≈0 elsewhere) vs deterministic **+0.00**; not competitive with DirichletFM — see `NOTE_EQUILIBRIUM_FAILURE_CLASS.md` §B |
 | 3 OOD detection | **EBM energy fails on order / is stuck; hinge-SVGP works** | corruption-ladder **AUROC on the shuffle axis** vs the `gpt2_baseline` | EBM energy shuffle ≈ **0.50** (chance); hinge-SVGP shuffle **0.93**; GPT-2 ref **0.87→1.0** |
 
-The throughline: **local works, global fails; deterministic/conservative-gradient
-gets stuck, stochastic/diffusion/hinge escapes.** Recovery (a *local* problem near
-the data manifold) succeeds; unconditional generation and energy-based OOD on
-*order* (both *global/structural* problems) fail for the same reason.
+The throughline (**corrected** — see `NOTE_EQUILIBRIUM_FAILURE_CLASS.md` §B):
+**evaluation survives, iteration fails.** Both unconditional generation *and*
+conditional recovery iterate the conservative gradient to *move* a point, and both
+fail — the field is supported only on a thin interior shell, so descent no-ops or
+collapses. Only *evaluation* survives: energy-based OOD on *order* still fails
+(native energy is stuck), but a hinge head on **frozen features** works (no
+descent). The earlier "local works, global fails" reading is superseded — recovery
+is not a local success, it is the same descent failure measured at small α.
 
 ---
 
@@ -125,7 +138,15 @@ best matches only low-order n-gram statistics. **Structural, not just scale.**
 
 ---
 
-## Objective 2 — Conditional recovery → **positive (modest, directional)**
+## Objective 2 — Conditional recovery → **negative (no-op; superseded)**
+
+> **CORRECTED (2026-06-21).** Recovery does **not** work: EqM/SFLMEBM descent is a
+> no-op that returns the corrupted input (Δ@α≈0). The **+0.06 Δ@.50** below is a
+> marginal bump confined to the path center (α∈[0.5,0.7]) and is **not competitive**
+> with DirichletFM. The table and analysis are retained as the historical record;
+> read with `NOTE_EQUILIBRIUM_FAILURE_CLASS.md` §B. The "starts inside a real data
+> basin → local problem" explanation below is wrong — the per-token basins are
+> sub-resolution spikes and a perturbed init lands on a flat shoulder (∇E≈0).
 
 **Report (headline):** the recovery sweep from `scripts/recovery_check.py` mode
 (B): perturb an encoded held-out window by α·‖x₁‖, run the sampler, measure

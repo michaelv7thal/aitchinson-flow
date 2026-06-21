@@ -11,7 +11,7 @@ load-bearing implementation details.
 | # | Objective | Verdict | Where the evidence lives |
 |---|---|---|---|
 | 1 | Unconditional generation | **Fails** — matches low-order n-gram stats, not words | `EVAL_ASSESSMENT.md` §Obj1; `NOTE_WHY_UNCONDITIONAL_FAILS.md` |
-| 2 | Conditional recovery | **Works** (modest, recipe-dependent): Δ@.50 ≈ +0.06 | `EVAL_ASSESSMENT.md` §Obj2; `runs/compositional_eqm_test_summary.md` |
+| 2 | Conditional recovery | **Fails (no-op)** — descent returns the corrupted input (Δ@α≈0); only a marginal, non-competitive bump at mid-α (Δ@.50 ≈ +0.06) | `NOTE_EQUILIBRIUM_FAILURE_CLASS.md` §B; `EVAL_ASSESSMENT.md` §Obj2 |
 | 3 | OOD detection | EBM **energy fails on order / is stuck**; **hinge-SVGP works** | `EVAL_ASSESSMENT.md` §Obj3; `SFLM_EBM_FINDINGS.md`, `DFM_SVGP_FINDINGS.md` |
 
 **Start here → [`EVAL_ASSESSMENT.md`](EVAL_ASSESSMENT.md)**: which eval to report
@@ -29,6 +29,7 @@ theory), peer-comparable BPC, and the run triage.
 | [CAPSTONE_PLAN.md](CAPSTONE_PLAN.md) / [CAPSTONE_EXPERIMENTS.md](CAPSTONE_EXPERIMENTS.md) | Strategy + follow-up tracks |
 | [TRAINING_PROTOCOL_v2.md](TRAINING_PROTOCOL_v2.md) | Operational protocol (supersedes v1) |
 | [NOTE_WHY_EBM_INIT_STUCK.md](NOTE_WHY_EBM_INIT_STUCK.md) / [NOTE_WHY_UNCONDITIONAL_FAILS.md](NOTE_WHY_UNCONDITIONAL_FAILS.md) | The theory: training- and sampling-time failure mechanisms |
+| **[NOTE_EQUILIBRIUM_FAILURE_CLASS.md](NOTE_EQUILIBRIUM_FAILURE_CLASS.md)** | **Theory consolidated**: SFM≠EBM, the corrected single failure mode (recovery also fails), and *which model class* it applies to |
 | [SFLM_EBM_FINDINGS.md](SFLM_EBM_FINDINGS.md) / [DFM_SVGP_FINDINGS.md](DFM_SVGP_FINDINGS.md) / [SAMPLER_FINDINGS.md](SAMPLER_FINDINGS.md) | Per-line findings |
 | [RESULTS_LATENT_FINAL.md](RESULTS_LATENT_FINAL.md) | Latent-EqM results (latest) |
 | [POSITIONING.md](POSITIONING.md) / [PROPOSAL_COMPOSITIONAL_EQM.md](PROPOSAL_COMPOSITIONAL_EQM.md) / [RESEARCH_FINDINGS.md](RESEARCH_FINDINGS.md) | Framing, the compositional proposal, the BPC-baseline synthesis |

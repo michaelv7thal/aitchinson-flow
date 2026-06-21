@@ -1,5 +1,17 @@
 # Why unconditional generation does not work for EqM (and EBMs in general)
 
+> **CORRECTION (2026-06-21) — recovery also fails; this note's premise is partly superseded.**
+> The premise below that EqM "recovers cleanly from a perturbed input" (TL;DR and
+> §"Why recovery works") is **empirically false.** EqM/SFLMEBM energy descent is a
+> **near-no-op**: it returns the *corrupted* string essentially unchanged (Δ@α ≈ 0).
+> Dirichlet thickening buys only a **marginal, non-competitive** bump in a narrow
+> band α ∈ [0.5, 0.7] (Δ@.50 ≈ +0.06, the interior γ-shell) — not competitive with
+> DirichletFM. Recovery and unconditional generation are therefore the **same**
+> failure (descent on a field supported only on a thin interior shell), **not** a
+> local-works / global-fails dichotomy. The §"Why recovery works" section and the
+> "local problem that works" framing are kept below for the historical record only.
+> Full corrected account: **`NOTE_EQUILIBRIUM_FAILURE_CLASS.md`** §0 and §B.
+
 A short note on a recurring failure mode in this project: even when an EqM
 model recovers cleanly from a perturbed input, its unconditional samples
 (start from N(0, σ²I), descend the energy) are gibberish. Why?
