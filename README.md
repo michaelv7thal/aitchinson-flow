@@ -30,6 +30,7 @@ theory), peer-comparable BPC, and the run triage.
 | [TRAINING_PROTOCOL_v2.md](TRAINING_PROTOCOL_v2.md) | Operational protocol (supersedes v1) |
 | [NOTE_WHY_EBM_INIT_STUCK.md](NOTE_WHY_EBM_INIT_STUCK.md) / [NOTE_WHY_UNCONDITIONAL_FAILS.md](NOTE_WHY_UNCONDITIONAL_FAILS.md) | The theory: training- and sampling-time failure mechanisms |
 | **[NOTE_EQUILIBRIUM_FAILURE_CLASS.md](NOTE_EQUILIBRIUM_FAILURE_CLASS.md)** | **Theory consolidated**: SFM≠EBM, the corrected single failure mode (recovery also fails), and *which model class* it applies to |
+| [EQUILIBRIUM_SETTING.md](EQUILIBRIUM_SETTING.md) | Background: the equilibrium setting, its literature lineage, and why it fails for text (with full sources) |
 | [SFLM_EBM_FINDINGS.md](SFLM_EBM_FINDINGS.md) / [DFM_SVGP_FINDINGS.md](DFM_SVGP_FINDINGS.md) / [SAMPLER_FINDINGS.md](SAMPLER_FINDINGS.md) | Per-line findings |
 | [RESULTS_LATENT_FINAL.md](RESULTS_LATENT_FINAL.md) | Latent-EqM results (latest) |
 | [POSITIONING.md](POSITIONING.md) / [PROPOSAL_COMPOSITIONAL_EQM.md](PROPOSAL_COMPOSITIONAL_EQM.md) / [RESEARCH_FINDINGS.md](RESEARCH_FINDINGS.md) | Framing, the compositional proposal, the BPC-baseline synthesis |

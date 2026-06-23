@@ -33,6 +33,8 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import tqdm
+
 from scipy.special import betainc, gammaln
 from torch.distributions import Dirichlet
 
@@ -94,9 +96,7 @@ class DirichletFlowMatching(nn.Module):
         h = self.backbone(x_t, t_norm)
         return self.head(h)
 
-    def _sample_xt(
-        self, token_ids: torch.Tensor, t: torch.Tensor
-    ) -> torch.Tensor:
+    def _sample_xt(self, token_ids: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
         """Sample x_t ~ Dir(β(t, token_ids)).
 
         token_ids: (B, L) long; t: (B,) float in [1, t_max].
@@ -165,14 +165,14 @@ class DirichletFlowMatching(nn.Module):
         ``nfe`` when ``nfe`` itself is not provided.
         """
         if nfe is None:
-            nfe = max_steps if max_steps is not None else self.cfg.dirichlet_fm.sample_nfe
+            nfe = (
+                max_steps if max_steps is not None else self.cfg.dirichlet_fm.sample_nfe
+            )
         K = self.cfg.text8_dataset.K
         device = next(self.parameters()).device
         start_t = float(t_start) if t_start is not None else 1.0
         if not (1.0 <= start_t <= self.t_max):
-            raise ValueError(
-                f"t_start={start_t} must lie in [1, t_max={self.t_max}]"
-            )
+            raise ValueError(f"t_start={start_t} must lie in [1, t_max={self.t_max}]")
 
         if x_init is not None:
             x = x_init.to(device).to(dtype=torch.float32)
@@ -181,7 +181,7 @@ class DirichletFlowMatching(nn.Module):
             x = Dirichlet(torch.ones(B, L, K, device=device)).sample()
 
         t_grid = torch.linspace(start_t, self.t_max, nfe + 1, device=device)
-        for i in range(nfe):
+        for i in tqdm.tqdm(range(nfe)):
             t = float(t_grid[i].item())
             dt = float((t_grid[i + 1] - t_grid[i]).item())
 
@@ -233,8 +233,7 @@ class DirichletFlowMatching(nn.Module):
         ids = token_ids.to(device).long()
         B, L = ids.shape
         K = self.cfg.text8_dataset.K
-        t = torch.full((B,), t_frac * self.t_max,
-                       device=device, dtype=torch.float32)
+        t = torch.full((B,), t_frac * self.t_max, device=device, dtype=torch.float32)
         x_t = self._sample_xt(ids, t)
         log_p = self.forward(x_t, t).log_softmax(dim=-1)
         nll = -log_p.gather(-1, ids.unsqueeze(-1)).squeeze(-1).mean()

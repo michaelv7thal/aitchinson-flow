@@ -1,0 +1,29 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[heal] ckpt=runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM/epoch_final.pt
+[heal] K=27 L=256 t_max=8.0 t_eval=4.5 device=cuda
+[heal] disjoint splits: fit=256 cal=256 demo=16  n_seeds=5
+=== train per-token energy head ===
+  [head] step    0  E_valid=-0.063  E_corrupt=-0.244  gap=-0.181
+  [head] step  200  E_valid=+0.394  E_corrupt=+2.808  gap=+2.414
+  [head] step  400  E_valid=+0.383  E_corrupt=+2.877  gap=+2.494
+  [head] step  599  E_valid=+0.376  E_corrupt=+2.908  gap=+2.532
+=== heal sweep (mean over 5 corruption seeds) ===
+  fpr     thr  loc_P  loc_R    fix    dmg    net/corrupt   delta_ws
+ 0.02   1.636  0.635  0.706  0.448  0.057   +0.131±0.027    +0.0198  <- selected
+ 0.05   1.063  0.494  0.831  0.462  0.112   -0.161±0.060    -0.0245
+ 0.10   0.721  0.397  0.888  0.406  0.172   -0.556±0.040    -0.0845
+
+--- example[0] @ selected fpr=0.02 (chosen by cal-set F1) ---
+  clean : ' one later died of his injuries that same year when a russia japan world cup match played in japan but broadcast live to the crowds in pushkin square went badly for the russians the crowd turned violent and wrought havoc in the centre of the city breaking '
+  corr  : ' one ldter didd o  qks injvrmys tyat xame yelr when a russiavjapanfwsrlx cupomate  played in japrn butzbroadhasa live to tye crowdsejn poshkin dquawe wenl badly fox the rulsians the crowd turned vioment and wroueht lavoc in the celtrehof ahixcity breasing '
+  truec :       ^      ^   ^ ^^     ^ ^^   ^   ^      ^               ^     ^ ^  ^    ^   ^^              ^     ^     ^  ^          ^        ^^   ^      ^   ^     ^         ^       ^                          ^            ^   ^              ^   ^   ^ ^^         ^    
+  flag  :       *      *     **    ** **   *   *      *               **    * ** *         *           * **     *   * *  *          *     **  *     **    ** *     *         *       *             *                     *  * *    * *          *   *    * *              
+  healed: ' one later died o  was in cross that game year when a russia japan worly cupomated played in japan but broadcast live to the cros seen post in daname went badly for the russians the croad turned vioment and croject lator in the centre of a iocity breasing '
+
+=== HEADLINE @ selected fpr=0.02 (mean±std over 5 seeds) ===
+  fix_rate    = 0.448   (corrupt token -> correct)
+  damage_rate = 0.057   (clean token -> broken)
+  net/corrupt = +0.131 ± 0.027   (net tokens recovered per corrupt token; >0 ⇒ net benefit)
+  delta_ws    = +0.0198 ± 0.0042   (whole-seq; diluted, capped near corrupt_rate — diagnostic only)
+
+Wrote heal_out/heal_L256.json
