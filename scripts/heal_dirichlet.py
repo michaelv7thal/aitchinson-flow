@@ -47,6 +47,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import statistics
 import sys
 from pathlib import Path
@@ -132,6 +133,186 @@ def train_localizer(model, fit_tok, t_eval, device, *, train_rate, margin, steps
         b, Lq, _ = h.shape
         z = _proj(h.reshape(-1, d)).to(device)
         return head(z).squeeze(-1).reshape(b, Lq).cpu()  # (B, L)
+
+    return score, d
+
+
+def _auroc(pos: torch.Tensor, neg: torch.Tensor) -> float:
+    """AUROC with ``pos`` the class that should score higher (corrupt tokens)."""
+    pos, neg = pos.flatten().float(), neg.flatten().float()
+    if pos.numel() == 0 or neg.numel() == 0:
+        return float("nan")
+    comb = torch.cat([pos, neg])
+    order = comb.argsort()
+    ranks = torch.empty_like(order, dtype=torch.float)
+    ranks[order] = torch.arange(1, comb.numel() + 1, dtype=torch.float)
+    return float(
+        (ranks[: pos.numel()].sum() - pos.numel() * (pos.numel() + 1) / 2)
+        / (pos.numel() * neg.numel())
+    )
+
+
+# --------------------------------------------------------------------------- #
+# Localizer (GP): per-token sparse-variational GP on frozen DirichletFM
+# features.
+#
+# mode="oneclass" (default, recommended): the GP is fit ONLY on valid (clean)
+#   tokens — corruption is never seen in training. It is an SVGP *regression to
+#   y=0* (ELBO: data-NLL + KL), so the data-fit term drives predictive variance
+#   DOWN on the clean manifold and it reverts to the high prior off-manifold.
+#   Inducing points are seeded on clean features and the lengthscale is small &
+#   fixed, giving sharp clean-vs-corrupt variance contrast. OOD score = the
+#   predictive VARIANCE (Matern-kernel analog of BLR's one-class Mahalanobis).
+#   This is the "the generator's own uncertainty catches OOD" detector.
+#
+# mode="contrastive": the earlier discriminative variant — energy hinge on
+#   clean/corrupt negatives; OOD score = GP posterior MEAN (energy). Kept for
+#   comparison. (Its variance channel collapses — see docs.)
+#
+# Either way this drops into the exact same calibrate->inpaint->score pipeline
+# as the linear head for an honest A/B (same (score, d) signature).
+# --------------------------------------------------------------------------- #
+def train_gp_localizer(model, fit_tok, t_eval, device, *, mode, train_rate, margin,
+                       steps, lr, seed, d_latent, num_inducing, margin_var,
+                       lambda_var, lambda_kl, batch, var_weights,
+                       lengthscale_scale, learn_lengthscale, noise_init):
+    """Fit an SVGP localizer on frozen per-token features; return (score, d)."""
+    from aitchinson_flow.models.sparse_gp import _SparseGP
+
+    K = model.K
+    # Disjoint within-fit split: train on fit_a, pick the combine-weight on fit_b.
+    n = fit_tok.shape[0]
+    n_sel = max(1, n // 5)
+    fit_a, fit_b = fit_tok[:n - n_sel], fit_tok[n - n_sel:]
+
+    fc = _perpos_feats(model, fit_a, t_eval, device)            # (Na, L, d) clean
+    d = fc.shape[-1]
+    mu = fc.reshape(-1, d).mean(0)
+    sigma = fc.reshape(-1, d).std(0).clamp_min(1e-6)
+
+    def _std(h_flat):
+        m, s = mu.to(h_flat.device), sigma.to(h_flat.device)
+        return (h_flat - m) / s
+
+    zc = _std(fc.reshape(-1, d)).to(device)                     # clean tokens
+
+    # Projection: d_latent<=0 => identity (raw standardized features, the
+    # BLR-comparable choice — isolates the kernel's contribution over BLR).
+    use_proj = bool(d_latent and d_latent > 0)
+    dl = int(d_latent) if use_proj else d
+    proj = nn.Linear(d, dl).to(device) if use_proj else nn.Identity()
+
+    def _phi(z):
+        return proj(z) if use_proj else z
+
+    gp = _SparseGP(dl, num_inducing).to(device)
+    # Small, FIXED lengthscale (sharp variance contrast off-manifold); seed
+    # inducing points ON the clean manifold so "far from Z" == off-distribution.
+    with torch.no_grad():
+        gp.log_lengthscale.copy_(torch.tensor(math.log(math.sqrt(dl) * lengthscale_scale)))
+        idx = torch.randperm(zc.shape[0])[:num_inducing]
+        gp.Z.copy_(_phi(zc[idx]))
+    gp.log_lengthscale.requires_grad_(bool(learn_lengthscale))
+
+    params = [p for p in gp.parameters() if p.requires_grad]
+    if use_proj:
+        params += list(proj.parameters())
+    g = torch.Generator().manual_seed(seed)
+
+    if mode == "oneclass":
+        log_noise = nn.Parameter(torch.tensor(math.log(noise_init), device=device))
+        opt = torch.optim.Adam(params + [log_noise], lr=lr)
+        ntot = zc.shape[0]
+        for step in range(steps):
+            opt.zero_grad()
+            ib = torch.randint(0, ntot, (batch,), generator=g).to(device)
+            o = gp(_phi(zc[ib]))
+            sig2 = log_noise.exp()
+            # negative SVGP ELBO for regression to y=0: per-point E_q[-log p(y|f)]
+            nll = 0.5 * (math.log(2 * math.pi) + log_noise
+                         + (o.mean.pow(2) + o.variance) / sig2)
+            kl = gp.kl_divergence()
+            loss = nll.mean() + lambda_kl * kl / ntot
+            loss.backward()
+            opt.step()
+            if step % 300 == 0 or step == steps - 1:
+                print(f"  [gp/oneclass] step {step:4d}  |mean|_clean={o.mean.abs().mean():.3f}"
+                      f"  V_clean={o.variance.mean():.3f}  sig2={sig2.item():.3f}"
+                      f"  ls={gp.log_lengthscale.exp().item():.2f}  kl={kl.item():.2f}")
+        primary = "variance"
+    else:  # contrastive
+        corr_a = corrupt_token_ids(fit_a.clone(), vocab_size=K,
+                                   corrupt_rate=train_rate, seed=seed)
+        fk = _perpos_feats(model, corr_a, t_eval, device)
+        yk = (corr_a != fit_a).reshape(-1).to(device)
+        zk = _std(fk.reshape(-1, d)).to(device)
+        zpos = torch.cat([zc, zk[~yk]], 0)
+        zneg = zk[yk]
+        npos, nneg = zpos.shape[0], zneg.shape[0]
+        opt = torch.optim.Adam(params, lr=lr)
+        for step in range(steps):
+            opt.zero_grad()
+            ip = torch.randint(0, npos, (batch,), generator=g).to(device)
+            ineg = torch.randint(0, nneg, (batch,), generator=g).to(device)
+            dp = gp(_phi(zpos[ip]))
+            dn = gp(_phi(zneg[ineg]))
+            mean_loss = dp.mean.pow(2).mean() + torch.relu(margin - dn.mean).mean()
+            var_loss = dp.variance.mean() + torch.relu(margin_var - dn.variance).mean()
+            kl = gp.kl_divergence()
+            loss = mean_loss + lambda_var * var_loss + lambda_kl * kl / batch
+            loss.backward()
+            opt.step()
+            if step % 300 == 0 or step == steps - 1:
+                print(f"  [gp/contrastive] step {step:4d}  E_valid={dp.mean.mean():+.3f}  "
+                      f"E_corrupt={dn.mean.mean():+.3f}  V_valid={dp.variance.mean():.3f}  "
+                      f"V_corrupt={dn.variance.mean():.3f}  kl={kl.item():.2f}")
+        primary = "energy"
+
+    gp.eval()
+    if use_proj:
+        proj.eval()
+
+    @torch.no_grad()
+    def _energy_var(tok):
+        h = _perpos_feats(model, tok, t_eval, device)          # (B, L, d)
+        b, Lq, _ = h.shape
+        z = _std(h.reshape(-1, d)).to(device)
+        Es, Vs = [], []
+        for i in range(0, z.shape[0], 16384):
+            o = gp(_phi(z[i:i + 16384]))
+            Es.append(o.mean.cpu())
+            Vs.append(o.variance.cpu())
+        E = torch.cat(Es).reshape(b, Lq)
+        V = torch.cat(Vs).reshape(b, Lq)
+        return E, V
+
+    # The OOD score combines the primary channel with the other one; the
+    # combine-weight is selected GT-free on a held-out fit slice (never the
+    # demo). One-class: variance + w*mean^2. Contrastive: energy + w*variance.
+    def _combine(E, V, w):
+        return (V + w * E.pow(2)) if primary == "variance" else (E + w * V)
+
+    sel_corr = corrupt_token_ids(fit_b.clone(), vocab_size=K,
+                                 corrupt_rate=train_rate, seed=seed + 7)
+    Eb, Vb = _energy_var(sel_corr)
+    yb = (sel_corr != fit_b)
+    au_var = _auroc(Vb[yb], Vb[~yb])
+    au_eng = _auroc(Eb[yb], Eb[~yb])
+    print(f"  [gp] held-out per-token AUROC: variance={au_var:.4f}  energy={au_eng:.4f}  "
+          f"(primary={primary})")
+    best_w, best_au = float(var_weights[0]), -1.0
+    for w in var_weights:
+        w = float(w)
+        au = _auroc(_combine(Eb, Vb, w)[yb], _combine(Eb, Vb, w)[~yb])
+        print(f"        w={w:>5.2f}  combined AUROC={au:.4f}")
+        if au > best_au:
+            best_au, best_w = au, w
+    print(f"  [gp] selected combine-weight w={best_w} (held-out AUROC={best_au:.4f})")
+
+    @torch.no_grad()
+    def score(tok):
+        E, V = _energy_var(tok)
+        return _combine(E, V, best_w)
 
     return score, d
 
@@ -236,6 +417,54 @@ def score_healing(clean_t, corr_t, healed_t, heal_mask, true_corrupt):
     }
 
 
+def uq_report(uq_score, demo_clean, sel_artifacts):
+    """Calibrated-uncertainty report for the valid-only GP variance channel.
+
+    Pools the selected-operating-point seeds and answers three questions that a
+    discriminative localizer cannot:
+      • detection    — does pre-heal variance separate corrupt from clean tokens?
+      • OOD-reduction — does healing pull corrupt-position variance back toward
+                        the clean level (the heal genuinely de-OODs the text)?
+      • heal-confidence — does *residual* (post-heal) variance flag the corrupt
+                        positions the heal failed to fix? (high var == still OOD)
+    """
+    clean = demo_clean.cpu()
+    Vc_l, Vh_l, tc_l, fixed_l, flag_l = [], [], [], [], []
+    V_clean = uq_score(demo_clean).cpu()
+    for dc, mask, healed in sel_artifacts:
+        dc, healed = dc.cpu(), healed.cpu()
+        Vc_l.append(uq_score(dc).cpu())
+        Vh_l.append(uq_score(healed).cpu())
+        tc_l.append(dc != clean)
+        fixed_l.append(healed == clean)
+        flag_l.append(mask.cpu().bool())
+    Vc, Vh = torch.cat(Vc_l), torch.cat(Vh_l)
+    tc, fixed, flag = torch.cat(tc_l), torch.cat(fixed_l), torch.cat(flag_l)
+    cf, cu = tc & fixed, tc & ~fixed   # corrupt-and-fixed / corrupt-and-unfixed
+    # Flagged-only: removes the trivial confound that UNflagged corrupt tokens
+    # are never healed -> always "unfixed". On flagged corrupt tokens the heal
+    # actually ran, so variance predicting unfixed here is genuine heal-difficulty.
+    cf_fl, cu_fl = cf & flag, cu & flag
+
+    def _au(pos, neg):
+        return _auroc(pos, neg) if pos.numel() and neg.numel() else float("nan")
+
+    return {
+        "var_clean_mean": float(V_clean.mean()),
+        "var_corrupt_pos_pre": float(Vc[tc].mean()) if tc.any() else float("nan"),
+        "var_corrupt_pos_post": float(Vh[tc].mean()) if tc.any() else float("nan"),
+        "var_clean_pos_post": float(Vh[~tc].mean()),
+        "auroc_detect_pre": _au(Vc[tc], Vc[~tc]),
+        "auroc_resid_flags_unfixed": _au(Vh[cu], Vh[cf]),
+        "auroc_preheal_predicts_unfixed": _au(Vc[cu], Vc[cf]),
+        # confound-controlled (flagged corrupt tokens only — the heal actually ran)
+        "auroc_resid_flags_unfixed_flaggedonly": _au(Vh[cu_fl], Vh[cf_fl]),
+        "auroc_preheal_predicts_unfixed_flaggedonly": _au(Vc[cu_fl], Vc[cf_fl]),
+        "n_corrupt": int(tc.sum()), "n_fixed": int(cf.sum()), "n_unfixed": int(cu.sum()),
+        "n_flagged_fixed": int(cf_fl.sum()), "n_flagged_unfixed": int(cu_fl.sum()),
+    }
+
+
 def aggregate(ms):
     """Pool per-seed score dicts: sum counts (proper denominators), std over seeds."""
     F = sum(m["n_fixed"] for m in ms)
@@ -281,6 +510,39 @@ def main() -> int:
     ap.add_argument("--lr", type=float, default=5e-2)
     ap.add_argument("--nfe", type=int, default=100, help="Euler steps for inpainting")
     ap.add_argument("--seed", type=int, default=42)
+    # --- localizer choice: linear hinge head (default) or post-hoc SVGP head ---
+    ap.add_argument("--localizer", choices=["linear", "gp"], default="linear",
+                    help="per-token corruption localizer: 'linear' (BayesLin hinge) "
+                         "or 'gp' (post-hoc SVGP energy+variance auditor)")
+    ap.add_argument("--gp-mode", choices=["oneclass", "contrastive"], default="oneclass",
+                    help="[gp] 'oneclass' = SVGP fit on valid data only, OOD=variance "
+                         "(recommended); 'contrastive' = energy hinge on corrupt negatives")
+    ap.add_argument("--gp-d-latent", type=int, default=0,
+                    help="[gp] deep-kernel projection dim (0 = identity / raw features, "
+                         "the BLR-comparable choice)")
+    ap.add_argument("--gp-num-inducing", type=int, default=256, help="[gp] inducing points")
+    ap.add_argument("--gp-steps", type=int, default=1500, help="[gp] SVGP training steps")
+    ap.add_argument("--gp-lr", type=float, default=1e-2, help="[gp] SVGP LR")
+    ap.add_argument("--gp-batch", type=int, default=4096, help="[gp] per-step token minibatch")
+    ap.add_argument("--gp-lengthscale-scale", type=float, default=0.1,
+                    help="[gp] lengthscale = sqrt(d_latent)*scale; small => sharp variance "
+                         "contrast off-manifold (0.1 best in sweep)")
+    ap.add_argument("--gp-learn-lengthscale", action="store_true",
+                    help="[gp] learn the lengthscale (default: small & fixed)")
+    ap.add_argument("--gp-noise-init", type=float, default=0.1,
+                    help="[gp/oneclass] initial regression noise sigma^2")
+    ap.add_argument("--gp-margin-var", type=float, default=1.0,
+                    help="[gp/contrastive] variance-hinge margin")
+    ap.add_argument("--gp-lambda-var", type=float, default=0.5,
+                    help="[gp/contrastive] variance-hinge weight")
+    ap.add_argument("--gp-lambda-kl", type=float, default=0.01, help="[gp] SVGP KL weight")
+    ap.add_argument("--gp-var-weights", type=str, default="0,0.5,1,2,4",
+                    help="[gp] candidate channel-combine weights (GT-free selected on fit)")
+    # --- hybrid UQ channel: valid-only one-class GP variance, reported alongside ---
+    ap.add_argument("--uq", choices=["none", "gp_variance"], default="none",
+                    help="add a one-class GP-variance calibrated-uncertainty channel (fit on "
+                         "VALID data only) reported alongside the heal: standalone detection, "
+                         "OOD-reduction by healing, and residual-variance heal-confidence")
     args = ap.parse_args()
 
     torch.manual_seed(args.seed)
@@ -314,11 +576,39 @@ def main() -> int:
           f"demo={demo_clean.shape[0]}  n_seeds={args.n_seeds}")
 
     # ---- 1. localizer ----
-    print("=== train per-token energy head ===")
-    score, d = train_localizer(
-        model, fit_tok, t_eval, device, train_rate=args.train_rate,
-        margin=args.margin, steps=args.head_steps, lr=args.lr, seed=args.seed,
-    )
+    print(f"=== train per-token energy head (localizer={args.localizer}) ===")
+    if args.localizer == "gp":
+        var_weights = [float(x) for x in args.gp_var_weights.split(",") if x.strip()]
+        score, d = train_gp_localizer(
+            model, fit_tok, t_eval, device, mode=args.gp_mode, train_rate=args.train_rate,
+            margin=args.margin, steps=args.gp_steps, lr=args.gp_lr, seed=args.seed,
+            d_latent=args.gp_d_latent, num_inducing=args.gp_num_inducing,
+            margin_var=args.gp_margin_var, lambda_var=args.gp_lambda_var,
+            lambda_kl=args.gp_lambda_kl, batch=args.gp_batch, var_weights=var_weights,
+            lengthscale_scale=args.gp_lengthscale_scale,
+            learn_lengthscale=args.gp_learn_lengthscale, noise_init=args.gp_noise_init,
+        )
+    else:
+        score, d = train_localizer(
+            model, fit_tok, t_eval, device, train_rate=args.train_rate,
+            margin=args.margin, steps=args.head_steps, lr=args.lr, seed=args.seed,
+        )
+
+    # ---- 1b. UQ channel: valid-only one-class GP variance head (independent of
+    #         the localizer). Its score(tok) returns the per-token predictive
+    #         variance (Matern analog of BLR's one-class Mahalanobis density). ----
+    uq_score = None
+    if args.uq == "gp_variance":
+        print("=== train one-class GP variance UQ head (valid data only) ===")
+        uq_score, _ = train_gp_localizer(
+            model, fit_tok, t_eval, device, mode="oneclass", train_rate=args.corrupt_rate,
+            margin=args.margin, steps=args.gp_steps, lr=args.gp_lr, seed=args.seed,
+            d_latent=args.gp_d_latent, num_inducing=max(512, args.gp_num_inducing),
+            margin_var=args.gp_margin_var, lambda_var=args.gp_lambda_var,
+            lambda_kl=args.gp_lambda_kl, batch=args.gp_batch, var_weights=[0.0],
+            lengthscale_scale=args.gp_lengthscale_scale,
+            learn_lengthscale=args.gp_learn_lengthscale, noise_init=0.05,
+        )
 
     # ---- 2. thresholds + GT-FREE operating-point selection (max cal-set F1) ----
     cal_corr = corrupt_token_ids(
@@ -344,6 +634,7 @@ def main() -> int:
 
     sweep = []
     example = None
+    sel_artifacts = []  # per-seed (dc, mask, healed) at the selected operating point
     for fpr in fprs:
         thr, cal_stats = thr_by_fpr[fpr]
         per_seed = []
@@ -356,6 +647,8 @@ def main() -> int:
             per_seed.append(m)
             if s == 0:
                 first_artifacts = (dc, mask, healed)
+            if fpr == sel_fpr:
+                sel_artifacts.append((dc, mask, healed))
         agg = aggregate(per_seed)
         tag = "  <- selected" if fpr == sel_fpr else ""
         print(f"{fpr:>5.2f} {thr:>7.3f} {agg['loc_precision']:>6.3f} "
@@ -385,8 +678,28 @@ def main() -> int:
     print(f"  delta_ws    = {sel['delta_wholeseq']:+.4f} ± {sel['delta_wholeseq_std']:.4f}"
           f"   (whole-seq; diluted, capped near corrupt_rate — diagnostic only)")
 
+    uq = None
+    if uq_score is not None:
+        uq = uq_report(uq_score, demo_clean, sel_artifacts)
+        print(f"\n=== UQ channel (valid-only one-class GP variance) @ fpr={sel_fpr} ===")
+        print(f"  variance  clean={uq['var_clean_mean']:.3f}  "
+              f"corrupt(pre-heal)={uq['var_corrupt_pos_pre']:.3f}  "
+              f"corrupt(post-heal)={uq['var_corrupt_pos_post']:.3f}  "
+              f"-> healing {'reduces' if uq['var_corrupt_pos_post'] < uq['var_corrupt_pos_pre'] else 'raises'} OOD variance")
+        print(f"  AUROC detect (pre-heal corrupt vs clean) : {uq['auroc_detect_pre']:.3f}")
+        print(f"  AUROC residual-variance flags UNFIXED    : {uq['auroc_resid_flags_unfixed']:.3f}"
+              f"   (heal-confidence: high post-heal var == still corrupt)")
+        print(f"  AUROC pre-heal var predicts UNFIXED      : {uq['auroc_preheal_predicts_unfixed']:.3f}")
+        print(f"  [confound-controlled, flagged corrupt only]")
+        print(f"    AUROC residual flags UNFIXED           : {uq['auroc_resid_flags_unfixed_flaggedonly']:.3f}")
+        print(f"    AUROC pre-heal predicts UNFIXED        : {uq['auroc_preheal_predicts_unfixed_flaggedonly']:.3f}"
+              f"   (n_flagged fixed/unfixed = {uq['n_flagged_fixed']}/{uq['n_flagged_unfixed']})")
+
     rows = {
         "ckpt": args.ckpt, "K": K, "L": L, "t_max": float(model.dfm.t_max),
+        "localizer": args.localizer,
+        "gp_mode": (args.gp_mode if args.localizer == "gp" else None),
+        "uq": (args.uq if args.uq != "none" else None), "uq_report": uq,
         "t_eval": t_eval, "d_model": d, "nfe": args.nfe, "n_seeds": args.n_seeds,
         "corrupt_rate": args.corrupt_rate, "train_rate": args.train_rate,
         "n_demo": int(demo_clean.shape[0]),
