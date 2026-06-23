@@ -470,6 +470,7 @@ def _recover_acc(
 # Driver
 # --------------------------------------------------------------------------
 def main() -> None:
+    global GEN_ARMS
     ap = argparse.ArgumentParser()
     ap.add_argument("--scale",
                     choices=["local", "cluster", "a100_20g", "a100_20g_L256"],
@@ -502,7 +503,16 @@ def main() -> None:
                     help="revert to legacy 'skip if missing' behaviour")
     ap.add_argument("--out", type=str, default=None,
                     help="output JSON (default: <root>/generation_eval.json)")
+    ap.add_argument("--only", type=str, default=None,
+                    help="comma-separated arm(s) to evaluate (subset of "
+                         f"{GEN_ARMS}); default: all")
     args = ap.parse_args()
+    if args.only:
+        only = [a.strip() for a in args.only.split(",") if a.strip()]
+        unknown = [a for a in only if a not in GEN_ARMS]
+        if unknown:
+            raise SystemExit(f"unknown arm(s): {unknown}; choose from {GEN_ARMS}")
+        GEN_ARMS = [a for a in GEN_ARMS if a in only]
     root = f"runs/sflm_bench_{args.scale}"
     device = "cuda" if torch.cuda.is_available() else "cpu"
     alphas = [float(a) for a in args.recover_alphas.split(",") if a.strip()]

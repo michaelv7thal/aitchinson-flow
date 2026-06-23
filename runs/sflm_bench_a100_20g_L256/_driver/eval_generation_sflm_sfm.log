@@ -1,0 +1,77 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+data: K=27, L=256, n_eval=256 (test split) | device=cuda
+
+=== SFLM ===
+  α=0.10  recover_acc=1.000
+  α=0.20  recover_acc=1.000
+  α=0.30  recover_acc=1.000
+  α=0.40  recover_acc=1.000
+  α=0.50  recover_acc=1.000
+  α=0.60  recover_acc=1.000
+  α=0.70  recover_acc=0.999
+  α=0.80  recover_acc=0.941
+  α=0.90  recover_acc=0.492
+  α=1.00  recover_acc=0.069
+  infill_rate=0.10  masked_acc=0.036  kept_acc=1.000  (M=6517, K=59019)
+  infill_rate=0.20  masked_acc=0.037  kept_acc=1.000  (M=13071, K=52465)
+  infill_rate=0.30  masked_acc=0.040  kept_acc=1.000  (M=19681, K=45855)
+  infill_rate=0.40  masked_acc=0.039  kept_acc=1.000  (M=26116, K=39420)
+  infill_rate=0.50  masked_acc=0.040  kept_acc=1.000  (M=32654, K=32882)
+  infill_rate=0.60  masked_acc=0.043  kept_acc=1.000  (M=39283, K=26253)
+  infill_rate=0.70  masked_acc=0.043  kept_acc=1.000  (M=45871, K=19665)
+  infill_rate=0.80  masked_acc=0.043  kept_acc=1.000  (M=52446, K=13090)
+  infill_rate=0.90  masked_acc=0.047  kept_acc=1.000  (M=58878, K=6658)
+  infill_rate=1.00  masked_acc=0.070  kept_acc=nan  (M=65536, K=0)
+  PPL=      —  BPB=    —  BPC=    —  (bpc=2.419)  KL_uni=0.0196  KL_bi=1.3479  KL_tri=5.3004  H_gen=2.932
+  sample[0]: 'tllatlnr lreiefwhl llorvhw taanoi fytfaidaeeie vdnsstwbatau naceetee ltoc rpboeo llop rvi phlnrotfnh wd  nisiwbtfts lzse   t iz  fi  odauv antroa i ab euunrrxn sdmhateud   twigfdelg a n ot eegnuseifraoiorr lboiasgmoetencs xoiepslpalrunbsgnioeseawodb nf uce'
+
+=== SFM ===
+  α=0.10  recover_acc=1.000
+  α=0.20  recover_acc=0.999
+  α=0.30  recover_acc=0.996
+  α=0.40  recover_acc=0.991
+  α=0.50  recover_acc=0.981
+  α=0.60  recover_acc=0.912
+  α=0.70  recover_acc=0.681
+  α=0.80  recover_acc=0.383
+  α=0.90  recover_acc=0.170
+  α=1.00  recover_acc=0.069
+  infill_rate=0.10  masked_acc=0.036  kept_acc=1.000  (M=6517, K=59019)
+  infill_rate=0.20  masked_acc=0.036  kept_acc=1.000  (M=13071, K=52465)
+  infill_rate=0.30  masked_acc=0.038  kept_acc=1.000  (M=19681, K=45855)
+  infill_rate=0.40  masked_acc=0.043  kept_acc=1.000  (M=26116, K=39420)
+  infill_rate=0.50  masked_acc=0.042  kept_acc=1.000  (M=32654, K=32882)
+  infill_rate=0.60  masked_acc=0.048  kept_acc=1.000  (M=39283, K=26253)
+  infill_rate=0.70  masked_acc=0.052  kept_acc=1.000  (M=45871, K=19665)
+  infill_rate=0.80  masked_acc=0.057  kept_acc=1.000  (M=52446, K=13090)
+  infill_rate=0.90  masked_acc=0.062  kept_acc=1.000  (M=58878, K=6658)
+  infill_rate=1.00  masked_acc=0.069  kept_acc=nan  (M=65536, K=0)
+  PPL=      —  BPB=    —  BPC=    —  (bpc=nan)  KL_uni=0.0025  KL_bi=1.4926  KL_tri=5.1310  H_gen=2.841
+  sample[0]: 'staf  gtegsres paelrn naisb ehpu cerssv aocterenrace  oarn d sueovendrlnreli ni cmtihbxcm laiowhr ai teadtta nn lo cdeef t tatniseaydsbfeeo ee  atelsahdi eemtpheteasacrne t fw dnafol tnsert  rnptni  nildeanc topvr sreek   eee op iecbsdniehndvtenee sansedrs'
+
+==============================================================================================================
+(0) DENSITY + UNCONDITIONAL n-GRAM KL  (lower=better; PPL=2^BPC; H_gen close to corpus 2.73 nats = healthy unigram coverage)
+    BPC = TRAINING-OBJECTIVE DENOISER CE averaged over each arm's native noise schedule (NOT the legacy .bpd() identity-recovery path).  This is the same metric SEDD/D3PM/Multinomial-Diffusion report; on text8 the published non-AR floor is SEDD-Absorb ≈ 1.32 BPC and the AR ceiling is Transformer-XL ≈ 1.04 BPC.
+    Identity-path arms (EqM/EqM_OneHot/EqMLatent/SFLM) and any degenerate (<0.5 / non-finite) BPC are shown as '—' (generation_metric_valid=False) — NOT a peer-comparable density.
+==============================================================================================================
+arm                PPL      BPB      BPC    KL_uni     KL_bi    KL_tri   H_gen
+SFLM                 —        —        —    0.0196    1.3479    5.3004   2.932
+SFM                  —        —        —    0.0025    1.4926    5.1310   2.841
+
+==============================================================================================================
+(1) RECOVERY-FROM-PERTURBATION GRID  (α·embed_norm·N(0,I); α=0≈identity, α=1≈unconditional; higher=better)
+==============================================================================================================
+arm           α=0.1  α=0.2  α=0.3  α=0.4  α=0.5  α=0.6  α=0.7  α=0.8  α=0.9  α=1.0
+SFLM          1.000  1.000  1.000  1.000  1.000  1.000  0.999  0.941  0.492  0.069
+SFM           1.000  0.999  0.996  0.991  0.981  0.912  0.681  0.383  0.170  0.069
+
+==============================================================================================================
+(2) CONDITIONAL-INFILL GRID  (mask `rate` fraction of positions, pin the rest to GT, then sample.  Reports accuracy on the MASKED positions — the conditionally generated ones — and on the KEPT positions for drift sanity.)
+==============================================================================================================
+arm           metric            r=0.1  r=0.2  r=0.3  r=0.4  r=0.5  r=0.6  r=0.7  r=0.8  r=0.9  r=1.0
+SFLM          masked_acc       0.036  0.037  0.040  0.039  0.040  0.043  0.043  0.043  0.047  0.070
+SFLM          kept_acc         1.000  1.000  1.000  1.000  1.000  1.000  1.000  1.000  1.000      —
+SFM           masked_acc       0.036  0.036  0.038  0.043  0.042  0.048  0.052  0.057  0.062  0.069
+SFM           kept_acc         1.000  1.000  1.000  1.000  1.000  1.000  1.000  1.000  1.000      —
+
+Wrote runs/sflm_bench_a100_20g_L256/generation_eval_sflm_sfm.json

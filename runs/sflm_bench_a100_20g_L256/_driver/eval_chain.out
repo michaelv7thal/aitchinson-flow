@@ -1,0 +1,6 @@
+### EVAL CHAIN START 2026-06-22_18:28:43 — waiting for SFLM+SFM training
+### [2026-06-22_21:08:44] training settled
+  SFLM: OK (epoch_final.pt + train_meta.json present)
+  SFM: OK (epoch_final.pt + train_meta.json present)
+### [2026-06-22_21:08:44] STAGE EVAL+RECOVERY: eval_generation.py --only SFLM,SFM
+### EVAL CHAIN COMPLETE exit=0 2026-06-23_05:44:01 -> runs/sflm_bench_a100_20g_L256/generation_eval_sflm_sfm.json

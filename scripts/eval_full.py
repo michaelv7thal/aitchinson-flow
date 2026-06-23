@@ -200,9 +200,13 @@ def evaluate_checkpoint(
     # Sample. Two API conventions in the repo:
     # - EqM/FMonCLR: model.sample(B, L, max_steps=...) returns (B, L, K) CLR features.
     # - DFM/LogitKLFlow: model.sample(B, L, nfe=...) returns (B, L) long token IDs.
+    # SFM is the exception: it carries a decode_to_logprobs (sphere→μ) for API
+    # parity but its sample() already returns ids (like DirichletFM), so it must
+    # take the ids branch — feeding ids into decode_to_logprobs would be garbage.
     sk = dict(sample_kwargs or {})
+    ids_returning = model_name == "SFM"
     with torch.no_grad():
-        if hasattr(model, "decode_to_logprobs"):
+        if hasattr(model, "decode_to_logprobs") and not ids_returning:
             x = model.sample(n_samples, L, max_steps=n_steps, **sk)
             log_probs = model.decode_to_logprobs(x)
             gen_ids = log_probs.argmax(-1).cpu()

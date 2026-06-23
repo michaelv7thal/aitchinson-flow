@@ -236,11 +236,16 @@ def main() -> int:
 
     # ─── (A) Unconditional ────────────────────────────────────────────────
     categorical = _is_categorical_denoiser(model)
+    # SFM (Fisher-Rao √μ-sphere FM) carries decode_to_logprobs for API parity
+    # but its sample() returns ids (like DirichletFM) and it has no encode(), so
+    # it takes neither the categorical-denoiser nor the EqM-family latent path;
+    # it gets its own ids-sampling + Fisher-sphere partial-path recovery below.
+    is_sfm = cfg.training.model_name == "SFM"
     torch.manual_seed(args.seed)
     print("=== Unconditional generation ===")
-    if categorical:
-        # DFM / DirichletFM: sample() returns token IDs directly; no latent x
-        # to score and no decode_to_logprobs.
+    if categorical or is_sfm:
+        # DFM / DirichletFM / SFM: sample() returns token IDs directly; no latent
+        # x to score and no usable decode_to_logprobs path.
         with torch.no_grad():
             ids = _dfm_uncond_ids(model, args.n, L, args.steps)
         uncond_scores = {}
@@ -302,7 +307,7 @@ def main() -> int:
     # Encode token_ids → data tensor. EqMLatent has model.encode; simplex EqM
     # uses CLR features via token_ids_to_features. Categorical denoisers
     # (DFM/DirichletFM) drive recovery from token_ids directly (no latent).
-    if not categorical:
+    if not categorical and not is_sfm:
         if hasattr(model, "encode"):
             z_clean = model.encode(val_pick)
         else:
@@ -354,6 +359,29 @@ def main() -> int:
                 t_b = torch.full((args.n,), t_in, device=device, dtype=torch.float32)
                 logits = model.forward(x_t, t_b)
                 ids = logits.argmax(dim=-1).cpu()
+        elif is_sfm:
+            # ── SFM: partial-path recovery on the Fisher √μ-sphere ────────
+            # Mirror eval_generation.py: x_init is the point a "data-ness"
+            # fraction f=1−α along the geodesic from a uniform-sphere noise
+            # point x0 toward the data vertex x1=√(one-hot); integrate the ODE
+            # from t_start=f to 1. ids_pt is the argmax of the perturbed init's
+            # μ=x² (pre-recovery state), ids is the integrated recovery.
+            from aitchinson_flow.models.sfm import (
+                _exp_map as _sfm_exp,
+                _log_map as _sfm_log,
+                _normalize as _sfm_norm,
+            )
+
+            sig_perturb = float(alpha)
+            f = 1.0 - float(alpha)
+            with torch.no_grad():
+                x1 = model._sphere_target(val_pick)
+                x0 = _sfm_norm(torch.randn_like(x1))
+                x_init = _sfm_exp(x0, f * _sfm_log(x0, x1))
+                ids_pt = (x_init * x_init).argmax(dim=-1).cpu()
+                ids = model.sample(
+                    args.n, L, x_init=x_init, t_start=f, nfe=args.steps
+                ).cpu()
         else:
             # ── EqM / EqMLatent / SFLM (identity-path latents) ──────────
             sig_perturb = alpha * embed_norm
