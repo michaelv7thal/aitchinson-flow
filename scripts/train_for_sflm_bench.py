@@ -153,6 +153,7 @@ def _base_cfg(
     es_min_delta: float = 0.0,
     max_hours: float | None = None,          # wall-clock cap (runbook 36h)
     lr: float = 3e-4,                        # base LR; scale with batch for big-B runs
+    warmup_epochs: int | None = None,        # LR warmup epochs; None = default (1)
 ) -> Config:
     s = SCALES[scale]
     d_model, n_layers, n_head = s["d_model"], s["n_layers"], s["n_heads"]
@@ -167,7 +168,12 @@ def _base_cfg(
         epochs=epochs,
         lr=lr,
         seed=seed,
-        scheduler_warmup_epochs=1,
+        # Warmup is normally 1 epoch (ramp 0.01·lr → lr). A warm-start
+        # continuation can set warmup_epochs=0 so the cosine starts at the (low)
+        # peak immediately: with no re-warmup AND a peak LR below the
+        # oscillation onset, the schedule decays monotonically to 0 with no
+        # val "bump" — and it doesn't burn a ~10 h epoch ramping at near-zero LR.
+        scheduler_warmup_epochs=(1 if warmup_epochs is None else max(0, warmup_epochs)),
         cosine_t_max_epochs=epochs,
         B=batch,
         L=L,
@@ -238,6 +244,12 @@ ARM_TO_MODEL = {
     # the original ep10 checkpoint/evals are not clobbered. Used with
     # --resume-weights <orig>/epoch_final.pt to keep training the ep10 weights.
     "DirichletFM_continue": "DirichletFM",
+    # Second warm-start continuation, tuned to CONVERGE without the val "bump"
+    # the first continuation showed: warm-start from the best ep5 ckpt (val
+    # 0.8554), warmup OFF, a low peak LR (below the ~4e-4 oscillation onset)
+    # that cosine-anneals to 0, early-stop on the plateau. Own dir so the
+    # ep5/ep10 artifacts are preserved. See drive_fulltext8_converge2.sh.
+    "DirichletFM_converge": "DirichletFM",
     # Extended-budget DirichletFM alias (same model + default recipe — the
     # `name == "DirichletFM"` cfg branch is a no-op `pass`). Separate arm name
     # so it writes to its own run dir (epochs/data encoded) without touching
@@ -393,7 +405,8 @@ def _train_arm(name: str, *, scale: str, epochs: int, seed: int, out_dir: str,
                early_stop_patience: int | None = None, es_min_delta: float = 0.0,
                max_hours: float | None = None, length: int | None = None,
                ae_ckpt: str | None = None, resume_weights: str | None = None,
-               batch_override: int | None = None, lr: float = 3e-4) -> dict:
+               batch_override: int | None = None, lr: float = 3e-4,
+               warmup_epochs: int | None = None) -> dict:
     """Train one (arm, seed) with the memory-fallback ladder. Writes
     ``train_meta.json`` recording the stage that succeeded (or the failure)
     and returns that record. ``batch_override`` replaces the scale's batch
@@ -422,7 +435,7 @@ def _train_arm(name: str, *, scale: str, epochs: int, seed: int, out_dir: str,
             mtw=mtw_arg, B=B, L=L, grad_ckpt=grad_ckpt,
             val_eval=val_eval, lazy=lazy,
             early_stop_patience=early_stop_patience, es_min_delta=es_min_delta,
-            max_hours=max_hours, lr=lr,
+            max_hours=max_hours, lr=lr, warmup_epochs=warmup_epochs,
         )
         tag = (f"stage{stage_i}: B={cfg.training.B} L={cfg.training.L} "
                f"grad_ckpt={grad_ckpt}")
@@ -440,13 +453,23 @@ def _train_arm(name: str, *, scale: str, epochs: int, seed: int, out_dir: str,
             warm_model = None
             if resume_weights is not None:
                 warm_model = build_model(cfg).to(cfg.training.device)
+                # Load the checkpoint onto the CPU first, then copy into the
+                # (already-on-GPU) model. Loading with map_location=device put a
+                # full second copy of the ~1.1 GB state dict on the GPU *during*
+                # load — on the tight 18.7 GB B48 footprint that transient spilled
+                # the 20 GB MIG slice and forced the memory ladder down to B24
+                # (the original, no-warm-start run fit B48 fine). CPU load avoids
+                # the duplicate GPU allocation; load_state_dict copies in-place.
                 payload = torch.load(
-                    resume_weights, map_location=cfg.training.device,
-                    weights_only=False,
+                    resume_weights, map_location="cpu", weights_only=False,
                 )
                 warm_model.load_state_dict(payload["model_state_dict"])
+                saved_epoch = payload.get("epoch")
+                del payload
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
                 print(f"  [{name} seed={seed}] warm-started weights from "
-                      f"{resume_weights} (saved epoch={payload.get('epoch')})",
+                      f"{resume_weights} (saved epoch={saved_epoch})",
                       flush=True)
             fit(cfg=cfg, datamodule=dm, model=warm_model, wandb_logger=None)
             meta = {
@@ -541,6 +564,10 @@ def main() -> None:
     ap.add_argument("--lr", type=float, default=3e-4,
                     help="base learning rate (default 3e-4). Scale with batch "
                          "for large-B runs, e.g. 3e-4·sqrt(B/16).")
+    ap.add_argument("--warmup-epochs", type=int, default=None,
+                    help="LR warmup epochs (default 1). Set 0 for a warm-start "
+                         "continuation so the cosine starts at the peak LR "
+                         "immediately (no re-warmup bump, no wasted ramp epoch).")
     args = ap.parse_args()
 
     if args.seeds:
@@ -582,6 +609,7 @@ def main() -> None:
                 length=args.length, ae_ckpt=args.ae_ckpt,
                 resume_weights=args.resume_weights,
                 batch_override=args.batch, lr=args.lr,
+                warmup_epochs=args.warmup_epochs,
             )
 
 

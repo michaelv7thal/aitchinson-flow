@@ -1,0 +1,4 @@
+### CONVERGE2 START 2026-06-25_17:02:41
+### [2026-06-25_17:02:56] snapshot -> runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM_continue/epoch_best_ep5_val0p8554.pt
+### [2026-06-25_17:02:56] TRAIN DirichletFM_converge @ a100_20g_L256_d1280L14_full — FULL split, B=16, lr=1.5e-4, warmup=0, cosine→0/8ep, early-stop p3, NO cap
+### [2026-06-25_17:02:56] warm from: runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM_continue/epoch_best.pt
