@@ -1,0 +1,238 @@
+{
+  "ckpt": "runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM/epoch_final.pt",
+  "K": 27,
+  "L": 256,
+  "split": "test",
+  "localizer": "nll",
+  "t_nll": 3.0,
+  "t_eval": 4.5,
+  "iters": 5,
+  "n_demo": 32,
+  "n_seeds": 3,
+  "corrupt_rate": 0.15,
+  "target_fpr": 0.02,
+  "threshold": 1.299686074256897,
+  "nfe": 100,
+  "calibration": {
+    "threshold": 1.299686074256897,
+    "precision": 0.8106146518484917,
+    "recall": 0.7124489185687232,
+    "f1": 0.7583682563259243,
+    "target_fpr": 0.02
+  },
+  "note": "iter 0 = corrupted input; each iter re-localizes on the current text, pins unflagged, regenerates flagged, then feeds back",
+  "per_iteration": [
+    {
+      "iter": 0,
+      "acc_vs_clean": 0.84912109375,
+      "acc_vs_clean_std": 0.0032080734610070026,
+      "mean_nll": 0.6312811772028605,
+      "mean_nll_std": 0.008945931436716405,
+      "fix_rate": 0.0,
+      "fix_rate_std": 0.0,
+      "damage_rate": 0.0,
+      "damage_rate_std": 0.0,
+      "net_per_corrupt": 0.0,
+      "net_per_corrupt_std": 0.0,
+      "drift_from_prev": 0.0,
+      "drift_from_prev_std": 0.0,
+      "frac_flagged": NaN,
+      "frac_flagged_std": 0.0
+    },
+    {
+      "iter": 1,
+      "acc_vs_clean": 0.9071451822916666,
+      "acc_vs_clean_std": 0.0008476833763020695,
+      "mean_nll": 0.14476452767848969,
+      "mean_nll_std": 0.002512883731710574,
+      "fix_rate": 0.5295355338323028,
+      "fix_rate_std": 0.008710973473177378,
+      "damage_rate": 0.025781070529284744,
+      "damage_rate_std": 0.00027538159296276304,
+      "net_per_corrupt": 0.3843660555479101,
+      "net_per_corrupt_std": 0.010800923023063961,
+      "drift_from_prev": 0.12898763020833334,
+      "drift_from_prev_std": 0.00410990195205614,
+      "frac_flagged": 0.12996419270833334,
+      "frac_flagged_std": 0.004468877640852348
+    },
+    {
+      "iter": 2,
+      "acc_vs_clean": 0.9004313151041666,
+      "acc_vs_clean_std": 0.0008117650286157227,
+      "mean_nll": 0.09008349726597469,
+      "mean_nll_std": 0.002084908221156363,
+      "fix_rate": 0.5667385642794803,
+      "fix_rate_std": 0.008526407796332059,
+      "damage_rate": 0.0403035522290201,
+      "damage_rate_std": 0.00125368662636331,
+      "net_per_corrupt": 0.3398923767968256,
+      "net_per_corrupt_std": 0.008648701672139035,
+      "drift_from_prev": 0.022542317708333332,
+      "drift_from_prev_std": 0.00028772248583436993,
+      "frac_flagged": 0.022745768229166668,
+      "frac_flagged_std": 0.00041495927031191284
+    },
+    {
+      "iter": 3,
+      "acc_vs_clean": 0.8974202473958334,
+      "acc_vs_clean_std": 0.001168025723828721,
+      "mean_nll": 0.0791137491663297,
+      "mean_nll_std": 0.0011760316414145113,
+      "fix_rate": 0.5718312577986061,
+      "fix_rate_std": 0.011021113189955245,
+      "damage_rate": 0.044761922072686866,
+      "damage_rate_std": 0.0012662903281486953,
+      "net_per_corrupt": 0.3199476054917337,
+      "net_per_corrupt_std": 0.009214572378425719,
+      "drift_from_prev": 0.0059814453125,
+      "drift_from_prev_std": 0.0010500885335745394,
+      "frac_flagged": 0.0062255859375,
+      "frac_flagged_std": 0.0011960399134683486
+    },
+    {
+      "iter": 4,
+      "acc_vs_clean": 0.89599609375,
+      "acc_vs_clean_std": 0.0012247653762444996,
+      "mean_nll": 0.07619673510392506,
+      "mean_nll_std": 0.00030001842824514745,
+      "fix_rate": 0.5718312577986061,
+      "fix_rate_std": 0.011021113189955245,
+      "damage_rate": 0.04643933431832012,
+      "damage_rate_std": 0.0012984013793102124,
+      "net_per_corrupt": 0.3105100056327605,
+      "net_per_corrupt_std": 0.009293758356910136,
+      "drift_from_prev": 0.0019124348958333333,
+      "drift_from_prev_std": 0.00011508899433374797,
+      "frac_flagged": 0.002197265625,
+      "frac_flagged_std": 0.00026370201409537194
+    },
+    {
+      "iter": 5,
+      "acc_vs_clean": 0.8956705729166666,
+      "acc_vs_clean_std": 0.0010180660809893233,
+      "mean_nll": 0.07588099439938863,
+      "mean_nll_std": 0.001329228439366253,
+      "fix_rate": 0.5718312577986061,
+      "fix_rate_std": 0.011021113189955245,
+      "damage_rate": 0.04682191587463636,
+      "damage_rate_std": 0.0011647261550943916,
+      "net_per_corrupt": 0.30832676686700006,
+      "net_per_corrupt_std": 0.010030715566385026,
+      "drift_from_prev": 0.0003662109375,
+      "drift_from_prev_std": 0.00017263349150062197,
+      "frac_flagged": 0.0006510416666666666,
+      "frac_flagged_std": 0.00011508899433374797
+    }
+  ],
+  "examples": [
+    {
+      "idx": 0,
+      "clean": "l clinton during a fundraising event in washington dc october one nine nine six monica samille lewinsky born july two three one nine seven three is an american woman who was thrust into the public limelight after having a sexual affair with u s president b",
+      "trajectory": [
+        {
+          "iter": 0,
+          "text": "l clinvon durjng u mkndraitice evvnt tn washbngton dc octobex one zire zine nix adnica samille luwinskh bornjjuby two threc one ninfasevxn threa isaan amorican womgn who wos thrust into the public lpmelight aftez haqing a sexual asfaix wiihrj s presidfnt b",
+          "n_flagged": null
+        },
+        {
+          "iter": 1,
+          "text": "l clinton during a mandraitice event tn washington an octobee one zine nine six africa samille luring h born juby two three one nine seven three isaan american woman who was thrust into the public lamelight after having a sexual as aix with u s president b",
+          "n_flagged": 34
+        },
+        {
+          "iter": 2,
+          "text": "l clinton during a mandractice event tn washington an octobee one nine nine six africa samille during a born duby two three one nine seven three isaan american woman who was thrust into the public  ameright after having a sexual as six with u s president b",
+          "n_flagged": 8
+        },
+        {
+          "iter": 3,
+          "text": "l clinton during a mandractice event tn washington an octobee one nine nine six africa samille during a born duby two three one nine seven three isaan american woman who was thrust into the publica ameright after having a sexual as six with u s president b",
+          "n_flagged": 1
+        },
+        {
+          "iter": 4,
+          "text": "l clinton during a mandractice event tn washington an octobee one nine nine six africa samille during a born duby two three one nine seven three isaan american woman who was thrust into the publica ameright after having a sexual as six with u s president b",
+          "n_flagged": 0
+        },
+        {
+          "iter": 5,
+          "text": "l clinton during a mandractice event tn washington an octobee one nine nine six africa samille during a born duby two three one nine seven three isaan american woman who was thrust into the publica ameright after having a sexual as six with u s president b",
+          "n_flagged": 0
+        }
+      ]
+    },
+    {
+      "idx": 1,
+      "clean": "ill clinton their affair started while lewinsky was working as an intern at the white house in the mid one nine nine zero s the affair s repercussions for president clinton are often referred to as the lewinsky scandal or monicagate monicagate has garnered",
+      "trajectory": [
+        {
+          "iter": 0,
+          "text": " ll ilinion xheir affwir startgd while lewinske uas workuegwavajn interv axithc whita hdcse in the mid one nine fine zerofsqtpu affyll s repercussions forqpaesidqnt clindtp are oflxn referred to as the lewinsky scahdyl ur monic gate conicagyte has garnered",
+          "n_flagged": null
+        },
+        {
+          "iter": 1,
+          "text": " ll ilinion their affwir started while leginate was work e wagain interv atithe white house in the mid one nine nine zero s the affell s refercussions for president clindte are often referred to as the lewinsky scand l ur monic gate conicagate has garnered",
+          "n_flagged": 31
+        },
+        {
+          "iter": 2,
+          "text": " le ilinion their affair started while leginate was work e wagain interv at the white house in the mid one nine nine zero s the affell s refercussions for president clinate are often referred to as the leginity s and four monic gate conicagate has garnered",
+          "n_flagged": 10
+        },
+        {
+          "iter": 3,
+          "text": " legilinion their affair started while leginate was work e wagain interv at the white house in the mid one nine nine zero s the affell s refercussions for president clinate are often referred to as the leginity s and four monic gate conicagate has garnered",
+          "n_flagged": 1
+        },
+        {
+          "iter": 4,
+          "text": " legilition their affair started while leginate was work e wagain interv at the white house in the mid one nine nine zero s the affell s refercussions for president clinate are often referred to as the leginity s and four monic gate conicagate has garnered",
+          "n_flagged": 1
+        },
+        {
+          "iter": 5,
+          "text": " legilition their affair started while leginate was work e wagain interv at the white house in the mid one nine nine zero s the affell s refercussions for president clinate are often referred to as the leginity s and four monic gate conicagate has garnered",
+          "n_flagged": 0
+        }
+      ]
+    },
+    {
+      "idx": 2,
+      "clean": " lewinsky much notoriety following the scandal life lewinsky was born in san francisco and grew up in southern california on the west side of los angeles and in beverly hills her father was born in el salvador but comes from a family of german jewish immig",
+      "trajectory": [
+        {
+          "iter": 0,
+          "text": "llewinsky much notoriqty fpllowingathe scongal life lewi sky was born in san franiisco and grew up in sovthern raliforoia qn the west mide o  lor angeles vnd iq oev rly hvllt herffather nashborn in el salvador buw comem frol a faealy of german jkvish inmig",
+          "n_flagged": null
+        },
+        {
+          "iter": 1,
+          "text": "llewin ky much notoriity following the scongal life lewi sky was born in san francisco and grew up in southern raliforoia in the west lide of for angeles and in sew rly hillt her father was born in el salvador but comew from a famaly of german jewish indig",
+          "n_flagged": 25
+        },
+        {
+          "iter": 2,
+          "text": "llewin by much notoriity following the scongal life jewi sky was born in san francisco and grew up in southern raliforoia in the west life of for angeles and in sew rly hillt her father was born in el salvador but comew from a famaly of german jewish indig",
+          "n_flagged": 3
+        },
+        {
+          "iter": 3,
+          "text": "llewin by much notoriity following the scongal life jewi sky was born in san francisco and grew up in southern raliforoia in the west life of for angeles and in sew rly hillt her father was born in el salvador but comew from a famaly of german jewish indig",
+          "n_flagged": 0
+        },
+        {
+          "iter": 4,
+          "text": "llewin by much notoriity following the scongal life jewi sky was born in san francisco and grew up in southern raliforoia in the west life of for angeles and in sew rly hillt her father was born in el salvador but comew from a famaly of german jewish indig",
+          "n_flagged": 0
+        },
+        {
+          "iter": 5,
+          "text": "llewin by much notoriity following the scongal life jewi sky was born in san francisco and grew up in southern raliforoia in the west life of for angeles and in sew rly hillt her father was born in el salvador but comew from a famaly of german jewish indig",
+          "n_flagged": 0
+        }
+      ]
+    }
+  ]
+}

@@ -85,6 +85,9 @@ def main() -> int:
     ap.add_argument("--schemes", type=str, default="replace,shuffle,both")
     ap.add_argument("--rates", type=str, default="0.1,0.3,0.5,0.7,1.0")
     ap.add_argument("--seed", type=int, default=42)
+    ap.add_argument("--split", choices=["train", "val", "test"], default="val",
+                    help="dataset split for fit/eval sequences "
+                         "(test = held-out last-5M text8 split)")
     ap.add_argument("--chunk", type=int, default=16)
     ap.add_argument("--plot", action=argparse.BooleanOptionalAction, default=True)
     ap.add_argument("--max-pos", type=int, default=120,
@@ -103,7 +106,9 @@ def main() -> int:
             raise SystemExit(f"--{nm}={tv} must lie in [1, t_max={t_max}]")
 
     dm, _ = build_training_datamodule(cfg)
-    vl = dm.val_dataloader() or dm.train_dataloader()
+    _split_loaders = {"train": dm.train_dataloader, "val": dm.val_dataloader,
+                      "test": dm.test_dataloader}
+    vl = _split_loaders[args.split]() or dm.train_dataloader()
     seqs = []
     for b in vl:
         seqs.append(b["token_ids"].long())

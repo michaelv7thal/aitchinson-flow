@@ -9,7 +9,30 @@ from aitchinson_flow.training import DataModule
 def build_training_datamodule(cfg: Config) -> tuple[DataModule, dict[str, Any]]:
     if getattr(cfg, "auditor", None) is not None and cfg.auditor.enabled:
         return _build_wiki_auditor_datamodule(cfg)
+    if getattr(cfg.text8_dataset, "windows_path", None) is not None:
+        return _build_dna_datamodule(cfg)
     return _build_raw_text_datamodule(cfg)
+
+
+def _build_dna_datamodule(cfg: Config) -> tuple[DataModule, dict[str, Any]]:
+    from aitchinson_flow.data.dna_datamodule import DNADataModule  # deferred
+
+    dm = DNADataModule(
+        dataset_cfg=cfg.text8_dataset,
+        transform_cfg=cfg.transformation,
+        loader_settings=cfg.loader_settings,
+    )
+    return dm, {
+        "source": "dna_windows",
+        "raw_dataset": "dna",
+        "windows_path": cfg.text8_dataset.windows_path,
+        "seq_length": cfg.text8_dataset.L,
+        "vocab_size": cfg.text8_dataset.K,
+        "corrupt_rate": cfg.text8_dataset.train_corrupt_rate,
+        "order_mix_rate": cfg.text8_dataset.train_order_mix_rate,
+        "order_mix_prob": cfg.text8_dataset.order_mix_prob,
+        "corruption_seed": cfg.text8_dataset.corruption_seed,
+    }
 
 
 def _build_wiki_auditor_datamodule(

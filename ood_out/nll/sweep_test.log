@@ -1,0 +1,39 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[nll] t_nll=3.0 t_var=7.5 t_max=8.0 fit=512 eval=256
+[nll] variance baseline: d=1280 t_var=7.5
+
+   scheme  rate  NLL_AUseq  NLL_AUtok  Var_AUseq  Var_AUtok
+  replace  0.05     0.9852     0.9762     0.5860     0.7448
+  replace  0.10     0.9997     0.9717     0.6604     0.7247
+  replace  0.15     1.0000     0.9614     0.7188     0.7048
+  replace  0.20     1.0000     0.9482     0.7634     0.6809
+  replace  0.25     1.0000     0.9350     0.7968     0.6716
+  replace  0.30     1.0000     0.9181     0.8577     0.6580
+  replace  0.50     1.0000     0.8395     0.9904     0.6178
+  replace  0.70     1.0000     0.7680     1.0000     0.6060
+  replace  1.00     1.0000        nan     1.0000        nan
+  shuffle  0.05     0.9643     0.9622     0.5726     0.7087
+  shuffle  0.10     0.9980     0.9498     0.6090     0.6850
+  shuffle  0.15     0.9999     0.9353     0.6660     0.6618
+  shuffle  0.20     1.0000     0.9164     0.6990     0.6428
+  shuffle  0.25     1.0000     0.8936     0.7121     0.6317
+  shuffle  0.30     1.0000     0.8633     0.7486     0.6119
+  shuffle  0.50     1.0000     0.7390     0.8686     0.5663
+  shuffle  0.70     1.0000     0.6261     0.9502     0.5408
+  shuffle  1.00     1.0000     0.6247     0.9803     0.5554
+     both  0.05     0.9991     0.9611     0.6292     0.7073
+     both  0.10     1.0000     0.9389     0.7107     0.6742
+     both  0.15     1.0000     0.9022     0.7676     0.6472
+     both  0.20     1.0000     0.8669     0.8625     0.6253
+     both  0.25     1.0000     0.8294     0.9125     0.6097
+     both  0.30     1.0000     0.7964     0.9644     0.6031
+     both  0.50     1.0000     0.7102     0.9997     0.5891
+     both  0.70     1.0000     0.7022     1.0000     0.5981
+     both  1.00     1.0000     0.7309     1.0000     0.6147
+
+Wrote ood_out/nll/denoiser_nll_sweep.json
+Wrote ood_out/nll/denoiser_nll_sweep_auroc.png
+Wrote ood_out/nll/denoiser_nll_sweep_heatmap_clean_0.png
+Wrote ood_out/nll/denoiser_nll_sweep_heatmap_clean_1.png
+Wrote ood_out/nll/denoiser_nll_sweep_heatmap_corrupt30_0.png
+Wrote ood_out/nll/denoiser_nll_sweep_heatmap_corrupt30_1.png

@@ -95,6 +95,13 @@ class Text8DataConfig:
     L_min: int = 40
     L_max: int = 128
 
+    # K=4 DNA path. When set, build_training_datamodule routes to DNADataModule,
+    # which loads this pre-tokenized {A,C,G,T} windows .pt (see
+    # scripts/prep_dna_windows.py) instead of the HF text8 download. The rest of
+    # the simplex pipeline is shared, so a run with windows_path set + K=4
+    # isolates vocab size against the K=27 text8 baseline.
+    windows_path: str | None = None
+
     provider: str = "huggingface"
     source_ref: str = "afmck/text8"
     dataset_name: str | None = None

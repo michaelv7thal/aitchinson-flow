@@ -46,8 +46,16 @@ def plot_sweep(data: dict, out_path: Path) -> Path | None:
         ("auroc_token_energy", "Per-token energy AUROC"),
         ("auroc_token_uncertainty", "Per-token variance AUROC"),
     ]
+    # The variance ("uncertainty") channel is read at var_t_eval (peaky regime,
+    # ~7.5) where it is non-inverted; at t_eval~4.5 it inverts (corrupt -> LOWER
+    # var) and falls below 0.5. Use the full [0, 1] range and, if the data is
+    # actually inverted (median AUROC < 0.5), shade + flag it instead of hiding it.
+    import statistics
+    var_t = data.get("var_t_eval", data.get("t_eval"))
+    var_keys = {"auroc_seq_uncertainty", "auroc_token_uncertainty"}
     fig, axes = plt.subplots(2, 2, figsize=(11, 8), sharex=True)
     for ax, (key, title) in zip(axes.ravel(), panels):
+        ys_all: list[float] = []
         for scheme in schemes:
             pts = [(r["rate"], r.get(key)) for r in rows if r["scheme"] == scheme]
             # drop missing / NaN (NaN != NaN)
@@ -55,17 +63,30 @@ def plot_sweep(data: dict, out_path: Path) -> Path | None:
             if pts:
                 xs, ys = zip(*sorted(pts))
                 ax.plot(xs, ys, marker="o", label=scheme)
+                ys_all.extend(ys)
         ax.axhline(0.5, ls="--", lw=0.8, color="grey")  # chance
-        ax.set_title(title)
-        ax.set_ylim(0.4, 1.02)
+        ax.set_ylim(0.0, 1.02)  # full range — variance AUROC can sit below 0.5
         ax.grid(alpha=0.3)
         ax.set_xlabel("corruption rate")
         ax.set_ylabel("AUROC")
+        if key in var_keys:
+            ax.set_title(f"{title}  (var read @ t={var_t})")
+            if ys_all and statistics.median(ys_all) < 0.5:  # genuinely inverted
+                ax.axhspan(0.0, 0.5, color="red", alpha=0.06)
+                ax.text(0.5, 0.18,
+                        "INVERTED: AUROC < 0.5 ⇒ corrupt has LOWER variance\n"
+                        "(read the variance at a peakier t — e.g. t≈7.5)",
+                        transform=ax.transAxes, ha="center", va="center",
+                        fontsize=7.5, color="maroon")
+        else:
+            ax.set_title(title)
     axes[0, 0].legend(title="scheme", fontsize=9)
     det = data.get("detector", "BayesLinHead")
     fig.suptitle(
-        f"{det} — OOD AUROC vs corruption ladder "
-        f"(t_eval={data.get('t_eval')}, feat_dim={data.get('feat_dim')})"
+        f"{det} — OOD AUROC vs corruption ladder  "
+        f"(energy @ t_eval={data.get('t_eval')}, "
+        f"variance @ t={data.get('var_t_eval', data.get('t_eval'))}, "
+        f"feat_dim={data.get('feat_dim')})"
     )
     fig.tight_layout()
     fig.savefig(out_path, dpi=150)

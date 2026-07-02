@@ -55,6 +55,7 @@ from pathlib import Path
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 
 def _bootstrap() -> None:
@@ -135,6 +136,42 @@ def train_localizer(model, fit_tok, t_eval, device, *, train_rate, margin, steps
         return head(z).squeeze(-1).reshape(b, Lq).cpu()  # (B, L)
 
     return score, d
+
+
+# --------------------------------------------------------------------------- #
+# Localizer (NLL): training-free denoiser surprise — no head, no fit set.
+#
+# The localizer is the model's OWN per-token negative log-likelihood read at a
+# low path-time t_nll (~3): NLL_t = -log softmax(f(x_t, t))[observed_token]. The
+# deterministic Dirichlet-mean input barely reveals the token, so the non-causal
+# denoiser must predict each position from CONTEXT; a corrupted / out-of-place
+# token then gets low predicted probability => high NLL => flagged. Same
+# (score, d) interface as train_localizer, so it drops into the identical
+# calibrate -> inpaint -> score pipeline for an honest A/B vs the BLR head.
+# Standalone detector: scripts/ood_denoiser_nll.py.
+# --------------------------------------------------------------------------- #
+def make_nll_localizer(model, t_nll, device, *, chunk=16):
+    """Return a ``score(token_ids) -> NLL_t (B,L)`` closure (higher == more
+    likely corrupt). Reuses model.forward (the generation softmax); no training."""
+    K = model.K
+
+    @torch.no_grad()
+    def score(tok):
+        outs = []
+        for i in range(0, tok.shape[0], chunk):
+            tb = tok[i:i + chunk].to(device).long()
+            b, Lq = tb.shape
+            beta = torch.ones(b, Lq, K, device=device)
+            beta.scatter_(-1, tb.unsqueeze(-1), float(t_nll))
+            x_t = beta / beta.sum(-1, keepdim=True)          # deterministic Dir mean
+            tt = torch.full((b,), float(t_nll), device=device)
+            logits = model.forward(x_t, tt)                  # (b,L,K) denoiser logits
+            nll = -F.log_softmax(logits, -1).gather(
+                -1, tb.unsqueeze(-1)).squeeze(-1)            # (b,L)
+            outs.append(nll.cpu())
+        return torch.cat(outs)
+
+    return score, 0  # d unused (no feature head); kept for signature parity
 
 
 def _auroc(pos: torch.Tensor, neg: torch.Tensor) -> float:
@@ -340,14 +377,23 @@ def calibrate_threshold(score, clean_tok, corrupt_tok, *, target_fpr):
 # Inpainter: masked-Euler integration of the DirichletFM marginal field.
 # --------------------------------------------------------------------------- #
 @torch.no_grad()
-def inpaint(model, observed_ids, heal_mask, *, nfe, device):
+def inpaint(model, observed_ids, heal_mask, *, nfe, device, chunk=16):
     """Heal flagged positions while pinning trusted ones.
 
     observed_ids : (B, L) long — the corrupted text we observe.
     heal_mask    : (B, L) bool — True = suspected corrupt (generate); False = trust.
     Integrates t: 1 -> t_max. Trusted positions are re-imposed every step via the
     deterministic Dirichlet mean concentrated (∝ t) on the observed token; flagged
-    positions evolve under the marginal vector field. Returns healed token ids."""
+    positions evolve under the marginal vector field. Returns healed token ids.
+    Sequences are independent under the field, so a large demo batch is processed
+    in sub-batches of ``chunk`` to bound GPU memory (exact, not an approximation)."""
+    if observed_ids.shape[0] > chunk:
+        parts = [
+            inpaint(model, observed_ids[i:i + chunk], heal_mask[i:i + chunk],
+                    nfe=nfe, device=device, chunk=chunk)
+            for i in range(0, observed_ids.shape[0], chunk)
+        ]
+        return torch.cat(parts, 0)
     dfm = model.dfm
     K = model.K
     t_max = float(dfm.t_max)
@@ -510,10 +556,17 @@ def main() -> int:
     ap.add_argument("--lr", type=float, default=5e-2)
     ap.add_argument("--nfe", type=int, default=100, help="Euler steps for inpainting")
     ap.add_argument("--seed", type=int, default=42)
+    ap.add_argument("--split", choices=["train", "val", "test"], default="val",
+                    help="dataset split for fit/cal/demo sequences "
+                         "(test = held-out last-5M text8 split)")
     # --- localizer choice: linear hinge head (default) or post-hoc SVGP head ---
-    ap.add_argument("--localizer", choices=["linear", "gp"], default="linear",
-                    help="per-token corruption localizer: 'linear' (BayesLin hinge) "
-                         "or 'gp' (post-hoc SVGP energy+variance auditor)")
+    ap.add_argument("--localizer", choices=["linear", "gp", "nll"], default="linear",
+                    help="per-token corruption localizer: 'linear' (BayesLin hinge), "
+                         "'gp' (post-hoc SVGP energy+variance auditor), or 'nll' "
+                         "(training-free denoiser surprise at --t-nll)")
+    ap.add_argument("--t-nll", type=float, default=3.0,
+                    help="[nll] path-time for the denoiser-NLL localizer (low/context "
+                         "regime, ~3); see scripts/ood_denoiser_nll.py")
     ap.add_argument("--gp-mode", choices=["oneclass", "contrastive"], default="oneclass",
                     help="[gp] 'oneclass' = SVGP fit on valid data only, OOD=variance "
                          "(recommended); 'contrastive' = energy hinge on corrupt negatives")
@@ -556,7 +609,9 @@ def main() -> int:
     print(f"[heal] K={K} L={L} t_max={model.dfm.t_max} t_eval={t_eval} device={device}")
 
     dm, _ = build_training_datamodule(cfg)
-    vl = dm.val_dataloader() or dm.train_dataloader()
+    _split_loaders = {"train": dm.train_dataloader, "val": dm.val_dataloader,
+                      "test": dm.test_dataloader}
+    vl = _split_loaders[args.split]() or dm.train_dataloader()
     need = 2 * args.fit_seqs + args.n_demo
     seqs = []
     for b in vl:
@@ -576,8 +631,15 @@ def main() -> int:
           f"demo={demo_clean.shape[0]}  n_seeds={args.n_seeds}")
 
     # ---- 1. localizer ----
-    print(f"=== train per-token energy head (localizer={args.localizer}) ===")
-    if args.localizer == "gp":
+    print(f"=== build per-token localizer ({args.localizer}) ===")
+    if args.localizer == "nll":
+        t_max_chk = float(model.dfm.t_max)
+        if not (1.0 <= args.t_nll <= t_max_chk):
+            raise SystemExit(f"--t-nll={args.t_nll} must lie in [1, t_max={t_max_chk}]")
+        print(f"  [nll] training-free denoiser-surprise localizer @ t_nll={args.t_nll} "
+              f"(no head, no fit set)")
+        score, d = make_nll_localizer(model, args.t_nll, device)
+    elif args.localizer == "gp":
         var_weights = [float(x) for x in args.gp_var_weights.split(",") if x.strip()]
         score, d = train_gp_localizer(
             model, fit_tok, t_eval, device, mode=args.gp_mode, train_rate=args.train_rate,
@@ -699,6 +761,7 @@ def main() -> int:
         "ckpt": args.ckpt, "K": K, "L": L, "t_max": float(model.dfm.t_max),
         "localizer": args.localizer,
         "gp_mode": (args.gp_mode if args.localizer == "gp" else None),
+        "t_nll": (args.t_nll if args.localizer == "nll" else None),
         "uq": (args.uq if args.uq != "none" else None), "uq_report": uq,
         "t_eval": t_eval, "d_model": d, "nfe": args.nfe, "n_seeds": args.n_seeds,
         "corrupt_rate": args.corrupt_rate, "train_rate": args.train_rate,

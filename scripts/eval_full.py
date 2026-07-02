@@ -36,6 +36,10 @@ ALPHABET = "".join(sorted(CHAR2ID, key=CHAR2ID.__getitem__))
 def ids_to_text(ids: torch.Tensor, *, K: int = VOCAB_SIZE) -> list[str]:
     if K == VOCAB_SIZE:
         return ["".join(ALPHABET[int(i)] for i in row) for row in ids.cpu()]
+    if K == 4:
+        # K=4 DNA alphabet (see data/dna_datamodule.py / prep_dna_windows.py).
+        dna = "ACGT"
+        return ["".join(dna[int(i) % 4] for i in row) for row in ids.cpu()]
     # Phase S K=2 alphabet: 0=vowel, 1=consonant/space.
     binary = "VC"
     return ["".join(binary[int(i) % 2] for i in row) for row in ids.cpu()]

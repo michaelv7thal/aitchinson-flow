@@ -65,7 +65,12 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--ckpt", required=True)
     ap.add_argument("--out", default=None)
-    ap.add_argument("--t-eval", type=float, default=None)
+    ap.add_argument("--t-eval", type=float, default=None,
+                    help="path-time for the ENERGY readout (discriminative, ~4.5)")
+    ap.add_argument("--var-t-eval", type=float, default=7.5,
+                    help="path-time for the VARIANCE readout. The Mahalanobis "
+                         "variance is INVERTED at t_eval~4.5 (corrupt -> LOWER var) "
+                         "and only non-inverted in the peaky regime (~7.5).")
     ap.add_argument(
         "--fit-seqs",
         type=int,
@@ -98,6 +103,9 @@ def main() -> int:
     ap.add_argument("--schemes", type=str, default="replace,shuffle,both")
     ap.add_argument("--rates", type=str, default="0.1,0.3,0.5,0.7,1.0")
     ap.add_argument("--seed", type=int, default=42)
+    ap.add_argument("--split", choices=["train", "val", "test"], default="val",
+                    help="dataset split for fit/eval sequences "
+                         "(test = held-out last-5M text8 split)")
     ap.add_argument(
         "--plot",
         action=argparse.BooleanOptionalAction,
@@ -118,8 +126,14 @@ def main() -> int:
     model, cfg = _load_dirichletfm(args.ckpt, device)
     K = cfg.text8_dataset.K
     t_eval = float(args.t_eval if args.t_eval is not None else cfg.dfm_svgp.t_eval)
+    var_t = float(args.var_t_eval)
+    t_max = float(cfg.dirichlet_fm.t_max)
+    if not (1.0 <= var_t <= t_max):
+        raise SystemExit(f"--var-t-eval={var_t} must lie in [1, t_max={t_max}]")
     dm, _ = build_training_datamodule(cfg)
-    vl = dm.val_dataloader() or dm.train_dataloader()
+    _split_loaders = {"train": dm.train_dataloader, "val": dm.val_dataloader,
+                      "test": dm.test_dataloader}
+    vl = _split_loaders[args.split]() or dm.train_dataloader()
 
     seqs = []
     for b in vl:
@@ -139,22 +153,31 @@ def main() -> int:
     fk = _perpos_feats(model, corr_tok, t_eval, device)  # (Nf,L,d)
     label_corr = corr_tok != fit_tok  # (Nf,L) bool
 
-    mu = fc.reshape(-1, d).mean(0)
-    sigma = fc.reshape(-1, d).std(0).clamp_min(1e-6)
-    pca_V = None
-    if args.pca_dim and args.pca_dim < d:
-        Xs0 = (fc.reshape(-1, d) - mu) / sigma
-        if Xs0.shape[0] > args.max_fit_pos:
-            Xs0 = Xs0[torch.randperm(Xs0.shape[0])[: args.max_fit_pos]]
-        _, _, V = torch.pca_lowrank(Xs0, q=min(args.pca_dim, d))
-        pca_V = V[:, : args.pca_dim]
-    feat_dim = args.pca_dim if pca_V is not None else d
+    def _make_proj(fc_flat):
+        """Standardiser (+optional PCA) fitted on a CLEAN feature cloud. Returns
+        (proj_fn, feat_dim). Built twice: once for the energy features (@t_eval)
+        and once, independently, for the variance features (@var_t)."""
+        d_ = fc_flat.shape[-1]
+        mu = fc_flat.mean(0)
+        sigma = fc_flat.std(0).clamp_min(1e-6)
+        pca_V = None
+        if args.pca_dim and args.pca_dim < d_:
+            Xs0 = (fc_flat - mu) / sigma
+            if Xs0.shape[0] > args.max_fit_pos:
+                Xs0 = Xs0[torch.randperm(Xs0.shape[0])[: args.max_fit_pos]]
+            _, _, V = torch.pca_lowrank(Xs0, q=min(args.pca_dim, d_))
+            pca_V = V[:, : args.pca_dim]
+        fdim = args.pca_dim if pca_V is not None else d_
 
-    def _proj(h_flat):  # raw (N,d) -> standardised (+pca) (N,feat_dim); device-safe
-        m = mu.to(h_flat.device)
-        s = sigma.to(h_flat.device)
-        z = (h_flat - m) / s
-        return z @ pca_V.to(h_flat.device) if pca_V is not None else z
+        def proj(h_flat):  # raw (N,d) -> standardised (+pca); device-safe
+            m = mu.to(h_flat.device)
+            s = sigma.to(h_flat.device)
+            z = (h_flat - m) / s
+            return z @ pca_V.to(h_flat.device) if pca_V is not None else z
+
+        return proj, fdim
+
+    _proj, feat_dim = _make_proj(fc.reshape(-1, d))  # ENERGY standardiser @ t_eval
 
     zc = _proj(fc.reshape(-1, d)).to(device)  # clean per-token
     zk = _proj(fk.reshape(-1, d)).to(device)  # corrupted per-token
@@ -184,12 +207,23 @@ def main() -> int:
                 f"  gap={(en.mean() - ep.mean()):+.3f}"
             )
 
-    # ---- Laplace posterior covariance on the head weights ----
-    # Sigma_w = (Phi + ridge*tr(Phi)/feat_dim * I)^-1 over CLEAN per-token features.
-    Phi = zc.double().T @ zc.double() / zc.shape[0]
-    jit = args.ridge * Phi.trace() / feat_dim
-    Sig_inv = Phi + jit * torch.eye(feat_dim, device=device, dtype=Phi.dtype)
-    L = torch.linalg.cholesky(Sig_inv)  # Var = ||L^-1 zs||^2
+    # ---- Laplace posterior covariance, read in the PEAKY regime (var_t) -------
+    # The variance is read at var_t (>> t_eval). At t_eval the Mahalanobis
+    # variance is INVERTED (corrupt seq -> LOWER var, the pooled feature collapses
+    # toward the ID core); the near-one-hot var_t input instead pushes a corrupted
+    # token genuinely off-manifold, so Var is non-inverted (corrupt -> HIGHER var).
+    # Sigma_w = (Phi + ridge*tr(Phi)/m * I)^-1 over CLEAN per-token feats @ var_t.
+    fc_v = _perpos_feats(model, fit_tok, var_t, device)  # (Nf,L,d) clean @ var_t
+    dv = fc_v.shape[-1]
+    _proj_v, feat_dim_v = _make_proj(fc_v.reshape(-1, dv))  # VARIANCE standardiser
+    zc_v = _proj_v(fc_v.reshape(-1, dv)).to(device)
+    Phi = zc_v.double().T @ zc_v.double() / zc_v.shape[0]
+    jit = args.ridge * Phi.trace() / feat_dim_v
+    L = torch.linalg.cholesky(
+        Phi + jit * torch.eye(feat_dim_v, device=device, dtype=Phi.dtype)
+    )  # Var = ||L^-1 zs||^2
+    print(f"[bayeslin] energy @ t_eval={t_eval}  variance @ var_t={var_t} "
+          f"(feat_dim_var={feat_dim_v})")
 
     head.eval()
 
@@ -199,11 +233,13 @@ def main() -> int:
         Es, Vs = [], []
         for i in range(0, tok.shape[0], chunk):
             tb = tok[i : i + chunk]
-            h = _perpos_feats(model, tb, t_eval, device)  # (b,L,d)
+            h = _perpos_feats(model, tb, t_eval, device)  # energy feats @ t_eval
             b, Lq, _ = h.shape
             z = _proj(h.reshape(-1, d)).to(device)  # (b*L,feat_dim)
             E = head(z).squeeze(-1).reshape(b, Lq).cpu()
-            w = torch.linalg.solve_triangular(L, z.double().T, upper=False)
+            hv = _perpos_feats(model, tb, var_t, device)  # variance feats @ var_t
+            zv = _proj_v(hv.reshape(-1, dv)).to(device)
+            w = torch.linalg.solve_triangular(L, zv.double().T, upper=False)
             V = (w * w).sum(0).reshape(b, Lq).float().cpu()
             Es.append(E)
             Vs.append(V)
@@ -300,6 +336,7 @@ def main() -> int:
             {
                 "ckpt": args.ckpt,
                 "t_eval": t_eval,
+                "var_t_eval": var_t,
                 "d_model": d,
                 "feat_dim": feat_dim,
                 "pca_dim": args.pca_dim,
