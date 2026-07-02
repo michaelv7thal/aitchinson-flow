@@ -16,8 +16,8 @@ Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF
 --- example[0] @ selected fpr=0.02 (chosen by cal-set F1) ---
   clean : ' one later died of his injuries that same year when a russia japan world cup match played in japan but broadcast live to the crowds in pushkin square went badly for the russians the crowd turned violent and wrought havoc in the centre of the city breaking '
   corr  : ' one ldter didd o  qks injvrmys tyat xame yelr when a russiavjapanfwsrlx cupomate  played in japrn butzbroadhasa live to tye crowdsejn poshkin dquawe wenl badly fox the rulsians the crowd turned vioment and wroueht lavoc in the celtrehof ahixcity breasing '
-  truec :       ^      ^   ^ ^^     ^ ^^   ^   ^      ^               ^     ^ ^  ^    ^   ^^              ^     ^     ^  ^          ^        ^^   ^      ^   ^     ^         ^       ^                          ^            ^   ^              ^   ^   ^ ^^         ^    
-  flag  :       *      *     **    ** **   *   *      *               **    * ** *         *           * **     *   * *  *          *     **  *     **    ** *     *         *       *             *                     *  * *    * *          *   *    * *              
+  truec :        ^      ^   ^ ^^     ^ ^^   ^   ^      ^               ^     ^ ^  ^    ^   ^^              ^     ^     ^  ^          ^        ^^   ^      ^   ^     ^         ^       ^                          ^            ^   ^              ^   ^   ^ ^^         ^    
+  flag  :        *      *     **    ** **   *   *      *               **    * ** *         *           * **     *   * *  *          *     **  *     **    ** *     *         *       *             *                     *  * *    * *          *   *    * *              
   healed: ' one later died o  was in cross that game year when a russia japan worly cupomated played in japan but broadcast live to the cros seen post in daname went badly for the russians the croad turned vioment and croject lator in the centre of a iocity breasing '
 
 === HEADLINE @ selected fpr=0.02 (mean±std over 5 seeds) ===
