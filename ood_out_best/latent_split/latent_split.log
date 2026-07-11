@@ -1,0 +1,8 @@
+[latent] ckpt=runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM/epoch_best.pt
+[latent] t_eval=4.5 K=27 fit=192 eval=256 rate=0.3
+[seq:replace] PCA(PC1-2)=0.987  LDA-axis=1.000  full-linear=1.000
+[seq:shuffle] PCA(PC1-2)=0.977  LDA-axis=1.000  full-linear=1.000
+Wrote ood_out_best/latent_split/latent_split_sequence.png
+[token] PCA(PC1-2)=0.567  energy-axis=0.956  full-linear=1.000
+Wrote ood_out_best/latent_split/latent_split_token.png
+Wrote ood_out_best/latent_split/latent_split.json

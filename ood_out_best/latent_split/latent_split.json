@@ -1,0 +1,26 @@
+{
+  "ckpt": "runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM/epoch_best.pt",
+  "t_eval": 4.5,
+  "d_model": 1280,
+  "rate": 0.3,
+  "fit_seqs": 192,
+  "n": 256,
+  "per_sequence": {
+    "replace": {
+      "pca_pc12_probe_auroc": 0.9873046875,
+      "lda_axis_auroc": 1.0,
+      "full_dim_linear_auroc": 1.0
+    },
+    "shuffle": {
+      "pca_pc12_probe_auroc": 0.9771270751953125,
+      "lda_axis_auroc": 1.0,
+      "full_dim_linear_auroc": 1.0
+    }
+  },
+  "per_token": {
+    "pca_pc12_probe_auroc": 0.566716875,
+    "energy_axis_auroc": 0.95626109375,
+    "full_dim_linear_auroc": 1.0,
+    "n_per_class": 4000
+  }
+}

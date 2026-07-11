@@ -1,0 +1,87 @@
+{
+  "ckpt": "runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM/epoch_best.pt",
+  "protein": "insulin",
+  "K": 27,
+  "L": 256,
+  "localizer": "nll",
+  "t_nll": 3.0,
+  "nfe": 100,
+  "corrupt_rate": 0.15,
+  "n_demo": 32,
+  "n_seeds": 3,
+  "name_occurrences_in_article": 248,
+  "operating_point": {
+    "fpr": 0.02,
+    "threshold": 1.238521695137024
+  },
+  "track_A_char_noise": {
+    "n_seeds": 3,
+    "fix_rate": 0.580906148867314,
+    "damage_rate": 0.03685068046770174,
+    "net_per_corrupt": 0.37351672060409924,
+    "net_per_corrupt_std": 0.003982849643280665,
+    "loc_precision": 0.7847726661285983,
+    "loc_recall": 0.7866774541531824,
+    "delta_wholeseq": 0.056355794270833336,
+    "delta_wholeseq_std": 0.000870806256471057,
+    "n_corrupt_total": 3708,
+    "n_fixed_total": 2154,
+    "n_damaged_total": 769,
+    "corrupt_frac_chars": 0.15087890625,
+    "example": {
+      "clean": "insulin from latin insula island is a peptide hormone produced by beta cells of the pancreatic islets encoded in humans by the insulin ins gene it is the main anabolic hormone of the body it regulates the metabolism of carbohydrates fats and protein by pro",
+      "corrupted": "insuliv from iatiu mksula tscend vs atpeptidb hormone producxd by zera zellsnof ade pancreatic iulets hncodej ib humans bycthe insuean ixs geneait  s theomain anabglic horoone of the body it regulatps the metabozismqof carbohydratss fxts inrjprotein be pro",
+      "healed": "insulic from latic mosula tscend is atception hormone produced by zero zells of the pancreatic rulets incodes in humans by the insuean its generit is the main anabolic hormone of the body it regulates the metabolism of carbohydrates jets ind protein be pro",
+      "truec": "       ^      ^   ^ ^^     ^ ^^   ^   ^      ^               ^     ^ ^  ^    ^   ^^              ^     ^     ^  ^          ^        ^^   ^      ^   ^     ^         ^       ^                          ^            ^   ^              ^   ^   ^ ^^         ^    ",
+      "flag": "        *      *   *  *            *    *    **               *        *      *   **             *      *     *  *          *             *      *   *     *         *       *                          *            *   *              *  **     **              "
+    }
+  },
+  "track_C_false_info": {
+    "n_seeds": 3,
+    "fix_rate": 0.04014466546112116,
+    "damage_rate": 0.023061757828618586,
+    "net_per_corrupt": -0.14177215189873418,
+    "net_per_corrupt_std": 0.01121430539686372,
+    "loc_precision": 0.5132827324478179,
+    "loc_recall": 0.1956600361663653,
+    "delta_wholeseq": -0.015950520833333332,
+    "delta_wholeseq_std": 0.001644806553662739,
+    "n_corrupt_total": 2765,
+    "n_fixed_total": 111,
+    "n_damaged_total": 503,
+    "corrupt_frac_chars": 0.11250813802083333,
+    "example": {
+      "clean": "insulin from latin insula island is a peptide hormone produced by beta cells of the pancreatic islets encoded in humans by the insulin ins gene it is the main anabolic hormone of the body it regulates the metabolism of carbohydrates fats and protein by pro",
+      "corrupted": "insulin from latin insula island wu a artwork hormone snapcase by beta cells of the pancreatic islets arseniy in humans by the insulin ins gene it is the main anabolic hormone of the body sg regulates the metabolism of carbohydrates fats and protein ct pro",
+      "healed": "insulin from latin insula island of a artwork hormone snapcase by beta cells of the pancreatic islets arsenia in humans by the insulin ins gene it is the main anabolic hormone of the body so regulates the metabolism of carbohydrates fats and protein it pro",
+      "truec": "                                 ^^   ^^^^^^^         ^^^^^^^^                                        ^^^^^^^                                                                               ^^                                                            ^^    ",
+      "flag": "                                 **                                                                         *                                                                                *                                                            *     "
+    }
+  },
+  "track_B_targeted_name": [
+    {
+      "window": 0,
+      "name_chars_corrupted": 10,
+      "name_restored": false,
+      "clean": "insulin from latin insula island is a peptide hormone produced by beta cells of the pancreatic islets encoded in humans by the insulin ins gene it is the main anabolic hormone of the body it regulates the metabolism of carbohydrates fats and protein by pro",
+      "corrupted": "ig vjcn from latin insula island is a peptide hormone produced by beta cells of the pancreatic islets encoded in humans by the ikvedhn ins gene it is the main anabolic hormone of the body it regulates the metabolism of carbohydrates fats and protein by pro",
+      "healed": "is main from latin insula island is a pective hormone produced by beta cells of the pancreatic islets encoded in humans by the isle in ins gene it is the main anabolic hormone of the body it regulates the metabolism of carbohydrates fats and protein by pro"
+    },
+    {
+      "window": 2,
+      "name_chars_corrupted": 10,
+      "name_restored": false,
+      "clean": "d into both glucose production and secretion by the liver are strongly inhibited by high concentrations of insulin in the blood circulating insulin also affects the synthesis of proteins in a wide variety of tissues it is thus an anabolic hormone promoting",
+      "corrupted": "d into both glucose production and secretion by the liver are strongly inhibited by high concentrations of iettvjn in the blood circulating ietvhcn also affects the synthesis of proteins in a wide variety of tissues it is thus an anabolic hormone promoting",
+      "healed": "d into both glucose production and secretion by the liver are strongly inhibited by high concentrations of betteen in the blood circulating between also affects the synthesis of proteins in a wide variety of tissues it is thus an anabolic hormone promoting"
+    },
+    {
+      "window": 3,
+      "name_chars_corrupted": 5,
+      "name_restored": false,
+      "clean": " the conversion of small molecules in the blood into large molecules in the cells low insulin in the blood has the opposite effect promoting widespread catabolism especially of reserve body fat beta cells are sensitive to blood sugar levels so that they se",
+      "corrupted": " the conversion of small molecules in the blood into large molecules in the cells low iznhian in the blood has the opposite effect promoting widespread catabolism especially of reserve body fat beta cells are sensitive to blood sugar levels so that they se",
+      "healed": " the conversion of small molecules in the blood into large molecules in the cells low iension in the blood has the opposite effect promoting widespread catabolism efpecially of reserve body han be a cells are sensitive to blood sugar levels so that they se"
+    }
+  ]
+}

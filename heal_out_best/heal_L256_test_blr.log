@@ -1,0 +1,28 @@
+[heal] ckpt=runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM/epoch_best.pt
+[heal] K=27 L=256 t_max=8.0 t_eval=4.5 device=cuda
+[heal] disjoint splits: fit=256 cal=256 demo=100  n_seeds=5
+=== build per-token localizer (linear) ===
+  [head] step    0  E_valid=-0.002  E_corrupt=-0.104  gap=-0.102
+  [head] step  200  E_valid=+0.386  E_corrupt=+2.899  gap=+2.513
+  [head] step  400  E_valid=+0.377  E_corrupt=+2.943  gap=+2.566
+  [head] step  599  E_valid=+0.375  E_corrupt=+2.976  gap=+2.601
+=== heal sweep (mean over 5 corruption seeds) ===
+  fpr     thr  loc_P  loc_R    fix    dmg    net/corrupt   delta_ws
+ 0.02   1.880  0.666  0.692  0.461  0.047   +0.194±0.008    +0.0289  <- selected
+ 0.05   1.259  0.513  0.824  0.472  0.099   -0.092±0.016    -0.0137
+ 0.10   0.858  0.395  0.888  0.420  0.165   -0.524±0.015    -0.0781
+
+--- example[0] @ selected fpr=0.02 (chosen by cal-set F1) ---
+  clean : 'l clinton during a fundraising event in washington dc october one nine nine six monica samille lewinsky born july two three one nine seven three is an american woman who was thrust into the public limelight after having a sexual affair with u s president b'
+  corr  : 'l clinkon durlng j cwndrailiez evxnt rn washfngton dc octobel one yire bine rix ngnica samille lxwinskv borncjusy two threg one ninvesevan threg ispan amfrican womln who wys thrust into the public ljmelight aftek haqing a sexual asfaig wixhrs s presidjnt b'
+  truec :       ^      ^   ^ ^^     ^ ^^   ^   ^      ^               ^     ^ ^  ^    ^   ^^              ^     ^     ^  ^          ^        ^^   ^      ^   ^     ^         ^       ^                          ^            ^   ^              ^   ^   ^ ^^         ^    
+  flag  :       *      *   *  *        *   *  **      * *     *             *    *         *              *    **     **  *         *        *           *   *     *                 *                          *            *   *               *  *   ***          *    
+  healed: 'l clinson during a condrailier event on washington de octobel one nire nine rix ninica samille lawinson born just two three one nineesevan three is an american womln who was thrust into the public lamelight after having a sexual as air winn s s president b'
+
+=== HEADLINE @ selected fpr=0.02 (mean±std over 5 seeds) ===
+  fix_rate    = 0.461   (corrupt token -> correct)
+  damage_rate = 0.047   (clean token -> broken)
+  net/corrupt = +0.194 ± 0.008   (net tokens recovered per corrupt token; >0 ⇒ net benefit)
+  delta_ws    = +0.0289 ± 0.0014   (whole-seq; diluted, capped near corrupt_rate — diagnostic only)
+
+Wrote heal_out_best/heal_L256_test_blr.json
