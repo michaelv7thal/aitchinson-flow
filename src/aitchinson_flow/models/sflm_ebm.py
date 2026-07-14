@@ -16,7 +16,8 @@ the energy basin is correct under pure CE (recover≈1.0) — the model is a
 strong *verifier / OOD auditor* but a weak unconditional generator. This
 class therefore exposes the EqM-family EBM API (``energy``,
 ``position_uncertainty``, ``score_energy``/``score_gradient_norm``) plus a
-paper-style per-position ``spilled_energy`` so it slots into the existing
+per-position ``per_position_nll`` (renamed 2026-07 from ``spilled_energy`` — it is
+an NLL; see the method docstring) so it slots into the existing
 ``scripts/eval_ood.py`` harness alongside EqM / EqMLatent / DFM.
 
 The importance noise schedule and contrastive hinge (``cfg.sflm_ebm``) are
@@ -223,15 +224,21 @@ class SFLMEBM(nn.Module):
         return torch.cat(outs, dim=0)
 
     @torch.no_grad()
-    def spilled_energy(self, z: torch.Tensor, token_ids: torch.Tensor) -> torch.Tensor:
-        """Paper-style per-position spilled energy (B, L).
+    def per_position_nll(self, z: torch.Tensor, token_ids: torch.Tensor) -> torch.Tensor:
+        """Per-position NLL (B, L).
 
-        ``SE(i) = logsumexp_v logits_i - logits_i[token_i]`` — the
-        per-position NLL of the actually-placed token. Unlike the
-        AR-decoder ``data.wiki._spilled_energy_per_pos`` there is no
-        next-token shift (this is a non-causal denoiser scoring the token
-        at its own position). Directly comparable across SFLMEBM /
-        EqMLatent / DFM since all expose ``decode_to_logits``."""
+        ``NLL(i) = logsumexp_v logits_i - logits_i[token_i]`` — the surprise of the
+        actually-placed token at its own position. Directly comparable across
+        SFLMEBM / EqMLatent / DFM since all expose ``decode_to_logits``.
+
+        RENAMED (2026-07) from ``spilled_energy``. It never was the spilled energy of
+        Minut, Dewidar & Masi (ICLR 2026, arXiv:2602.18671): theirs is a CROSS-STEP
+        quantity, pairing the logit energy read at decoding step i-1 with the marginal
+        energy read at step i. This model is a **non-causal denoiser** — it scores every
+        token at its own position in one shot, so there is no "adjacent decoding step"
+        and the cross-step discrepancy is not definable here. The honest name is NLL.
+        (The real ΔE, for the autoregressive GPT-2 baseline, is in
+        ``scripts/bench_sflm_ebm._gpt2_bpe_scores(score="spilled")``.)"""
         logits = self.decode_to_logits(z)  # (B, L, K)
         lse = torch.logsumexp(logits, dim=-1)
         picked = logits.gather(-1, token_ids.long().unsqueeze(-1)).squeeze(-1)

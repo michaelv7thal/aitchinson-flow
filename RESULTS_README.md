@@ -25,6 +25,14 @@ its **output artifact**, and the **manifest `exp_id`**. Start from
 | X2 manifest | `scripts/manifest.py` | `results/manifest.jsonl` append/lookup/`is_done`/load_all; CLI `--list`/`--get` |
 | X2 runner | `scripts/run_experiment.py` | `run_experiment.py <exp_id> [--force]`: skip-if-done, capture git/gpu/wall/mem, retry-once, write record |
 | X3 map | `RESULTS_README.md` | this file |
+| **Obj-3 OOD bench** | `scripts/run_bench_ood.py` → `scripts/bench_aggregate.py` | 6-detector corruption-ladder sweep (NLL/BLR/BLR_ADV/BLR_FI/BGMM/GPT2-SE) + latent-split + plausible → `bench_ood/RESULTS.md` + figs; self-contained `bench_ood/manifest.json` (git SHA + `git_dirty` + `repro.patch` + `new_scripts/` + per-arm CLI) |
+| **Obj-3 healing bench** | `scripts/run_bench_heal.py` (`--aggregate-only` to re-consolidate) | localize→inpaint across localizers × {replace, falseinfo} + insulin rows → `bench_heal/RESULTS.md`; operating point = least-damaging (max net/corrupt); deployable selection = cal-set F0.5 |
+
+> **Obj-3 note.** These two benches are a *dedicated, self-contained* harness (own
+> `manifest.json` + repro patch), not wired into `results/manifest.jsonl`. Write-up:
+> **`RESULTS.md` §Objective 3**. Shared utils: `scripts/_bench_common.py`
+> (`finalize_manifest`, `DETECTOR_KEYS`, `heal_style_examples`,
+> `make_adversarial_negatives`).
 
 ## Experiment registry
 

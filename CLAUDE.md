@@ -37,6 +37,31 @@ There is no test suite.
 - **Obj 2 (recovery):** `scripts/recovery_check.py` → **Δ@α = token_acc − token_acc_perturbed** (headline **Δ@.50**). Don't lead with KL here (deterministic refs look better on KL while doing zero recovery work).
 - **Obj 3 (OOD):** corruption-ladder AUROC. **Headline the shuffle (order) axis**, not substitution (trivially ~1.0). Native EBM energy (`∇⟨x,f⟩`) is at chance on shuffle; a **discriminative hinge head on frozen `DirichletFM` features** recovers it. Current detector: **`BayesLinHead`** (`scripts/ood_bayes_linear.py`; sweep `ood_out/bayeslin_pca0/bayes_linear_sweep.json`) — sequence-energy AUROC **shuffle 0.88→1.0**, substitution 0.96→1.0, per-token energy localizes substitutions (~0.85); the closed-form variance is a weak density backstop (informative only at heavy corruption — **not** calibrated UQ). It supersedes the earlier hinge-**SVGP** (`bench_sflm_ebm.py` anchored to `gpt2_baseline`; `svgp_corruption_sweep.json`, shuffle ~0.93). **NB:** `EVAL_ASSESSMENT.md` still documents the SVGP version — the `BayesLinHead` is the current story.
 
+### Spilled energy — the external-LM baseline (corrected 2026-07-13)
+
+The repo called its GPT-2 baseline "spilled energy" but computed **per-token NLL**. They are different quantities and the distinction is load-bearing:
+
+- **NLL (same step):** `logsumexp(logits[i-1]) − logits[i-1][x_i]` = `−log p(x_i | x_<i)`.
+- **Spilled energy (CROSS step)** — Minut, Dewidar & Masi, *Spilled Energy in LLMs*, ICLR 2026 (arXiv:2602.18671), Def 4.1 / Eq. 8: `ΔE_i = logsumexp(logits[i]) − logits[i-1][x_i]` — the logit energy is read at step `i-1`, the marginal energy at step `i`; the chain rule says they cancel, and the residual is the signal. They differ by `logsumexp(logits[i]) − logsumexp(logits[i-1])`.
+
+**Sign:** follow the authors' code (`OmnAI-Lab/spilled-energy`, `energy.py`: `delta = -E_margin + E`), **not** the paper's Eq. 8 prose, which has a sign typo. A flip inverts AUROC. Validated by `scripts/validate_spilled_energy.py` (exact match vs the reference implementation).
+
+**Zero-property:** ΔE ≈ 0 only on text the LM *models correctly* — measured **−0.30 on in-domain English** vs **+3.4 on clean text8** (GPT-2 finds lowercase/unpunctuated text8 genuinely OOD). So a large clean-text8 ΔE is **not** a bug; check the property on in-domain English.
+
+**ΔE does not localize.** By construction it straddles two decoding steps, so per-token AUROC on `replace` is ~0.48–0.59 (≈chance) while **sequence** AUROC is ~1.0. It is a sequence-level signal. The bench therefore runs **two** GPT-2 arms: `gpt2_se` (real ΔE) and **`gpt2_nll`** (same-step NLL — the honest per-token comparator, and what the old mislabelled number actually was). Claim "our NLL beats **GPT2_NLL** per-token"; beating ΔE at localization is a straw man.
+
+**Evaluation protocol (char model vs BPE LM).** Attributing a BPE score *down* onto characters is ill-posed (the old code spread it uniformly over the token's chars → smeared localization). Pooling *up* is exact. So each model is scored in its **native unit**, and the comparison happens at a **common** one:
+
+> **flow-matching detectors → CHARACTER · GPT-2 baselines → BPE TOKEN · both → WORD (the head-to-head)**
+
+`DETECTOR_KEYS[*]["unit"]` encodes this; `_bench_common.word_metrics` (char scorers) / `word_metrics_from_segments` (BPE scorers) do the pooling, with **both** `max`- and `mean`-pool reported (max suits a single bad char, mean suits weak signal spread over a word — the false-info regime). Heatmaps render each detector in its own units: char cells for FM, **BPE-token cells for GPT-2** (`heal_style_examples_bpe`). Sequence level is comparable *only* under per-**character** normalisation (bits-per-char; = mean over chars = `sum(BPE)/n_chars`) — a mean over BPE tokens is **not** comparable.
+
+**Why word level is required, not just fairer:** character corruption **shatters GPT-2's tokenization**. At replace@0.15 the text re-tokenizes from ~13.5k → **22.8k BPE tokens (+70%)** and **40% of BPE tokens touch a corrupted char** (not 15%); at 0.5 it is 77%. The BPE unit is *itself a function of the corruption*, so BPE-level localization is degenerate for char noise (SE 0.48, NLL 0.56 ≈ chance). `falseinfo` (word swaps) leaves tokenization intact (+1.7%, prevalence tracks the rate) — BPE numbers are meaningful there. **Words are the only unit stable across both tokenizations.**
+
+**Corrected GPT-2 numbers** (seq | BPE | word-max): replace@0.15 SE `1.000|0.480|0.727`, NLL `1.000|0.557|0.738`; falseinfo@0.15 NLL `0.893|0.768|0.853`. Note GPT-2's 1.000 sequence AUROC on replace/shuffle is *cheap* (it detects "not English" via the tokenization blow-up), and **GPT-2_NLL is genuinely strong on false-info** — likely better than our detectors; report it as a real result.
+
+Renamed (behaviour unchanged, name was wrong): `bench_sflm_ebm._spilled_energy` → `_per_position_nll`; `wiki._spilled_energy_per_pos` → `_per_position_nll`; `sflm_ebm.spilled_energy` → `per_position_nll` (a non-causal denoiser has no adjacent decoding step, so cross-step ΔE is *undefined* there); `train_eqm_auditor._spilled_energy` → `_per_position_nll` (its JSON key `spilled_energy_baseline` → `gpt2_nll_baseline`).
+
 Peer-comparable text8 BPC (vs SEDD 1.32 / D3PM 1.45 / MDLM ≤1.38 / SFM 1.39; frontier 1.32–1.47) needs **L=256** on the standard last-5M test split. That run is GPU-bound (20 GB) and is handed off in **`CLUSTER_RUNBOOK_L256.md`** (recipe for a fresh session). `bench_sflm_ebm.py` is now robust to per-arm OOM at L=256 (each readout wrapped; `SFLMEBM.position_uncertainty` chunks over the batch).
 
 **L256 status (2026-06):** `DirichletFM` runs exist — `runs/sflm_bench_a100_20g_L256_d1280L14/DirichletFM_ep30_d30k` (30k/30ep, KL_bi 0.26, Δ@.50 0.18) and `..._b16/DirichletFM_ep50_d50k` (50k/50ep, **KL_bi 0.14**, **Δ@.50 0.26**); a **full-text8 standard-split run is in progress** (`..._full/`, ~30 ep, ~9.8 h/epoch). These `DirichletFM` rows report `bpc=—` (identity-path readout) — a peer-comparable BPC still requires the **`DFM` (Discrete-FM) `elbo_bpc`** route at L=256, **not** `DirichletFM.bpd()`. Don't confuse `DirichletFM` (Dirichlet FM, the L256 generator/healer) with `DFM` (Discrete FM, the only peer-BPC arm) — they share the "DFM" abbreviation and a backbone.

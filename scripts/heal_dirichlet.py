@@ -11,7 +11,8 @@ head):
      backbone activations at ``t_eval`` (``_perpos_feats``). Per-token energy is
      thresholded into a binary heal-mask; the threshold is calibrated to a target
      false-positive rate on clean tokens, and the headline operating point is
-     selected by F1 on the held-out CALIBRATION set (never on the demo).
+     selected by F0.5 (precision-weighted — healing is damage-averse) on the
+     held-out CALIBRATION set (never on the demo).
 
   2. INPAINT — a masked-Euler integration of the DirichletFM marginal vector
      field (``t: 1 -> t_max``). Trusted (un-flagged) positions are re-imposed
@@ -71,7 +72,11 @@ _bootstrap()
 
 from scripts.ood_variance_perpos import _load_dirichletfm, _perpos_feats  # noqa: E402
 from aitchinson_flow.training import build_training_datamodule  # noqa: E402
-from aitchinson_flow.data.corruption import corrupt_token_ids  # noqa: E402
+from aitchinson_flow.data.corruption import (  # noqa: E402
+    corrupt_token_ids,
+    corrupt_false_info,
+    build_vocab_by_len,
+)
 from aitchinson_flow.models.dirichlet_fm import (  # noqa: E402
     _conditional_velocity_factor,
 )
@@ -108,18 +113,24 @@ def train_localizer(model, fit_tok, t_eval, device, *, train_rate, margin, steps
         m, s = mu.to(h_flat.device), sigma.to(h_flat.device)
         return (h_flat - m) / s
 
-    zc = _proj(fc.reshape(-1, d)).to(device)
-    zk = _proj(fk.reshape(-1, d)).to(device)
-    yk = label_corr.to(device)
+    # Keep per-token features on CPU (fit_seqs*L*d_model is multi-GB; the whole pool
+    # on an 8 GB GPU OOMs). Head trains on minibatches shuttled to the GPU per step.
+    zc = _proj(fc.reshape(-1, d))       # CPU
+    zk = _proj(fk.reshape(-1, d))       # CPU
+    yk = label_corr                     # CPU bool
 
     head = nn.Linear(d, 1).to(device)
     opt = torch.optim.Adam(head.parameters(), lr=lr)
-    zpos = torch.cat([zc, zk[~yk]], 0)  # valid chars (clean + unchanged-corrupt)
-    zneg = zk[yk]                       # corrupted chars
+    zpos = torch.cat([zc, zk[~yk]], 0)  # valid chars (clean + unchanged-corrupt), CPU
+    zneg = zk[yk]                       # corrupted chars, CPU
+    bs = int(min(16384, zpos.shape[0], zneg.shape[0]))
+    gen = torch.Generator().manual_seed(seed)
     for step in range(steps):
+        pi = torch.randint(zpos.shape[0], (bs,), generator=gen)
+        ni = torch.randint(zneg.shape[0], (bs,), generator=gen)
         opt.zero_grad()
-        ep = head(zpos).squeeze(-1)
-        en = head(zneg).squeeze(-1)
+        ep = head(zpos[pi].to(device)).squeeze(-1)
+        en = head(zneg[ni].to(device)).squeeze(-1)
         loss = ep.pow(2).mean() + torch.relu(margin - en).mean()
         loss.backward()
         opt.step()
@@ -129,11 +140,14 @@ def train_localizer(model, fit_tok, t_eval, device, *, train_rate, margin, steps
     head.eval()
 
     @torch.no_grad()
-    def score(tok):
-        h = _perpos_feats(model, tok, t_eval, device)  # (B, L, d)
-        b, Lq, _ = h.shape
-        z = _proj(h.reshape(-1, d)).to(device)
-        return head(z).squeeze(-1).reshape(b, Lq).cpu()  # (B, L)
+    def score(tok, chunk=16):
+        outs = []
+        for i in range(0, tok.shape[0], chunk):
+            h = _perpos_feats(model, tok[i:i + chunk], t_eval, device)  # (b,L,d) CPU
+            b, Lq, _ = h.shape
+            z = _proj(h.reshape(-1, d)).to(device)
+            outs.append(head(z).squeeze(-1).reshape(b, Lq).cpu())
+        return torch.cat(outs)  # (B, L)
 
     return score, d
 
@@ -172,6 +186,123 @@ def make_nll_localizer(model, t_nll, device, *, chunk=16):
         return torch.cat(outs)
 
     return score, 0  # d unused (no feature head); kept for signature parity
+
+
+# --------------------------------------------------------------------------- #
+# Localizer: per-token GAUSSIAN-MIXTURE density on frozen DirichletFM features.
+# The char-NLL localizer reads *local* surprise and misses lexically-valid but
+# semantically-wrong word swaps ("false information"). This one-class density
+# head flags tokens whose contextual feature lands in a low-density region of the
+# in-distribution mixture — the detector counterpart is scripts/ood_gmm_perpos.py.
+# --------------------------------------------------------------------------- #
+def make_gmm_localizer(model, fit_tok, t_eval, device, *, n_components=8,
+                       covariance_type="diag", pca_dim=64, reg_covar=1e-4,
+                       max_fit_pos=80000, n_init=1, max_iter=100, seed=42, chunk=16):
+    """Fit a GaussianMixture on CLEAN per-token DirichletFM features (one-class,
+    no corrupt negatives) and return a ``score(token_ids) -> NLL (B,L)`` closure
+    (higher == more likely corrupt). Density analog of the linear/GP localizers;
+    drops into the same calibrate -> inpaint -> score pipeline."""
+    from sklearn.mixture import GaussianMixture
+
+    fc = _perpos_feats(model, fit_tok, t_eval, device)      # (Nf,L,d) clean
+    d = fc.shape[-1]
+    X = fc.reshape(-1, d)
+    if X.shape[0] > max_fit_pos:
+        X = X[torch.randperm(X.shape[0])[:max_fit_pos]]
+    mu = X.mean(0)
+    sigma = X.std(0).clamp_min(1e-6)                        # standardise the ID cloud
+    Xz = (X - mu) / sigma
+    pca_V = None
+    if pca_dim and pca_dim < d:
+        _, _, V = torch.pca_lowrank(Xz, q=min(pca_dim, Xz.shape[1]))
+        pca_V = V[:, :pca_dim]
+        Xz = Xz @ pca_V
+    gmm = GaussianMixture(
+        n_components=n_components, covariance_type=covariance_type,
+        reg_covar=reg_covar, n_init=n_init, max_iter=max_iter, random_state=seed,
+    ).fit(Xz.cpu().numpy())
+    print(f"  [gmm] t_eval={t_eval} d={d} feat_dim={Xz.shape[1]} K_comp={n_components} "
+          f"cov={covariance_type} converged={gmm.converged_} lb={gmm.lower_bound_:.3f}")
+
+    @torch.no_grad()
+    def score(tok):
+        outs = []
+        for i in range(0, tok.shape[0], chunk):
+            h = _perpos_feats(model, tok[i:i + chunk], t_eval, device)  # (b,L,d)
+            b, Lq, _ = h.shape
+            z = (h.reshape(-1, d) - mu) / sigma
+            if pca_V is not None:
+                z = z @ pca_V
+            nll = -gmm.score_samples(z.cpu().numpy())        # (b*L,)
+            outs.append(torch.from_numpy(nll).float().reshape(b, Lq))
+        return torch.cat(outs)
+
+    return score, d
+
+
+# --------------------------------------------------------------------------- #
+# Localizer: per-token BAYESIAN (Dirichlet-process) infinite-mixture density.
+# Same one-class density localizer as make_gmm_localizer, but the fixed-K
+# GaussianMixture is swapped for a BayesianGaussianMixture with a DP
+# (stick-breaking) prior: the number of active clusters is INFERRED (pruned from
+# an upper bound) instead of hand-set. The score, (score, d) interface, and the
+# calibrate -> inpaint pipeline are identical. Detector counterpart:
+# scripts/ood_bgmm_perpos.py.
+# --------------------------------------------------------------------------- #
+def make_bgmm_localizer(model, fit_tok, t_eval, device, *, max_components=20,
+                        covariance_type="full", pca_dim=64, reg_covar=1e-4,
+                        weight_conc_prior=None, active_thresh=None, max_fit_pos=80000,
+                        n_init=1, max_iter=500, init_params="k-means++", seed=42,
+                        chunk=16):
+    """Fit a BayesianGaussianMixture (DP prior) on CLEAN per-token DirichletFM
+    features and return a ``score(token_ids) -> NLL (B,L)`` closure (higher ==
+    more likely corrupt). The effective cluster count is inferred by the
+    variational posterior; see scripts/ood_bgmm_perpos.py."""
+    from sklearn.mixture import BayesianGaussianMixture
+    import numpy as _np
+
+    fc = _perpos_feats(model, fit_tok, t_eval, device)      # (Nf,L,d) clean
+    d = fc.shape[-1]
+    X = fc.reshape(-1, d)
+    if X.shape[0] > max_fit_pos:
+        X = X[torch.randperm(X.shape[0])[:max_fit_pos]]
+    mu = X.mean(0)
+    sigma = X.std(0).clamp_min(1e-6)                        # standardise the ID cloud
+    Xz = (X - mu) / sigma
+    pca_V = None
+    if pca_dim and pca_dim < d:
+        _, _, V = torch.pca_lowrank(Xz, q=min(pca_dim, Xz.shape[1]))
+        pca_V = V[:, :pca_dim]
+        Xz = Xz @ pca_V
+    bgmm = BayesianGaussianMixture(
+        n_components=max_components, covariance_type=covariance_type,
+        weight_concentration_prior_type="dirichlet_process",
+        weight_concentration_prior=weight_conc_prior, reg_covar=reg_covar,
+        n_init=n_init, max_iter=max_iter, init_params=init_params, random_state=seed,
+    ).fit(Xz.cpu().numpy())
+    thr = active_thresh if active_thresh is not None else 1.0 / (2 * max_components)
+    n_eff = int((_np.asarray(bgmm.weights_) > thr).sum())
+    if not bgmm.converged_:
+        print(f"  [bgmm] WARNING did NOT converge in {max_iter} iters "
+              f"(n_iter={bgmm.n_iter_}); raise --bgmm-max-iter.")
+    print(f"  [bgmm] t_eval={t_eval} d={d} feat_dim={Xz.shape[1]} "
+          f"max_K={max_components} n_effective={n_eff} cov={covariance_type} "
+          f"converged={bgmm.converged_} lb={bgmm.lower_bound_:.3f}")
+
+    @torch.no_grad()
+    def score(tok):
+        outs = []
+        for i in range(0, tok.shape[0], chunk):
+            h = _perpos_feats(model, tok[i:i + chunk], t_eval, device)  # (b,L,d)
+            b, Lq, _ = h.shape
+            z = (h.reshape(-1, d) - mu) / sigma
+            if pca_V is not None:
+                z = z @ pca_V
+            nll = -bgmm.score_samples(z.cpu().numpy())       # (b*L,)
+            outs.append(torch.from_numpy(nll).float().reshape(b, Lq))
+        return torch.cat(outs)
+
+    return score, d, n_eff
 
 
 def _auroc(pos: torch.Tensor, neg: torch.Tensor) -> float:
@@ -354,6 +485,20 @@ def train_gp_localizer(model, fit_tok, t_eval, device, *, mode, train_rate, marg
     return score, d
 
 
+def fbeta(stats, beta: float = 0.5) -> float:
+    """F_beta of a calibration-stats dict. beta<1 weights PRECISION.
+
+    The operating-point selector for healing (shared with heal_protein_poc.py).
+    Healing is damage-averse: a false-positive edit BREAKS a clean token, and clean
+    tokens vastly outnumber corrupt ones, so over-recall (high FPR) yields
+    net-negative healing. Max-F1 over-weights recall and picks the damaging end of
+    the sweep; F0.5 favours precision and tracks the best net/corrupt."""
+    p, r = stats.get("precision", 0.0), stats.get("recall", 0.0)
+    b2 = beta * beta
+    den = b2 * p + r
+    return (1 + b2) * p * r / den if den > 0 else 0.0
+
+
 def calibrate_threshold(score, clean_tok, corrupt_tok, *, target_fpr):
     """Threshold giving ~target_fpr on clean tokens; report its precision/recall/F1
     on the held-out calibration corrupt batch (used for GT-free operating-point
@@ -524,11 +669,14 @@ def aggregate(ms):
     deltas = [m["delta_wholeseq"] for m in ms]
     net_sd = statistics.pstdev(nets) if len(nets) > 1 else 0.0
     delta_sd = statistics.pstdev(deltas) if len(deltas) > 1 else 0.0
+    loc_p = tp / max(tp + fp, 1)
+    loc_r = tp / max(tp + fn, 1)
     return {
         "n_seeds": len(ms),
         "fix_rate": F / max(C, 1), "damage_rate": D / max(N, 1),
         "net_per_corrupt": (F - D) / max(C, 1), "net_per_corrupt_std": net_sd,
-        "loc_precision": tp / max(tp + fp, 1), "loc_recall": tp / max(tp + fn, 1),
+        "loc_precision": loc_p, "loc_recall": loc_r,
+        "loc_f1": 2 * loc_p * loc_r / max(loc_p + loc_r, 1e-9),
         "delta_wholeseq": sum(deltas) / len(deltas), "delta_wholeseq_std": delta_sd,
         "n_corrupt_total": C, "n_fixed_total": F, "n_damaged_total": D,
     }
@@ -560,13 +708,50 @@ def main() -> int:
                     help="dataset split for fit/cal/demo sequences "
                          "(test = held-out last-5M text8 split)")
     # --- localizer choice: linear hinge head (default) or post-hoc SVGP head ---
-    ap.add_argument("--localizer", choices=["linear", "gp", "nll"], default="linear",
+    ap.add_argument("--localizer", choices=["linear", "gp", "nll", "gmm", "bgmm"],
+                    default="linear",
                     help="per-token corruption localizer: 'linear' (BayesLin hinge), "
-                         "'gp' (post-hoc SVGP energy+variance auditor), or 'nll' "
-                         "(training-free denoiser surprise at --t-nll)")
+                         "'gp' (post-hoc SVGP energy+variance auditor), 'nll' "
+                         "(training-free denoiser surprise at --t-nll), 'gmm' "
+                         "(one-class Gaussian-mixture density on frozen features), or "
+                         "'bgmm' (Bayesian DP infinite-mixture density; infers K)")
+    ap.add_argument("--corrupt-scheme", choices=["replace", "falseinfo"],
+                    default="replace",
+                    help="corruption applied to the calibration + demo passages: "
+                         "'replace' (random-char substitution, the default) or "
+                         "'falseinfo' (lexically-valid same-length word swap — the hard "
+                         "semantic axis the char-NLL localizer misses; pairs with "
+                         "--localizer bgmm/gmm)")
     ap.add_argument("--t-nll", type=float, default=3.0,
                     help="[nll] path-time for the denoiser-NLL localizer (low/context "
                          "regime, ~3); see scripts/ood_denoiser_nll.py")
+    # --- gmm localizer knobs ---
+    ap.add_argument("--gmm-n-components", type=int, default=8)
+    ap.add_argument("--gmm-covariance-type", choices=["diag", "full", "tied", "spherical"],
+                    default="diag",
+                    help="[gmm] 'diag' (default) is stable in high-d; use 'full' only "
+                         "after PCA to a small --gmm-pca-dim")
+    ap.add_argument("--gmm-pca-dim", type=int, default=64,
+                    help="[gmm] 0 = full-d_model; >0 truncates to top-k PCs before fitting")
+    ap.add_argument("--gmm-reg-covar", type=float, default=1e-4,
+                    help="[gmm] GMM covariance-diagonal regulariser (singular-cov guard)")
+    # --- bgmm (Bayesian DP infinite-mixture) localizer knobs ---
+    ap.add_argument("--bgmm-max-components", type=int, default=20,
+                    help="[bgmm] upper bound on clusters; the DP posterior prunes to "
+                         "n_effective")
+    ap.add_argument("--bgmm-covariance-type",
+                    choices=["diag", "full", "tied", "spherical"], default="full",
+                    help="[bgmm] 'full' after PCA is the natural DP-mixture choice")
+    ap.add_argument("--bgmm-pca-dim", type=int, default=64,
+                    help="[bgmm] 0 = full-d_model; >0 truncates to top-k PCs before fitting")
+    ap.add_argument("--bgmm-reg-covar", type=float, default=1e-4,
+                    help="[bgmm] covariance-diagonal regulariser (singular-cov guard)")
+    ap.add_argument("--bgmm-max-iter", type=int, default=500,
+                    help="[bgmm] variational EM iterations (a full-cov DP mixture needs "
+                         "~500 to converge)")
+    ap.add_argument("--bgmm-weight-conc-prior", type=float, default=None,
+                    help="[bgmm] DP concentration alpha (None => sklearn default "
+                         "1/max_components); smaller => fewer active clusters")
     ap.add_argument("--gp-mode", choices=["oneclass", "contrastive"], default="oneclass",
                     help="[gp] 'oneclass' = SVGP fit on valid data only, OOD=variance "
                          "(recommended); 'contrastive' = energy hinge on corrupt negatives")
@@ -630,8 +815,24 @@ def main() -> int:
     print(f"[heal] disjoint splits: fit={fit_tok.shape[0]} cal={cal_tok.shape[0]} "
           f"demo={demo_clean.shape[0]}  n_seeds={args.n_seeds}")
 
+    # ---- scheme-aware corruption (calibration + demo) ----
+    # 'falseinfo' swaps whole words for a DIFFERENT real same-length word (the hard
+    # semantic axis); its vocab is built ONCE from the fit windows.
+    by_len = None
+    if args.corrupt_scheme == "falseinfo":
+        fit_txt = " ".join(_decode(row) for row in fit_tok)
+        by_len = build_vocab_by_len(fit_txt)
+        print(f"[heal] false-info vocab: lengths {min(by_len)}-{max(by_len)} "
+              f"(e.g. len-6: {by_len.get(6, [])[:5]})")
+
+    def _corrupt(tok, rate, seed):
+        if args.corrupt_scheme == "falseinfo":
+            return corrupt_false_info(tok, rate, by_len, seed=seed)
+        return corrupt_token_ids(tok, vocab_size=K, corrupt_rate=rate, seed=seed)
+
     # ---- 1. localizer ----
     print(f"=== build per-token localizer ({args.localizer}) ===")
+    bgmm_n_eff = None  # set by the bgmm branch (inferred # active clusters)
     if args.localizer == "nll":
         t_max_chk = float(model.dfm.t_max)
         if not (1.0 <= args.t_nll <= t_max_chk):
@@ -639,6 +840,20 @@ def main() -> int:
         print(f"  [nll] training-free denoiser-surprise localizer @ t_nll={args.t_nll} "
               f"(no head, no fit set)")
         score, d = make_nll_localizer(model, args.t_nll, device)
+    elif args.localizer == "gmm":
+        score, d = make_gmm_localizer(
+            model, fit_tok, t_eval, device, n_components=args.gmm_n_components,
+            covariance_type=args.gmm_covariance_type, pca_dim=args.gmm_pca_dim,
+            reg_covar=args.gmm_reg_covar, seed=args.seed,
+        )
+    elif args.localizer == "bgmm":
+        score, d, bgmm_n_eff = make_bgmm_localizer(
+            model, fit_tok, t_eval, device,
+            max_components=args.bgmm_max_components,
+            covariance_type=args.bgmm_covariance_type, pca_dim=args.bgmm_pca_dim,
+            reg_covar=args.bgmm_reg_covar, max_iter=args.bgmm_max_iter,
+            weight_conc_prior=args.bgmm_weight_conc_prior, seed=args.seed,
+        )
     elif args.localizer == "gp":
         var_weights = [float(x) for x in args.gp_var_weights.split(",") if x.strip()]
         score, d = train_gp_localizer(
@@ -672,24 +887,26 @@ def main() -> int:
             learn_lengthscale=args.gp_learn_lengthscale, noise_init=0.05,
         )
 
-    # ---- 2. thresholds + GT-FREE operating-point selection (max cal-set F1) ----
-    cal_corr = corrupt_token_ids(
-        cal_tok.clone(), vocab_size=K, corrupt_rate=args.corrupt_rate, seed=args.seed + 1
-    )
+    # ---- 2. thresholds + GT-FREE operating-point selection ----
+    # Select by cal-set F_BETA with beta=0.5 (precision-weighted), NOT F1. Healing is
+    # damage-averse: a false-positive edit BREAKS a clean token (clean >> corrupt), so
+    # over-recall (high FPR) yields net-negative healing. Max-F1 over-weights recall
+    # and picks the damaging operating point; F0.5 favours precision -> best net.
+    cal_corr = _corrupt(cal_tok.clone(), args.corrupt_rate, args.seed + 1)
     fprs = [float(x) for x in args.target_fprs.split(",") if x.strip()]
     thr_by_fpr = {}
     for fpr in fprs:
         thr, cal_stats = calibrate_threshold(score, cal_tok, cal_corr, target_fpr=fpr)
         thr_by_fpr[fpr] = (thr, cal_stats)
-    sel_fpr = max(fprs, key=lambda f: thr_by_fpr[f][1]["f1"])  # GT-free (cal set only)
+
+    sel_fpr = max(fprs, key=lambda f: fbeta(thr_by_fpr[f][1]))  # GT-free (cal set only)
 
     # ---- 3. demo: corrupt over n_seeds, localize (energy only), inpaint, score ----
     print(f"=== heal sweep (mean over {args.n_seeds} corruption seeds) ===")
-    print(f"{'fpr':>5} {'thr':>7} {'loc_P':>6} {'loc_R':>6} {'fix':>6} {'dmg':>6} "
-          f"{'net/corrupt':>14} {'delta_ws':>10}")
+    print(f"{'fpr':>5} {'thr':>7} {'loc_P':>6} {'loc_R':>6} {'loc_F1':>7} {'fix':>6} "
+          f"{'dmg':>6} {'net/corrupt':>14} {'delta_ws':>10}")
     demo_corrs = [
-        corrupt_token_ids(demo_clean.clone(), vocab_size=K,
-                          corrupt_rate=args.corrupt_rate, seed=args.seed + 100 + s)
+        _corrupt(demo_clean.clone(), args.corrupt_rate, args.seed + 100 + s)
         for s in range(args.n_seeds)
     ]
     E_demos = [score(dc) for dc in demo_corrs]  # per-token energy; GT never used here
@@ -714,7 +931,8 @@ def main() -> int:
         agg = aggregate(per_seed)
         tag = "  <- selected" if fpr == sel_fpr else ""
         print(f"{fpr:>5.2f} {thr:>7.3f} {agg['loc_precision']:>6.3f} "
-              f"{agg['loc_recall']:>6.3f} {agg['fix_rate']:>6.3f} {agg['damage_rate']:>6.3f} "
+              f"{agg['loc_recall']:>6.3f} {agg['loc_f1']:>7.3f} {agg['fix_rate']:>6.3f} "
+              f"{agg['damage_rate']:>6.3f} "
               f"{agg['net_per_corrupt']:>+8.3f}±{agg['net_per_corrupt_std']:.3f} "
               f"{agg['delta_wholeseq']:>+10.4f}{tag}")
         sweep.append({"target_fpr": fpr, "threshold": thr, "calibration": cal_stats, **agg})
@@ -724,7 +942,7 @@ def main() -> int:
     # ---- 4. example dump from the SELECTED (cal-F1) operating point, seed 0 ----
     dc0, mask0, healed0 = example
     clean = demo_clean.cpu()
-    print(f"\n--- example[0] @ selected fpr={sel_fpr} (chosen by cal-set F1) ---")
+    print(f"\n--- example[0] @ selected fpr={sel_fpr} (chosen by cal-set F0.5) ---")
     print(f"  clean : {_decode(clean[0])!r}")
     print(f"  corr  : {_decode(dc0.cpu()[0])!r}")
     print(f"  truec : {''.join('^' if x else ' ' for x in (dc0.cpu()[0] != clean[0]).tolist())}")
@@ -733,6 +951,8 @@ def main() -> int:
 
     sel = next(r for r in sweep if r["target_fpr"] == sel_fpr)
     print(f"\n=== HEADLINE @ selected fpr={sel_fpr} (mean±std over {args.n_seeds} seeds) ===")
+    print(f"  localize    = P {sel['loc_precision']:.3f} / R {sel['loc_recall']:.3f} / "
+          f"F1 {sel['loc_f1']:.3f}   (per-token detection of the corrupt positions)")
     print(f"  fix_rate    = {sel['fix_rate']:.3f}   (corrupt token -> correct)")
     print(f"  damage_rate = {sel['damage_rate']:.3f}   (clean token -> broken)")
     print(f"  net/corrupt = {sel['net_per_corrupt']:+.3f} ± {sel['net_per_corrupt_std']:.3f}"
@@ -752,7 +972,7 @@ def main() -> int:
         print(f"  AUROC residual-variance flags UNFIXED    : {uq['auroc_resid_flags_unfixed']:.3f}"
               f"   (heal-confidence: high post-heal var == still corrupt)")
         print(f"  AUROC pre-heal var predicts UNFIXED      : {uq['auroc_preheal_predicts_unfixed']:.3f}")
-        print(f"  [confound-controlled, flagged corrupt only]")
+        print("  [confound-controlled, flagged corrupt only]")
         print(f"    AUROC residual flags UNFIXED           : {uq['auroc_resid_flags_unfixed_flaggedonly']:.3f}")
         print(f"    AUROC pre-heal predicts UNFIXED        : {uq['auroc_preheal_predicts_unfixed_flaggedonly']:.3f}"
               f"   (n_flagged fixed/unfixed = {uq['n_flagged_fixed']}/{uq['n_flagged_unfixed']})")
@@ -762,11 +982,24 @@ def main() -> int:
         "localizer": args.localizer,
         "gp_mode": (args.gp_mode if args.localizer == "gp" else None),
         "t_nll": (args.t_nll if args.localizer == "nll" else None),
+        "gmm": ({"n_components": args.gmm_n_components,
+                 "covariance_type": args.gmm_covariance_type,
+                 "pca_dim": args.gmm_pca_dim, "reg_covar": args.gmm_reg_covar}
+                if args.localizer == "gmm" else None),
+        "bgmm": ({"max_components": args.bgmm_max_components,
+                  "n_effective": bgmm_n_eff,
+                  "covariance_type": args.bgmm_covariance_type,
+                  "pca_dim": args.bgmm_pca_dim, "reg_covar": args.bgmm_reg_covar,
+                  "max_iter": args.bgmm_max_iter,
+                  "weight_concentration_prior": args.bgmm_weight_conc_prior}
+                 if args.localizer == "bgmm" else None),
+        "corrupt_scheme": args.corrupt_scheme,
         "uq": (args.uq if args.uq != "none" else None), "uq_report": uq,
         "t_eval": t_eval, "d_model": d, "nfe": args.nfe, "n_seeds": args.n_seeds,
         "corrupt_rate": args.corrupt_rate, "train_rate": args.train_rate,
         "n_demo": int(demo_clean.shape[0]),
-        "selected_fpr": sel_fpr, "selection": "max cal-set F1 (GT-free on demo)",
+        "selected_fpr": sel_fpr,
+        "selection": "max cal-set F0.5 (precision-weighted, GT-free; healing damage-averse)",
         "sweep": sweep,
         "examples": [
             {

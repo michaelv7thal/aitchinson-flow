@@ -1,8 +1,21 @@
 from __future__ import annotations
 
+import re
+from collections import defaultdict
+
 import torch
 
 from aitchinson_flow.data.transforms import token_ids_to_features
+
+# Canonical text8 alphabet (K=27: a-z + space). Kept local so this module has no
+# dependency on char_window_dataset / scripts (avoids any import-order fragility).
+_ALPHABET = "abcdefghijklmnopqrstuvwxyz "
+_CHAR2ID: dict[str, int] = {c: i for i, c in enumerate(_ALPHABET)}
+
+
+def _decode_ids(ids) -> str:
+    """Decode a 1-D iterable of token ids to a text8 char string ('?' for OOB)."""
+    return "".join(_ALPHABET[int(i)] if int(i) < len(_ALPHABET) else "?" for i in ids)
 
 
 def corrupt_token_ids(
@@ -120,8 +133,86 @@ def build_invalid_batch(
     return batch
 
 
+def build_vocab_by_len(
+    train_txt: str, *, min_len: int = 2, max_len: int = 18, cap: int = 6000
+) -> dict[int, list[str]]:
+    """First-seen-order (≈frequency-ranked) real words from text8, bucketed by length.
+
+    Used to draw lexically-valid same-length replacement words for the "false info"
+    corruption (see ``corrupt_false_info``).
+    """
+    by_len: dict[int, list[str]] = defaultdict(list)
+    seen: dict[int, set[str]] = defaultdict(set)
+    for w in re.findall(r"[a-z]+", train_txt):
+        Lw = len(w)
+        if min_len <= Lw <= max_len and w not in seen[Lw] and len(by_len[Lw]) < cap:
+            seen[Lw].add(w)
+            by_len[Lw].append(w)
+    return by_len
+
+
+def corrupt_false_info(
+    windows: torch.Tensor,
+    rate: float,
+    by_len: dict[int, list[str]],
+    *,
+    seed: int,
+) -> torch.Tensor:
+    """Replace ``rate`` of fully-contained words in each window with a DIFFERENT real
+    same-length word (lexically valid, semantically wrong).
+
+    Positions and length are preserved and the text stays lexically valid, so a
+    *local* character-level surprise (denoiser NLL) barely moves — this is the hard
+    "false information" axis. ``by_len`` must come from ``build_vocab_by_len``.
+
+    Parameters
+    ----------
+    windows : Tensor, shape (B, L), dtype long — char-level token ids.
+    rate : float in (0, 1] — fraction of eligible words per window to swap.
+    by_len : dict[int, list[str]] — length-bucketed replacement vocabulary.
+    seed : RNG seed for reproducibility.
+
+    Returns
+    -------
+    Tensor, shape (B, L), dtype long — corrupted copy.
+    """
+    g = torch.Generator().manual_seed(seed)
+    out = windows.clone()
+
+    def ri(n: int) -> int:
+        return int(torch.randint(0, n, (1,), generator=g).item())
+
+    for i in range(windows.shape[0]):
+        s = _decode_ids(windows[i])
+        spans = [(m.start(), m.end()) for m in re.finditer(r"[a-z]+", s)]
+        spans = [(a, b) for (a, b) in spans if a > 0 and b < len(s)]  # drop partial edge words
+        if not spans:
+            continue
+        n_sub = max(1, round(rate * len(spans)))
+        order = torch.randperm(len(spans), generator=g).tolist()[:n_sub]
+        for idx in order:
+            a, b = spans[idx]
+            cands = by_len.get(b - a)
+            if not cands:
+                continue
+            orig = s[a:b]
+            repl = None
+            for _ in range(8):
+                w = cands[ri(len(cands))]
+                if w != orig:
+                    repl = w
+                    break
+            if repl is None:
+                continue
+            for j, ch in enumerate(repl):
+                out[i, a + j] = _CHAR2ID[ch]
+    return out
+
+
 __all__ = [
     "build_invalid_batch",
+    "build_vocab_by_len",
+    "corrupt_false_info",
     "corrupt_token_ids",
     "partially_shuffle_token_ids",
 ]

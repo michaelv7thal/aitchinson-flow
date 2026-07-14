@@ -1,0 +1,28 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[heal] ckpt=runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM/epoch_best.pt
+[heal] K=27 L=256 t_max=8.0 t_eval=4.5 device=cuda
+[heal] disjoint splits: fit=256 cal=256 demo=64  n_seeds=3
+[heal] false-info vocab: lengths 2-18 (e.g. len-6: ['ensure', 'action', 'assist', 'safety', 'fitted'])
+=== build per-token localizer (nll) ===
+  [nll] training-free denoiser-surprise localizer @ t_nll=3.0 (no head, no fit set)
+=== heal sweep (mean over 3 corruption seeds) ===
+  fpr     thr  loc_P  loc_R  loc_F1    fix    dmg    net/corrupt   delta_ws
+ 0.02   1.478  0.347  0.089   0.142  0.021  0.020   -0.140±0.002    -0.0155
+ 0.05   0.708  0.297  0.165   0.212  0.035  0.047   -0.341±0.017    -0.0378
+ 0.10   0.305  0.262  0.270   0.266  0.051  0.088   -0.654±0.035    -0.0724  <- selected
+
+--- example[0] @ selected fpr=0.1 (chosen by cal-set F0.5) ---
+  clean : 'l clinton during a fundraising event in washington dc october one nine nine six monica samille lewinsky born july two three one nine seven three is an american woman who was thrust into the public limelight after having a sexual affair with u s president b'
+  corr  : 'l clinton during a fundraising event in reportedly dc certain one atop days six monica samille nebraska born gary two three one nine seven three is an american woman who was thrust into the public limelight after having a topics affair with u s president b'
+  truec :                                         ^^^^^^^^^^    ^^^^^^^     ^^^^ ^^^^                    ^ ^^^  ^      ^^^                                                                                                              ^^^^^^                            
+  flag  : *                  *      *                        **             ****           **    * *  ** *     *       *                                                                   *                     * *                    *                  **            *
+  healed: 'e clinton during a hundraining event in reportedly in certain one javy days six mexica capilar hebras a born gary two three one nine seven three is an american woman who was thrist into the public liferight after having a topics affair with his president t'
+
+=== HEADLINE @ selected fpr=0.1 (mean±std over 3 seeds) ===
+  localize    = P 0.262 / R 0.270 / F1 0.266   (per-token detection of the corrupt positions)
+  fix_rate    = 0.051   (corrupt token -> correct)
+  damage_rate = 0.088   (clean token -> broken)
+  net/corrupt = -0.654 ± 0.035   (net tokens recovered per corrupt token; >0 ⇒ net benefit)
+  delta_ws    = -0.0724 ± 0.0015   (whole-seq; diluted, capped near corrupt_rate — diagnostic only)
+
+Wrote bench_heal/nll_falseinfo.json

@@ -51,10 +51,15 @@ def _bootstrap() -> None:
 _bootstrap()
 
 from scripts.ood_variance_perpos import _load_dirichletfm, _auroc  # noqa: E402
+from scripts._bench_common import (  # noqa: E402
+    heal_style_examples, det_metrics, word_metrics,
+)
 from aitchinson_flow.training import build_training_datamodule  # noqa: E402
 from aitchinson_flow.data.corruption import (  # noqa: E402
     corrupt_token_ids,
     partially_shuffle_token_ids,
+    corrupt_false_info,
+    build_vocab_by_len,
 )
 
 _ALPH = "abcdefghijklmnopqrstuvwxyz "  # text8 K=27 (best-effort for example dump)
@@ -82,7 +87,7 @@ def main() -> int:
     ap.add_argument("--n", type=int, default=256, help="# eval sequences per split")
     ap.add_argument("--ridge", type=float, default=0.1,
                     help="Laplace prior precision: Sigma_w=(Phi + ridge*tr(Phi)/d I)^-1")
-    ap.add_argument("--schemes", type=str, default="replace,shuffle,both")
+    ap.add_argument("--schemes", type=str, default="replace,shuffle,both,falseinfo")
     ap.add_argument("--rates", type=str, default="0.1,0.3,0.5,0.7,1.0")
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--split", choices=["train", "val", "test"], default="val",
@@ -166,11 +171,24 @@ def main() -> int:
                 Vs.append((w * w).sum(0).reshape(b, Lq).float())
         return torch.cat(Ns), (torch.cat(Vs) if use_var else None)
 
+    # false-info replacement vocab (built once from the fit windows), if requested
+    schemes = [s for s in args.schemes.split(",") if s.strip()]
+    by_len = None
+    if any(s in ("falseinfo", "wordswap") for s in schemes):
+        fit_txt = " ".join(
+            "".join(_ALPH[int(i)] if int(i) < len(_ALPH) else "?" for i in row)
+            for row in fit_tok
+        )
+        by_len = build_vocab_by_len(fit_txt)
+        print(f"[nll] false-info vocab: lengths {min(by_len)}-{max(by_len)}")
+
     def _corrupt(tok, scheme, rate, seed):
         if scheme == "replace":
             return corrupt_token_ids(tok, vocab_size=K, corrupt_rate=rate, seed=seed)
         if scheme == "shuffle":
             return partially_shuffle_token_ids(tok, shuffle_rate=rate, seed=seed)
+        if scheme in ("falseinfo", "wordswap"):
+            return corrupt_false_info(tok, rate, by_len, seed=seed)
         out = corrupt_token_ids(tok, vocab_size=K, corrupt_rate=rate, seed=seed)
         return partially_shuffle_token_ids(out, shuffle_rate=rate, seed=seed + 1)
 
@@ -181,14 +199,16 @@ def main() -> int:
     rows = [{"scheme": None, "rate": 0.0, "n": int(pos_tok.shape[0]),
              "nll_seq_mean": float(Np.mean()),
              "var_seq_mean": (float(Vp.mean()) if use_var else None)}]
+    Np_tok = Np.numpy().reshape(-1)  # clean per-token scores: threshold calibration
     print(f"\n{'scheme':>9} {'rate':>5} {'NLL_AUseq':>10} {'NLL_AUtok':>10} "
-          f"{'Var_AUseq':>10} {'Var_AUtok':>10}")
-    for scheme in [s for s in args.schemes.split(",") if s.strip()]:
+          f"{'Var_AUseq':>10} {'Var_AUtok':>10} {'tokP@5':>7} {'tokR@5':>7} {'tokF1@5':>8}")
+    for scheme in schemes:
         for r in [float(x) for x in args.rates.split(",") if x.strip()]:
             ot = _corrupt(pos_tok.clone(), scheme, r, args.seed + int(1000 * r))
             No, Vo = score(ot)
+            No_seq = No.mean(1).numpy()
             lab = np.r_[np.zeros(len(Np_seq)), np.ones(No.shape[0])]
-            au_n_seq = _auroc(np.r_[Np_seq, No.mean(1).numpy()], lab)
+            au_n_seq = _auroc(np.r_[Np_seq, No_seq], lab)
             changed = (ot != pos_tok)
             cm = changed.numpy().reshape(-1).astype(int)
             has_tok = changed.any() and (~changed).any()
@@ -197,33 +217,37 @@ def main() -> int:
             if use_var:
                 au_v_seq = _auroc(np.r_[Vp_seq, Vo.mean(1).numpy()], lab)
                 au_v_tok = _auroc(Vo.numpy().reshape(-1), cm) if has_tok else float("nan")
+            # --- operating-point metrics (P/R/F1 at clean-calibrated thresholds) ---
+            # sequence: negatives = clean sequences, positives = corrupted sequences.
+            m_seq = det_metrics(Np_seq, Np_seq, No_seq)
+            # per-token: threshold calibrated on CLEAN tokens; scored on the corrupted
+            # batch (positives = actually-changed tokens, negatives = untouched ones).
+            ot_tok = No.numpy().reshape(-1)
+            m_tok = det_metrics(Np_tok, ot_tok[cm == 0], ot_tok[cm == 1])
+            # WORD level — the common unit vs the BPE-tokenised LM baselines.
+            w_max = word_metrics(Np, pos_tok, No, ot, changed, op="max")
+            w_mean = word_metrics(Np, pos_tok, No, ot, changed, op="mean")
+            p5 = m_tok["prf"].get("0.05", {})
             print(f"{scheme:>9} {r:>5.2f} {au_n_seq:>10.4f} {au_n_tok:>10.4f} "
-                  f"{au_v_seq:>10.4f} {au_v_tok:>10.4f}")
+                  f"{au_v_seq:>10.4f} {au_v_tok:>10.4f} "
+                  f"{p5.get('precision', float('nan')):>7.3f} "
+                  f"{p5.get('recall', float('nan')):>7.3f} "
+                  f"{p5.get('f1', float('nan')):>8.3f}")
             rows.append({"scheme": scheme, "rate": r, "n": int(ot.shape[0]),
                          "auroc_seq_nll": au_n_seq, "auroc_token_nll": au_n_tok,
                          "auroc_seq_var": au_v_seq, "auroc_token_var": au_v_tok,
+                         "prf_seq": m_seq, "prf_token": m_tok,
+                         "word_max": w_max, "word_mean": w_mean,
+                         "auroc_word_max": w_max["word"].get("auroc"),
+                         "auroc_word_mean": w_mean["word"].get("auroc"),
                          "nll_seq_mean": float(No.mean()),
                          "var_seq_mean": (float(Vo.mean()) if use_var else None)})
 
-    # ---- per-token examples (clean + corrupt30) for heatmaps --------------------
-    examples = []
-    ex_tok = pos_tok[:2]
-    ex_corr = corrupt_token_ids(ex_tok.clone(), vocab_size=K, corrupt_rate=0.3, seed=7)
-    ex_changed = ex_corr != ex_tok
-    for tag, tk in [("clean", ex_tok), ("corrupt30", ex_corr)]:
-        Ne, Ve = score(tk)
-        for b in range(tk.shape[0]):
-            ids = tk[b].tolist()
-            ch = (ex_changed[b] if tag == "corrupt30"
-                  else torch.zeros_like(ex_tok[b], dtype=torch.bool))
-            examples.append({
-                "which": tag, "idx": b,
-                "text": "".join(_ALPH[i] if i < len(_ALPH) else "?" for i in ids[:120]),
-                "NLL_t": [round(float(x), 4) for x in Ne[b][:120].tolist()],
-                "Var_t": ([round(float(x), 4) for x in Ve[b][:120].tolist()]
-                          if use_var else None),
-                "corrupted": [bool(x) for x in ch[:120].tolist()],
-            })
+    # ---- healing-style per-token examples (clean/replace30/falseinfo30 + flagged) --
+    print("\n=== healing-style examples ===")
+    examples, ex_flag_thr = heal_style_examples(
+        lambda t: score(t)[0], pos_tok, pos_tok[:2], K=K, by_len=by_len,
+        score_key="NLL_t", example_fpr=0.05, max_pos=args.max_pos)
 
     out_path = Path(args.out or (Path(args.ckpt).parent / "denoiser_nll_sweep.json"))
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -234,7 +258,7 @@ def main() -> int:
         "detector": "DenoiserNLL",
         "detector_long": "denoiser per-token NLL (training-free); +Bayesian-linear "
                          "variance baseline at t_var; per-token + sequence",
-        "rows": rows, "examples": examples,
+        "flag_thr": ex_flag_thr, "rows": rows, "examples": examples,
     }, indent=2))
     print(f"\nWrote {out_path}")
 

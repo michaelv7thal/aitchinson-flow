@@ -60,7 +60,11 @@ from aitchinson_flow.training import build_training_datamodule  # noqa: E402
 from aitchinson_flow.data.corruption import (  # noqa: E402
     corrupt_token_ids,
     partially_shuffle_token_ids,
+    corrupt_false_info,
+    build_vocab_by_len,
 )
+
+_ALPH = "abcdefghijklmnopqrstuvwxyz "  # text8 K=27 decode (for the falseinfo vocab)
 
 VALID_C, INVALID_C = "#1f77b4", "#d62728"  # blue = valid, red = invalid
 
@@ -85,11 +89,15 @@ def _probe_auroc(X: np.ndarray, y: np.ndarray) -> float:
     return _auroc(clf.decision_function(X), y)
 
 
-def _corrupt(tok, scheme, rate, K, seed):
+def _corrupt(tok, scheme, rate, K, seed, by_len=None):
     if scheme == "replace":
         return corrupt_token_ids(tok, vocab_size=K, corrupt_rate=rate, seed=seed)
     if scheme == "shuffle":
         return partially_shuffle_token_ids(tok, shuffle_rate=rate, seed=seed)
+    if scheme in ("falseinfo", "wordswap"):
+        if by_len is None:
+            raise ValueError("falseinfo corruption needs a by_len vocab")
+        return corrupt_false_info(tok, rate, by_len, seed=seed)
     out = corrupt_token_ids(tok, vocab_size=K, corrupt_rate=rate, seed=seed)
     return partially_shuffle_token_ids(out, shuffle_rate=rate, seed=seed + 1)
 
@@ -137,9 +145,21 @@ def main() -> int:
     ap.add_argument("--fit-seqs", type=int, default=192)
     ap.add_argument("--n", type=int, default=256, help="# eval seqs per split")
     ap.add_argument("--rate", type=float, default=0.3, help="corruption rate shown")
+    ap.add_argument("--schemes", type=str, default="replace,shuffle",
+                    help="comma list of per-sequence corruption schemes to show as "
+                         "rows (e.g. replace,shuffle,falseinfo). 'falseinfo' = "
+                         "lexically-valid same-length word swap (the hard semantic axis).")
+    ap.add_argument("--token-scheme", type=str, default="replace",
+                    help="corruption scheme for the per-token figure (replace or "
+                         "falseinfo). falseinfo shows whether the swapped-word tokens "
+                         "separate from clean tokens in feature space.")
     ap.add_argument("--margin", type=float, default=4.0)
     ap.add_argument("--head-steps", type=int, default=600)
     ap.add_argument("--lr", type=float, default=5e-2)
+    ap.add_argument("--split", choices=["train", "val", "test"], default="test",
+                    help="dataset split for fit/eval sequences (test = held-out "
+                         "last-5M text8; still IN-DISTRIBUTION — clean text8 is the "
+                         "valid negative, only corruption is OOD)")
     ap.add_argument("--tsne-n", type=int, default=1200, help="points/class for t-SNE")
     ap.add_argument("--seed", type=int, default=42)
     args = ap.parse_args()
@@ -151,7 +171,9 @@ def main() -> int:
     K = cfg.text8_dataset.K
     t_eval = float(args.t_eval if args.t_eval is not None else cfg.dfm_svgp.t_eval)
     dm, _ = build_training_datamodule(cfg)
-    vl = dm.val_dataloader() or dm.train_dataloader()
+    _loaders = {"train": dm.train_dataloader, "val": dm.val_dataloader,
+                "test": dm.test_dataloader}
+    vl = _loaders[args.split]() or dm.train_dataloader()
 
     seqs = []
     for b in vl:
@@ -163,6 +185,19 @@ def main() -> int:
     eval_tok = seqs[args.fit_seqs : args.fit_seqs + args.n]
     print(f"[latent] ckpt={args.ckpt}\n[latent] t_eval={t_eval} K={K} "
           f"fit={fit_tok.shape[0]} eval={eval_tok.shape[0]} rate={args.rate}")
+
+    schemes = [s for s in args.schemes.split(",") if s.strip()]
+    # false-info replacement vocab (built once from the fit windows) if needed
+    by_len = None
+    if any(s in ("falseinfo", "wordswap")
+           for s in schemes + [args.token_scheme]):
+        fit_txt = " ".join(
+            "".join(_ALPH[int(i)] if int(i) < len(_ALPH) else "?" for i in row)
+            for row in fit_tok
+        )
+        by_len = build_vocab_by_len(fit_txt)
+        print(f"[latent] false-info vocab: lengths {min(by_len)}-{max(by_len)} "
+              f"(e.g. len-6: {by_len.get(6, [])[:5]})")
 
     # ---- standardiser from clean per-token feats (matches the detectors) ----
     fc = _perpos_feats(model, fit_tok, t_eval, device)  # (Nf,L,d)
@@ -185,17 +220,21 @@ def main() -> int:
     import matplotlib.pyplot as plt
     from sklearn.manifold import TSNE
 
-    metrics = {"ckpt": args.ckpt, "t_eval": t_eval, "d_model": d,
-               "rate": args.rate, "fit_seqs": args.fit_seqs, "n": args.n,
+    metrics = {"ckpt": args.ckpt, "split": args.split, "t_eval": t_eval,
+               "d_model": d, "rate": args.rate, "fit_seqs": args.fit_seqs,
+               "n": args.n, "schemes": schemes, "token_scheme": args.token_scheme,
                "per_sequence": {}, "per_token": {}}
 
     # ===================== FIGURE 1 — per-SEQUENCE ==========================
     Zc_fit = zseq(fit_tok)                                    # clean fit seqs
     Zc_ev = zseq(eval_tok)                                    # clean eval seqs
-    fig, axes = plt.subplots(2, 3, figsize=(13.5, 8.6))
-    for row, scheme in enumerate(["replace", "shuffle"]):
-        Zk_fit = zseq(_corrupt(fit_tok.clone(), scheme, args.rate, K, args.seed + 1))
-        Zk_ev = zseq(_corrupt(eval_tok.clone(), scheme, args.rate, K, args.seed + 2))
+    nrows = len(schemes)
+    fig, axes = plt.subplots(nrows, 3, figsize=(13.5, 4.3 * nrows), squeeze=False)
+    for row, scheme in enumerate(schemes):
+        Zk_fit = zseq(_corrupt(fit_tok.clone(), scheme, args.rate, K, args.seed + 1,
+                               by_len=by_len))
+        Zk_ev = zseq(_corrupt(eval_tok.clone(), scheme, args.rate, K, args.seed + 2,
+                              by_len=by_len))
         Xev = np.concatenate([Zc_ev, Zk_ev], 0)
         yev = np.r_[np.zeros(len(Zc_ev)), np.ones(len(Zk_ev))]
 
@@ -247,8 +286,9 @@ def main() -> int:
 
     # ===================== FIGURE 2 — per-TOKEN (replace) ===================
     # Train the real energy-hinge head (BayesLinHead recipe) on the fit set.
+    tscheme = args.token_scheme
     zc_fit = ztok(fit_tok).reshape(-1, d)
-    corr_fit = _corrupt(fit_tok.clone(), "replace", 0.5, K, args.seed)
+    corr_fit = _corrupt(fit_tok.clone(), tscheme, 0.5, K, args.seed, by_len=by_len)
     zk_fit_all = ztok(corr_fit).reshape(-1, d)
     yk_fit = (corr_fit != fit_tok).reshape(-1).numpy()
     head = nn.Linear(d, 1).to(device)
@@ -266,7 +306,8 @@ def main() -> int:
     w_energy = w_energy / (np.linalg.norm(w_energy) + 1e-12)
 
     # Eval per-token: clean tokens vs REPLACED tokens (balanced sample).
-    corr_ev = _corrupt(eval_tok.clone(), "replace", args.rate, K, args.seed + 5)
+    corr_ev = _corrupt(eval_tok.clone(), tscheme, args.rate, K, args.seed + 5,
+                       by_len=by_len)
     zk_ev = ztok(corr_ev).reshape(-1, d)
     chg = (corr_ev != eval_tok).reshape(-1).numpy()
     zc_ev = ztok(eval_tok).reshape(-1, d)
@@ -305,13 +346,14 @@ def main() -> int:
     _scatter(ax2[2], emb, np.r_[np.zeros(nse), np.ones(nse)],
              "per-token t-SNE (nonlinear, exploratory)", "t-SNE 1", "t-SNE 2")
     fig2.suptitle(
-        f"Latent split — PER-TOKEN, replace@{args.rate} (clean tokens vs replaced "
-        f"tokens); blue=valid, red=invalid", fontsize=11)
+        f"Latent split — PER-TOKEN, {tscheme}@{args.rate} (clean tokens vs "
+        f"corrupted tokens); blue=valid, red=invalid", fontsize=11)
     fig2.tight_layout(rect=(0, 0, 1, 0.95))
-    p2 = out / "latent_split_token.png"
+    p2 = out / f"latent_split_token_{tscheme}.png"
     fig2.savefig(p2, dpi=140)
     plt.close(fig2)
-    metrics["per_token"] = {"pca_pc12_probe_auroc": au_pca, "energy_axis_auroc": au_e,
+    metrics["per_token"] = {"token_scheme": tscheme,
+                            "pca_pc12_probe_auroc": au_pca, "energy_axis_auroc": au_e,
                             "full_dim_linear_auroc": au_full, "n_per_class": n_show}
     print(f"[token] PCA(PC1-2)={au_pca:.3f}  energy-axis={au_e:.3f}  "
           f"full-linear={au_full:.3f}")

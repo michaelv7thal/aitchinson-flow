@@ -9,8 +9,11 @@ contrastive hinge on valid/corrupted pairs (the EqM anti-collapse objective).
 This is a **parity check, not a SOTA claim** (the GPT-2/Qwen auditor line is
 otherwise retired — see CLAUDE.md): its value is that the EqM energy is a
 drop-in for the SVGP head *and* a generator. Reports per-token and per-sequence
-AUROC vs a training-free **spilled-energy** baseline read off the cached top-k
-logits, so the two are directly comparable on the same corrupted set.
+AUROC vs a training-free **per-token NLL** baseline read off the cached top-k
+logits, so the two are directly comparable on the same corrupted set. (That
+baseline was called "spilled energy" until 2026-07; it is an NLL — the real
+cross-step ΔE of Minut et al. ICLR 2026 lives in
+``scripts/bench_sflm_ebm._gpt2_bpe_scores``.)
 
 Usage:
   python scripts/cache_llm_features.py --model Qwen/Qwen2.5-1.5B --4bit --out runs/llm_cache/wt2
@@ -76,10 +79,14 @@ def _auroc(pos: torch.Tensor, neg: torch.Tensor) -> float:
                  + 0.5 * (p[:, None] == n[None, :]).float().mean())
 
 
-def _spilled_energy(topk_logits: torch.Tensor, topk_idx: torch.Tensor,
-                    tok: torch.Tensor) -> torch.Tensor:
-    """Training-free SE ≈ logsumexp(top-k logits) − logit(token) per position,
-    using only the cached top-k (an approximation of the full-vocab SE)."""
+def _per_position_nll(topk_logits: torch.Tensor, topk_idx: torch.Tensor,
+                      tok: torch.Tensor) -> torch.Tensor:
+    """Training-free NLL ≈ logsumexp(top-k logits) − logit(token) per position,
+    using only the cached top-k (an approximation of the full-vocab NLL).
+
+    RENAMED (2026-07) from ``_spilled_energy``: this is a SAME-STEP per-token NLL,
+    not the CROSS-STEP spilled energy of Minut, Dewidar & Masi (ICLR 2026,
+    arXiv:2602.18671). See ``scripts/bench_sflm_ebm._gpt2_bpe_scores``."""
     lse = torch.logsumexp(topk_logits, dim=-1)  # (B,T)
     match = (topk_idx == tok.unsqueeze(-1))      # (B,T,k)
     picked = torch.where(match.any(-1),
@@ -130,8 +137,8 @@ def run(cache: dict, *, epochs: int, lr: float, d: int, seed: int,
         xc = corrupt(x)
         e_clean = model.energy(h, x)   # (B,T)
         e_corr = model.energy(h, xc)
-        se = _spilled_energy(tkl[ev].to(device), tki[ev].to(device), x)
-        se_c = _spilled_energy(tkl[ev].to(device), tki[ev].to(device), xc)
+        se = _per_position_nll(tkl[ev].to(device), tki[ev].to(device), x)
+        se_c = _per_position_nll(tkl[ev].to(device), tki[ev].to(device), xc)
         mb = m.bool()
         tok_auroc = _auroc(e_corr[mb], e_clean[mb])
         seq_auroc = _auroc((e_corr * m).sum(-1), (e_clean * m).sum(-1))
@@ -139,7 +146,7 @@ def run(cache: dict, *, epochs: int, lr: float, d: int, seed: int,
         se_seq_auroc = _auroc((se_c * m).sum(-1), (se * m).sum(-1))
     return {
         "auditor": {"tok_auroc": tok_auroc, "seq_auroc": seq_auroc},
-        "spilled_energy_baseline": {"tok_auroc": se_tok_auroc, "seq_auroc": se_seq_auroc},
+        "gpt2_nll_baseline": {"tok_auroc": se_tok_auroc, "seq_auroc": se_seq_auroc},
         "n_train": n_tr, "n_eval": N - n_tr, "vocab": vocab, "H": H,
     }
 
@@ -181,7 +188,7 @@ def _smoke() -> None:
     assert 0.0 <= a["tok_auroc"] <= 1.0001 and 0.0 <= a["seq_auroc"] <= 1.0001, res
     print(f"OK train_eqm_auditor smoke: auditor tok_auroc={a['tok_auroc']:.3f} "
           f"seq_auroc={a['seq_auroc']:.3f} | SE baseline "
-          f"tok={res['spilled_energy_baseline']['tok_auroc']:.3f}")
+          f"tok={res['gpt2_nll_baseline']['tok_auroc']:.3f}")
 
 
 def main() -> None:
@@ -209,8 +216,8 @@ def main() -> None:
     print(f"wrote {out}")
     print(f"  auditor:  tok_auroc={res['auditor']['tok_auroc']:.3f}  "
           f"seq_auroc={res['auditor']['seq_auroc']:.3f}")
-    print(f"  spilled:  tok_auroc={res['spilled_energy_baseline']['tok_auroc']:.3f}  "
-          f"seq_auroc={res['spilled_energy_baseline']['seq_auroc']:.3f}")
+    print(f"  gpt2-nll: tok_auroc={res['gpt2_nll_baseline']['tok_auroc']:.3f}  "
+          f"seq_auroc={res['gpt2_nll_baseline']['seq_auroc']:.3f}")
 
 
 if __name__ == "__main__":

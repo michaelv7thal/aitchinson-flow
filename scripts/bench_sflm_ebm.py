@@ -246,8 +246,13 @@ def _svgp_score(model, name: str, ids: torch.Tensor) -> torch.Tensor | None:
 
 
 @torch.no_grad()
-def _spilled_energy(logits: torch.Tensor, ids: torch.Tensor) -> torch.Tensor:
-    """SE(i) = logsumexp_v logits_i − logits_i[token_i].  (B, L)."""
+def _per_position_nll(logits: torch.Tensor, ids: torch.Tensor) -> torch.Tensor:
+    """NLL(i) = logsumexp_v logits_i − logits_i[token_i] = −log p(token_i).  (B, L).
+
+    RENAMED (2026-07) from ``_spilled_energy``: this is a SAME-STEP per-token NLL, not
+    the spilled energy of Minut et al. (ICLR 2026), which is the CROSS-STEP discrepancy
+    ``logsumexp(logits_i) − logits_{i-1}[x_i]``. See ``_gpt2_bpe_scores(score=...)``.
+    """
     lse = torch.logsumexp(logits, dim=-1)
     picked = logits.gather(-1, ids.long().unsqueeze(-1)).squeeze(-1)
     return lse - picked
@@ -343,29 +348,52 @@ def _ids_to_text(char_ids: torch.Tensor) -> list[str]:
 
 
 @torch.no_grad()
-def _gpt2_per_char_SE(
-    model, tokenizer, char_ids: torch.Tensor, *, chunk: int = 32
-) -> torch.Tensor:
-    """Per-character spilled energy under GPT-2.
+def _gpt2_bpe_scores(
+    model, tokenizer, char_ids: torch.Tensor, *, chunk: int = 32,
+    score: str = "spilled",
+) -> tuple[list, list]:
+    """Per-BPE-token reference-LM scores + their character spans.
 
-    Returns ``(B, L)`` of per-char NLL under the reference LM.  Each BPE
-    token's NLL is divided uniformly across the chars it spans; this is
-    the standard cross-tokenizer byte/char NLL convention (e.g. how
-    text8 BPC is reported for GPT-2 in the literature).
+    Returns ``(scores, spans)``, both length-B lists: ``scores[j]`` is a
+    ``(n_j,)`` float tensor over sequence j's BPE tokens, ``spans[j]`` the
+    matching ``[(char_start, char_end), ...]``.
 
-    ``chunk`` controls the GPT-2 batch size — at L=256 the (B, T, V≈50k)
-    log-softmax tensor alone is ~4 GB at B=256, which fragments the
-    MIG-20GB allocator across repeated calls.  Process in chunks and let
-    the caching allocator reuse the slab.
+    ``score="spilled"`` — the CROSS-STEP **spilled energy** of Minut, Dewidar &
+    Masi (ICLR 2026, arXiv:2602.18671), Definition 4.1 / Eq. (8).  Reading the
+    LM softmax as an EBM, the logit energy of token x_i and the marginal (free)
+    energy at the *adjacent* step are two measurements of the same quantity
+    E(x_i:1) and should cancel; they do not, and the residual is the signal::
+
+        E_logit[i]  = -logits[i-1][x_i]          # measured at step i-1
+        E_marg[i]   = -logsumexp(logits[i])      # measured at step i   (i+1'th token)
+        SE[i]       = -E_marg[i] + E_logit[i] = logsumexp(logits[i]) - logits[i-1][x_i]
+
+    Sign/indices follow the OFFICIAL implementation (OmnAI-Lab/spilled-energy,
+    ``src/spilled_energy/energy.py::spilled_energy_torch``: ``delta = -E_margin + E``),
+    NOT the paper's Eq. (8) prose, whose written expansion carries a sign typo.
+    A sign flip inverts AUROC, so this is validated numerically against the
+    reference code in ``scripts/validate_spilled_energy.py``.
+
+    ``score="nll"`` — the SAME-STEP quantity ``logsumexp(logits[i-1]) - logits[i-1][x_i]``
+    ``= -log p(x_i | x_<i)``.  This is a plain per-token NLL.  It is what this
+    repo previously computed and mislabelled as "spilled energy"; it is kept as
+    an explicit, honestly-named baseline.  Note
+    ``SE[i] = NLL[i] + (logsumexp(logits[i]) - logsumexp(logits[i-1]))`` — the
+    two differ exactly by the cross-step log-partition drift that SE is about.
+
+    ``chunk`` controls the GPT-2 batch size — at L=256 the (B, T, V≈50k) tensor
+    is ~4 GB at B=256 and fragments the MIG-20GB allocator across calls.
     """
+    if score not in ("spilled", "nll"):
+        raise ValueError(f"score must be 'spilled' or 'nll', got {score!r}")
     device = next(model.parameters()).device
-    B, L = char_ids.shape
-    SE = torch.zeros((B, L), dtype=torch.float32, device=device)
+    B = char_ids.shape[0]
     bos = tokenizer.eos_token_id
+    all_scores: list = [None] * B
+    all_spans: list = [None] * B
     for s in range(0, B, chunk):
         e = min(s + chunk, B)
-        sub_ids = char_ids[s:e]
-        texts = _ids_to_text(sub_ids)
+        texts = _ids_to_text(char_ids[s:e])
         enc = tokenizer(
             texts,
             return_offsets_mapping=True,
@@ -378,29 +406,85 @@ def _gpt2_per_char_SE(
         attn_mask = enc["attention_mask"].to(device)  # (b, T)
         offsets_l = enc["offset_mapping"].tolist()  # (b, T, 2)
         attn_l = attn_mask.tolist()
-        # Prepend BOS = eos for conditional NLL on the first BPE token.
         b_size = input_ids.shape[0]
+        # Prepend BOS(=eos) so the first BPE token has a conditioning step.
         bos_col = torch.full((b_size, 1), bos, dtype=input_ids.dtype, device=device)
         pad_col = torch.ones((b_size, 1), dtype=attn_mask.dtype, device=device)
-        padded = torch.cat([bos_col, input_ids], dim=1)
+        padded = torch.cat([bos_col, input_ids], dim=1)  # (b, T+1) = [BOS, x_1..x_T]
         mask = torch.cat([pad_col, attn_mask], dim=1)
-        logits = model(input_ids=padded, attention_mask=mask).logits  # (b, T+1, V)
-        # logits[:, t, :] predicts padded[:, t+1] for t in 0..T-1.
-        # Compute NLL without materialising a full (b, T, V) log-softmax tensor:
-        # nll = log_sum_exp(logits) - logits_at(input_ids).
-        pred_logits = logits[:, :-1, :].float()
-        lse = torch.logsumexp(pred_logits, dim=-1)  # (b, T)
-        picked = pred_logits.gather(-1, input_ids.unsqueeze(-1)).squeeze(-1)  # (b, T)
-        nll = (lse - picked).cpu()
+        logits = model(input_ids=padded, attention_mask=mask).logits.float()  # (b,T+1,V)
+        # logits[:, t] is the distribution conditioned on padded[:, :t+1]; it predicts
+        # padded[:, t+1]. BPE token k (0-based in input_ids) is padded[:, k+1], so its
+        # logit energy is read from step k and its marginal energy from step k+1.
+        picked = logits[:, :-1, :].gather(  # (b, T) — logit of x_{k+1} at step k
+            -1, input_ids.unsqueeze(-1)).squeeze(-1)
+        if score == "spilled":
+            # marginal energy at the ADJACENT step k+1 (cross-step). For the last real
+            # token of a right-padded row, step k+1 is that token's own position, which
+            # attends only over the real prefix — so no pad contamination.
+            lse = torch.logsumexp(logits[:, 1:, :], dim=-1)  # (b, T)
+        else:
+            lse = torch.logsumexp(logits[:, :-1, :], dim=-1)  # (b, T) — same step
+        val = (lse - picked).cpu()
         for j in range(b_size):
+            sc, sp = [], []
             for t, ((start, end), valid) in enumerate(zip(offsets_l[j], attn_l[j])):
                 if not valid or end <= start:
                     continue
-                n_chars = end - start
-                SE[s + j, start:end] = nll[j, t] / n_chars
-        del logits, pred_logits, lse, picked, padded, mask, input_ids, attn_mask
+                sc.append(float(val[j, t]))
+                sp.append((int(start), int(end)))
+            all_scores[s + j] = torch.tensor(sc, dtype=torch.float32)
+            all_spans[s + j] = sp
+        del logits, picked, lse, padded, mask, input_ids, attn_mask
         torch.cuda.empty_cache()
-    return SE
+    return all_scores, all_spans
+
+
+def _bpe_to_char(scores: list, spans: list, L: int, *, attrib: str = "boundary"
+                 ) -> torch.Tensor:
+    """Attribute per-BPE-token scores to characters → (B, L).
+
+    GPT-2 scores BPE tokens, our detector scores characters, so the comparison
+    needs an attribution rule. All of them are heuristics; the choice matters:
+
+    ``boundary`` (default) — put the token's whole score on its LAST character.
+        A BPE token's identity is only resolved at its final character, and this
+        avoids inflating every character of a multi-char token.
+    ``uniform`` — the OLD behaviour: spread score/n_chars over all the token's
+        characters. This SMEARS localization: one corrupt character raises the
+        score of every character in its BPE token, so per-character AUROC is
+        measuring the token, not the character. Kept only for comparison.
+    """
+    if attrib not in ("boundary", "uniform"):
+        raise ValueError(f"attrib must be 'boundary' or 'uniform', got {attrib!r}")
+    B = len(scores)
+    out = torch.zeros((B, L), dtype=torch.float32)
+    for j in range(B):
+        for v, (start, end) in zip(scores[j].tolist(), spans[j]):
+            if start >= L:
+                continue
+            if attrib == "boundary":
+                out[j, min(end, L) - 1] = v
+            else:
+                out[j, start:min(end, L)] = v / (end - start)
+    return out
+
+
+@torch.no_grad()
+def _gpt2_per_char_SE(
+    model, tokenizer, char_ids: torch.Tensor, *, chunk: int = 32,
+    score: str = "spilled", attrib: str = "boundary",
+) -> torch.Tensor:
+    """Per-character reference-LM score under GPT-2 → (B, L).
+
+    Thin wrapper over :func:`_gpt2_bpe_scores` + :func:`_bpe_to_char`. Defaults
+    are the CORRECTED ones (real cross-step spilled energy, boundary-char
+    attribution); pass ``score="nll", attrib="uniform"`` to reproduce the old
+    (mislabelled, smeared) behaviour.
+    """
+    L = char_ids.shape[1]
+    sc, sp = _gpt2_bpe_scores(model, tokenizer, char_ids, chunk=chunk, score=score)
+    return _bpe_to_char(sc, sp, L, attrib=attrib)
 
 
 def _load_gpt2(name: str, device):

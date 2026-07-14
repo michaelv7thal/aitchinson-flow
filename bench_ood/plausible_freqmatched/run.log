@@ -1,0 +1,46 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+[plausible] split=test fit=512 eval=64 rate=0.15 t_eval=6.0 t_nll=3.0 n_cands=48
+=== fit BGMM density detector (clean, one-class) ===
+  [bgmm] t_eval=6.0 d=1280 feat_dim=64 max_K=20 n_effective=13 cov=full converged=True lb=-5835851.638
+=== train BLR hinge-energy detector ===
+  [head] step    0  E_valid=+0.003  E_corrupt=+0.114  gap=+0.111
+  [head] step  200  E_valid=+0.453  E_corrupt=+2.771  gap=+2.318
+  [head] step  400  E_valid=+0.387  E_corrupt=+2.610  gap=+2.223
+  [head] step  599  E_valid=+0.422  E_corrupt=+2.737  gap=+2.315
+=== load GPT-2 spilled-energy detector (gpt2) ===
+Loading weights:   0%|          | 0/148 [00:00<?, ?it/s]Loading weights: 100%|██████████| 148/148 [00:00<00:00, 24414.26it/s]
+=== build corruptions (random vs model-plausible, same slots) ===
+[plausible] random changed 1665 toks; plausible changed 1796 toks (392 words)
+=== train logistic head on RANDOM false-info negatives ===
+  [logistic] fit on 74511 tok (pos=60000 neg=14511) @ t=4.5
+=== build PLAUSIBLE training negatives (model-guided; subset) ===
+=== train logistic head on PLAUSIBLE negatives ===
+  [logistic] fit on 63510 tok (pos=60000 neg=3510) @ t=4.5
+[plausible] denoiser NLL at swapped chars — random=0.564 plausible=0.009 (clean baseline=0.130)
+
+detector corruption  seq_AUROC  token_AUROC
+     NLL     random      0.725        0.741
+     NLL  plausible      0.455        0.340
+     BLR     random      0.651        0.602
+     BLR  plausible      0.499        0.484
+Logistic_fi     random      0.737        0.783
+Logistic_fi  plausible      0.453        0.541
+Logistic_plaus     random      0.387        0.496
+Logistic_plaus  plausible      0.657        0.791
+    BGMM     random      0.667        0.658
+    BGMM  plausible      0.525        0.548
+ GPT2_SE     random      0.896        0.775
+ GPT2_SE  plausible      0.761        0.647
+
+--- example 0 ---
+  clean    : 'l clinton during a fundraising event in washington dc october one nine nine six monica samille lewinsky born july two th'
+  random   : 'l clinton during a fundraising event in washington dc october ost nine nine six monica samille lewinsky born july two th'
+  plausible: 'l clinton during a fundraising event in washington dc october the nine nine six monica samille lewinsky born july two th'
+
+--- example 1 ---
+  clean    : 'ill clinton their affair started while lewinsky was working as an intern at the white house in the mid one nine nine zer'
+  random   : 'ill clinton their affair eugenio while lewinsky was working as an intern at the white house in the mid one nine nine zer'
+  plausible: 'ill clinton their office popular while lewinsky was working to an intern at the white house in one mid one nine nine zer'
+
+Wrote bench_ood/plausible_freqmatched/plausible_swap.json

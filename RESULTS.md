@@ -516,3 +516,385 @@ python scripts/run_sweep.py --sweep sweeps/phase8.yaml --n 256 --steps 200
 `runs/sweep_results.jsonl` aggregates one record per cell. `runs/<name>/eval.json`
 has the per-run scorecard plus 8 sample decodes. `runs/DECISION_LOG.md` has the
 per-run hypothesis / result / decision entries.
+
+---
+
+# Objective 3 — OOD detection & self-healing
+
+A separate objective from generation: given a *frozen* full-text8 L256 `DirichletFM`
+(`runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM/epoch_best.pt`, md5
+`f1d809e8a42d`), can we (a) **detect** corrupted text and (b) **heal** it by
+localize-then-inpaint? Everything below is the reproducible benchmark in
+`bench_ood/` (detection) and `bench_heal/` (healing); each dir's `manifest.json`
+records git SHA + `git_dirty` + a `repro.patch` + `new_scripts/` snapshot + the
+exact per-arm CLI. Config: split=**test** (in-distribution; text8 train/val/test are
+one distribution), n=256, fit_seqs=512, seed=42, full corruption-rate grid.
+
+Detectors, each at its own best path-time: **NLL** (training-free denoiser surprise,
+t=3), **BLR** (linear hinge energy on frozen features, t=4.5), **BGMM** (Bayesian
+Dirichlet-process mixture density, t=7.5), **GPT2-SE** (spilled energy under frozen
+GPT-2 — the external-LM baseline), plus supervised **full-dim heads**
+(`BLR_FI`/`Logistic_*`) trained on specific corruptions. Corruptions:
+**replace** (random char), **shuffle** (reorder), **falseinfo** (swap a word for a
+random real same-length word), **plausible** (swap for the word that *minimises the
+model's own NLL* — fluent but wrong).
+
+> ✅ **All numbers below are from the full re-run of 2026-07-14** (`bench_ood/` 9 arms +
+> `bench_heal/` 9 arms, single provenance record; `manifest.json` + `repro.patch` in each).
+> Two corrections landed in this run and changed conclusions, so earlier drafts of this
+> section are superseded:
+> 1. The GPT-2 baseline was wrong twice — it computed a per-token **NLL** and called it
+>    *spilled energy*, and it spread BPE scores uniformly onto characters. Both fixed;
+>    the old comparators (0.847 / 0.817) are gone. See *"The external-LM baseline,
+>    corrected"*.
+> 2. Healing selected its operating point by cal-set **F1**, which over-weights recall and
+>    picks the *damaging* end of the sweep. Now **F0.5** (precision-weighted; healing is
+>    damage-averse). This flipped the insulin BGMM row from **−0.300 → +0.122**.
+
+## Headline
+
+1. **Geometric corruption (replace/shuffle): we win decisively, at the *fair* unit.**
+   The training-free **NLL** reaches word-level AUROC **0.981 (replace)** / **0.963
+   (shuffle)** at rate 0.15, against GPT-2's **0.738 / 0.746**. This is measured at the
+   **word** level — the common unit, not our home turf — so it cannot be dismissed as a
+   favourable choice of granularity. In GPT-2's *own* BPE units it does even worse
+   (ΔE 0.480, NLL 0.557 ≈ chance): character noise **shatters its tokenization**, so it
+   has no stable unit in which to localize.
+2. **False-info: GPT-2 wins, and we should say so.** At word level **GPT2_NLL 0.853 vs
+   our NLL 0.813** — an honest loss on exactly the axis where real language knowledge
+   pays (which *word* belongs in this context). But the gap is small, and much smaller
+   than our per-character number implied: pooling to words lifts our NLL **0.731 → 0.813**,
+   because false-info *is* a word-level corruption and that is where its signal lives.
+   Sequence-level, GPT-2 leads more clearly (0.893 vs 0.743).
+3. **A supervised head is NOT needed for false-info** (this supersedes an earlier claim).
+   `BLR_FI`, trained *on* false-info, reaches **0.800** at word level — it does **not**
+   beat the zero-training NLL's **0.813**. The old "false-info needs a corruption-specific
+   supervised head" conclusion was an artifact of measuring per-character.
+4. **Plausible (model-fluent) swaps remain the real boundary — and here supervision *is*
+   required.** The model's own readout **inverts**: a min-NLL swap is *less* surprising
+   than the truth (swapped-word NLL **0.01 vs clean 0.13**), so NLL scores **0.264**
+   (worse than chance) and density sits at chance. Only a head trained on plausible
+   negatives detects it (**0.904 token / 0.808 seq**; **0.79 after frequency control**).
+   GPT-2 is only partial (0.51 token / 0.73 seq).
+5. **Healing recovers geometry, never meaning.** Localize-then-inpaint is net-positive on
+   char noise (**+0.420** net/corrupt; **+0.374 on the real insulin article**) and
+   net-negative on false-info at *every* operating point (−0.059 … −0.140) — a fluent
+   wrong word is not recoverable from context.
+
+## Detection — word level, the fair head-to-head (`bench_ood/RESULTS.md`)
+
+Each model is scored in its **native unit** (flow-matching → character, GPT-2 → BPE
+token) and both are pooled up to **words** for the comparison. A BPE score is never
+attributed *down* onto characters — see *"The external-LM baseline, corrected"* below.
+
+**WORD-level AUROC @ rate 0.15 (max-pool):**
+
+| detector | replace | shuffle | falseinfo |
+|---|---|---|---|
+| **NLL** (ours, training-free) | **0.981** | **0.963** | 0.813 |
+| BLR (replace-trained) | 0.935 | 0.872 | 0.744 |
+| BLR_ADV (adversarial mix) | 0.929 | 0.857 | 0.779 |
+| BLR_FI (supervised on falseinfo) | 0.818 | 0.762 | 0.800 |
+| BGMM (DP density) | 0.888 | 0.886 | 0.707 |
+| GPT2_SE (real cross-step ΔE) | 0.727 | 0.724 | 0.690 |
+| **GPT2_NLL** (external LM) | 0.738 | 0.746 | **0.853** |
+
+**Native units @ 0.15** (NOT cross-comparable — a char AUROC and a BPE AUROC count
+different things; this is each model's localization in the units it actually has):
+
+| detector | unit | replace | shuffle | falseinfo | seq (falseinfo) |
+|---|---|---|---|---|---|
+| NLL | char | **0.968** | **0.948** | 0.731 | 0.743 |
+| BLR | char | 0.874 | 0.783 | 0.522† | 0.635 |
+| BLR_FI | char | 0.756 | 0.675 | 0.745 | 0.733 |
+| BGMM | char | 0.830 | 0.833 | 0.683 | 0.685 |
+| GPT2_SE | bpe | 0.480 | 0.493 | 0.621 | 0.873 |
+| GPT2_NLL | bpe | 0.557 | 0.581 | **0.768** | **0.893** |
+
+† BLR trained on *replace* negatives fails to transfer to false-info (0.522 = chance) —
+training on the wrong corruption is worse than the one-class density.
+
+**Read the GPT-2 rows carefully.** Its near-chance BPE localization on replace/shuffle is
+*not* only a weak score — the unit itself is broken there (char corruption re-tokenizes
+the text; see the corrected-baseline section). Its **sequence** AUROC of ~1.0 on
+replace/shuffle is correspondingly *cheap*: it detects "this is no longer English" via the
+tokenization blow-up. Where GPT-2 is genuinely strong is **false-info**, and that is a real
+result.
+
+**SVGP does not help** — the t-SNE shows no nonlinear structure beyond the linear axis
+(information limit, not capacity), and its predictive variance saturates to a constant in
+1280-d (concentration of measure), which is why the repo retired `DirichletFMSvgp` for the
+closed-form Laplace variance. The latent-split full-dim linear probe's **0.93** is
+**in-sample** (`_probe_auroc` fits and scores the same tokens); held out it is ~0.75–0.87.
+
+## The plausible boundary (`bench_ood/plausible*/`, n=64, held-out)
+
+Same word slots, two swaps: **random** real word vs **model-min-NLL** ("plausible").
+Detector, seq / token AUROC on **plausible**:
+
+| detector | plausible (min-NLL) | plausible (freq-matched) |
+|---|---|---|
+| NLL | 0.448 / **0.264** (inverts) | 0.46 / 0.34 |
+| BLR | 0.455 / 0.492 (chance) | chance |
+| BGMM | 0.426 / 0.458 (chance) | chance |
+| Logistic-fi (trained on *false-info*) | 0.342 / 0.473 (chance) | chance |
+| **Logistic-plaus** (trained on plausible) | **0.808 / 0.904** | **0.66 / 0.79** |
+| GPT2_SE (external LM) | 0.700 / 0.514 | 0.76 / 0.65 |
+| GPT2_NLL (external LM) | 0.728 / 0.507 | — |
+
+**The inversion is mechanical, not incidental.** The swap is chosen to *minimise the
+model's own NLL*, so the planted word is **less surprising than the truth**: mean NLL on
+the swapped slot is **0.01 (plausible) vs 0.13 (clean) vs 0.56 (random)**. A likelihood
+readout must therefore score *below* chance — 0.264 is the signature of a detector being
+used against its own objective, not of a weak signal.
+
+### Cross-transfer: supervised heads are strictly corruption-specific
+
+Both experiments use the **same word slots**, so the only thing that differs is *which*
+word is planted (a random real word vs the model's own most-fluent candidate). Training a
+full-dim linear head on one and evaluating on the other gives a clean diagonal
+(**token AUROC** / *seq AUROC in italics*):
+
+| trained on ↓ &nbsp; eval → | **false-info** | **plausible** |
+|---|---|---|
+| **false-info** (`Logistic_fi`) | **0.783** / *0.737* ✅ | 0.473 / *0.342* ❌ |
+| **plausible** (`Logistic_plaus`) | 0.471 / *0.384* ❌ | **0.904** / *0.808* ✅ |
+
+Each head works **only** on the corruption it was trained on, and the failure is not mere
+chance — at sequence level both off-diagonal cells sit *below* 0.5 (0.342, 0.384), i.e.
+the heads **anti-transfer**. That sign is informative, not noise:
+
+- The false-info head learns *"this word is lexically out of place"*. A plausible swap is
+  chosen to be maximally in-place, so the head scores it as **cleaner than clean**.
+- The plausible head learns *"this word is suspiciously fluent for its slot"*. A random
+  real word is not fluent, so it fails that test too — in the opposite direction.
+
+They are detecting **orthogonal defects**, not the same defect at two difficulty levels.
+
+### …but a UNIFIED head *is* possible (and the geometry says what shape it must be)
+
+Specialist anti-transfer says nothing about whether *some other* head can span both — it
+only says how those heads were *trained*. Two measurements settle it. In the standardised
+feature space, the **paired** mean shifts (same positions, clean vs corrupt) genuinely
+oppose, but the **learned** directions do not:
+
+```
+cos(d_falseinfo, d_plausible) = −0.49     ← mean shifts OPPOSE  (why specialists anti-fire)
+cos(w_falseinfo, w_plausible) = +0.40     ← learned directions ALIGN  (so a shared w exists)
+```
+
+Clean therefore sits **between** the two corruption clusters. A *signed linear* head
+(`w·z`) must pick a side; what the geometry asks for is a **shell** around clean — i.e. a
+**sign-agnostic** score that measures *departure*, not direction. Training one head on the
+**union** (replace+shuffle+falseinfo+plausible) across three hypothesis classes:
+
+| head | → false-info | → plausible | |
+|---|---|---|---|
+| `Logistic_fi` (specialist) | **0.783** / 0.737 | 0.473 / 0.342 | anti-fires |
+| `Logistic_plaus` (specialist) | 0.471 / 0.384 | **0.904** / 0.808 | anti-fires |
+| `ALL_linear` (unified, signed) | 0.740 / 0.706 | 0.597 / 0.611 | ✅ both |
+| **`ALL_quad`** (unified, rank-8 quadratic) | 0.727 / **0.740** | 0.683 / **0.704** | ✅ both |
+| `ALL_mlp` (unified, MLP) | 0.706 / 0.654 | **0.710** / 0.686 | ✅ both |
+
+*(held-out token / sequence AUROC)*
+
+1. **Unification works.** Every unified head clears chance on *both*, where each specialist
+   actively anti-fired on the other. There **is** a general "wrongness" head.
+2. **Capacity buys plausible, monotonically** (0.597 → 0.683 → 0.710) — the signed
+   hyperplane really was the wrong shape.
+3. **The quadratic is the sweet spot, and that is the tell.** A rank-8 *sign-agnostic* form
+   captures most of the MLP's gain and has the **best sequence AUROC of any head**
+   (0.740/0.704), while a far higher-capacity MLP adds only ~0.03. The cross-corruption
+   structure genuinely is a **shell around clean** — the geometry is the functional form,
+   not a metaphor.
+4. **A real trade-off survives.** No unified head reaches the plausible specialist's 0.904;
+   the ceiling is ~0.71, a **−0.19 tax** paid to hold false-info at ~0.71–0.74. The MLP hit
+   **0.99 training accuracy** yet only 0.710 held-out — so this is **not** a capacity limit
+   but a **representation** limit: the two defects compete along shared directions.
+
+5. **At a *deployable* threshold the quadratic wins outright** — and by far more than AUROC
+   implies. Per-token F1 @5% FPR on **plausible**: `ALL_quad` **0.229** vs `ALL_mlp` 0.065
+   vs `ALL_linear` 0.031 (**7× the linear head, 3.5× the MLP**), while also leading on
+   false-info (0.267). AUROC ranks; F1 is what you actually flag. A *signed projection* has
+   no natural scale, so its threshold is arbitrary; **distance-from-clean does**, which is
+   why the sign-agnostic score is so much better behaved under thresholding. On AUROC alone
+   the MLP looked competitive (0.710 vs 0.683) — at the operating point it is not.
+
+**Deployment.** Know the failure mode → use the specialist. Don't → deploy the **quadratic**
+unified head: best sequence AUROC of any head, best deployable F1 on both corruptions, rank-8
+and cheap. The corruption-specificity result therefore stands as a statement about
+*specialists*, not about what the representation can support.
+
+The frequency-matched control (replacement drawn from the *original word's own
+frequency band*) drops the plausible-trained head from 0.90 → **0.79 token** — so
+**~0.11 of the raw signal was a genericness artifact** (min-NLL inserts common words)
+and **the residual ~0.79 is genuine contextual-wrongness signal**. Net: plausible
+errors are undetectable by the model's own unsupervised readouts, detectable only by
+a **corruption-specific supervised head** (or an external LM), and true factual
+verification still needs world knowledge / retrieval.
+
+## Transfer to real out-of-domain text (`bench_ood/transfer/`)
+
+The full-dim logistic false-info head trained on text8, evaluated on the **insulin
+Wikipedia article** (out-of-domain for a text8 model):
+
+| domain | seq AUROC | token AUROC |
+|---|---|---|
+| text8 (in-distribution) | 0.853 | 0.869 |
+| insulin (out-of-domain) | 0.801 | 0.801 |
+
+**Discrimination transfers** (~0.07 drop); it is **threshold calibration** that does
+not — clean OOD scores shift, so a text8-calibrated operating point mis-fires. This
+reconciles the AUROC-vs-recall gap: ranking survives OOD, calibrated recall does not.
+
+## The external-LM baseline, corrected (`bench_ood/gpt2_se/`, `bench_ood/gpt2_nll/`)
+
+Two bugs and one real methodological result. Full detail in `SESSION_OOD_HEALING.md`
+Finding 5; validation in `scripts/validate_spilled_energy.py`.
+
+**1. "Spilled energy" was a per-token NLL.** The real quantity (Minut, Dewidar & Masi,
+*Spilled Energy in LLMs*, ICLR 2026, arXiv:2602.18671, Def 4.1/Eq. 8) is **cross-step** —
+`ΔE_i = logsumexp(logits[i]) − logits[i-1][x_i]`: the logit energy is read at decoding
+step `i-1`, the marginal energy at step `i`, and the residual that fails to cancel is the
+signal. The repo computed both terms at the *same* step, which is just `−log p(x_i|x_<i)`.
+Now matches the authors' reference implementation to **0.0 error**. (Sign follows their
+code, not the paper's Eq. 8 prose, which has a sign typo — a flip inverts AUROC.)
+The paper's ΔE≈0 property does hold, but only on text the LM models well: **−0.30 on
+in-domain English** vs **+3.4 on clean text8** (GPT-2 finds text8 itself OOD).
+
+**2. ΔE cannot localize — by construction.** It straddles two decoding steps, so it
+cannot attribute blame to one: sequence AUROC ~1.0, BPE-level ~0.48 (chance). Our old
+headline was therefore *our NLL vs GPT-2's NLL*, and beating ΔE at localization would be
+a straw man. The bench now runs **both** `gpt2_se` (real ΔE) and `gpt2_nll` (same-step
+NLL — the fair localization comparator).
+
+**3. Evaluation protocol.** Our model scores CHARACTERS, GPT-2 scores BPE TOKENS.
+Attributing a BPE score *down* onto characters is ill-posed; pooling *up* is exact. So
+each model is scored in its native unit, and the comparison happens at a common one:
+
+> **flow-matching → char · GPT-2 → BPE · both → WORD (the head-to-head)**
+
+**4. Why word level is *required*, not just fairer.** Character corruption **shatters
+GPT-2's tokenization**:
+
+| | n BPE tokens | BPE prevalence |
+|---|---|---|
+| clean / falseinfo@0.05 | ~13,455 | 0.050 |
+| **replace@0.15** | **22,801 (+70%)** | **0.399** |
+| replace@0.5 | 33,014 (+145%) | 0.771 |
+| falseinfo@0.15 | 13,683 (+1.7%) | 0.158 |
+
+At 15% char corruption, **40% of BPE tokens touch a corrupted character** (not 15%). The
+BPE unit is *itself a function of the corruption*, so "which BPE token is wrong" is not a
+stable question for char-level noise. Word-level corruption (`falseinfo`) leaves the
+tokenization intact (+1.7%) and prevalence tracks the rate exactly — so BPE numbers are
+meaningful there and not on `replace`/`shuffle`. **Words are the only unit stable across
+both tokenizations.**
+
+Corrected numbers — seq | BPE (native) | word (max) | word (mean):
+
+| corruption | GPT2_SE (ΔE) | GPT2_NLL |
+|---|---|---|
+| replace@0.15 | 1.000 \| 0.480 \| 0.727 \| 0.524 | 1.000 \| 0.557 \| 0.738 \| 0.596 |
+| shuffle@0.15 | 1.000 \| 0.493 \| 0.724 \| 0.542 | 1.000 \| 0.581 \| 0.746 \| 0.623 |
+| falseinfo@0.15 | 0.873 \| 0.621 \| 0.690 \| 0.672 | 0.893 \| **0.768** \| **0.853** \| 0.838 |
+
+Two caveats worth stating openly:
+- **GPT-2's 1.000 sequence AUROC on replace/shuffle is cheap** — it detects "this is no
+  longer English" via the tokenization blow-up, not "this token is wrong".
+- **GPT-2_NLL genuinely beats us on false-info** (word **0.853 vs our 0.813**). Resolved
+  by the full re-run: it is a real loss, on exactly the axis where a pretrained LM's world
+  knowledge pays. The gap is small, and much smaller than the per-character figure implied
+  (pooling to words lifts our NLL 0.731 → 0.813). Report it as a competitive result.
+
+## Healing benchmark (`bench_heal/RESULTS.md`, least-damaging operating point)
+
+Localize (NLL / BLR / BGMM) → mask → Dirichlet-FM inpaint → score. Reported at the
+**max-net/corrupt** operating point (best case; the GT-free deployable choice is
+cal-set **F0.5** — precision-weighted, since healing is damage-averse: over-recall
+breaks clean tokens and goes net-negative).
+
+All rows below select **fpr = 0.02** (the least-damaging point of the sweep). `loc_*` is
+how well the localizer *finds* the corrupt tokens; `fix`/`damage`/`net` is what the
+inpainter then *does* with them.
+
+**Synthetic text8** (n_demo=64, 3 corruption seeds):
+
+| localizer | scheme | loc_P | loc_R | loc_F1 | fix | damage | **net/corrupt** |
+|---|---|---|---|---|---|---|---|
+| NLL | replace | 0.825 | 0.757 | 0.790 | 0.575 | 0.028 | **+0.420** |
+| NLL | falseinfo | 0.347 | 0.089 | 0.142 | 0.021 | 0.020 | −0.140 |
+| BLR | replace | 0.666 | 0.691 | 0.679 | 0.461 | 0.046 | +0.202 |
+| BLR | falseinfo | 0.261 | 0.058 | 0.095 | 0.010 | 0.015 | −0.113 |
+| BGMM | replace | 0.599 | 0.318 | 0.416 | 0.242 | 0.017 | +0.144 |
+| BGMM | falseinfo | 0.185 | 0.032 | 0.055 | 0.003 | 0.008 | −0.059 |
+
+**Real biomedical article (insulin)** — Track A = char noise, Track C = false info:
+
+| localizer | track | loc_P | loc_R | loc_F1 | fix | damage | **net/corrupt** |
+|---|---|---|---|---|---|---|---|
+| NLL | A | 0.785 | 0.787 | 0.786 | 0.581 | 0.037 | **+0.374** |
+| NLL | C | 0.513 | 0.196 | 0.283 | 0.040 | 0.023 | −0.142 |
+| BGMM | A | 0.589 | 0.329 | 0.422 | 0.241 | 0.021 | **+0.122** |
+| BGMM | C | 0.246 | 0.059 | 0.096 | 0.003 | 0.010 | −0.075 |
+| GMM | A | 0.132 | 0.012 | 0.021 | 0.011 | 0.001 | +0.007 |
+| GMM | C | 0.066 | 0.012 | 0.020 | 0.000 | 0.001 | −0.004 |
+
+Char/geometric healing is net-positive **and transfers to the real article** (NLL
+**+0.374**); false-info healing is net-negative at every operating point — the localizer
+flags few words and the inpainter cannot restore the true one. **Detection ≠ healing.**
+
+> **Corrected (2026-07-14).** The earlier claim that *"BGMM is a poor char-noise localizer
+> (net-negative on insulin Track A, −0.30)"* was **an artifact of the operating point**, not
+> a property of BGMM. `heal_protein_poc.py` selected by max cal-**F1**, which over-weights
+> recall and lands on the damaging end (fpr = 0.10); it also recorded only that single
+> point, so the benchmark could not re-select. With **F0.5** + a full FPR sweep, BGMM Track
+> A is **+0.122** and GMM is **+0.007** (both previously reported negative). Healing is
+> damage-averse — a false-positive edit *breaks a clean token*, and clean tokens vastly
+> outnumber corrupt ones — so recall-weighted selection is simply the wrong rule here.
+
+## Lessons (Objective 3)
+
+1. **Training-free NLL is the best localizer for geometric corruption**, and it beats the
+   external LM by a wide margin *at the common unit* (word: 0.981/0.963 vs 0.738/0.746) —
+   a clean, cheap, positive result that does not depend on a favourable granularity.
+2. **A pretrained LM still wins where world knowledge is the signal.** GPT2_NLL beats us on
+   false-info (word 0.853 vs 0.813). Honest loss, small margin, entirely explicable — and
+   worth reporting, because a reviewer will look for exactly this.
+3. **The measurement unit is part of the claim.** Char corruption *shatters* a BPE
+   tokenizer (+70% tokens at 15% noise), so BPE-level localization is degenerate there and
+   BPE→char attribution is ill-posed in both directions. Score each model in its native
+   unit; compare at the coarsest common one. Getting this wrong flattered *and* deflated
+   different baselines at the same time.
+4. **Supervision is needed for *plausible* errors — but not for false-info** (this is the
+   corrected version of an earlier claim). At word level the zero-training NLL (0.813)
+   matches a head supervised on false-info (0.800). But no unsupervised readout touches
+   plausible swaps: the model's own likelihood **inverts** (0.264), because the swap is
+   *constructed* to minimise it. Only a head trained on plausible negatives works (0.904;
+   0.79 frequency-controlled).
+5. **Specialists anti-transfer — but a unified head exists, and the geometry dictates its
+   shape.** The specialist heads form a strict diagonal (false-info-trained → plausible
+   0.473; plausible-trained → false-info 0.471; both *below* chance at sequence level, so
+   they actively mislead each other). The reason is geometric: the **paired mean shifts
+   oppose** (cos = −0.49), so clean sits *between* the corruption clusters and a signed
+   hyperplane must pick a side. But the **learned directions align** (cos = +0.40), so a
+   shared head does exist — and training one on the union confirms it (all unified heads
+   clear chance on both). The right functional form is **sign-agnostic**: a rank-8
+   *quadratic* (distance-from-clean in a learned subspace) beats the linear compromise on
+   plausible (0.683 vs 0.597) and posts the best sequence AUROC of any head — while an MLP
+   with vastly more capacity adds only ~0.03. **The catch:** unification costs ~0.19 AUROC
+   on plausible versus its specialist, and the MLP's 0.99 *training* accuracy vs 0.710
+   held-out shows this is a **representation** limit, not a capacity one. Know your failure
+   mode → specialist; don't → quadratic unified head.
+6. **Report held-out, not in-sample.** The latent-split 0.93 was an in-sample ceiling;
+   deployed it is ~0.75–0.87. SVGP saturates (information + concentration-of-measure).
+7. **Healing is damage-averse and geometry-bound.** A false-positive edit *breaks a clean
+   token*, and clean tokens vastly outnumber corrupt ones — so select by precision
+   (**F0.5**, not F1), stay at low FPR, and expect net gains only on corruption that leaves
+   forensic evidence, never on fluent falsehood. Choosing the recall-weighted rule was
+   enough to turn a **+0.12** result into a reported **−0.30**.
+
+Reproduce any arm: `git checkout <manifest.git_sha> && git apply
+bench_ood/repro.patch && cp bench_ood/new_scripts/* scripts/ && <arm cmd from
+manifest.arms[]>`. Drivers: `scripts/run_bench_ood.py`, `scripts/run_bench_heal.py`;
+aggregators `scripts/bench_aggregate.py`, `scripts/run_bench_heal.py --aggregate-only`.

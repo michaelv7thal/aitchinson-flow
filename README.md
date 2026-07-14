@@ -12,7 +12,7 @@ load-bearing implementation details.
 |---|---|---|---|
 | 1 | Unconditional generation | **Fails** — matches low-order n-gram stats, not words | `EVAL_ASSESSMENT.md` §Obj1; `NOTE_WHY_UNCONDITIONAL_FAILS.md` |
 | 2 | Conditional recovery | **Fails (no-op)** — descent returns the corrupted input (Δ@α≈0); only a marginal, non-competitive bump at mid-α (Δ@.50 ≈ +0.06) | `NOTE_EQUILIBRIUM_FAILURE_CLASS.md` §B; `EVAL_ASSESSMENT.md` §Obj2 |
-| 3 | OOD detection | EBM **energy fails on order / is stuck**; **hinge-SVGP works** | `EVAL_ASSESSMENT.md` §Obj3; `SFLM_EBM_FINDINGS.md`, `DFM_SVGP_FINDINGS.md` |
+| 3 | OOD detection | **Works** — native EBM energy fails on order, but a full detector benchmark on frozen `DirichletFM` shows: training-free **NLL wins replace/shuffle at the fair (word) unit** (0.981/0.963 vs GPT-2's 0.738/0.746); **false-info localizes to the word** (0.813 — but **GPT-2's NLL beats us**, 0.853); **plausible errors need supervision** — and one **sign-agnostic (quadratic)** head covers *all* corruptions, though specialists still win their own; **healing recovers geometry, not meaning** | **`RESULTS.md` §Objective 3** (`bench_ood/`, `bench_heal/`); `EVAL_ASSESSMENT.md` §Obj3 (SVGP-era, superseded) |
 
 **Start here → [`EVAL_ASSESSMENT.md`](EVAL_ASSESSMENT.md)**: which eval to report
 per objective, the headline numbers, *what works / what fails and WHY* (linked to
@@ -24,6 +24,16 @@ theory), peer-comparable BPC, and the run triage.
 |---|---|
 | [CLAUDE.md](CLAUDE.md) | Architecture, conventions, load-bearing fixes (read before editing EqM) |
 | **[EVAL_ASSESSMENT.md](EVAL_ASSESSMENT.md)** | **Eval reference — the meaningful metrics + theory + peer comparability** |
+| **[RESULTS.md](RESULTS.md) §Objective 3** | **OOD-detection + healing benchmark** — 3 claims, detector comparison, plausible boundary, real-text transfer, healing (reproducible in `bench_ood/` + `bench_heal/`, each with a manifest + repro patch) |
+| [SESSION_OOD_HEALING.md](SESSION_OOD_HEALING.md) | Session findings/decisions log for the Obj-3 benchmark — corrections (in-sample vs held-out, SVGP saturation, **the spilled-energy fix + char-vs-BPE eval protocol**), bugs fixed, open threads |
+
+> **Eval protocol for the external-LM baseline** (see `CLAUDE.md` §"Spilled energy"): our
+> detectors score **characters**, GPT-2 scores **BPE tokens**, and the head-to-head happens
+> at the **word** level. A BPE score is never attributed *down* onto characters (ill-posed);
+> pooling *up* is exact. Character corruption *shatters* GPT-2's tokenization (+70% tokens at
+> 15% noise), so words are the only unit stable across both tokenizations. The repo's
+> "spilled energy" was a per-token **NLL** until 2026-07-13; the real cross-step ΔE (Minut
+> et al., ICLR 2026) now runs as `gpt2_se`, with `gpt2_nll` as the fair localization comparator.
 | [CLUSTER_RUNBOOK_L256.md](CLUSTER_RUNBOOK_L256.md) | Hand-off recipe for the L=256 GPU run on the 20 GB cluster |
 | [REPORT.md](REPORT.md) | Phase A–H technical report |
 | [CAPSTONE_PLAN.md](CAPSTONE_PLAN.md) / [CAPSTONE_EXPERIMENTS.md](CAPSTONE_EXPERIMENTS.md) | Strategy + follow-up tracks |

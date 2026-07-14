@@ -52,10 +52,15 @@ from scripts.ood_variance_perpos import (  # noqa: E402
     _perpos_feats,
     _auroc,
 )
+from scripts._bench_common import (  # noqa: E402
+    heal_style_examples, make_adversarial_negatives, det_metrics, word_metrics,
+)
 from aitchinson_flow.training import build_training_datamodule  # noqa: E402
 from aitchinson_flow.data.corruption import (  # noqa: E402
     corrupt_token_ids,
     partially_shuffle_token_ids,
+    corrupt_false_info,
+    build_vocab_by_len,
 )
 
 _ALPH = "abcdefghijklmnopqrstuvwxyz "  # text8 K=27 (best-effort for example dump)
@@ -91,6 +96,32 @@ def main() -> int:
         help="replace-corruption rate for the per-token training negatives",
     )
     ap.add_argument("--margin", type=float, default=4.0)
+    ap.add_argument("--head", choices=["hinge", "logistic"], default="hinge",
+                    help="energy head: 'hinge' (margin, GPU minibatch) or 'logistic' "
+                         "(sklearn LogisticRegression full-dim — the latent-split "
+                         "estimator, deployed HELD-OUT; model-agnostic).")
+    ap.add_argument("--logistic-c", type=float, default=1.0,
+                    help="[logistic] inverse L2 regularisation strength")
+    ap.add_argument("--logistic-max-iter", type=int, default=2000)
+    ap.add_argument("--logistic-max-fit", type=int, default=60000,
+                    help="[logistic] cap on per-class training tokens (subsampled)")
+    ap.add_argument("--train-schemes", type=str, default="replace",
+                    help="comma list of corruption schemes for the SYNTHETIC "
+                         "ADVERSARIAL training negatives (replace/shuffle/falseinfo/"
+                         "both/plausible). Default 'replace' (back-compat). "
+                         "'replace,shuffle,falseinfo,both' = the general head. Adding "
+                         "**plausible** (model-guided min-NLL swap) tests whether ONE "
+                         "head can also cover the corruption that anti-transfers: the "
+                         "specialists' mean shifts oppose (cos=-0.49) but their LEARNED "
+                         "directions align (cos=+0.40), so a unifying w should exist.")
+    ap.add_argument("--train-plausible-seqs", type=int, default=128,
+                    help="# fit windows to build 'plausible' negatives on (it costs "
+                         "n_cands forward passes per swapped word, so it runs on a "
+                         "subset; other schemes use all fit windows)")
+    ap.add_argument("--train-n-cands", type=int, default=48,
+                    help="[plausible] candidate words scored per swap slot")
+    ap.add_argument("--train-t-nll", type=float, default=3.0,
+                    help="[plausible] path-time for the min-NLL swap search")
     ap.add_argument("--steps", type=int, default=600)
     ap.add_argument("--lr", type=float, default=5e-2)
     ap.add_argument(
@@ -100,7 +131,7 @@ def main() -> int:
         help="Laplace prior precision: Sigma_w=(Phi + ridge*tr(Phi)/d*I)^-1",
     )
     ap.add_argument("--max-fit-pos", type=int, default=120000)
-    ap.add_argument("--schemes", type=str, default="replace,shuffle,both")
+    ap.add_argument("--schemes", type=str, default="replace,shuffle,both,falseinfo")
     ap.add_argument("--rates", type=str, default="0.1,0.3,0.5,0.7,1.0")
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--split", choices=["train", "val", "test"], default="val",
@@ -144,14 +175,29 @@ def main() -> int:
     fit_tok = seqs[: args.fit_seqs]
     pos_tok = seqs[args.fit_seqs : args.fit_seqs + args.n]
 
-    # ---- features: clean fit set + corrupted (for per-token training labels) ----
+    # ---- features: clean fit set ----
     fc = _perpos_feats(model, fit_tok, t_eval, device)  # (Nf,L,d)
     d = fc.shape[-1]
-    corr_tok = corrupt_token_ids(
-        fit_tok.clone(), vocab_size=K, corrupt_rate=args.train_rate, seed=args.seed
-    )
-    fk = _perpos_feats(model, corr_tok, t_eval, device)  # (Nf,L,d)
-    label_corr = corr_tok != fit_tok  # (Nf,L) bool
+
+    # ---- synthetic ADVERSARIAL negatives: one corrupted copy per train scheme ----
+    train_schemes = [s for s in args.train_schemes.split(",") if s.strip()]
+    by_len_tr = None
+    if any(s in ("falseinfo", "wordswap") for s in train_schemes):
+        _txt = " ".join("".join(_ALPH[int(i)] if int(i) < len(_ALPH) else "?"
+                                for i in row) for row in fit_tok)
+        by_len_tr = build_vocab_by_len(_txt)
+    # `plausible` in the mix is the model-guided min-NLL swap: expensive (n_cands
+    # forward passes per swapped word), so it is generated on a subset of the fit
+    # windows. It contributes fewer tokens to the pool, which is fine — each scheme's
+    # features and mask are flattened independently below.
+    adv = make_adversarial_negatives(fit_tok, K=K, by_len=by_len_tr,
+                                     schemes=train_schemes, rate=args.train_rate,
+                                     seed=args.seed,
+                                     model=model, t_nll=args.train_t_nll,
+                                     device=device, n_cands=args.train_n_cands,
+                                     plausible_seqs=args.train_plausible_seqs)
+    print(f"[bayeslin] adversarial train mix: "
+          f"{[(s, int(m.sum())) for s, _, m in adv]}  (scheme, #corrupt tokens)")
 
     def _make_proj(fc_flat):
         """Standardiser (+optional PCA) fitted on a CLEAN feature cloud. Returns
@@ -179,33 +225,70 @@ def main() -> int:
 
     _proj, feat_dim = _make_proj(fc.reshape(-1, d))  # ENERGY standardiser @ t_eval
 
-    zc = _proj(fc.reshape(-1, d)).to(device)  # clean per-token
-    zk = _proj(fk.reshape(-1, d)).to(device)  # corrupted per-token
-    yk = label_corr.reshape(-1).to(device).float()  # 1 = corrupted char
+    # Keep all per-token features on CPU (fit_seqs*L*d_model is multi-GB; moving the
+    # whole pool to an 8 GB GPU OOMs — esp. the adversarial multi-scheme mix). The
+    # head trains on minibatches shuttled to the GPU per step; only the tiny head
+    # lives on the device.
+    zc = _proj(fc.reshape(-1, d))             # clean per-token (CPU)
+    zk_list, yk_list = [], []                 # corrupted per-token, pooled over schemes
+    for _scheme, ct, mask in adv:
+        fk_s = _perpos_feats(model, ct, t_eval, device)
+        zk_list.append(_proj(fk_s.reshape(-1, d)))          # CPU
+        yk_list.append(mask.reshape(-1).float())            # CPU
+    zk = torch.cat(zk_list, 0)
+    yk = torch.cat(yk_list, 0)
     print(
         f"[bayeslin] d_model={d} feat_dim={feat_dim} t_eval={t_eval} "
-        f"clean_tok={zc.shape[0]} corr_tok(label1)={int(yk.sum())}"
+        f"clean_tok={zc.shape[0]} corr_tok(label1)={int(yk.sum())} "
+        f"mix={'+'.join(train_schemes)}"
     )
 
-    # ---- train the linear head with a per-TOKEN hinge ----
-    head = nn.Linear(feat_dim, 1).to(device)
-    opt = torch.optim.Adam(head.parameters(), lr=args.lr)
-    margin = float(args.margin)
+    # ---- train the per-token energy head: hinge (default) OR logistic ----
     # positives (valid chars): all clean tokens + the UNCHANGED tokens of corrupt seqs
-    zpos = torch.cat([zc, zk[yk == 0]], 0)
-    zneg = zk[yk == 1]
-    for step in range(args.steps):
-        opt.zero_grad()
-        ep = head(zpos).squeeze(-1)
-        en = head(zneg).squeeze(-1)
-        loss = ep.pow(2).mean() + torch.relu(margin - en).mean()
-        loss.backward()
-        opt.step()
-        if step % 100 == 0 or step == args.steps - 1:
-            print(
-                f"  step {step:4d}  E_valid={ep.mean():+.3f}  E_corrupt={en.mean():+.3f}"
-                f"  gap={(en.mean() - ep.mean()):+.3f}"
-            )
+    zpos = torch.cat([zc, zk[yk == 0]], 0)    # CPU
+    zneg = zk[yk == 1]                        # CPU
+    if args.head == "logistic":
+        # The latent-split ceiling was a full-dim LOGISTIC probe; deploy exactly that
+        # as a HELD-OUT detector. energy = signed distance to the LR boundary.
+        from sklearn.linear_model import LogisticRegression
+
+        def _samp(t, cap):
+            if t.shape[0] > cap:
+                return t[torch.randperm(t.shape[0])[:cap]]
+            return t
+        Xp = _samp(zpos, args.logistic_max_fit).numpy()
+        Xn = _samp(zneg, args.logistic_max_fit).numpy()
+        Xtr = np.concatenate([Xp, Xn], 0)
+        ytr = np.r_[np.zeros(Xp.shape[0]), np.ones(Xn.shape[0])]
+        clf = LogisticRegression(C=args.logistic_c, max_iter=args.logistic_max_iter)
+        clf.fit(Xtr, ytr)
+        print(f"[bayeslin] LOGISTIC head fit on {Xtr.shape[0]} tok "
+              f"(C={args.logistic_c}); energy = LR decision function")
+
+        def energy_of(z_cpu):  # (N,feat) CPU -> (N,) CPU energy
+            return torch.from_numpy(clf.decision_function(z_cpu.numpy())).float()
+    else:
+        head = nn.Linear(feat_dim, 1).to(device)
+        opt = torch.optim.Adam(head.parameters(), lr=args.lr)
+        margin = float(args.margin)
+        bs = int(min(16384, zpos.shape[0], zneg.shape[0]))
+        gen = torch.Generator().manual_seed(args.seed)
+        for step in range(args.steps):
+            pi = torch.randint(zpos.shape[0], (bs,), generator=gen)
+            ni = torch.randint(zneg.shape[0], (bs,), generator=gen)
+            opt.zero_grad()
+            ep = head(zpos[pi].to(device)).squeeze(-1)
+            en = head(zneg[ni].to(device)).squeeze(-1)
+            loss = ep.pow(2).mean() + torch.relu(margin - en).mean()
+            loss.backward()
+            opt.step()
+            if step % 100 == 0 or step == args.steps - 1:
+                print(f"  step {step:4d}  E_valid={ep.mean():+.3f}  "
+                      f"E_corrupt={en.mean():+.3f}  gap={(en.mean() - ep.mean()):+.3f}")
+        head.eval()
+
+        def energy_of(z_cpu):
+            return head(z_cpu.to(device)).squeeze(-1).cpu()
 
     # ---- Laplace posterior covariance, read in the PEAKY regime (var_t) -------
     # The variance is read at var_t (>> t_eval). At t_eval the Mahalanobis
@@ -216,16 +299,23 @@ def main() -> int:
     fc_v = _perpos_feats(model, fit_tok, var_t, device)  # (Nf,L,d) clean @ var_t
     dv = fc_v.shape[-1]
     _proj_v, feat_dim_v = _make_proj(fc_v.reshape(-1, dv))  # VARIANCE standardiser
-    zc_v = _proj_v(fc_v.reshape(-1, dv)).to(device)
-    Phi = zc_v.double().T @ zc_v.double() / zc_v.shape[0]
+    # Accumulate Phi = E[zs zs^T] in CPU-double chunks (never materialise the whole
+    # standardised cloud on the GPU) and factor on CPU (GPU cusolver OOMs/errors
+    # once the head features already fill the 8 GB card).
+    Zv = _proj_v(fc_v.reshape(-1, dv))  # CPU float
+    Phi = torch.zeros(feat_dim_v, feat_dim_v, dtype=torch.float64)
+    nrow = 0
+    for i in range(0, Zv.shape[0], 32768):
+        zb = Zv[i:i + 32768].double()
+        Phi += zb.T @ zb
+        nrow += zb.shape[0]
+    Phi /= nrow
     jit = args.ridge * Phi.trace() / feat_dim_v
     L = torch.linalg.cholesky(
-        Phi + jit * torch.eye(feat_dim_v, device=device, dtype=Phi.dtype)
-    )  # Var = ||L^-1 zs||^2
+        Phi + jit * torch.eye(feat_dim_v, dtype=Phi.dtype)
+    )  # CPU double; Var = ||L^-1 zs||^2
     print(f"[bayeslin] energy @ t_eval={t_eval}  variance @ var_t={var_t} "
           f"(feat_dim_var={feat_dim_v})")
-
-    head.eval()
 
     @torch.no_grad()
     def score(tok, chunk=16):
@@ -235,21 +325,34 @@ def main() -> int:
             tb = tok[i : i + chunk]
             h = _perpos_feats(model, tb, t_eval, device)  # energy feats @ t_eval
             b, Lq, _ = h.shape
-            z = _proj(h.reshape(-1, d)).to(device)  # (b*L,feat_dim)
-            E = head(z).squeeze(-1).reshape(b, Lq).cpu()
+            z = _proj(h.reshape(-1, d))  # (b*L,feat_dim) CPU
+            E = energy_of(z).reshape(b, Lq)
             hv = _perpos_feats(model, tb, var_t, device)  # variance feats @ var_t
-            zv = _proj_v(hv.reshape(-1, dv)).to(device)
-            w = torch.linalg.solve_triangular(L, zv.double().T, upper=False)
-            V = (w * w).sum(0).reshape(b, Lq).float().cpu()
+            zv = _proj_v(hv.reshape(-1, dv))              # CPU
+            w = torch.linalg.solve_triangular(L, zv.double().T, upper=False)  # CPU
+            V = (w * w).sum(0).reshape(b, Lq).float()
             Es.append(E)
             Vs.append(V)
         return torch.cat(Es), torch.cat(Vs)
+
+    # false-info replacement vocab (built once from the fit windows), if requested
+    _req_schemes = [s for s in args.schemes.split(",") if s.strip()]
+    by_len = None
+    if any(s in ("falseinfo", "wordswap") for s in _req_schemes):
+        fit_txt = " ".join(
+            "".join(_ALPH[int(i)] if int(i) < len(_ALPH) else "?" for i in row)
+            for row in fit_tok
+        )
+        by_len = build_vocab_by_len(fit_txt)
+        print(f"[blr] false-info vocab: lengths {min(by_len)}-{max(by_len)}")
 
     def _corrupt(tok, scheme, rate, seed):
         if scheme == "replace":
             return corrupt_token_ids(tok, vocab_size=K, corrupt_rate=rate, seed=seed)
         if scheme == "shuffle":
             return partially_shuffle_token_ids(tok, shuffle_rate=rate, seed=seed)
+        if scheme in ("falseinfo", "wordswap"):
+            return corrupt_false_info(tok, rate, by_len, seed=seed)
         out = corrupt_token_ids(tok, vocab_size=K, corrupt_rate=rate, seed=seed)
         return partially_shuffle_token_ids(out, shuffle_rate=rate, seed=seed + 1)
 
@@ -267,25 +370,38 @@ def main() -> int:
     ]
     print(
         f"\n{'scheme':>9} {'rate':>5} {'AUROC_seq_E':>12} {'AUROC_seq_Var':>14} "
-        f"{'tokAUROC_E':>11} {'tokAUROC_Var':>13}"
+        f"{'tokAUROC_E':>11} {'tokAUROC_Var':>13} {'tokP@5':>7} {'tokR@5':>7} {'tokF1@5':>8}"
     )
     schemes = [s for s in args.schemes.split(",") if s.strip()]
     rates = [float(r) for r in args.rates.split(",") if r.strip()]
+    Ep_tok = Ep.numpy().reshape(-1)  # clean per-token energy: threshold calibration
     for scheme in schemes:
         for r in rates:
             ot = _corrupt(pos_tok.clone(), scheme, r, args.seed + int(1000 * r))
             Eo, Vo = score(ot)
+            Eo_seq = Eo.mean(1).numpy()
             lab = np.r_[np.zeros(len(Ep_seq)), np.ones(Eo.shape[0])]
-            au_E = _auroc(np.r_[Ep_seq, Eo.mean(1).numpy()], lab)  # seq energy
+            au_E = _auroc(np.r_[Ep_seq, Eo_seq], lab)  # seq energy
             au_V = _auroc(np.r_[Vp_seq, Vo.mean(1).numpy()], lab)  # seq uncertainty
             changed = ot != pos_tok
             tl_E = tl_V = float("nan")
+            cm = changed.numpy().reshape(-1).astype(int)
             if changed.any() and (~changed).any():
-                cm = changed.numpy().reshape(-1).astype(int)
                 tl_E = _auroc(Eo.numpy().reshape(-1), cm)  # per-token energy
                 tl_V = _auroc(Vo.numpy().reshape(-1), cm)  # per-token uncertainty
+            # --- operating-point metrics on the ENERGY head (the deployed score) ---
+            m_seq = det_metrics(Ep_seq, Ep_seq, Eo_seq)
+            eo_tok = Eo.numpy().reshape(-1)
+            m_tok = det_metrics(Ep_tok, eo_tok[cm == 0], eo_tok[cm == 1])
+            # WORD level — the common unit vs the BPE-tokenised LM baselines.
+            w_max = word_metrics(Ep, pos_tok, Eo, ot, changed, op="max")
+            w_mean = word_metrics(Ep, pos_tok, Eo, ot, changed, op="mean")
+            p5 = m_tok["prf"].get("0.05", {})
             print(
-                f"{scheme:>9} {r:>5.2f} {au_E:>12.4f} {au_V:>14.4f} {tl_E:>11.4f} {tl_V:>13.4f}"
+                f"{scheme:>9} {r:>5.2f} {au_E:>12.4f} {au_V:>14.4f} {tl_E:>11.4f} "
+                f"{tl_V:>13.4f} {p5.get('precision', float('nan')):>7.3f} "
+                f"{p5.get('recall', float('nan')):>7.3f} "
+                f"{p5.get('f1', float('nan')):>8.3f}"
             )
             rows.append(
                 {
@@ -296,38 +412,22 @@ def main() -> int:
                     "auroc_seq_uncertainty": au_V,
                     "auroc_token_energy": tl_E,
                     "auroc_token_uncertainty": tl_V,
+                    "prf_seq": m_seq,
+                    "prf_token": m_tok,
+                    "word_max": w_max,
+                    "word_mean": w_mean,
+                    "auroc_word_max": w_max["word"].get("auroc"),
+                    "auroc_word_mean": w_mean["word"].get("auroc"),
                     "E_seq_mean": float(Eo.mean()),
                     "Var_seq_mean": float(Vo.mean()),
                 }
             )
 
-    # ---- a couple of per-token examples (char, E_t, Var_t, corrupted) for heatmaps ----
-    examples = []
-    ex_tok = pos_tok[:2]
-    ex_corr = corrupt_token_ids(ex_tok.clone(), vocab_size=K, corrupt_rate=0.3, seed=7)
-    ex_changed = ex_corr != ex_tok  # (2, L) bool
-    for tag, tk in [("clean", ex_tok), ("corrupt30", ex_corr)]:
-        E, V = score(tk)
-        for b in range(tk.shape[0]):
-            ids = tk[b].tolist()
-            # which positions are corrupted vs the clean source (clean -> none)
-            ch = (
-                ex_changed[b]
-                if tag == "corrupt30"
-                else torch.zeros_like(ex_tok[b], dtype=torch.bool)
-            )
-            examples.append(
-                {
-                    "which": tag,
-                    "idx": b,
-                    "text": "".join(
-                        _ALPH[i] if i < len(_ALPH) else "?" for i in ids[:120]
-                    ),
-                    "E_t": [round(float(x), 4) for x in E[b][:120].tolist()],
-                    "Var_t": [round(float(x), 4) for x in V[b][:120].tolist()],
-                    "corrupted": [bool(x) for x in ch[:120].tolist()],
-                }
-            )
+    # ---- healing-style per-token examples (clean/replace30/falseinfo30 + flagged) --
+    print("\n=== healing-style examples ===")
+    examples, ex_flag_thr = heal_style_examples(
+        lambda t: score(t)[0], pos_tok, pos_tok[:2], K=K, by_len=by_len,
+        score_key="E_t", example_fpr=0.05, max_pos=args.max_pos)
 
     out_path = Path(args.out or (Path(args.ckpt).parent / "bayes_linear_sweep.json"))
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -335,15 +435,18 @@ def main() -> int:
         json.dumps(
             {
                 "ckpt": args.ckpt,
+                "train_schemes": train_schemes,
+                "head": args.head,
                 "t_eval": t_eval,
                 "var_t_eval": var_t,
                 "d_model": d,
                 "feat_dim": feat_dim,
                 "pca_dim": args.pca_dim,
-                "margin": margin,
+                "margin": (args.margin if args.head == "hinge" else None),
                 "ridge": args.ridge,
                 "detector": "BayesLinHead",
                 "detector_long": "Bayesian linear energy head; E=discriminative, Var=uncertainty; per-token + sequence",
+                "flag_thr": ex_flag_thr,
                 "rows": rows,
                 "examples": examples,
             },

@@ -18,9 +18,11 @@ Cache schema (all tensors float32 on CPU; each entry has B chunks):
 * ``invalid_topk_idx`` (B, L, K) long
 * ``clean_h``        (B, L, H) float — last-hidden-state per position
 * ``invalid_h``      (B, L, H) float
-* ``clean_SE_pos``   (B, L) float — Spilled Energy per position:
-                                     ``logsumexp(logits) - logits[token_id]``
-                                     (i.e. the LM's per-position NLL).
+* ``clean_SE_pos``   (B, L) float — the LM's per-position **NLL**:
+                                     ``logsumexp(logits) - logits[token_id]``.
+                                     (Field name kept for cache compatibility; it is
+                                     an NLL, NOT the spilled energy of Minut et al.
+                                     ICLR 2026 — see ``_per_position_nll``.)
 * ``invalid_SE_pos`` (B, L) float
 
 Plus a small metadata blob: ``{"lm": "gpt2", "L": 64, "K": 64, "V": 50257,
@@ -29,7 +31,6 @@ Plus a small metadata blob: ``{"lm": "gpt2", "L": 64, "K": 64, "V": 50257,
 
 from __future__ import annotations
 
-import math
 from pathlib import Path
 from typing import Any
 
@@ -101,20 +102,29 @@ def _topk_clr(logits: torch.Tensor, K: int) -> tuple[torch.Tensor, torch.Tensor]
 
 
 @torch.no_grad()
-def _spilled_energy_per_pos(
+def _per_position_nll(
     logits: torch.Tensor, token_ids: torch.Tensor
 ) -> torch.Tensor:
-    """Spilled Energy per position for an autoregressive LM.
+    """Per-position NLL for an autoregressive LM.
+
+    RENAMED (2026-07) from ``_spilled_energy_per_pos``, which was a misnomer: this
+    is the SAME-STEP negative log-likelihood ``−log p(x_i | x_<i)``, **not** the
+    spilled energy of Minut, Dewidar & Masi (ICLR 2026, arXiv:2602.18671). Theirs is
+    the CROSS-STEP discrepancy ``logsumexp(logits_i) − logits_{i-1}[x_i]``, pairing
+    the logit energy at step i-1 with the marginal energy at step i; the two differ
+    by the log-partition drift ``logsumexp(logits_i) − logsumexp(logits_{i-1})``,
+    which is exactly the signal spilled energy is about. The real thing lives in
+    ``scripts/bench_sflm_ebm._gpt2_bpe_scores(score="spilled")``.
 
     For GPT-2-style decoders ``logits[..., i, :]`` is a distribution over
     the *next* token (position i+1), so the per-position NLL of the
     actually-placed token at position i+1 is::
 
-        SE(i+1) = logsumexp(logits[..., i, :]) − logits[..., i, token_ids[..., i+1]]
+        NLL(i+1) = logsumexp(logits[..., i, :]) − logits[..., i, token_ids[..., i+1]]
 
     We return a tensor of the same shape as ``token_ids`` (..., L). Position
-    0 has no prior context, so ``SE(0) = 0``. The output is shifted-and-
-    aligned so that ``SE_pos[..., k]`` is the NLL of the token at
+    0 has no prior context, so ``NLL(0) = 0``. The output is shifted-and-
+    aligned so that ``out[..., k]`` is the NLL of the token at
     position k.
 
     logits: (..., L, V), token_ids: (..., L) → (..., L)
@@ -181,5 +191,5 @@ __all__ = [
     "load_wiki_cache",
     "span_corrupt",
     "_topk_clr",
-    "_spilled_energy_per_pos",
+    "_per_position_nll",
 ]

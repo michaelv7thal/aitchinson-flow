@@ -53,6 +53,7 @@ _bootstrap()
 from scripts.ood_variance_perpos import _load_dirichletfm  # noqa: E402
 from scripts.heal_dirichlet import (  # noqa: E402
     _decode,
+    make_gmm_localizer,
     make_nll_localizer,
     train_localizer,
     calibrate_threshold,
@@ -74,7 +75,12 @@ def main() -> int:
     ap.add_argument("--ckpt", required=True)
     ap.add_argument("--out", default="heal_out/heal_iterative_nll.json")
     ap.add_argument("--split", choices=["train", "val", "test"], default="test")
-    ap.add_argument("--localizer", choices=["nll", "linear"], default="nll")
+    ap.add_argument("--localizer", choices=["nll", "linear", "gmm"], default="nll")
+    ap.add_argument("--gmm-n-components", type=int, default=8)
+    ap.add_argument("--gmm-covariance-type",
+                    choices=["diag", "full", "tied", "spherical"], default="diag")
+    ap.add_argument("--gmm-pca-dim", type=int, default=64)
+    ap.add_argument("--gmm-reg-covar", type=float, default=1e-4)
     ap.add_argument("--t-nll", type=float, default=3.0, help="[nll] denoiser-NLL path-time")
     ap.add_argument("--t-eval", type=float, default=None, help="[linear] feature path-time")
     ap.add_argument("--iters", type=int, default=5, help="# heal repetitions")
@@ -126,6 +132,11 @@ def main() -> int:
     # ---- localizer (mask) + a denoiser-NLL scorer for the plausibility metric --
     if args.localizer == "nll":
         score, _ = make_nll_localizer(model, args.t_nll, device)
+    elif args.localizer == "gmm":
+        score, _ = make_gmm_localizer(
+            model, fit_tok, t_eval, device, n_components=args.gmm_n_components,
+            covariance_type=args.gmm_covariance_type, pca_dim=args.gmm_pca_dim,
+            reg_covar=args.gmm_reg_covar, seed=args.seed)
     else:
         score, _ = train_localizer(model, fit_tok, t_eval, device,
                                    train_rate=args.train_rate, margin=args.margin,

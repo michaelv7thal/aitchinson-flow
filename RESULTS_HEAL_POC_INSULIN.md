@@ -66,6 +66,39 @@ fluent filler instead.
 This is the defensible, ML-for-bio-appropriate framing: **denoising ≠ fact-checking**.
 Relates to the capstone claim ledger — do not overclaim "heals anything from context."
 
+## Follow-up: can a GMM feature-density localizer catch Track C?
+
+The NLL localizer reads *local* character surprise, so a lexically-valid same-length
+word-swap passes through (Track C). A candidate fix is a **one-class Gaussian-mixture
+density** on the DirichletFM *contextual backbone features* (`make_gmm_localizer`,
+`scripts/heal_dirichlet.py`; standalone detector `scripts/ood_gmm_perpos.py`): a
+wrong-but-valid word may produce a contextual feature that lands in a low-density
+region of the ID mixture even though its char-NLL is low. The false-info corruption is
+now a first-class scheme (`falseinfo`) in `data/corruption.py`, shared by the OOD
+sweeps (GMM / NLL / BayesLin) so the three are scored head-to-head on the semantic axis.
+
+**Open scientific risk:** at the default `t_eval=4.5` the deterministic-mean input is
+strongly token-dominated, so a valid swap may land *on* the ID manifold and the GMM may
+also miss it — hence `ood_gmm_perpos.py --t-evals` sweeps lower (more context-dependent)
+times. If the GMM misses Track C across all `t_eval`, that is itself a clean result
+("feature-density does not fact-check either"), consistent with denoising ≠ fact-checking.
+
+Run the GMM localizer on the same PoC (fill in the Track-C row once run on the cluster):
+
+```bash
+uv run python -u scripts/heal_protein_poc.py \
+  --ckpt runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM/epoch_best.pt \
+  --article-json heal_poc_insulin/insulin_article_extract.json --name insulin \
+  --localizer gmm --gmm-n-components 8 --gmm-covariance-type diag --gmm-pca-dim 64 \
+  --corrupt-rate 0.15 --n-demo 32 --n-seeds 3 --nfe 100 \
+  --out heal_poc_insulin/heal_insulin_poc_gmm.json
+```
+
+| track (localizer) | loc_R | fix | net/corrupt |
+|-------------------|------:|----:|-------------|
+| C — false info (NLL)  | 0.196 | 0.040 | −0.142 |
+| C — false info (GMM)  | _pending cluster run_ | | |
+
 ## Reproduce
 
 ```bash

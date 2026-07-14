@@ -31,7 +31,6 @@ import argparse
 import json
 import re
 import sys
-from collections import defaultdict
 from pathlib import Path
 
 import numpy as np
@@ -54,12 +53,19 @@ from scripts.heal_dirichlet import (  # noqa: E402
     _load_dirichletfm,
     aggregate,
     calibrate_threshold,
+    fbeta,
     inpaint,
+    make_bgmm_localizer,
+    make_gmm_localizer,
     make_nll_localizer,
     score_healing,
 )
-from aitchinson_flow.data.char_window_dataset import CHAR2ID, text_to_windows  # noqa: E402
-from aitchinson_flow.data.corruption import corrupt_token_ids  # noqa: E402
+from aitchinson_flow.data.char_window_dataset import text_to_windows  # noqa: E402
+from aitchinson_flow.data.corruption import (  # noqa: E402
+    build_vocab_by_len,
+    corrupt_false_info,
+    corrupt_token_ids,
+)
 
 _DIGITS = {"0": " zero ", "1": " one ", "2": " two ", "3": " three ", "4": " four ",
            "5": " five ", "6": " six ", "7": " seven ", "8": " eight ", "9": " nine "}
@@ -84,55 +90,6 @@ def name_positions(window_ids: torch.Tensor, name: str) -> list[tuple[int, int]]
     s = _decode(window_ids)
     return [(m.start() + 1, m.end() - 1)
             for m in re.finditer(rf"(?<![a-z]){re.escape(name)}(?![a-z])", s)]
-
-
-def build_vocab_by_len(train_txt: str, *, min_len=2, max_len=18, cap=6000) -> dict[int, list]:
-    """First-seen-order (≈frequency-ranked) real words from text8, bucketed by length."""
-    by_len: dict[int, list] = defaultdict(list)
-    seen: dict[int, set] = defaultdict(set)
-    for w in re.findall(r"[a-z]+", train_txt):
-        Lw = len(w)
-        if min_len <= Lw <= max_len and w not in seen[Lw] and len(by_len[Lw]) < cap:
-            seen[Lw].add(w)
-            by_len[Lw].append(w)
-    return by_len
-
-
-def corrupt_false_info(windows: torch.Tensor, rate: float, by_len: dict[int, list],
-                       *, seed: int) -> torch.Tensor:
-    """Replace `rate` of fully-contained words in each window with a DIFFERENT real
-    same-length word. Positions/length preserved; text stays lexically valid."""
-    g = torch.Generator().manual_seed(seed)
-    out = windows.clone()
-
-    def ri(n):
-        return int(torch.randint(0, n, (1,), generator=g).item())
-
-    for i in range(windows.shape[0]):
-        s = _decode(windows[i])
-        spans = [(m.start(), m.end()) for m in re.finditer(r"[a-z]+", s)]
-        spans = [(a, b) for (a, b) in spans if a > 0 and b < len(s)]  # drop partial edge words
-        if not spans:
-            continue
-        n_sub = max(1, round(rate * len(spans)))
-        order = torch.randperm(len(spans), generator=g).tolist()[:n_sub]
-        for idx in order:
-            a, b = spans[idx]
-            cands = by_len.get(b - a)
-            if not cands:
-                continue
-            orig = s[a:b]
-            repl = None
-            for _ in range(8):
-                w = cands[ri(len(cands))]
-                if w != orig:
-                    repl = w
-                    break
-            if repl is None:
-                continue
-            for j, ch in enumerate(repl):
-                out[i, a + j] = CHAR2ID[ch]
-    return out
 
 
 def run_track(corrupt_batches, demo_clean, score, thr, model, *, nfe, device):
@@ -172,6 +129,27 @@ def main() -> int:
     ap.add_argument("--t-nll", type=float, default=3.0)
     ap.add_argument("--nfe", type=int, default=100)
     ap.add_argument("--seed", type=int, default=42)
+    # --- localizer: training-free NLL (default) / GMM / Bayesian-DP-GMM density ---
+    ap.add_argument("--localizer", choices=["nll", "gmm", "bgmm"], default="nll",
+                    help="'nll' = per-token denoiser surprise (local, misses false info); "
+                         "'gmm' = Gaussian-mixture density on frozen contextual features; "
+                         "'bgmm' = Bayesian DP infinite-mixture density (infers K)")
+    ap.add_argument("--t-eval", type=float, default=None,
+                    help="[gmm/bgmm] path-time for the density features (default: "
+                         "cfg.dfm_svgp.t_eval for gmm, 7.5 for bgmm — falseinfo-best)")
+    ap.add_argument("--fit-seqs", type=int, default=256,
+                    help="[gmm/bgmm] # generic text8 train windows to fit the mixture")
+    ap.add_argument("--gmm-n-components", type=int, default=8)
+    ap.add_argument("--gmm-covariance-type",
+                    choices=["diag", "full", "tied", "spherical"], default="diag")
+    ap.add_argument("--gmm-pca-dim", type=int, default=64)
+    ap.add_argument("--gmm-reg-covar", type=float, default=1e-4)
+    # --- bgmm knobs (Bayesian DP infinite mixture) ---
+    ap.add_argument("--bgmm-max-components", type=int, default=20)
+    ap.add_argument("--bgmm-covariance-type",
+                    choices=["diag", "full", "tied", "spherical"], default="full")
+    ap.add_argument("--bgmm-pca-dim", type=int, default=64)
+    ap.add_argument("--bgmm-max-iter", type=int, default=1000)
     args = ap.parse_args()
 
     torch.manual_seed(args.seed)
@@ -200,28 +178,78 @@ def main() -> int:
           f"false-info vocab lengths {min(by_len)}-{max(by_len)} "
           f"(e.g. len-7: {by_len[7][:6]})", flush=True)
 
-    # --- NLL localizer + GT-free operating point (max cal F1 on generic text8) ---
-    score, _ = make_nll_localizer(model, args.t_nll, device)
+    # --- localizer + GT-free operating point (max cal F0.5 on generic text8) ---
+    print(f"[poc] localizer={args.localizer}", flush=True)
+    bgmm_n_eff = None
+    t_eval = None
+    if args.localizer in ("gmm", "bgmm"):
+        default_t = 7.5 if args.localizer == "bgmm" else float(cfg.dfm_svgp.t_eval)
+        t_eval = float(args.t_eval) if args.t_eval is not None else default_t
+        fit_tok = text_to_windows(
+            ds["train"][0]["text"][(args.vocab_chars): (args.vocab_chars) + (args.fit_seqs + 4) * L],
+            L,
+        )[: args.fit_seqs]
+        if args.localizer == "bgmm":
+            score, _, bgmm_n_eff = make_bgmm_localizer(
+                model, fit_tok, t_eval, device,
+                max_components=args.bgmm_max_components,
+                covariance_type=args.bgmm_covariance_type,
+                pca_dim=args.bgmm_pca_dim, max_iter=args.bgmm_max_iter, seed=args.seed)
+        else:
+            score, _ = make_gmm_localizer(
+                model, fit_tok, t_eval, device, n_components=args.gmm_n_components,
+                covariance_type=args.gmm_covariance_type, pca_dim=args.gmm_pca_dim,
+                reg_covar=args.gmm_reg_covar, seed=args.seed)
+    else:
+        score, _ = make_nll_localizer(model, args.t_nll, device)
     cal_corr = corrupt_token_ids(cal_tok.clone(), vocab_size=K,
                                  corrupt_rate=args.corrupt_rate, seed=args.seed + 1)
     fprs = [float(x) for x in args.target_fprs.split(",") if x.strip()]
     thr_by_fpr = {f: calibrate_threshold(score, cal_tok, cal_corr, target_fpr=f) for f in fprs}
-    sel_fpr = max(fprs, key=lambda f: thr_by_fpr[f][1]["f1"])
+    # Same damage-averse rule as heal_dirichlet: F0.5 (precision-weighted), NOT F1.
+    # Max-F1 over-weights recall and picks the DAMAGING end of the sweep.
+    sel_fpr = max(fprs, key=lambda f: fbeta(thr_by_fpr[f][1]))
     thr = thr_by_fpr[sel_fpr][0]
-    print(f"[poc] operating point: fpr={sel_fpr} thr={thr:.3f} (GT-free, max cal-F1)", flush=True)
+    print(f"[poc] operating point: fpr={sel_fpr} thr={thr:.3f} (GT-free, max cal-F0.5)",
+          flush=True)
 
     # =================== Track A: random character noise ===================
     print("\n=== Track A: random character corruption (denoise typos) ===", flush=True)
     A_batches = [corrupt_token_ids(demo_clean.clone(), vocab_size=K,
                                    corrupt_rate=args.corrupt_rate, seed=args.seed + 100 + s)
                  for s in range(args.n_seeds)]
-    A_agg, A_first = run_track(A_batches, demo_clean, score, thr, model, nfe=args.nfe, device=device)
 
     # =================== Track C: sparse FALSE INFORMATION ===================
-    print("=== Track C: sparse false information (same-length real-word swaps) ===", flush=True)
     C_batches = [corrupt_false_info(demo_clean, args.corrupt_rate, by_len, seed=args.seed + 200 + s)
                  for s in range(args.n_seeds)]
-    C_agg, C_first = run_track(C_batches, demo_clean, score, thr, model, nfe=args.nfe, device=device)
+
+    # Sweep EVERY operating point (not just the selected one) so the benchmark can
+    # report the least-damaging point, exactly as the text8 arms do. The selected
+    # (GT-free, F0.5) row stays the headline.
+    def _sweep(batches, tag):
+        print(f"\n=== Track {tag}: FPR sweep ===", flush=True)
+        print(f"{'fpr':>5} {'thr':>9} {'loc_P':>6} {'loc_R':>6} {'loc_F1':>7} {'fix':>6} "
+              f"{'dmg':>6} {'net/corrupt':>12}", flush=True)
+        rows, sel_agg, sel_first = [], None, None
+        for f in fprs:
+            t = thr_by_fpr[f][0]
+            agg, first = run_track(batches, demo_clean, score, t, model,
+                                   nfe=args.nfe, device=device)
+            mark = "  <- selected" if f == sel_fpr else ""
+            print(f"{f:>5.2f} {t:>9.3f} {agg['loc_precision']:>6.3f} "
+                  f"{agg['loc_recall']:>6.3f} {agg['loc_f1']:>7.3f} {agg['fix_rate']:>6.3f} "
+                  f"{agg['damage_rate']:>6.3f} {agg['net_per_corrupt']:>+12.3f}{mark}",
+                  flush=True)
+            rows.append({"target_fpr": f, "threshold": t,
+                         "calibration": thr_by_fpr[f][1], **agg})
+            if f == sel_fpr:
+                sel_agg, sel_first = agg, first
+        assert sel_agg is not None and sel_first is not None, \
+            f"sel_fpr={sel_fpr} not in target_fprs={fprs}"
+        return rows, sel_agg, sel_first
+
+    A_sweep, A_agg, A_first = _sweep(A_batches, "A (char noise)")
+    C_sweep, C_agg, C_first = _sweep(C_batches, "C (false information)")
 
     def nchars(batches):
         return float(np.mean([(b != demo_clean).float().mean().item() for b in batches]))
@@ -270,12 +298,18 @@ def main() -> int:
 
     out = {
         "ckpt": args.ckpt, "protein": args.name, "K": K, "L": L,
-        "localizer": "nll", "t_nll": args.t_nll, "nfe": args.nfe,
+        "localizer": args.localizer, "t_nll": args.t_nll, "nfe": args.nfe,
+        "density_t_eval": (t_eval if args.localizer in ("gmm", "bgmm") else None),
+        "bgmm_n_effective": bgmm_n_eff,
         "corrupt_rate": args.corrupt_rate, "n_demo": int(demo_clean.shape[0]),
         "n_seeds": args.n_seeds, "name_occurrences_in_article": n_name,
         "operating_point": {"fpr": sel_fpr, "threshold": thr},
+        "selection": "max cal-set F0.5 (precision-weighted, GT-free; healing damage-averse)",
+        "target_fprs": fprs,
         "track_A_char_noise": {**A_agg, "corrupt_frac_chars": nchars(A_batches), "example": exA},
         "track_C_false_info": {**C_agg, "corrupt_frac_chars": nchars(C_batches), "example": exC},
+        "track_A_sweep": A_sweep,
+        "track_C_sweep": C_sweep,
         "track_B_targeted_name": showcase,
     }
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)

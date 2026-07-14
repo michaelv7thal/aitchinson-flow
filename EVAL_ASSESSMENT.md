@@ -15,6 +15,37 @@ It is the eval reference for the capstone report.
 > historical record; the *verdicts* are corrected here and in
 > **`NOTE_EQUILIBRIUM_FAILURE_CLASS.md`** (§0, §B).
 
+> **UPDATE (2026-07-12) — Obj-3 superseded by the detector benchmark.** The
+> §Objective-3 material below (hinge-**SVGP** on frozen features) is the historical
+> OOD story. The current, reproducible Objective-3 results are the **detector +
+> healing benchmark** in **`RESULTS.md` §Objective 3** (`bench_ood/` + `bench_heal/`,
+> each with a `manifest.json` + `repro.patch`). Headlines (**final numbers, full re-run
+> 2026-07-14**): training-free **NLL** is the best localizer, and wins at the *fair* unit —
+> word-level **0.981 replace / 0.963 shuffle** vs GPT-2's 0.738/0.746; **false-info DOES
+> localize to the word** (0.813 — the old "sequence-triage-only" was an artifact of
+> measuring per-character), but **GPT-2's NLL beats us there** (0.853), an honest loss on
+> the axis where world knowledge pays; **plausible** (model-fluent) errors are invisible to
+> the model's own unsupervised detectors (NLL *inverts* to 0.264) and need **supervision** —
+> a specialist gets 0.904 (~0.79 frequency-controlled), and one **sign-agnostic rank-8
+> quadratic** head trained on the union covers *all* corruptions at once (0.727/0.683),
+> though it pays ~0.19 vs the specialist; **healing** recovers geometric corruption (+0.420
+> net, +0.374 on the real insulin article) but never false-info (net-negative at every
+> operating point). SVGP does **not** beat the linear head (saturates; variance collapses
+> via concentration-of-measure).
+>
+> **UPDATE (2026-07-13) — the GPT-2 baseline was wrong twice.** It computed a per-token
+> **NLL** and called it *spilled energy* (the real thing, Minut et al. ICLR 2026, is the
+> CROSS-step `logsumexp(logits[i]) − logits[i-1][x_i]`), and it attributed BPE scores down
+> onto characters by uniform spreading. **Every "GPT-2 spilled-energy" number in this
+> file — including 0.847 and the table in §Obj3 — is superseded.** The corrected
+> baseline now runs as two arms (`gpt2_se` = real ΔE, `gpt2_nll` = the fair comparator),
+> and each model is scored in its native unit (**FM → char · GPT-2 → BPE · both → word**).
+> See `CLAUDE.md` §"Spilled energy", `RESULTS.md` §"The external-LM baseline, corrected",
+> and `SESSION_OOD_HEALING.md` Finding 5. Two results worth carrying forward: real ΔE
+> **cannot localize** (it straddles two decoding steps — seq ~1.0, BPE ~0.48 ≈ chance),
+> and **GPT-2_NLL is genuinely strong on false-info** (word 0.853), plausibly beating our
+> detectors on that axis.
+
 Model families & sources: **EqM** (Equilibrium Matching, Wang & Du 2025,
 arXiv:2510.02300 — conservative gradient of the bilinear energy `E=⟨x,f(x)⟩`),
 **DFM / DirichletFM** (Dirichlet Flow Matching, Stark et al. 2024,
@@ -184,13 +215,33 @@ scores "should match or beat"). **Split the corruption ladder:**
   saturates to ~1.0 for almost anything. **Easy; do not headline.**
 - **shuffle / histogram-preserving** keeps unigram stats fixed → requires modeling
   **sequence order**. **This is the discriminating axis — headline it.**
+- **false-info / word-swap** (`falseinfo` scheme, `data/corruption.py`) replaces whole
+  words with a *different real, same-length* word — lexically valid, semantically wrong.
+  Preserves local char n-grams, so the **denoiser-NLL localizer barely moves** (heal
+  Track C: recall 0.20, net/corrupt −0.142; `RESULTS_HEAL_POC_INSULIN.md`). This is the
+  **contextual/semantic axis** — the hard case NLL cannot reach. A **one-class Gaussian
+  mixture over frozen DirichletFM contextual features** (`scripts/ood_gmm_perpos.py`,
+  detector `PerPosGMM`; healing localizer `make_gmm_localizer`) is the candidate detector:
+  it scores tokens by negative log-likelihood under the ID feature mixture, so an
+  off-manifold wrong-word-in-context can register even where char-NLL stays low. The
+  `bayeslin` / `nll` / `gmm` OOD sweeps now all carry the `falseinfo` scheme for a
+  head-to-head AUROC comparison; the GMM detector sweeps `--t-evals` (lower t = more
+  context-dependent, less token-dominated features) since at the default `t_eval=4.5`
+  the deterministic-mean feature is token-dominated and a valid swap may land *on* the ID
+  manifold. **A GMM that also misses `falseinfo` across all t is itself a clean result**
+  ("feature-density does not fact-check either"). Numbers pending the L256 cluster run.
 
 Grounded (current `sflm_bench_a100_20g_gridsweep_v2/bench.json`, GPT-2 ref, L=40,
 + `dfm_svgp_pure50_lr3e4/svgp_corruption_sweep.json`):
 
+> ⚠️ The "GPT-2 spilled-energy" row below is **a per-token NLL, not spilled energy**, and
+> its per-char numbers used uniform BPE→char spreading. Superseded — see the 2026-07-13
+> update at the top of this file. (Its *sequence*-level numbers happen to be unaffected by
+> the attribution bug, but the row is still mislabelled.)
+
 | Detector | subst (r=.1→1.0) | **shuffle (r=.1→1.0)** | rand |
 |---|---|---|---|
-| **GPT-2 spilled-energy (external baseline)** | 0.97 → 1.0 | **0.87 → 1.0** | 1.0 |
+| **GPT-2 spilled-energy (external baseline)** *(mislabelled: is NLL)* | 0.97 → 1.0 | **0.87 → 1.0** | 1.0 |
 | SFLMEBM native energy | 0.71 → 1.0 | **0.49–0.50 (chance)** | 1.0 |
 | EqM native energy | 0.54 → 0.80 | ≈0.50 (chance) | 0.79 |
 | EqMLatent native energy | 0.54 → 0.94 | ≈0.50 (chance) | 0.93 |

@@ -6,6 +6,8 @@
   "localizer": "nll",
   "t_nll": 3.0,
   "nfe": 100,
+  "density_t_eval": null,
+  "bgmm_n_effective": null,
   "corrupt_rate": 0.15,
   "n_demo": 32,
   "n_seeds": 3,
@@ -14,6 +16,12 @@
     "fpr": 0.02,
     "threshold": 1.238521695137024
   },
+  "selection": "max cal-set F0.5 (precision-weighted, GT-free; healing damage-averse)",
+  "target_fprs": [
+    0.02,
+    0.05,
+    0.1
+  ],
   "track_A_char_noise": {
     "n_seeds": 3,
     "fix_rate": 0.580906148867314,
@@ -22,6 +30,7 @@
     "net_per_corrupt_std": 0.003982849643280665,
     "loc_precision": 0.7847726661285983,
     "loc_recall": 0.7866774541531824,
+    "loc_f1": 0.7857239057239057,
     "delta_wholeseq": 0.056355794270833336,
     "delta_wholeseq_std": 0.000870806256471057,
     "n_corrupt_total": 3708,
@@ -32,8 +41,8 @@
       "clean": "insulin from latin insula island is a peptide hormone produced by beta cells of the pancreatic islets encoded in humans by the insulin ins gene it is the main anabolic hormone of the body it regulates the metabolism of carbohydrates fats and protein by pro",
       "corrupted": "insuliv from iatiu mksula tscend vs atpeptidb hormone producxd by zera zellsnof ade pancreatic iulets hncodej ib humans bycthe insuean ixs geneait  s theomain anabglic horoone of the body it regulatps the metabozismqof carbohydratss fxts inrjprotein be pro",
       "healed": "insulic from latic mosula tscend is atception hormone produced by zero zells of the pancreatic rulets incodes in humans by the insuean its generit is the main anabolic hormone of the body it regulates the metabolism of carbohydrates jets ind protein be pro",
-      "truec": "       ^      ^   ^ ^^     ^ ^^   ^   ^      ^               ^     ^ ^  ^    ^   ^^              ^     ^     ^  ^          ^        ^^   ^      ^   ^     ^         ^       ^                          ^            ^   ^              ^   ^   ^ ^^         ^    ",
-      "flag": "        *      *   *  *            *    *    **               *        *      *   **             *      *     *  *          *             *      *   *     *         *       *                          *            *   *              *  **     **              "
+      "truec": "      ^      ^   ^ ^^     ^ ^^   ^   ^      ^               ^     ^ ^  ^    ^   ^^              ^     ^     ^  ^          ^        ^^   ^      ^   ^     ^         ^       ^                          ^            ^   ^              ^   ^   ^ ^^         ^    ",
+      "flag": "      *      *   *  *            *    *    **               *        *      *   **             *      *     *  *          *             *      *   *     *         *       *                          *            *   *              *  **     **              "
     }
   },
   "track_C_false_info": {
@@ -44,6 +53,7 @@
     "net_per_corrupt_std": 0.01121430539686372,
     "loc_precision": 0.5132827324478179,
     "loc_recall": 0.1956600361663653,
+    "loc_f1": 0.2833202409007594,
     "delta_wholeseq": -0.015950520833333332,
     "delta_wholeseq_std": 0.001644806553662739,
     "n_corrupt_total": 2765,
@@ -58,6 +68,154 @@
       "flag": "                                 **                                                                         *                                                                                *                                                            *     "
     }
   },
+  "track_A_sweep": [
+    {
+      "target_fpr": 0.02,
+      "threshold": 1.238521695137024,
+      "calibration": {
+        "threshold": 1.238521695137024,
+        "precision": 0.812668743509865,
+        "recall": 0.7833833833833834,
+        "f1": 0.7977573904179408,
+        "target_fpr": 0.02
+      },
+      "n_seeds": 3,
+      "fix_rate": 0.580906148867314,
+      "damage_rate": 0.03685068046770174,
+      "net_per_corrupt": 0.37351672060409924,
+      "net_per_corrupt_std": 0.003982849643280665,
+      "loc_precision": 0.7847726661285983,
+      "loc_recall": 0.7866774541531824,
+      "loc_f1": 0.7857239057239057,
+      "delta_wholeseq": 0.056355794270833336,
+      "delta_wholeseq_std": 0.000870806256471057,
+      "n_corrupt_total": 3708,
+      "n_fixed_total": 2154,
+      "n_damaged_total": 769
+    },
+    {
+      "target_fpr": 0.05,
+      "threshold": 0.5697088837623596,
+      "calibration": {
+        "threshold": 0.5697088837623596,
+        "precision": 0.6356578204404292,
+        "recall": 0.9015015015015015,
+        "f1": 0.7455915224770262,
+        "target_fpr": 0.05
+      },
+      "n_seeds": 3,
+      "fix_rate": 0.5647249190938511,
+      "damage_rate": 0.09914701935978532,
+      "net_per_corrupt": 0.00674217907227616,
+      "net_per_corrupt_std": 0.01677521525976584,
+      "loc_precision": 0.5978731074260994,
+      "loc_recall": 0.8945523193096009,
+      "loc_f1": 0.716724286949006,
+      "delta_wholeseq": 0.0010172526041666667,
+      "delta_wholeseq_std": 0.0025023587014195636,
+      "n_corrupt_total": 3708,
+      "n_fixed_total": 2094,
+      "n_damaged_total": 2069
+    },
+    {
+      "target_fpr": 0.1,
+      "threshold": 0.2516171336174011,
+      "calibration": {
+        "threshold": 0.2516171336174011,
+        "precision": 0.4804148625516061,
+        "recall": 0.9551551551551551,
+        "f1": 0.6392871499397026,
+        "target_fpr": 0.1
+      },
+      "n_seeds": 3,
+      "fix_rate": 0.5010787486515642,
+      "damage_rate": 0.18142610695802186,
+      "net_per_corrupt": -0.5199568500539374,
+      "net_per_corrupt_std": 0.009496189833380563,
+      "loc_precision": 0.45483829403427395,
+      "loc_recall": 0.9519956850053938,
+      "loc_f1": 0.6155724125904612,
+      "delta_wholeseq": -0.07845052083333333,
+      "delta_wholeseq_std": 0.0019437778177890928,
+      "n_corrupt_total": 3708,
+      "n_fixed_total": 1858,
+      "n_damaged_total": 3786
+    }
+  ],
+  "track_C_sweep": [
+    {
+      "target_fpr": 0.02,
+      "threshold": 1.238521695137024,
+      "calibration": {
+        "threshold": 1.238521695137024,
+        "precision": 0.812668743509865,
+        "recall": 0.7833833833833834,
+        "f1": 0.7977573904179408,
+        "target_fpr": 0.02
+      },
+      "n_seeds": 3,
+      "fix_rate": 0.04014466546112116,
+      "damage_rate": 0.023061757828618586,
+      "net_per_corrupt": -0.14177215189873418,
+      "net_per_corrupt_std": 0.01121430539686372,
+      "loc_precision": 0.5132827324478179,
+      "loc_recall": 0.1956600361663653,
+      "loc_f1": 0.2833202409007594,
+      "delta_wholeseq": -0.015950520833333332,
+      "delta_wholeseq_std": 0.001644806553662739,
+      "n_corrupt_total": 2765,
+      "n_fixed_total": 111,
+      "n_damaged_total": 503
+    },
+    {
+      "target_fpr": 0.05,
+      "threshold": 0.5697088837623596,
+      "calibration": {
+        "threshold": 0.5697088837623596,
+        "precision": 0.6356578204404292,
+        "recall": 0.9015015015015015,
+        "f1": 0.7455915224770262,
+        "target_fpr": 0.05
+      },
+      "n_seeds": 3,
+      "fix_rate": 0.057504520795660034,
+      "damage_rate": 0.05932786208793728,
+      "net_per_corrupt": -0.4104882459312839,
+      "net_per_corrupt_std": 0.007802798193792906,
+      "loc_precision": 0.40288083806198166,
+      "loc_recall": 0.33381555153707054,
+      "loc_f1": 0.3651107594936709,
+      "delta_wholeseq": -0.046183268229166664,
+      "delta_wholeseq_std": 0.0003773445025836468,
+      "n_corrupt_total": 2765,
+      "n_fixed_total": 159,
+      "n_damaged_total": 1294
+    },
+    {
+      "target_fpr": 0.1,
+      "threshold": 0.2516171336174011,
+      "calibration": {
+        "threshold": 0.2516171336174011,
+        "precision": 0.4804148625516061,
+        "recall": 0.9551551551551551,
+        "f1": 0.6392871499397026,
+        "target_fpr": 0.1
+      },
+      "n_seeds": 3,
+      "fix_rate": 0.07956600361663653,
+      "damage_rate": 0.1065058915226262,
+      "net_per_corrupt": -0.7605786618444846,
+      "net_per_corrupt_std": 0.0025596294344070866,
+      "loc_precision": 0.33597342871742464,
+      "loc_recall": 0.4755877034358047,
+      "loc_f1": 0.3937715226830364,
+      "delta_wholeseq": -0.0855712890625,
+      "delta_wholeseq_std": 0.00207399819944249,
+      "n_corrupt_total": 2765,
+      "n_fixed_total": 220,
+      "n_damaged_total": 2323
+    }
+  ],
   "track_B_targeted_name": [
     {
       "window": 0,
