@@ -1,0 +1,66 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[bgmm] false-info vocab: lengths 2-18 (e.g. len-6: ['ensure', 'action', 'assist', 'safety', 'fitted'])
+[bgmm] t_eval=7.5 d_model=1280 feat_dim=64 max_K=20 n_effective=17 cov=full fit_pos=80000 converged=True n_iter=143 lb=-5754592.250 alpha=0.05
+[bgmm]   top weights: 0.154, 0.102, 0.096, 0.068, 0.058, 0.054, 0.054, 0.052, 0.046, 0.040
+[bgmm] t_eval=7.5 positive NLL: per-pos mean=130.760 seq-max mean=186.785
+
+t_eval     scheme  rate  AUseq_max  AUseq_mean    AUtok
+  7.50    replace  0.05     0.8933      0.8532   0.8864
+  7.50    replace  0.10     0.9354      0.9650   0.8630
+  7.50    replace  0.15     0.9438      0.9905   0.8298
+  7.50    replace  0.20     0.9403      0.9996   0.7998
+  7.50    replace  0.25     0.9292      0.9999   0.7711
+  7.50    replace  0.30     0.9205      1.0000   0.7410
+  7.50    replace  0.50     0.7995      1.0000   0.6525
+  7.50    replace  0.70     0.6832      1.0000   0.5970
+  7.50    replace  1.00     0.5584      1.0000      nan
+  7.50    shuffle  0.05     0.9025      0.8427   0.8910
+  7.50    shuffle  0.10     0.9457      0.9672   0.8648
+  7.50    shuffle  0.15     0.9607      0.9944   0.8332
+  7.50    shuffle  0.20     0.9553      0.9997   0.8012
+  7.50    shuffle  0.25     0.9577      1.0000   0.7736
+  7.50    shuffle  0.30     0.9463      1.0000   0.7355
+  7.50    shuffle  0.50     0.9015      1.0000   0.6342
+  7.50    shuffle  0.70     0.8630      1.0000   0.5729
+  7.50    shuffle  1.00     0.8278      1.0000   0.5310
+  7.50       both  0.05     0.9354      0.9643   0.8639
+  7.50       both  0.10     0.9512      0.9985   0.8106
+  7.50       both  0.15     0.9431      0.9999   0.7531
+  7.50       both  0.20     0.9226      1.0000   0.7045
+  7.50       both  0.25     0.8820      1.0000   0.6722
+  7.50       both  0.30     0.8456      1.0000   0.6430
+  7.50       both  0.50     0.7521      1.0000   0.5797
+  7.50       both  0.70     0.6664      1.0000   0.5581
+  7.50       both  1.00     0.5399      1.0000   0.5557
+  7.50  falseinfo  0.05     0.5367      0.5615   0.6797
+  7.50  falseinfo  0.10     0.5610      0.6106   0.6756
+  7.50  falseinfo  0.15     0.5872      0.6851   0.6826
+  7.50  falseinfo  0.20     0.5984      0.7270   0.6782
+  7.50  falseinfo  0.25     0.6505      0.7846   0.6753
+  7.50  falseinfo  0.30     0.6237      0.8265   0.6788
+  7.50  falseinfo  0.50     0.6769      0.9489   0.6737
+  7.50  falseinfo  0.70     0.6853      0.9820   0.6714
+  7.50  falseinfo  1.00     0.7406      0.9967   0.6813
+
+=== healing-style examples @ t_eval=7.5 (flag thr=164.664 @ fpr=0.05) ===
+
+--- clean #0 ---
+  clean : 'l clinton during a fundraising event in washington dc october one nine nine six monica samille lewinsky born july two th'
+  flag  :                     *    *                    **   *      *                              *       *                      
+  flagged P=0.00 R=0.00 (tp=0 fp=8 fn=0)
+
+--- replace30 #0 ---
+  clean : 'l clinton during a fundraising event in washington dc october one nine nine six monica samille lewinsky born july two th'
+  corr  : 'lwcltnoon dumang j gundraisiny event jnqwnlhingtotadc ecbober oke tsne nioe six mpnipa samgflevcawin zm bhrnajuly tcctkh'
+  truec :  ^  ^ ^     ^^   ^ ^         ^       ^ ^ ^^      ^^   ^ ^      ^  ^^     ^       ^  ^     ^^  ^^^   ^^^  ^  ^      ^^^^ 
+  flag  :   * ****    *           **           *  * *             *         **     *       *         *     *       *              
+  flagged P=0.63 R=0.33 (tp=12 fp=7 fn=24)
+
+--- falseinfo30 #0 ---
+  clean : 'l clinton during a fundraising event in washington dc october one nine nine six monica samille lewinsky born july two th'
+  corr  : 'l matthew during a accelerated event in washington ir october one nine nine hom monica memphis learning born july nge th'
+  truec :   ^^^^^^^          ^^^^^^^^^^^                     ^^                       ^^^        ^^ ^^^^   ^^ ^^^           ^^^   
+  flag  :                                               **    *     *                               * *                   *       
+  flagged P=0.43 R=0.08 (tp=3 fp=4 fn=34)
+
+Wrote ood_out_best/bgmm/bgmm_perpos_sweep.json

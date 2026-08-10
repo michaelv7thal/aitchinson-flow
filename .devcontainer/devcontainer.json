@@ -72,6 +72,12 @@
     // -----------------------------------------------------------------------
     // Port forwarding
     // -----------------------------------------------------------------------
+    // 4243 is markdown-preview.nvim's server (vim.g.mkdp_port). The plugin runs
+    // inside the container but there is no browser here, so it prints the URL
+    // (see lua/plugins/markdown_preview.lua) and you open it on the host — which
+    // only works if this port is forwarded.
+    "forwardPorts": [4243],
+
     // -----------------------------------------------------------------------
     // Setup — runs once after the container is created
     // -----------------------------------------------------------------------

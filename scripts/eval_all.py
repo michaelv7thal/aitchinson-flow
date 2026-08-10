@@ -104,8 +104,9 @@ def _sample_gen_ids(model, cfg, n: int, L: int) -> torch.Tensor:
     sampling conventions (EqM-family decode_to_logprobs vs categorical
     denoisers whose ``sample`` already returns ids). SFM carries a
     decode_to_logprobs for API parity but its sample() returns ids (like
-    DirichletFM), so it takes the ids branch."""
-    if hasattr(model, "decode_to_logprobs") and cfg.training.model_name != "SFM":
+    DirichletFM), so it takes the ids branch. FisherFM (SFM + OT coupling) is
+    the same."""
+    if hasattr(model, "decode_to_logprobs") and cfg.training.model_name not in ("SFM", "FisherFM"):
         x = model.sample(n, L)
         log_probs = model.decode_to_logprobs(x)
         return log_probs.argmax(-1).cpu().long()

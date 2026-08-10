@@ -77,8 +77,16 @@ GEN_ARMS = [
     # Statistical Flow Matching (Cheng et al. 2024) — Fisher–Rao √μ-sphere
     # geodesic FM. Like DirichletFM, sample()→ids and supports x_init/t_start.
     "SFM",
+    # Fisher-Flow (Davis et al. 2024) — SFM + Riemannian minibatch-OT coupling.
+    # Shares SFM's √μ-sphere geometry exactly (see _FISHER_SPHERE_ARMS).
+    "FisherFM",
 ]
 ALPHABET = "".join(sorted(CHAR2ID, key=CHAR2ID.__getitem__))
+
+# Arms that live on the Fisher √μ-sphere and share SFM's geometry helpers
+# (_sfm_pi/_sfm_norm/_sfm_exp/_sfm_log). Their masked-inpaint and partial-path
+# recovery init are identical, so they dispatch through the same branches.
+_FISHER_SPHERE_ARMS = frozenset({"SFM", "FisherFM"})
 
 # Arms whose denoiser-CE BPC is a recovery artifact (identity encode→decode
 # path), NOT a peer-comparable data NLL/ELBO — kept in lock-step with
@@ -89,8 +97,9 @@ ALPHABET = "".join(sorted(CHAR2ID, key=CHAR2ID.__getitem__))
 # denoiser NLL is sub-0.5 (demoted by the floor below).
 _IDENTITY_PATH_BPC = frozenset(
     # SFM is here ONLY until its exact CNF likelihood (paper Eqs. 12–14) lands;
-    # its current bpd() is a reconstruction diagnostic, not a bound.
-    {"EqM", "EqM_OneHot", "EqMLatent", "EqMAE", "SFLM", "FMonCLR", "SFM"}
+    # its current bpd() is a reconstruction diagnostic, not a bound. FisherFM
+    # (Davis et al. 2024) reports no exact text8 likelihood at all → same.
+    {"EqM", "EqM_OneHot", "EqMLatent", "EqMAE", "SFLM", "FMonCLR", "SFM", "FisherFM"}
 )
 
 # A finite text8 char-NLL bound is ≳ the corpus entropy floor; anything below
@@ -166,9 +175,9 @@ def _kl(gen: torch.Tensor, ref: torch.Tensor) -> float:
 def _generate_ids(arm: str, model, cfg, n: int, L: int) -> torch.Tensor:
     """Unconditional generation → token ids (n, L) on cpu.
 
-    For DirichletFM and SFM, ``sample`` already returns ids; for everything
-    else we ``sample`` in latent space and argmax-decode."""
-    if arm in ("DirichletFM", "SFM"):
+    For DirichletFM, SFM and FisherFM, ``sample`` already returns ids; for
+    everything else we ``sample`` in latent space and argmax-decode."""
+    if arm in ("DirichletFM", "SFM", "FisherFM"):
         return model.sample(n, L).cpu()
     z = model.sample(n, L)
     log_p = model.decode_to_logprobs(z)
@@ -344,7 +353,7 @@ def _infill_acc(
             x_init = torch.distributions.Dirichlet(beta).sample()
             rec = model.sample(B, L, x_init=x_init, t_start=1.0,
                                nfe=steps).cpu()
-    elif arm == "SFM":
+    elif arm in _FISHER_SPHERE_ARMS:
         # Per-position init on the √μ-sphere: masked → uniform-sphere noise,
         # kept → data vertex; integrate the ODE over the full path t:0→1.
         Ksfm = cfg.text8_dataset.K
@@ -416,7 +425,7 @@ def _recover_acc(
                 B, L, x_init=x_init, t_start=t_start, nfe=steps,
             ).cpu()
         return float((rec == ids.cpu()).float().mean())
-    if arm == "SFM":
+    if arm in _FISHER_SPHERE_ARMS:
         # Partial-path on the Fisher √μ-sphere: x_init at "data-ness" fraction
         # f=1−α along the geodesic from a uniform-sphere noise point x0 toward
         # the data vertex x1, then integrate the ODE from t_start=f to 1.

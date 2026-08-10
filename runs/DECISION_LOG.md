@@ -2060,3 +2060,81 @@ Documented for completeness, not pursued in this session:
 - Artefacts:
     - `runs/capstone/checkpoints/saplma_wiki/probe.pt`
     - `runs/capstone/U/phaseU_with_saplma.{json,md,png}`
+
+## [2026-08-09 07:11 UTC] Fine α-ladder for the full-corpus DirichletFM recovery curve
+
+- Motivation: `fig:recovery-curve` resolved Δ_α on only 5 points
+  (α ∈ {0.1,0.3,0.5,0.7,1.0}), which read as a flat plateau across
+  0.5–0.7 for the full-corpus arm. Refilled the ladder to 0.1
+  increments, α = 0.1 … 1.0.
+- Checkpoint provenance: `DirichletFM_converge/` held only the eval
+  JSONs — the 1.1 GB `epoch_final.pt` was never synced back from the
+  cluster. Recovered it from `~/Downloads/epoch_final.pt` (identified
+  by its embedded cfg: `checkpoint_dir=…/DirichletFM_converge`,
+  lr 7.5e-5, epochs 4 = the converge2-tail anneal) and restored it in
+  place. NB `~/Downloads/epoch4_anneal.pt` is a *different* file
+  (converge2's mid-anneal snapshot) despite identical
+  epoch/global_step — the tail run restarted its step counter.
+- Protocol: identical to `drive_fulltext8_converge2_tail.sh` —
+  `--n 256 --steps 200`, same checkpoint. Run per-α
+  (`_driver/drive_recovery_fine.sh`, one JSON per α under
+  `DirichletFM_converge/recovery_fine/`) for resumability; exactly
+  equivalent to one 10-α run since `recovery_check.py` seeds per α
+  as `seed + int(1000·α)` and reads the same `val_ids[:n]`.
+- Validation: all 5 α that overlap the published `recovery.json`
+  reproduce **bit-for-bit** on the local RTX PRO 1000 (Δ = 0.0329,
+  0.1393, 0.2819, 0.2893, 0.0355), including the perturbed sample
+  strings. New and old points are on the same curve.
+- Result — the plateau is **not** a plateau. Δ_α peaks at
+  **α = 0.6, Δ = 0.3242**, ~0.035 above both α = 0.5 (0.2819) and
+  α = 0.7 (0.2893); the old grid straddled the maximum. Full ladder:
+  0.0329 / 0.0794 / 0.1393 / 0.2126 / 0.2819 / **0.3242** / 0.2893 /
+  0.1844 / 0.0820 / 0.0355. Fall-off past the peak is steep and
+  roughly mirrors the rise; the α = 1.0 common floor is unchanged.
+- Scope: full-corpus arm only. The 30 ep / 30k arm keeps its 5 points
+  (checkpoint is local, so it *could* be refined, ~3 h). The 10 ep
+  benchmark arm **cannot** be refined —
+  `runs/sflm_bench_a100_20g_L256/DirichletFM/` holds only
+  `eval_all.json` + `recovery.json`; its checkpoint is not on this
+  machine and would have to be pulled off the cluster.
+- Code: `scripts/recovery_check.py` gained `--skip-uncond` (the
+  unconditional pass is a full 200-step sweep, ~38 min, and this
+  arm's generation numbers are already recorded);
+  `scripts/paper_figs/fig_recovery_curve.py:load` now accepts a
+  directory of per-α JSONs and falls back to `recovery.json`.
+- Artefacts:
+    - `runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM_converge/epoch_final.pt` (restored)
+    - `runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM_converge/recovery_fine/alpha_*.json`
+    - `runs/sflm_bench_a100_20g_L256_d1280L14_full/_driver/drive_recovery_fine.sh`
+    - `../capstone-paper/figures/recovery_curve.pdf` (regenerated)
+
+## [2026-08-09 13:12 UTC] Fine α-ladder — 30 ep / 30k arm (companion to the entry above)
+
+- Ran the same 0.1-increment ladder on
+  `runs/sflm_bench_a100_20g_L256/DirichletFM_ep30_d30k` (d=1024, L10;
+  ~22 min/α, 3.7 h) via the now-parameterised
+  `drive_recovery_fine.sh <ARM_DIR>`. Identical protocol: `--n 256
+  --steps 200 --skip-uncond`.
+- All 5 overlapping α reproduce the published `recovery.json`:
+  Δ = 0.0268 / 0.1054 / 0.1925 / 0.1903 / 0.0361.
+- Full ladder: 0.027 / 0.063 / 0.105 / 0.155 / 0.193 / **0.213** /
+  0.190 / 0.147 / 0.080 / 0.036.
+- **The α=0.6 peak reproduces at a second training budget.** Δ(0.6)
+  exceeds both Δ(0.5) and Δ(0.7) here too, so the maximum the old
+  5-point grid straddled is a property of the recovery process, not
+  an artefact of the full-corpus run. Both arms peak at the same α.
+- `token_acc_perturbed` is *identical* across the two arms at every α
+  (e.g. 0.8924 @ 0.1, 0.4585 @ 0.6, 0.0374 @ 1.0) — the perturbed
+  input depends only on `val_ids[:256]` and the per-α seed, not on
+  the model, so the two curves are comparable point-for-point.
+- Shape difference worth noting: the 30 ep arm's fall-off past the
+  peak is gentler (0.213→0.147 by α=0.8 vs 0.324→0.184), and the two
+  curves **converge by α≈0.85** (0.080 vs 0.082 at α=0.9), well
+  before the α=1.0 floor. The training-budget advantage is confined
+  to the mid-α band.
+- The 10 ep benchmark arm still cannot be refined (no local
+  checkpoint) and keeps its 5 points in the figure.
+- Artefacts:
+    - `runs/sflm_bench_a100_20g_L256/DirichletFM_ep30_d30k/recovery_fine/alpha_*.json`
+    - `runs/sflm_bench_a100_20g_L256/_driver/recovery_fine_ep30_d30k.out`
+    - `../capstone-paper/figures/recovery_curve.pdf` (regenerated, 2 of 3 lines fine-grained)

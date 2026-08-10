@@ -142,6 +142,14 @@ def main() -> int:
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--out", type=str, default=None)
     ap.add_argument(
+        "--skip-uncond",
+        action="store_true",
+        help="Skip section (A) unconditional generation and emit only the "
+             "recovery rows. Costs a full nfe sweep, so worth skipping when "
+             "re-running the α ladder on a checkpoint whose generation "
+             "numbers are already recorded.",
+    )
+    ap.add_argument(
         "--sampler",
         type=str,
         default=None,
@@ -236,63 +244,69 @@ def main() -> int:
 
     # ─── (A) Unconditional ────────────────────────────────────────────────
     categorical = _is_categorical_denoiser(model)
-    # SFM (Fisher-Rao √μ-sphere FM) carries decode_to_logprobs for API parity
-    # but its sample() returns ids (like DirichletFM) and it has no encode(), so
-    # it takes neither the categorical-denoiser nor the EqM-family latent path;
-    # it gets its own ids-sampling + Fisher-sphere partial-path recovery below.
-    is_sfm = cfg.training.model_name == "SFM"
-    torch.manual_seed(args.seed)
-    print("=== Unconditional generation ===")
-    if categorical or is_sfm:
-        # DFM / DirichletFM / SFM: sample() returns token IDs directly; no latent
-        # x to score and no usable decode_to_logprobs path.
-        with torch.no_grad():
-            ids = _dfm_uncond_ids(model, args.n, L, args.steps)
-        uncond_scores = {}
+    # SFM and FisherFM (Fisher-Rao √μ-sphere FMs; FisherFM = SFM + OT coupling)
+    # carry decode_to_logprobs for API parity but their sample() returns ids
+    # (like DirichletFM) and they have no encode(), so they take neither the
+    # categorical-denoiser nor the EqM-family latent path; they get their own
+    # ids-sampling + Fisher-sphere partial-path recovery below. (Shared geometry
+    # ⇒ same branch: this predicate is the _FISHER_SPHERE_ARMS set.)
+    is_sfm = cfg.training.model_name in ("SFM", "FisherFM")
+    if args.skip_uncond:
+        print("=== Unconditional generation === SKIPPED (--skip-uncond)")
     else:
-        with torch.no_grad():
-            x = model.sample(args.n, L, max_steps=args.steps)
-            log_probs = model.decode_to_logprobs(x)
-            ids = log_probs.argmax(-1).cpu()
-        uncond_scores = _score_stats(model, x)
+        torch.manual_seed(args.seed)
+        print("=== Unconditional generation ===")
+        if categorical or is_sfm:
+            # DFM / DirichletFM / SFM: sample() returns token IDs directly; no latent
+            # x to score and no usable decode_to_logprobs path.
+            with torch.no_grad():
+                ids = _dfm_uncond_ids(model, args.n, L, args.steps)
+            uncond_scores = {}
+        else:
+            with torch.no_grad():
+                x = model.sample(args.n, L, max_steps=args.steps)
+                log_probs = model.decode_to_logprobs(x)
+                ids = log_probs.argmax(-1).cpu()
+            uncond_scores = _score_stats(model, x)
 
-    gen_uni = _ngram_counts_flat(ids, K, 1)
-    gen_bi = _ngram_counts_flat(ids, K, 2)
-    gen_tri = _ngram_counts_flat(ids, K, 3)
-    kl_u = _kl_smoothed(gen_uni, ref_uni)
-    kl_b = _kl_smoothed(gen_bi, ref_bi)
-    kl_t = _kl_smoothed(gen_tri, ref_tri)
-    p = (gen_uni + 1e-9) / (gen_uni.sum() + K * 1e-9)
-    H_gen = float(-(p * p.log()).sum())
-    print(
-        f"  KL_uni={kl_u:.4f}  KL_bi={kl_b:.4f}  KL_tri={kl_t:.4f}  H_gen={H_gen:.4f}"
-    )
-    print(f"  sample[0]: {''.join(ALPHABET[int(i)] for i in ids[0])!r}")
-    print(f"  sample[1]: {''.join(ALPHABET[int(i)] for i in ids[1])!r}")
-    if uncond_scores:
+        gen_uni = _ngram_counts_flat(ids, K, 1)
+        gen_bi = _ngram_counts_flat(ids, K, 2)
+        gen_tri = _ngram_counts_flat(ids, K, 3)
+        kl_u = _kl_smoothed(gen_uni, ref_uni)
+        kl_b = _kl_smoothed(gen_bi, ref_bi)
+        kl_t = _kl_smoothed(gen_tri, ref_tri)
+        p = (gen_uni + 1e-9) / (gen_uni.sum() + K * 1e-9)
+        H_gen = float(-(p * p.log()).sum())
         print(
-            f"  energy:    mean={uncond_scores['energy']['mean']:.3f}  std={uncond_scores['energy']['std']:.3f}"
+            f"  KL_uni={kl_u:.4f}  KL_bi={kl_b:.4f}  KL_tri={kl_t:.4f}  H_gen={H_gen:.4f}"
         )
-        print(
-            f"  grad_norm: mean={uncond_scores['grad_norm']['mean']:.3f}  std={uncond_scores['grad_norm']['std']:.3f}"
+        print(f"  sample[0]: {''.join(ALPHABET[int(i)] for i in ids[0])!r}")
+        print(f"  sample[1]: {''.join(ALPHABET[int(i)] for i in ids[1])!r}")
+        if uncond_scores:
+            print(
+                f"  energy:    mean={uncond_scores['energy']['mean']:.3f}  std={uncond_scores['energy']['std']:.3f}"
+            )
+            print(
+                f"  grad_norm: mean={uncond_scores['grad_norm']['mean']:.3f}  std={uncond_scores['grad_norm']['std']:.3f}"
+            )
+            print(
+                f"  curvature: mean={uncond_scores['curvature']['mean']:.3f}  std={uncond_scores['curvature']['std']:.3f}"
+            )
+        rows.append(
+            {
+                "mode": "unconditional",
+                "alpha": None,
+                "KL_uni": kl_u,
+                "KL_bi": kl_b,
+                "KL_tri": kl_t,
+                "H_gen": H_gen,
+                "samples": [
+                    "".join(ALPHABET[int(i)] for i in ids[s])
+                    for s in range(min(4, args.n))
+                ],
+                **uncond_scores,
+            }
         )
-        print(
-            f"  curvature: mean={uncond_scores['curvature']['mean']:.3f}  std={uncond_scores['curvature']['std']:.3f}"
-        )
-    rows.append(
-        {
-            "mode": "unconditional",
-            "alpha": None,
-            "KL_uni": kl_u,
-            "KL_bi": kl_b,
-            "KL_tri": kl_t,
-            "H_gen": H_gen,
-            "samples": [
-                "".join(ALPHABET[int(i)] for i in ids[s]) for s in range(min(4, args.n))
-            ],
-            **uncond_scores,
-        }
-    )
 
     # ─── (B) Recovery ─────────────────────────────────────────────────────
     print("\n=== Recovery from perturbation ===")
@@ -376,7 +390,17 @@ def main() -> int:
             f = 1.0 - float(alpha)
             with torch.no_grad():
                 x1 = model._sphere_target(val_pick)
-                x0 = _sfm_norm(torch.randn_like(x1))
+                # Start the partial path at the arm's OWN source. FisherFM's is
+                # p0 = U(S^d_+) (paper §3), so a full-sphere Gaussian would seed
+                # recovery from a point with negative coordinates the model never
+                # sees in training. SFM keeps the historical draw, so its
+                # already-published column is unchanged.
+                if cfg.training.model_name == "FisherFM":
+                    x0 = model._sphere_source(
+                        x1.shape[0], x1.shape[1], x1.device, x1.dtype
+                    )
+                else:
+                    x0 = _sfm_norm(torch.randn_like(x1))
                 x_init = _sfm_exp(x0, f * _sfm_log(x0, x1))
                 ids_pt = (x_init * x_init).argmax(dim=-1).cpu()
                 ids = model.sample(

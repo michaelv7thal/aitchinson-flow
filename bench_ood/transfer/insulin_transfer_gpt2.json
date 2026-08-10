@@ -1,0 +1,37 @@
+{
+  "ckpt": "runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM/epoch_best.pt",
+  "detector": "logistic_falseinfo_fulldim",
+  "baseline": "gpt2_nll",
+  "t_eval": 4.5,
+  "rate": 0.15,
+  "n": 128,
+  "results": {
+    "text8_indist": {
+      "seq_auroc": 0.85308837890625,
+      "token_auroc": 0.8685743156601707,
+      "n_changed": 3523,
+      "word_auroc_max": 0.9026378708893505,
+      "word_seq_auroc": 0.858642578125,
+      "gpt2_nll": {
+        "word_auroc_max": 0.8372467963310037,
+        "word_seq_auroc": 0.92822265625,
+        "bpe_token_auroc": 0.7094980294966075,
+        "seq_auroc_charnorm": 0.94439697265625
+      }
+    },
+    "insulin_ood": {
+      "seq_auroc": 0.80072021484375,
+      "token_auroc": 0.8012807682587818,
+      "n_changed": 3750,
+      "word_auroc_max": 0.8477461750652948,
+      "word_seq_auroc": 0.826904296875,
+      "gpt2_nll": {
+        "word_auroc_max": 0.8934351278482631,
+        "word_seq_auroc": 0.9681396484375,
+        "bpe_token_auroc": 0.7636359371277978,
+        "seq_auroc_charnorm": 0.978759765625
+      }
+    }
+  },
+  "note": "text8=in-distribution reference; insulin=out-of-domain transfer; word AUROC = max-pool, the bench's fair common unit"
+}

@@ -1,0 +1,36 @@
+### LATENT-LADDER START 2026-08-09_18:06:51  ckpt=runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM/epoch_best.pt
+### [2026-08-09_18:06:51] stage A already done — skip
+### [2026-08-09_18:06:51] ladder rate=0.05 already done — skip
+### [2026-08-09_18:06:51] ladder rate=0.1 already done — skip
+### [2026-08-09_18:06:51] ladder rate=0.15 already done — skip
+### [2026-08-09_18:06:51] ladder rate=0.2 already done — skip
+### [2026-08-09_18:06:51] ladder rate=0.25 already done — skip
+### [2026-08-09_18:06:51] ladder rate=0.3 already done — skip
+### [2026-08-09_18:06:51] ladder rate=0.5 already done — skip
+### [2026-08-09_18:06:51] ladder rate=0.7 already done — skip
+### [2026-08-09_18:06:51] ladder rate=1.0 already done — skip
+### [2026-08-09_18:06:51] null rate=0.3 start
+### [2026-08-09_18:14:21] null rate=0.3 exit=0
+[seq:replace] PCA(PC1-2)=0.791  LDA-axis=1.000  full-linear=1.000  nulls=0.5251617431640625 / 0.8945465087890625
+[seq:shuffle] PCA(PC1-2)=0.716  LDA-axis=1.000  full-linear=1.000  nulls=0.5280426025390625 / 0.89622802734375
+[seq:falseinfo] PCA(PC1-2)=0.569  LDA-axis=0.876  full-linear=0.979  nulls=0.5221435546875 / 0.88494873046875
+[token:replace] PCA(PC1-2)=0.544  energy-axis=0.965  full-linear=1.000  nulls=0.5089309500000001 / 0.729870275
+[token:shuffle] PCA(PC1-2)=0.523  energy-axis=0.895  full-linear=1.000  nulls=0.5103860125 / 0.731679525
+[token:falseinfo] PCA(PC1-2)=0.561  energy-axis=0.803  full-linear=0.933  nulls=0.509271675 / 0.7297068875000001
+### [2026-08-09_18:14:21] null rate=0.05 start
+### [2026-08-09_18:21:51] null rate=0.05 exit=0
+[seq:replace] PCA(PC1-2)=0.543  LDA-axis=0.885  full-linear=0.986  nulls=0.5194244384765625 / 0.871563720703125
+[seq:shuffle] PCA(PC1-2)=0.534  LDA-axis=0.881  full-linear=0.974  nulls=0.5217071533203125 / 0.8666656494140625
+[seq:falseinfo] PCA(PC1-2)=0.517  LDA-axis=0.575  full-linear=0.746  nulls=0.5198028564453125 / 0.8570098876953125
+[token:replace] PCA(PC1-2)=0.472  energy-axis=0.918  full-linear=0.996  nulls=0.5092061243091858 / 0.7482458098269584
+[token:shuffle] PCA(PC1-2)=0.492  energy-axis=0.812  full-linear=0.996  nulls=0.509713015895719 / 0.7776371314303366
+[token:falseinfo] PCA(PC1-2)=0.576  energy-axis=0.725  full-linear=0.934  nulls=0.5100189326515421 / 0.806417462759901
+### [2026-08-09_18:21:51] stage C: plausible at rate 0.3, both granularities
+### [2026-08-10_01:26:59] stage C exit=0
+[plausible] 192 seqs @ rate 0.3: 2433 slots, 4890s
+[plausible] 256 seqs @ rate 0.3: 3062 slots, 6141s
+[seq:plausible] PCA(PC1-2)=0.621  LDA-axis=0.955  full-linear=0.994  nulls=None / None
+[plausible] 192 seqs @ rate 0.5: 4040 slots, 8108s
+[plausible] 256 seqs @ rate 0.3: 3070 slots, 6134s
+[token:plausible] PCA(PC1-2)=0.611  energy-axis=0.929  full-linear=0.992  nulls=None / None
+### LATENT-LADDER COMPLETE 2026-08-10_01:26:59

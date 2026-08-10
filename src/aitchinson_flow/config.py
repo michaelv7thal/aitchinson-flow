@@ -708,6 +708,30 @@ class SFMConfig:
 
 
 @dataclass
+class FisherFMConfig:
+    """Fisher-Flow (Davis et al. 2024, arXiv:2405.14664).
+
+    A budget-matched implementation of Fisher-Flow, an independent construction
+    which shares the Fisher-Rao √μ-sphere geometry with SFM (Cheng et al. 2024)
+    without being a variant of it. Its own recipe: uniform-simplex source, a
+    target smoothed into the simplex interior, great-circle geodesic paths, and
+    a **Riemannian minibatch optimal-transport coupling** between source and
+    target samples (paper §3.4). See ``models/fisher_fm.py`` for the pinned
+    recipe and the two documented ambiguities, both of which are amounts the
+    paper leaves free (smoothing ε; exact-vs-Sinkhorn OT).
+    """
+
+    sample_nfe: int = 100        # exp-map Euler steps for the sampling ODE
+    t_eps: float = 1e-3          # keep geodesic time in [0, 1-t_eps]
+    use_ot: bool = True          # Riemannian minibatch-OT coupling (paper §3.4)
+    ot_reg: float = 0.0          # >0 ⇒ entropic Sinkhorn; 0 ⇒ exact assignment
+    ot_iters: int = 50           # Sinkhorn iterations (only when ot_reg > 0)
+    # σ: Δ → Δ̊, the paper's interior-smoothing map. Amount unfixed there, so we
+    # use the repo-wide ε of TransformationConfig.label_smoothing; 0 ⇒ raw vertex.
+    label_smoothing: float = 1e-4
+
+
+@dataclass
 class WandbConfig:
     """Optional Weights & Biases logging. Off by default; enable with --wandb."""
 
@@ -794,4 +818,5 @@ class Config:
     sflm_ebm: SFLMEbmConfig = field(default_factory=SFLMEbmConfig)
     sflm: SFLMConfig = field(default_factory=SFLMConfig)
     sfm: SFMConfig = field(default_factory=SFMConfig)
+    fisher_fm: FisherFMConfig = field(default_factory=FisherFMConfig)
     wandb: WandbConfig = field(default_factory=WandbConfig)

@@ -1,0 +1,10 @@
+### SEQUENCER START 2026-08-09_14:25:44
+### [2026-08-09_14:25:44] cheap ladder complete
+### [2026-08-09_14:25:50] latent driver stopped
+### [2026-08-09_14:25:50] 10-epoch recovery ladder start
+### [2026-08-09_18:06:51] 10-epoch recovery ladder exit=0
+### [2026-08-09_17:44:20] α=1.0 start
+### [2026-08-09_18:06:51] α=1.0 exit=0 -> delta=0.0350 acc=0.0724 acc_pt=0.0374
+### RECOVERY-FINE COMPLETE 2026-08-09_18:06:51  arm=DirichletFM
+### [2026-08-09_18:06:51] relaunching latent driver for the plausible stage
+### SEQUENCER DONE 2026-08-09_18:06:51 (plausible now running under pid 3117060)

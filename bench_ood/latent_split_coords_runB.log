@@ -1,0 +1,9 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[latent] ckpt=runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM/epoch_best.pt
+[latent] t_eval=4.5 K=27 fit=192 eval=256 rate=0.3
+[seq:replace] PCA(PC1-2)=0.791  LDA-axis=1.000  full-linear=1.000
+Wrote bench_ood/latent_split_coords_tokrep/latent_split_sequence.png
+[token] PCA(PC1-2)=0.544  energy-axis=0.965  full-linear=1.000
+Wrote bench_ood/latent_split_coords_tokrep/latent_split_token_replace.png
+Wrote bench_ood/latent_split_coords_tokrep/latent_split.json
+Wrote bench_ood/latent_split_coords_tokrep/latent_split_coords.npz

@@ -89,7 +89,28 @@ def _probe_auroc(X: np.ndarray, y: np.ndarray) -> float:
     return _auroc(clf.decision_function(X), y)
 
 
-def _corrupt(tok, scheme, rate, K, seed, by_len=None):
+_WORDSWAP = ("falseinfo", "wordswap", "plausible")
+
+
+def _probe_null(X, y, n_perm, seed):
+    """Mean in-sample probe AUROC under LABEL PERMUTATION.
+
+    The probes below are fit on the points they score, so their value is biased
+    upward by however much an unconstrained linear fit can memorise at this (n,
+    d) and feature covariance. Refitting on shuffled labels measures exactly that
+    bias: it is what the estimator returns when there is nothing to find. Per
+    sequence n=512 against d=1280, where any labelling is linearly separable, so
+    this is the number the reported AUROC has to be read against.
+    """
+    if n_perm <= 0:
+        return None
+    rng = np.random.default_rng(seed)
+    return float(np.mean([_probe_auroc(X, rng.permutation(y))
+                          for _ in range(n_perm)]))
+
+
+def _corrupt(tok, scheme, rate, K, seed, by_len=None, *, model=None, device=None,
+             t_nll=3.0, n_cands=48):
     if scheme == "replace":
         return corrupt_token_ids(tok, vocab_size=K, corrupt_rate=rate, seed=seed)
     if scheme == "shuffle":
@@ -98,6 +119,24 @@ def _corrupt(tok, scheme, rate, K, seed, by_len=None):
         if by_len is None:
             raise ValueError("falseinfo corruption needs a by_len vocab")
         return corrupt_false_info(tok, rate, by_len, seed=seed)
+    if scheme == "plausible":
+        # Same slots as falseinfo (shared RNG order), but each is filled with the
+        # same-length real word the MODEL itself scores as most fluent — the
+        # adversarial case of the corruption ladder. Reuses the swap of the
+        # plausible-vs-random experiment verbatim so the two agree by construction.
+        if by_len is None or model is None:
+            raise ValueError("plausible corruption needs a by_len vocab and the model")
+        import time
+
+        from scripts.ood_plausible_swap import plausible_swap
+
+        t0 = time.time()
+        out, n_sw = plausible_swap(model, tok, rate, by_len, t_nll=t_nll, K=K,
+                                   device=device, n_cands=n_cands, seed=seed)
+        # multi-hour stage: log the cost so a ladder over rates can be budgeted
+        print(f"[plausible] {tok.shape[0]} seqs @ rate {rate}: {n_sw} slots, "
+              f"{time.time() - t0:.0f}s", flush=True)
+        return out.cpu()
     out = corrupt_token_ids(tok, vocab_size=K, corrupt_rate=rate, seed=seed)
     return partially_shuffle_token_ids(out, shuffle_rate=rate, seed=seed + 1)
 
@@ -150,9 +189,23 @@ def main() -> int:
                          "rows (e.g. replace,shuffle,falseinfo). 'falseinfo' = "
                          "lexically-valid same-length word swap (the hard semantic axis).")
     ap.add_argument("--token-scheme", type=str, default="replace",
-                    help="corruption scheme for the per-token figure (replace or "
-                         "falseinfo). falseinfo shows whether the swapped-word tokens "
-                         "separate from clean tokens in feature space.")
+                    help="corruption scheme(s) for the per-token figure, comma list "
+                         "(replace, shuffle, falseinfo, plausible). Each becomes one "
+                         "row with its own energy-hinge head, so the per-token view "
+                         "covers the same ladder as the per-sequence one.")
+    ap.add_argument("--t-nll", type=float, default=3.0,
+                    help="path time at which the plausible swap scores its candidates "
+                         "(the denoiser-NLL detector's own t)")
+    ap.add_argument("--n-cands", type=int, default=48,
+                    help="candidate words per slot for the plausible swap")
+    ap.add_argument("--perm-null", type=int, default=0, metavar="N",
+                    help="also report each in-sample probe's label-permutation "
+                         "null, averaged over N shuffles (0 = off). This is the "
+                         "value the probe returns with no signal present, which "
+                         "the reported AUROC must be read against")
+    ap.add_argument("--no-tsne", action="store_true",
+                    help="skip the exploratory t-SNE column (it is not read by any "
+                         "paper figure and dominates the wall time on 4 schemes)")
     ap.add_argument("--margin", type=float, default=4.0)
     ap.add_argument("--head-steps", type=int, default=600)
     ap.add_argument("--lr", type=float, default=5e-2)
@@ -162,7 +215,11 @@ def main() -> int:
                          "valid negative, only corruption is OOD)")
     ap.add_argument("--tsne-n", type=int, default=1200, help="points/class for t-SNE")
     ap.add_argument("--seed", type=int, default=42)
+    ap.add_argument("--dump-coords", action="store_true",
+                    help="also save the plotted 2-D coordinates + labels to "
+                         "latent_split_coords.npz (for external re-plotting)")
     args = ap.parse_args()
+    coords: dict[str, np.ndarray] = {}
 
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
@@ -187,10 +244,10 @@ def main() -> int:
           f"fit={fit_tok.shape[0]} eval={eval_tok.shape[0]} rate={args.rate}")
 
     schemes = [s for s in args.schemes.split(",") if s.strip()]
+    tschemes = [s for s in args.token_scheme.split(",") if s.strip()]
     # false-info replacement vocab (built once from the fit windows) if needed
     by_len = None
-    if any(s in ("falseinfo", "wordswap")
-           for s in schemes + [args.token_scheme]):
+    if any(s in _WORDSWAP for s in schemes + tschemes):
         fit_txt = " ".join(
             "".join(_ALPH[int(i)] if int(i) < len(_ALPH) else "?" for i in row)
             for row in fit_tok
@@ -213,6 +270,10 @@ def main() -> int:
     def zseq(tok):  # -> mean-pooled standardized seq feats (B,d) numpy
         return ztok(tok).mean(1)
 
+    def corrupt(tok, scheme, rate, seed):  # one call site for every scheme
+        return _corrupt(tok, scheme, rate, K, seed, by_len=by_len, model=model,
+                        device=device, t_nll=args.t_nll, n_cands=args.n_cands)
+
     out = Path(args.out_dir)
     out.mkdir(parents=True, exist_ok=True)
     import matplotlib
@@ -223,7 +284,7 @@ def main() -> int:
     metrics = {"ckpt": args.ckpt, "split": args.split, "t_eval": t_eval,
                "d_model": d, "rate": args.rate, "fit_seqs": args.fit_seqs,
                "n": args.n, "schemes": schemes, "token_scheme": args.token_scheme,
-               "per_sequence": {}, "per_token": {}}
+               "token_schemes": tschemes, "per_sequence": {}, "per_token": {}}
 
     # ===================== FIGURE 1 — per-SEQUENCE ==========================
     Zc_fit = zseq(fit_tok)                                    # clean fit seqs
@@ -231,10 +292,8 @@ def main() -> int:
     nrows = len(schemes)
     fig, axes = plt.subplots(nrows, 3, figsize=(13.5, 4.3 * nrows), squeeze=False)
     for row, scheme in enumerate(schemes):
-        Zk_fit = zseq(_corrupt(fit_tok.clone(), scheme, args.rate, K, args.seed + 1,
-                               by_len=by_len))
-        Zk_ev = zseq(_corrupt(eval_tok.clone(), scheme, args.rate, K, args.seed + 2,
-                              by_len=by_len))
+        Zk_fit = zseq(corrupt(fit_tok.clone(), scheme, args.rate, args.seed + 1))
+        Zk_ev = zseq(corrupt(eval_tok.clone(), scheme, args.rate, args.seed + 2))
         Xev = np.concatenate([Zc_ev, Zk_ev], 0)
         yev = np.r_[np.zeros(len(Zc_ev)), np.ones(len(Zk_ev))]
 
@@ -261,20 +320,32 @@ def main() -> int:
                  "LDA separating axis", "leading orthogonal PC")
 
         # -- t-SNE (nonlinear) --
-        nse = min(args.tsne_n, len(Zc_ev))
-        Xt = np.concatenate([Zc_ev[:nse], Zk_ev[:nse]], 0)
-        yt = np.r_[np.zeros(nse), np.ones(nse)]
-        emb = TSNE(n_components=2, perplexity=30, init="pca",
-                   random_state=args.seed).fit_transform(Xt)
-        _scatter(axes[row, 2], emb, yt,
-                 f"{scheme}@{args.rate}  t-SNE (nonlinear, exploratory)",
-                 "t-SNE 1", "t-SNE 2")
+        if args.no_tsne:
+            axes[row, 2].axis("off")
+        else:
+            nse = min(args.tsne_n, len(Zc_ev))
+            Xt = np.concatenate([Zc_ev[:nse], Zk_ev[:nse]], 0)
+            yt = np.r_[np.zeros(nse), np.ones(nse)]
+            emb = TSNE(n_components=2, perplexity=30, init="pca",
+                       random_state=args.seed).fit_transform(Xt)
+            _scatter(axes[row, 2], emb, yt,
+                     f"{scheme}@{args.rate}  t-SNE (nonlinear, exploratory)",
+                     "t-SNE 1", "t-SNE 2")
+        if args.dump_coords:
+            coords[f"seq_{scheme}_pca_xy"] = xy
+            coords[f"seq_{scheme}_lda_xy"] = np.c_[xax, yax]
+            coords[f"seq_{scheme}_labels"] = yev
         axes[row, 0].legend(fontsize=7, markerscale=1.6, loc="best")
         metrics["per_sequence"][scheme] = {
             "pca_pc12_probe_auroc": au_pca, "lda_axis_auroc": au_lda,
-            "full_dim_linear_auroc": au_full}
+            "full_dim_linear_auroc": au_full,
+            "pca_pc12_probe_null": _probe_null(xy, yev, args.perm_null, args.seed),
+            "full_dim_linear_null": _probe_null(Xev, yev, args.perm_null, args.seed),
+            "n_points": int(len(yev))}
         print(f"[seq:{scheme}] PCA(PC1-2)={au_pca:.3f}  LDA-axis={au_lda:.3f}  "
-              f"full-linear={au_full:.3f}")
+              f"full-linear={au_full:.3f}  "
+              f"nulls={metrics['per_sequence'][scheme]['pca_pc12_probe_null']} / "
+              f"{metrics['per_sequence'][scheme]['full_dim_linear_null']}")
     fig.suptitle(
         f"Latent split — PER-SEQUENCE (mean-pooled DirichletFM features @ t={t_eval}); "
         f"blue=valid, red=invalid", fontsize=11)
@@ -284,83 +355,102 @@ def main() -> int:
     plt.close(fig)
     print(f"Wrote {p1}")
 
-    # ===================== FIGURE 2 — per-TOKEN (replace) ===================
-    # Train the real energy-hinge head (BayesLinHead recipe) on the fit set.
-    tscheme = args.token_scheme
+    # ===================== FIGURE 2 — per-TOKEN, one row per scheme =========
+    # Each scheme gets its OWN energy-hinge head (BayesLinHead recipe), trained on
+    # the fit set against that scheme's negatives, so the axis shown is the one a
+    # detector for that corruption would actually use. The clean features are
+    # scheme-independent and computed once.
     zc_fit = ztok(fit_tok).reshape(-1, d)
-    corr_fit = _corrupt(fit_tok.clone(), tscheme, 0.5, K, args.seed, by_len=by_len)
-    zk_fit_all = ztok(corr_fit).reshape(-1, d)
-    yk_fit = (corr_fit != fit_tok).reshape(-1).numpy()
-    head = nn.Linear(d, 1).to(device)
-    opt = torch.optim.Adam(head.parameters(), lr=args.lr)
-    zpos = torch.tensor(np.concatenate([zc_fit, zk_fit_all[yk_fit == 0]], 0),
-                        device=device)
-    zneg = torch.tensor(zk_fit_all[yk_fit == 1], device=device)
-    for step in range(args.head_steps):
-        opt.zero_grad()
-        loss = head(zpos).squeeze(-1).pow(2).mean() + \
-            torch.relu(args.margin - head(zneg).squeeze(-1)).mean()
-        loss.backward()
-        opt.step()
-    w_energy = head.weight.detach().cpu().numpy()[0]
-    w_energy = w_energy / (np.linalg.norm(w_energy) + 1e-12)
-
-    # Eval per-token: clean tokens vs REPLACED tokens (balanced sample).
-    corr_ev = _corrupt(eval_tok.clone(), tscheme, args.rate, K, args.seed + 5,
-                       by_len=by_len)
-    zk_ev = ztok(corr_ev).reshape(-1, d)
-    chg = (corr_ev != eval_tok).reshape(-1).numpy()
     zc_ev = ztok(eval_tok).reshape(-1, d)
-    rng = np.random.default_rng(args.seed)
-    n_inv = int(chg.sum())
-    n_show = min(n_inv, 4000)
-    inv_idx = rng.choice(np.where(chg)[0], n_show, replace=False)
-    val_idx = rng.choice(zc_ev.shape[0], n_show, replace=False)
-    Zt = np.concatenate([zc_ev[val_idx], zk_ev[inv_idx]], 0)
-    yt = np.r_[np.zeros(n_show), np.ones(n_show)]
+    fig2, ax2 = plt.subplots(len(tschemes), 3,
+                             figsize=(13.5, 4.5 * len(tschemes)), squeeze=False)
+    for row, tscheme in enumerate(tschemes):
+        corr_fit = corrupt(fit_tok.clone(), tscheme, 0.5, args.seed)
+        zk_fit_all = ztok(corr_fit).reshape(-1, d)
+        yk_fit = (corr_fit != fit_tok).reshape(-1).numpy()
+        head = nn.Linear(d, 1).to(device)
+        opt = torch.optim.Adam(head.parameters(), lr=args.lr)
+        zpos = torch.tensor(np.concatenate([zc_fit, zk_fit_all[yk_fit == 0]], 0),
+                            device=device)
+        zneg = torch.tensor(zk_fit_all[yk_fit == 1], device=device)
+        for step in range(args.head_steps):
+            opt.zero_grad()
+            loss = head(zpos).squeeze(-1).pow(2).mean() + \
+                torch.relu(args.margin - head(zneg).squeeze(-1)).mean()
+            loss.backward()
+            opt.step()
+        w_energy = head.weight.detach().cpu().numpy()[0]
+        w_energy = w_energy / (np.linalg.norm(w_energy) + 1e-12)
 
-    fig2, ax2 = plt.subplots(1, 3, figsize=(13.5, 4.5))
-    # PCA per-token (fit on clean tokens)
-    cmu = zc_ev.mean(0)
-    _, _, Vt = np.linalg.svd(zc_ev[val_idx] - cmu, full_matrices=False)
-    xy = (Zt - cmu) @ Vt[:2].T
-    au_pca = _probe_auroc(xy, yt)
-    _scatter(ax2[0], xy, yt,
-             f"per-token PCA (unsupervised)\nPC1–2 probe AUROC={au_pca:.3f}",
-             "PC1", "PC2")
-    ax2[0].legend(fontsize=7, markerscale=1.6)
-    # Energy-hinge axis (the detector's actual axis) vs orthogonal PC
-    ortho = _orth_pc(Zt, w_energy)
-    xax, yax = Zt @ w_energy, Zt @ ortho
-    au_e = _auroc(xax, yt)
-    au_full = _probe_auroc(Zt, yt)
-    _scatter(ax2[1], np.c_[xax, yax], yt,
-             f"per-token energy-hinge axis (supervised)\n"
-             f"energy AUROC={au_e:.3f}  (full-dim ceiling={au_full:.3f})",
-             "trained energy axis  E=w·z", "leading orthogonal PC")
-    # t-SNE per-token
-    nse = min(args.tsne_n, n_show)
-    emb = TSNE(n_components=2, perplexity=30, init="pca",
-               random_state=args.seed).fit_transform(
-        np.concatenate([zc_ev[val_idx][:nse], zk_ev[inv_idx][:nse]], 0))
-    _scatter(ax2[2], emb, np.r_[np.zeros(nse), np.ones(nse)],
-             "per-token t-SNE (nonlinear, exploratory)", "t-SNE 1", "t-SNE 2")
+        # Eval per-token: clean tokens vs CORRUPTED tokens (balanced sample).
+        corr_ev = corrupt(eval_tok.clone(), tscheme, args.rate, args.seed + 5)
+        zk_ev = ztok(corr_ev).reshape(-1, d)
+        chg = (corr_ev != eval_tok).reshape(-1).numpy()
+        rng = np.random.default_rng(args.seed)   # per row: order-independent draws
+        n_inv = int(chg.sum())
+        n_show = min(n_inv, 4000)
+        inv_idx = rng.choice(np.where(chg)[0], n_show, replace=False)
+        val_idx = rng.choice(zc_ev.shape[0], n_show, replace=False)
+        Zt = np.concatenate([zc_ev[val_idx], zk_ev[inv_idx]], 0)
+        yt = np.r_[np.zeros(n_show), np.ones(n_show)]
+
+        # PCA per-token (fit on clean tokens)
+        cmu = zc_ev.mean(0)
+        _, _, Vt = np.linalg.svd(zc_ev[val_idx] - cmu, full_matrices=False)
+        xy = (Zt - cmu) @ Vt[:2].T
+        au_pca = _probe_auroc(xy, yt)
+        _scatter(ax2[row, 0], xy, yt,
+                 f"{tscheme}@{args.rate}  per-token PCA (unsupervised)\n"
+                 f"PC1–2 probe AUROC={au_pca:.3f}", "PC1", "PC2")
+        ax2[row, 0].legend(fontsize=7, markerscale=1.6)
+        # Energy-hinge axis (the detector's actual axis) vs orthogonal PC
+        ortho = _orth_pc(Zt, w_energy)
+        xax, yax = Zt @ w_energy, Zt @ ortho
+        au_e = _auroc(xax, yt)
+        au_full = _probe_auroc(Zt, yt)
+        _scatter(ax2[row, 1], np.c_[xax, yax], yt,
+                 f"{tscheme}@{args.rate}  per-token energy-hinge axis (supervised)\n"
+                 f"energy AUROC={au_e:.3f}  (full-dim ceiling={au_full:.3f})",
+                 "trained energy axis  E=w·z", "leading orthogonal PC")
+        if args.dump_coords:
+            coords[f"tok_{tscheme}_pca_xy"] = xy
+            coords[f"tok_{tscheme}_energy_xy"] = np.c_[xax, yax]
+            coords[f"tok_{tscheme}_labels"] = yt
+        # t-SNE per-token
+        if args.no_tsne:
+            ax2[row, 2].axis("off")
+        else:
+            nse = min(args.tsne_n, n_show)
+            emb = TSNE(n_components=2, perplexity=30, init="pca",
+                       random_state=args.seed).fit_transform(
+                np.concatenate([zc_ev[val_idx][:nse], zk_ev[inv_idx][:nse]], 0))
+            _scatter(ax2[row, 2], emb, np.r_[np.zeros(nse), np.ones(nse)],
+                     f"{tscheme}@{args.rate}  per-token t-SNE (exploratory)",
+                     "t-SNE 1", "t-SNE 2")
+        metrics["per_token"][tscheme] = {
+            "token_scheme": tscheme, "pca_pc12_probe_auroc": au_pca,
+            "energy_axis_auroc": au_e, "full_dim_linear_auroc": au_full,
+            "pca_pc12_probe_null": _probe_null(xy, yt, args.perm_null, args.seed),
+            "full_dim_linear_null": _probe_null(Zt, yt, args.perm_null, args.seed),
+            "n_per_class": n_show}
+        print(f"[token:{tscheme}] PCA(PC1-2)={au_pca:.3f}  energy-axis={au_e:.3f}  "
+              f"full-linear={au_full:.3f}  "
+              f"nulls={metrics['per_token'][tscheme]['pca_pc12_probe_null']} / "
+              f"{metrics['per_token'][tscheme]['full_dim_linear_null']}")
     fig2.suptitle(
-        f"Latent split — PER-TOKEN, {tscheme}@{args.rate} (clean tokens vs "
-        f"corrupted tokens); blue=valid, red=invalid", fontsize=11)
+        f"Latent split — PER-TOKEN @{args.rate} (clean tokens vs corrupted "
+        f"tokens); blue=valid, red=invalid", fontsize=11)
     fig2.tight_layout(rect=(0, 0, 1, 0.95))
-    p2 = out / f"latent_split_token_{tscheme}.png"
+    p2 = out / f"latent_split_token_{'-'.join(tschemes)}.png"
     fig2.savefig(p2, dpi=140)
     plt.close(fig2)
-    metrics["per_token"] = {"token_scheme": tscheme,
-                            "pca_pc12_probe_auroc": au_pca, "energy_axis_auroc": au_e,
-                            "full_dim_linear_auroc": au_full, "n_per_class": n_show}
-    print(f"[token] PCA(PC1-2)={au_pca:.3f}  energy-axis={au_e:.3f}  "
-          f"full-linear={au_full:.3f}")
     print(f"Wrote {p2}")
 
     (out / "latent_split.json").write_text(json.dumps(metrics, indent=2))
     print(f"Wrote {out / 'latent_split.json'}")
+    if args.dump_coords:
+        np.savez_compressed(out / "latent_split_coords.npz", **coords)
+        print(f"Wrote {out / 'latent_split_coords.npz'}")
     return 0
 
 

@@ -1,0 +1,25 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[plausible] split=test fit=512 eval=64 rate=0.15 t_eval=6.0 t_nll=3.0 n_cands=48
+=== fit BGMM density detector (clean, one-class) ===
+  [bgmm] t_eval=6.0 d=1280 feat_dim=64 max_K=20 n_effective=13 cov=full converged=True lb=-5835851.638
+=== build corruptions (random vs model-plausible, same slots) ===
+[plausible] random changed 1665 toks; plausible changed 1752 toks (392 words)
+[plausible] denoiser NLL at swapped chars — random=0.564 plausible=0.006 (clean baseline=0.130)
+
+detector corruption  seq_AUROC  token_AUROC
+    BGMM     random      0.667        0.658
+    BGMM  plausible      0.436        0.461
+     NLL     random      0.725        0.741
+     NLL  plausible      0.448        0.264
+
+--- example 0 ---
+  clean    : 'l clinton during a fundraising event in washington dc october one nine nine six monica samille lewinsky born july two th'
+  random   : 'l clinton during a fundraising event in washington dc october ost nine nine six monica samille lewinsky born july two th'
+  plausible: 'l clinton during a fundraising event in washington dc october the nine nine six monica samille lewinsky born july two th'
+
+--- example 1 ---
+  clean    : 'ill clinton their affair started while lewinsky was working as an intern at the white house in the mid one nine nine zer'
+  random   : 'ill clinton their affair eugenio while lewinsky was working as an intern at the white house in the mid one nine nine zer'
+  plausible: 'ill clinton their system however while lewinsky was working to an intern at the white house in one mid one nine nine zer'
+
+Wrote ood_out_best/plausible_swap/plausible_swap.json

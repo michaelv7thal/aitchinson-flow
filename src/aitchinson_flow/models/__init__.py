@@ -19,6 +19,7 @@ from .sflm_ebm import SFLMEBM
 from .sflm import SFLM
 from .sflm_svgp import SFLMSvgp
 from .sfm import StatisticalFlowMatching
+from .fisher_fm import FisherFlowMatching
 
 __all__ = [
     "GenerativeTrainingModel",
@@ -48,4 +49,5 @@ __all__ = [
     "SFLM",
     "SFLMSvgp",
     "StatisticalFlowMatching",
+    "FisherFlowMatching",
 ]

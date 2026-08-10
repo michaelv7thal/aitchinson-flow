@@ -262,6 +262,10 @@ ARM_TO_MODEL = {
     # Statistical Flow Matching (Cheng et al. 2024, arXiv:2405.16441): Fisher–Rao
     # √μ-sphere geodesic FM. Config defaults (cfg.sfm) are the known-good recipe.
     "SFM": "SFM",
+    # Fisher-Flow (Davis et al. 2024, arXiv:2405.14664, davis2024fisherfm): SFM +
+    # a Riemannian minibatch-OT coupling. Config defaults (cfg.fisher_fm) are the
+    # recipe; use_ot=True is the delta over SFM.
+    "FisherFM": "FisherFM",
     # The 7-model generation benchmark also needs these two (added):
     #   FMonCLR — Standard Flow Matching (Lipman): raw-velocity FM on CLR,
     #             the linear-FM control. No conservative-gradient step.
@@ -326,6 +330,11 @@ def _model_cfg(name: str, epochs: int, scale: str, *, out_dir: str | None = None
         # geodesic flow matching. Reuses the DirichletFM backbone (DFMBackbone +
         # DFMHead); only cfg.sfm (sample_nfe, t_eps) applies, and its defaults
         # are the recipe. No special sizing needed.
+        pass
+    elif name == "FisherFM":
+        # FisherFlowMatching (Davis et al. 2024) — SFM + Riemannian minibatch-OT
+        # coupling. Same DirichletFM backbone; only cfg.fisher_fm applies and its
+        # defaults are the recipe. No special sizing needed.
         pass
     elif name == "FMonCLR":
         # Standard Flow Matching (Lipman et al. 2022) on CLR — the linear-FM
