@@ -89,6 +89,24 @@ def _probe_auroc(X: np.ndarray, y: np.ndarray) -> float:
     return _auroc(clf.decision_function(X), y)
 
 
+def _probe_dir(X: np.ndarray, y: np.ndarray) -> np.ndarray:
+    """Unit weight vector of the SAME probe _probe_auroc scores.
+
+    Refits with identical data and hyper-parameters (lbfgs is deterministic), so
+    the returned direction is the one whose AUROC is reported. Used only to give
+    the full-dimension probe a 2-D panel: its decision axis against the leading
+    orthogonal PC, the same display the LDA / energy axes get.
+    """
+    from sklearn.linear_model import LogisticRegression
+
+    if (y == 1).sum() < 2 or (y == 0).sum() < 2:
+        return np.zeros(X.shape[1])
+    clf = LogisticRegression(max_iter=2000, C=1.0)
+    clf.fit(X, y)
+    w = clf.coef_[0]
+    return w / (np.linalg.norm(w) + 1e-12)
+
+
 _WORDSWAP = ("falseinfo", "wordswap", "plausible")
 
 
@@ -332,8 +350,14 @@ def main() -> int:
                      f"{scheme}@{args.rate}  t-SNE (nonlinear, exploratory)",
                      "t-SNE 1", "t-SNE 2")
         if args.dump_coords:
+            # Full-dimension probe: its own decision axis vs the leading
+            # orthogonal PC, so the third readout can be shown and not only
+            # tabulated. In sample by construction, like the AUROC above it.
+            wf = _probe_dir(Xev, yev)
             coords[f"seq_{scheme}_pca_xy"] = xy
             coords[f"seq_{scheme}_lda_xy"] = np.c_[xax, yax]
+            coords[f"seq_{scheme}_full_xy"] = np.c_[Xev @ wf,
+                                                    Xev @ _orth_pc(Xev, wf)]
             coords[f"seq_{scheme}_labels"] = yev
         axes[row, 0].legend(fontsize=7, markerscale=1.6, loc="best")
         metrics["per_sequence"][scheme] = {
@@ -413,8 +437,11 @@ def main() -> int:
                  f"energy AUROC={au_e:.3f}  (full-dim ceiling={au_full:.3f})",
                  "trained energy axis  E=w·z", "leading orthogonal PC")
         if args.dump_coords:
+            wf = _probe_dir(Zt, yt)
             coords[f"tok_{tscheme}_pca_xy"] = xy
             coords[f"tok_{tscheme}_energy_xy"] = np.c_[xax, yax]
+            coords[f"tok_{tscheme}_full_xy"] = np.c_[Zt @ wf,
+                                                     Zt @ _orth_pc(Zt, wf)]
             coords[f"tok_{tscheme}_labels"] = yt
         # t-SNE per-token
         if args.no_tsne:

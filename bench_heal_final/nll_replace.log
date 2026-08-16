@@ -1,0 +1,27 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[heal] ckpt=runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM_converge/epoch_final.pt
+[heal] K=27 L=256 t_max=8.0 t_eval=4.5 device=cuda
+[heal] disjoint splits: fit=256 cal=256 demo=64  n_seeds=3
+=== build per-token localizer (nll) ===
+  [nll] training-free denoiser-surprise localizer @ t_nll=3.0 (no head, no fit set)
+=== heal sweep (mean over 3 corruption seeds) ===
+  fpr     thr  loc_P  loc_R  loc_F1    fix    dmg    net/corrupt   delta_ws
+ 0.02   1.403  0.811  0.764   0.787  0.595  0.029   +0.432±0.015    +0.0652  <- selected
+ 0.05   0.638  0.576  0.914   0.707  0.576  0.110   -0.042±0.014    -0.0063
+ 0.10   0.247  0.415  0.968   0.581  0.444  0.225   -0.822±0.034    -0.1238
+
+--- example[0] @ selected fpr=0.02 (chosen by cal-set F0.5) ---
+  clean : 'l clinton during a fundraising event in washington dc october one nine nine six monica samille lewinsky born july two three one nine seven three is an american woman who was thrust into the public limelight after having a sexual affair with u s president b'
+  corr  : 'l clin on durdng q trndraiaisv evjnt kn washgngton dc octobem one zije fine lix cpnica samille lzwinskh bornjjuby two threh one nincysev n thren iszan amrrican womsn who wqs thrust into the public lomelight aften haking a sexual asfaix wiahul s presidcnt b'
+  truec :       ^      ^   ^ ^^     ^ ^^   ^   ^      ^               ^     ^ ^  ^    ^   ^^              ^     ^     ^  ^          ^        ^^   ^      ^   ^     ^         ^       ^                          ^            ^   ^              ^   ^   ^ ^^         ^    
+  flag  :              *   * *         *   *   *      *      **       *     * *  *    *    *              **  *       **            *        **   *      *   *     *         *       *                         *                                        *            *    
+  healed: 'l clin on during a hrndraiaism event in washington an october one nine nine six canica samille livinikh born juby two three one nine seven three is an american women who was thrust into the public womelight aften haking a sexual asfaix wishul s president b'
+
+=== HEADLINE @ selected fpr=0.02 (mean±std over 3 seeds) ===
+  localize    = P 0.811 / R 0.764 / F1 0.787   (per-token detection of the corrupt positions)
+  fix_rate    = 0.595   (corrupt token -> correct)
+  damage_rate = 0.029   (clean token -> broken)
+  net/corrupt = +0.432 ± 0.015   (net tokens recovered per corrupt token; >0 ⇒ net benefit)
+  delta_ws    = +0.0652 ± 0.0021   (whole-seq; diluted, capped near corrupt_rate — diagnostic only)
+
+Wrote bench_heal_final/nll_replace.json

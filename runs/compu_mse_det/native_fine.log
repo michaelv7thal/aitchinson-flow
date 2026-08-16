@@ -1,0 +1,42 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+ckpt            runs/compu_mse_det/epoch_final.pt
+model           EqM
+dirichlet_samp  False
+gamma_power     1.0
+source_sigma    0.1
+data radius/pos 12.2723   (max radius the training path reaches)
+
+Native-path recovery:  x_init = (1-g)*x0 + g*x1,  g = 1-alpha
+  alpha  gamma  |x_init|   acc_pt   acc_rc    delta
+   0.93   0.07      0.98   1.0000   1.0000  +0.0000
+   0.95   0.05      0.78   0.9999   0.9994  -0.0005
+   0.96   0.04      0.69   0.9972   0.9952  -0.0020
+   0.97   0.03      0.62   0.9531   0.9466  -0.0065
+   0.98   0.02      0.56   0.6980   0.7156  +0.0176
+  0.985   0.02      0.54   0.4677   0.5261  +0.0584
+  0.995   0.01      0.51   0.1136   0.1885  +0.0749
+
+sample[0] at each alpha (gt / pre-descent / post-descent):
+  a=0.93  gt='e the capital of one government after an'
+           pt='e the capital of one government after an'
+           rc='e the capital of one government after an'
+  a=0.95  gt='e the capital of one government after an'
+           pt='e the capital of one government after an'
+           rc='e the capital of one government after an'
+  a=0.96  gt='e the capital of one government after an'
+           pt='e the capital of one government after an'
+           rc='e the capital of one government after an'
+  a=0.97  gt='e the capital of one government after an'
+           pt='e toe capital of one governmenk after an'
+           rc='e the capital of one governmeno after an'
+  a=0.98  gt='e the capital of one government after an'
+           pt='b the capitvg xmdcna gotsrnmeni afuer pn'
+           rc='h che mahita  amsc a  otsrnteni afper tn'
+  a=0.985 gt='e the capital of one government after an'
+           pt='dvoiexmagqywyxoorcn bgbvgmnmedttast sian'
+           rc='d oie maofteh oo on  gov nnmedttaso eian'
+  a=0.995 gt='e the capital of one government after an'
+           pt='w zmghqxprvesgmhzipk qhvqygpgvt tvtnjtsx'
+           rc='e yme h oehe oshpi   t   noaant ahtnoesp'
+
+wrote runs/compu_mse_det/recovery_native_path_fine.json

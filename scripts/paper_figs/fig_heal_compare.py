@@ -12,9 +12,9 @@ sys.path.insert(0, str(Path(__file__).parent))
 import matplotlib.pyplot as plt
 
 import _style
-from _style import BASELINE, BLUE, INK, ORANGE, REPO
+from _style import BASELINE, BENCH_HEAL, BLUE, INK, ORANGE
 
-BENCH = REPO / "bench_heal"
+BENCH = BENCH_HEAL
 LOCALIZERS = [("NLL", "nll"), ("BLR", "blr"), ("BGMM", "bgmm")]
 SCHEMES = [("replace (geometric)", "replace", BLUE),
            ("false information (contextual)", "falseinfo", ORANGE)]

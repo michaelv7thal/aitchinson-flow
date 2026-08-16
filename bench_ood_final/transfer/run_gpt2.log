@@ -1,0 +1,11 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[transfer] fit=512 text8_eval=128 insulin_eval=128 t_eval=4.5
+  [logistic] fit on 74285 tok (pos=60000 neg=14285) @ t=4.5
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+Loading weights:   0%|          | 0/148 [00:00<?, ?it/s]Loading weights: 100%|██████████| 148/148 [00:00<00:00, 20756.94it/s]
+
+          domain  seq_AUROC  token_AUROC  word_AUROC  gpt2_word  gpt2_bpe_tok  gpt2_seq
+    text8_indist      0.877        0.878       0.912      0.837         0.709     0.944
+     insulin_ood      0.833        0.822       0.877      0.893         0.764     0.979
+
+Wrote bench_ood_final/transfer/insulin_transfer_gpt2.json

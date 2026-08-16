@@ -1,7 +1,16 @@
 """fig:image-text — the image-versus-text geometry behind the exclusivity
 result. Left: continuous image data, marginal mean inside the typical set,
 a learnable basin. Right: the 2-simplex, data at the one-hot vertices,
-mu_1 at the centroid, field pointing away from all data."""
+mu_1 at the centroid, which is the watershed between the vertex basins.
+
+The right panel used to draw concentric bowl contours at the centroid with the
+field pointing inwards, captioned "a single tilted bowl".  The measurement in
+fig:energy-landscape falsifies that: the trained field points AT the nearest
+vertex from anywhere with signal, and every vertex is a basin.  What is special
+about mu_1 is not that it is the only attractor but that it is equidistant from
+all of them -- Theta(sqrt(L)) from each -- so it is the one place where the
+field has no nearest vertex to name, and that is exactly where the sampler
+starts."""
 import sys
 from pathlib import Path
 
@@ -9,7 +18,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).parent))
 import matplotlib.pyplot as plt
-from matplotlib.patches import Circle, FancyArrowPatch
+from matplotlib.patches import FancyArrowPatch
 
 import _style
 from _style import INK, INK2, MUTED, ROLE_ATTRACTOR, ROLE_DATA, ROLE_FIELD
@@ -92,38 +101,36 @@ def main():
     axR.text(1.13, -0.99, r"$e_2$", fontsize=8, color=INK2, ha="center")
     axR.text(0.16, 0.97, r"$e_3$", fontsize=8, color=INK2, ha="left")
 
-    for radius in (0.15, 0.26, 0.37):
-        axR.add_patch(Circle(M, radius, fill=False, ec=MUTED, lw=0.7, zorder=2))
+    # watershed: the medians divide the simplex into one basin per vertex
+    for v in (A, B, C):
+        opp = [w for w in (A, B, C) if not np.allclose(w, v)]
+        mid = (opp[0] + opp[1]) / 2
+        axR.plot([M[0], mid[0]], [M[1], mid[1]], color=MUTED, lw=0.7,
+                 ls=(0, (3, 2.5)), zorder=2)
 
     mu_marker(axR, *M)
-    axR.annotate(r"$\mu_1$", xy=(M[0] - 0.06, M[1]), xytext=(-0.55, -0.33),
-                 fontsize=9, color=INK, ha="right", va="center",
-                 arrowprops=dict(arrowstyle="-", color=INK2, lw=0.6,
-                                 shrinkA=2, shrinkB=2))
+    axR.text(0.10, -0.40, r"$\mu_1$", fontsize=9, color=INK, ha="left", va="top")
 
-    # field arrows: everywhere toward the centroid, away from every vertex
-    dirs = [(A, (0.90, 0.60)), (B, (0.90, 0.60)),
-            ((A + B) / 2, (0.56,)), ((B + C) / 2, (0.56,)), ((C + A) / 2, (0.56,))]
-    for target, radii in dirs:
-        u = (target - M) / np.linalg.norm(target - M)
-        for r0 in radii:
-            length = min(0.24, r0 - 0.42)
+    # Field arrows towards e1 and e2 only; the e3 direction is left free for the
+    # distance measure, which runs up the same median.
+    for v in (A, B):
+        u = (v - M) / np.linalg.norm(v - M)
+        for r0 in (0.52, 0.82):
             p0 = M + r0 * u
-            p1 = M + (r0 - length) * u
-            field_arrow(axR, p0, p1)
+            axR.add_patch(FancyArrowPatch(p0, p0 + 0.22 * u, arrowstyle="-|>",
+                                          mutation_scale=8, lw=1.0,
+                                          color=ROLE_FIELD, zorder=5,
+                                          shrinkA=0, shrinkB=0))
 
-    # Hilbert distance from mu_1 to the nearest vertex, offset off the median
-    axR.add_patch(FancyArrowPatch((0.06, M[1] + 0.08), (0.06, 0.80),
+    axR.add_patch(FancyArrowPatch((0.0, M[1] + 0.11), (0.0, 0.80),
                                   arrowstyle="<->", mutation_scale=7,
                                   lw=0.8, color=INK, zorder=4,
                                   shrinkA=0, shrinkB=0))
-    axR.text(0.28, 0.66, r"$\Theta(\sqrt{L})$", fontsize=9, color=INK, ha="left")
+    axR.text(0.13, 0.46, r"$\Theta(\sqrt{L})$", fontsize=9, color=INK, ha="left")
 
-    axR.annotate("a single\ntilted bowl", xy=(-0.335, -0.117), xytext=(-1.22, 0.48),
-                 fontsize=9, color=INK, ha="center", va="center", linespacing=1.35,
-                 arrowprops=dict(arrowstyle="-", color=INK2, lw=0.6,
-                                 shrinkA=8, shrinkB=2))
-    axR.text(0, -1.40, "the field points away from all data",
+    axR.text(-1.58, 1.30, "one basin per vertex,\nand $\mu_1$ equidistant from all",
+             fontsize=8.5, color=INK, ha="left", va="center", linespacing=1.35)
+    axR.text(0, -1.40, "the sampler starts where no vertex is nearest",
              fontsize=9, color=INK, ha="center")
 
     _style.save(fig, "image_text_geometry")

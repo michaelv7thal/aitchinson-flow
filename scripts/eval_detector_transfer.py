@@ -81,6 +81,10 @@ def main() -> int:
                          "transfer track (GPT2_NLL, the fair localization comparator); "
                          "'' disables the baseline")
     ap.add_argument("--seed", type=int, default=42)
+    ap.add_argument("--domain-name", default="insulin_ood",
+                    help="result key for the transfer domain (default keeps the "
+                         "original insulin naming; pass e.g. 'semaglutide_ood' "
+                         "when scoring a different article)")
     args = ap.parse_args()
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
@@ -140,7 +144,7 @@ def main() -> int:
     ins_corr = corrupt_false_info(ins.clone(), args.rate, by_len, seed=args.seed + 9)
     res = {}
     for name, clean, corr in [("text8_indist", eval_t8, t8_corr),
-                              ("insulin_ood", ins, ins_corr)]:
+                              (args.domain_name, ins, ins_corr)]:
         changed = corr != clean
         r = _score_auroc(score, clean, corr, K, device)
         wm = word_metrics(score(clean).numpy(), clean, score(corr).numpy(), corr,
@@ -169,7 +173,7 @@ def main() -> int:
         "baseline": f"{args.ref_lm}_nll" if args.ref_lm else None,
         "t_eval": args.t_eval, "rate": args.rate, "n": args.n,
         "results": res,
-        "note": "text8=in-distribution reference; insulin=out-of-domain transfer; "
+        "note": f"text8=in-distribution reference; {args.domain_name}=out-of-domain transfer; "
                 "word AUROC = max-pool, the bench's fair common unit",
     }, indent=2))
     print(f"\nWrote {out}")

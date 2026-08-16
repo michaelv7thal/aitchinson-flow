@@ -1,0 +1,28 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[heal] ckpt=runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM_converge/epoch_final.pt
+[heal] K=27 L=256 t_max=8.0 t_eval=7.5 device=cuda
+[heal] disjoint splits: fit=256 cal=256 demo=64  n_seeds=3
+[heal] false-info vocab: lengths 2-18 (e.g. len-6: ['ensure', 'action', 'assist', 'safety', 'fitted'])
+=== build per-token localizer (bgmm) ===
+  [bgmm] t_eval=7.5 d=1280 feat_dim=64 max_K=20 n_effective=15 cov=full converged=True lb=-4311894.363
+=== heal sweep (mean over 3 corruption seeds) ===
+  fpr     thr  loc_P  loc_R  loc_F1    fix    dmg    net/corrupt   delta_ws
+ 0.02 167.611  0.185  0.037   0.061  0.005  0.009   -0.070±0.003    -0.0078
+ 0.05 160.812  0.192  0.090   0.122  0.010  0.023   -0.173±0.006    -0.0191
+ 0.10 155.179  0.191  0.171   0.180  0.017  0.043   -0.328±0.013    -0.0363  <- selected
+
+--- example[0] @ selected fpr=0.1 (chosen by cal-set F0.5) ---
+  clean : 'l clinton during a fundraising event in washington dc october one nine nine six monica samille lewinsky born july two three one nine seven three is an american woman who was thrust into the public limelight after having a sexual affair with u s president b'
+  corr  : 'l clinton during a fundraising event in reportedly dc certain one atop days six monica samille nebraska born gary two three one nine seven three is an american woman who was thrust into the public limelight after having a topics affair with u s president b'
+  truec :                                         ^^^^^^^^^^    ^^^^^^^     ^^^^ ^^^^                    ^ ^^^  ^      ^^^                                                                                                              ^^^^^^                            
+  flag  :                      **  *                         **                    *                       *   *    *                                                           *        **       *                *                   *  * *               *             
+  healed: 'l clinton during a fur raising event in reportedly in certain one atop days six monica samille ne ras a born gary two three one nine seven three is an american woman who was tugust into the public limeright after having a tonics affair with u s president b'
+
+=== HEADLINE @ selected fpr=0.1 (mean±std over 3 seeds) ===
+  localize    = P 0.191 / R 0.171 / F1 0.180   (per-token detection of the corrupt positions)
+  fix_rate    = 0.017   (corrupt token -> correct)
+  damage_rate = 0.043   (clean token -> broken)
+  net/corrupt = -0.328 ± 0.013   (net tokens recovered per corrupt token; >0 ⇒ net benefit)
+  delta_ws    = -0.0363 ± 0.0002   (whole-seq; diluted, capped near corrupt_rate — diagnostic only)
+
+Wrote bench_heal_final/bgmm_falseinfo.json

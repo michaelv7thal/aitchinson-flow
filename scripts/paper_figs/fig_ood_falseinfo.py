@@ -8,9 +8,9 @@ sys.path.insert(0, str(Path(__file__).parent))
 import matplotlib.pyplot as plt
 
 import _style
-from _style import DETECTORS, INK, MUTED, REPO
+from _style import BENCH_OOD, DETECTORS, INK, MUTED
 
-BENCH = REPO / "bench_ood"
+BENCH = BENCH_OOD
 
 
 def load_falseinfo(relpath, sfx):
@@ -20,9 +20,10 @@ def load_falseinfo(relpath, sfx):
         if r.get("scheme") != "falseinfo" or r.get("rate", 0) <= 0:
             continue
         seq.append((r["rate"], r[f"auroc_seq_{sfx}"]))
-        tok_key = f"auroc_token_{sfx}"
+        # native unit: BPE for the GPT-2 rows, never the char-attributed number
+        tok_key = f"auroc_token_{sfx}_bpe"
         if tok_key not in r:
-            tok_key = f"auroc_token_{sfx}_bpe"
+            tok_key = f"auroc_token_{sfx}"
         tok.append((r["rate"], r[tok_key]))
     return sorted(seq), sorted(tok)
 

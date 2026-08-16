@@ -8,9 +8,9 @@ sys.path.insert(0, str(Path(__file__).parent))
 import matplotlib.pyplot as plt
 
 import _style
-from _style import DETECTORS, INK, MUTED, REPO
+from _style import BENCH_OOD, DETECTORS, INK, MUTED
 
-BENCH = REPO / "bench_ood"
+BENCH = BENCH_OOD
 SCHEMES = [("replace", "replace"), ("shuffle", "shuffle"), ("falseinfo", "false information")]
 
 

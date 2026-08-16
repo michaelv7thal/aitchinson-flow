@@ -1,0 +1,39 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+=== Score reference (clean encoded val) ===
+  energy:    mean=nan  std=nan
+  grad_norm: mean=100.263  std=0.683
+  curvature: mean=nan  std=nan
+=== Unconditional generation ===
+  KL_uni=0.3510  KL_bi=4.0403  KL_tri=11.6572  H_gen=3.2600
+  sample[0]: ' gt xpddh thmauv  bgnopwp xpadjunbformnt'
+  sample[1]: ' gewv urokbomzvvcewgbveoyoukcbljnhereprn'
+  energy:    mean=nan  std=nan
+  grad_norm: mean=451.329  std=52.626
+  curvature: mean=nan  std=nan
+
+=== Recovery from perturbation ===
+  embed_norm_mean=12.2723  σ_source=0.1000
+    α  σ_perturb        Δ  tok_acc tok_acc_pt    KL_bi  sample[0]: gt / pt / rc
+ 0.05      0.614   0.0000   1.0000     1.0000   0.1098  gt='e the capital of one government after an'
+                                             pt='e the capital of one government after an'
+                                             rc='e the capital of one government after an'
+ 0.10      1.227   0.0000   1.0000     1.0000   0.1098  gt='e the capital of one government after an'
+                                             pt='e the capital of one government after an'
+                                             rc='e the capital of one government after an'
+ 0.20      2.454  -0.0492   0.9473     0.9965   0.3024  gt='e the capital of one government after an'
+                                             pt='e the capital of one government after an'
+                                             rc='e the capital of one government after an'
+ 0.30      3.682  -0.3610   0.5362     0.8973   1.7735  gt='e the capital of one government after an'
+                                             pt='e the cajitpu of one govbrxment afqer an'
+                                             rc='aatmenco  tnc yfovni gcidozleupcajnebhan'
+ 0.40      4.909  -0.3617   0.3350     0.6967   2.5254  gt='e the capital of one government after an'
+                                             pt='e thewfacilalcofgpne goverxment zxter an'
+                                             rc='e pieuxadilat gn dodwstvkrnoent z aee fn'
+ 0.50      6.136  -0.2154   0.3128     0.5282   2.4612  gt='e the capital of one government after an'
+                                             pt='k thezclphral of zni goyrrnmeltr ster an'
+                                             rc='hmchgocspbizlzos oya ncmbrnmeats hter an'
+ 1.00     12.272  -0.0605   0.1400     0.2006   3.6530  gt='e the capital of one government after an'
+                                             pt='x rhihfckmtal cbyuxvsgecbdqecnteafteozmj'
+                                             rc='s rdihfj mtehcyp uxiggelbrsetltfewnlxfmr'
+
+Wrote runs/dsmx_clr_dir/recovery.json

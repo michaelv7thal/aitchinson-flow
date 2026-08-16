@@ -202,7 +202,8 @@ def main() -> int:
     Sp_bpe_seq, Sp_bpe_tok, _ = _bpe_pool(Sp_bpe, Sp_spans,
                                           torch.zeros_like(pos_tok, dtype=torch.bool))
     rows = [{"scheme": None, "rate": 0.0, "n": int(pos_tok.shape[0]),
-             "se_seq_mean": clean_mean, "se_bpe_mean": clean_bpe_mean}]
+             "se_seq_mean": clean_mean, "se_bpe_mean": clean_bpe_mean,
+             "n_bpe_tokens": int(len(Sp_bpe_tok))}]
     print(f"\n{'scheme':>9} {'rate':>5} {'AUROC_seq_SE':>13} {'AUROC_tok_SE':>13} "
           f"{'AUtok_BPE':>10} {'AUwrd_max':>9} {'AUwrd_men':>9} "
           f"{'tokP@5':>7} {'tokR@5':>7} {'tokF1@5':>8}")

@@ -24,10 +24,10 @@ import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 
 import _style
-from _style import BLUE, ORANGE, AQUA, VIOLET, MUTED, BASELINE, REPO
+from _style import BENCH_OOD, BLUE, ORANGE, AQUA, VIOLET, MUTED, BASELINE
 
-LADDERS = [REPO / "bench_ood" / "latent_ladder",
-           REPO / "bench_ood" / "latent_ladder_plausible"]
+LADDERS = [BENCH_OOD / "latent_ladder",
+           BENCH_OOD / "latent_ladder_plausible"]
 MAIN_RATE = 0.3                      # the operating point of tab:latent
 
 SCHEMES = [("replace", "replace", BLUE),

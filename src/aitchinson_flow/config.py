@@ -197,6 +197,18 @@ class EqM:
     # sample_gamma) to 1.5 — the *noise* regime, the inverse of the fix —
     # which was restored here. Don't re-flip without re-reading SESSION_SUMMARY.
     gamma_power: float = 0.5
+    # Restrict γ to a sub-interval: gamma = gamma_lo + (gamma_hi-gamma_lo)·U^gamma_power.
+    # Defaults span the whole path, so this is inert unless set. Used by the
+    # "band" experiment, which trains only where the interpolant is partly
+    # informative (the one region whose regression target is not determined by
+    # its own input); see sweeps/band_gamma.yaml.
+    gamma_lo: float = 0.0
+    gamma_hi: float = 1.0
+    # Equilibrium location for decay_strategy="band": c(γ)=max(0, 1-γ/gamma_star),
+    # so the regression target vanishes at γ=gamma_star instead of at γ=1. This
+    # puts the fixed point at the interpolant's clarity point rather than at the
+    # one-hot vertex. Inert under the other decay strategies.
+    gamma_star: float = 0.05
     # x0 source noise scale (used at both train and inference for distribution match).
     source_sigma: float = 0.1
     # NAG-GD sampling hyperparameters (Algorithm 2)

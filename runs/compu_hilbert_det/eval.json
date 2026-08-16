@@ -1,0 +1,40 @@
+{
+  "ckpt": "runs/compu_hilbert_det/epoch_final.pt",
+  "model_name": "EqM",
+  "epoch": 5,
+  "global_step": 785,
+  "n_samples": 256,
+  "sample_steps": 200,
+  "sample_kwargs": {},
+  "unigram_kl": 0.02049199678003788,
+  "bigram_kl": 1.4556279182434082,
+  "trigram_kl": 6.755092620849609,
+  "H_gen": 2.8129100799560547,
+  "H_gt": 2.8483986854553223,
+  "H_ratio": 0.9875408573664628,
+  "grad_at_gen": 0.44765233993530273,
+  "grad_at_gt": 0.4016352593898773,
+  "samples": [
+    "d wdrts heso lrlt teisrhre eal eebtndctc",
+    "arnn ilts vgecrlolneaincs  lahar aime   ",
+    " rpsuopnsala nenthrodh auc  i   na is lt",
+    "dnm rdeflvio f olcndy rr neea aweag skte",
+    "semiioaehrhnteenf  neignn nco nsottd gr ",
+    " as c ofctlna eui  emrtoot atrhseyoohehi",
+    "yeeaaparsd oh p tgiolrecon eefeu i  ecer",
+    "lfmtrpstlahetrolouholu hctv at tl pd oaa"
+  ],
+  "run_name": "compu_hilbert_det",
+  "overrides": {
+    "training.model_name": "EqM",
+    "training.epochs": 5,
+    "training.seed": 42,
+    "text8_dataset.max_train_windows": 10000,
+    "loss.mode": "hilbert_soft",
+    "loss.hilbert_alpha": 1.0,
+    "loss.hilbert_alpha_start": 1.0,
+    "transformation.dirichlet_sampling": false,
+    "eqm.gamma_power": 1.0,
+    "eqm.sample_gamma": 1.5
+  }
+}

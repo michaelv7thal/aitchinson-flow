@@ -196,8 +196,12 @@ class EquilibriumFlowMatching(nn.Module):
         x0 = s.source_sigma * torch.randn(B, L, D, device=device, dtype=dt)
         x0 = x0 - x0.mean(dim=-1, keepdim=True)  # stay in V_d
 
-        # 2. γ importance sampling — push mass toward γ ≈ 1 (where signal lives).
+        # 2. γ importance sampling — push mass toward γ ≈ 1 (where signal lives),
+        # then map into [gamma_lo, gamma_hi] (defaults [0,1], so inert).
         gamma = torch.rand(B, device=device, dtype=dt).pow(s.gamma_power)
+        lo, hi = getattr(s, "gamma_lo", 0.0), getattr(s, "gamma_hi", 1.0)
+        if (lo, hi) != (0.0, 1.0):
+            gamma = lo + (hi - lo) * gamma
         x_gamma = (1.0 - gamma[:, None, None]) * x0 + gamma[:, None, None] * x1
 
         # 3. Target gradient (data-to-noise direction).
@@ -355,6 +359,17 @@ class EquilibriumFlowMatching(nn.Module):
             c_gamma = torch.where(
                 gamma <= a, torch.ones_like(gamma), one_minus_gamma / denominator
             )
+
+        elif strategy == "band":
+            # Equilibrium at the clarity point: c(γ)=max(0, 1-γ/γ*) vanishes at
+            # γ*, so the fixed point of the descent is x_{γ*} and not the vertex.
+            # Normalised to c(0)=1, so target magnitudes (and hence the training
+            # loss scale) match the "linear" strategy; the sampler compensates
+            # via eqm.sample_grad_clip, which should be scaled by γ*.
+            gstar = torch.as_tensor(
+                self.cfg.eqm.gamma_star, device=gamma.device, dtype=gamma.dtype
+            ).clamp(min=1e-7)
+            c_gamma = torch.clamp(1.0 - gamma / gstar, min=0.0)
 
         elif strategy == "piecewise":
             a = torch.as_tensor(

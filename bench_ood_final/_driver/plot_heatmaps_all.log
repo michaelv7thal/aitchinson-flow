@@ -1,0 +1,23 @@
+wrote bench_ood_final/nll/heatmaps/heatmap_clean_0.png
+wrote bench_ood_final/nll/heatmaps/heatmap_replace30_0.png
+wrote bench_ood_final/nll/heatmaps/heatmap_falseinfo30_0.png
+wrote bench_ood_final/blr/heatmaps/heatmap_clean_0.png
+wrote bench_ood_final/blr/heatmaps/heatmap_replace30_0.png
+wrote bench_ood_final/blr/heatmaps/heatmap_falseinfo30_0.png
+wrote bench_ood_final/blr_adv/heatmaps/heatmap_clean_0.png
+wrote bench_ood_final/blr_adv/heatmaps/heatmap_replace30_0.png
+wrote bench_ood_final/blr_adv/heatmaps/heatmap_falseinfo30_0.png
+wrote bench_ood_final/blr_fi/heatmaps/heatmap_clean_0.png
+wrote bench_ood_final/blr_fi/heatmaps/heatmap_replace30_0.png
+wrote bench_ood_final/blr_fi/heatmaps/heatmap_falseinfo30_0.png
+wrote bench_ood_final/bgmm/heatmaps/heatmap_clean_0.png
+wrote bench_ood_final/bgmm/heatmaps/heatmap_replace30_0.png
+wrote bench_ood_final/bgmm/heatmaps/heatmap_falseinfo30_0.png
+wrote bench_ood_final/gpt2_se/heatmaps/heatmap_clean_0.png
+wrote bench_ood_final/gpt2_se/heatmaps/heatmap_replace30_0.png
+wrote bench_ood_final/gpt2_se/heatmaps/heatmap_falseinfo30_0.png
+wrote bench_ood_final/gpt2_nll/heatmaps/heatmap_clean_0.png
+wrote bench_ood_final/gpt2_nll/heatmaps/heatmap_replace30_0.png
+wrote bench_ood_final/gpt2_nll/heatmaps/heatmap_falseinfo30_0.png
+
+21 heatmaps written

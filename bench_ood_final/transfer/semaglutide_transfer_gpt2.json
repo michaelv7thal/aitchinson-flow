@@ -1,0 +1,37 @@
+{
+  "ckpt": "runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM_converge/epoch_final.pt",
+  "detector": "logistic_falseinfo_fulldim",
+  "baseline": "gpt2_nll",
+  "t_eval": 4.5,
+  "rate": 0.15,
+  "n": 128,
+  "results": {
+    "text8_indist": {
+      "seq_auroc": 0.87725830078125,
+      "token_auroc": 0.8777586285798811,
+      "n_changed": 3523,
+      "word_auroc_max": 0.9115448047485712,
+      "word_seq_auroc": 0.882568359375,
+      "gpt2_nll": {
+        "word_auroc_max": 0.8372467963310037,
+        "word_seq_auroc": 0.92822265625,
+        "bpe_token_auroc": 0.7094980294966075,
+        "seq_auroc_charnorm": 0.94439697265625
+      }
+    },
+    "semaglutide_ood": {
+      "seq_auroc": 0.77557373046875,
+      "token_auroc": 0.8271624260146856,
+      "n_changed": 3597,
+      "word_auroc_max": 0.8819709584041662,
+      "word_seq_auroc": 0.80914306640625,
+      "gpt2_nll": {
+        "word_auroc_max": 0.8473170026862991,
+        "word_seq_auroc": 0.9312744140625,
+        "bpe_token_auroc": 0.7157701021581928,
+        "seq_auroc_charnorm": 0.9000244140625
+      }
+    }
+  },
+  "note": "text8=in-distribution reference; semaglutide_ood=out-of-domain transfer; word AUROC = max-pool, the bench's fair common unit"
+}

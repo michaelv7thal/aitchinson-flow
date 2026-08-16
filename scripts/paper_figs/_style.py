@@ -5,6 +5,7 @@ surface (adjacent pairs for the 7-detector set; all-pairs for the
 schematic set; ordinal checks for the blue budget ramp).
 Typography: cmr10 + mathtext-cm to match the paper's Computer Modern.
 """
+import os
 from pathlib import Path
 
 import matplotlib
@@ -13,11 +14,20 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[2]
-PAPER_FIGDIR = Path("/home/michael/projects/capstone-paper/figures")
-PREVIEW_DIR = Path(
+
+# Which benchmark tree the figures are drawn from. Override to re-render the same
+# figures from a re-run of the benches on a different checkpoint, e.g.
+#   BENCH_OOD_DIR=bench_ood_final BENCH_HEAL_DIR=bench_heal_final uv run python fig_*.py
+BENCH_OOD = REPO / os.environ.get("BENCH_OOD_DIR", "bench_ood")
+BENCH_HEAL = REPO / os.environ.get("BENCH_HEAL_DIR", "bench_heal")
+
+PAPER_FIGDIR = Path(os.environ.get(
+    "PAPER_FIGDIR", "/home/michael/projects/capstone-paper/figures"))
+PREVIEW_DIR = Path(os.environ.get(
+    "FIG_PREVIEW_DIR",
     "/tmp/claude-1000/-home-michael-projects-capstone-paper/"
-    "30598ee3-292b-4d58-ad61-94cfc3b31d4e/scratchpad/figpreview"
-)
+    "30598ee3-292b-4d58-ad61-94cfc3b31d4e/scratchpad/figpreview",
+))
 
 # validated categorical slots (light mode)
 BLUE = "#2a78d6"
