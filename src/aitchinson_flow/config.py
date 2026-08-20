@@ -194,7 +194,12 @@ class EqM:
     # γ importance sampling: gamma = U(0,1)**gamma_power.
     # gamma_power=1.0 → uniform; <1 pushes mass toward γ≈1 (more signal),
     # >1 toward γ≈0 (noise). 0.5 (mean γ≈0.67, mass in the signal regime) is
-    # the load-bearing anti-mode-collapse value documented in SESSION_SUMMARY.md
+    # the value the May-2026 sessions tuned as an anti-mode-collapse fix
+    # (SESSION_SUMMARY.md fix #4). The finished paper qualifies that story:
+    # the unigram collapse is a property of the regression optimum and no
+    # gamma reshaping (or aux CE) prevents it (appendix, Training-time
+    # collapse); the published EqM arms nevertheless trained with 0.5, so it
+    # stays the default. Originally documented in SESSION_SUMMARY.md
     # fix #4 / CLAUDE.md. NB: commit 2e15b3f silently flipped this (and
     # sample_gamma) to 1.5 — the *noise* regime, the inverse of the fix —
     # which was restored here. Don't re-flip without re-reading SESSION_SUMMARY.
