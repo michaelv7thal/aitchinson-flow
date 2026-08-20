@@ -1,9 +1,0 @@
-[final] 04:43:30 waiting for long+large pid=169518
-[final] 09:55:31 long+large exited; writing snapshot 1
-wrote /home/renku/work/aitchinson-flow/runs/AE_EQM_FINAL_REPORT.md
-sections: comp(1) ae_scaling(4) vae(1) long_large(2)
-[final] 09:55:31 waiting for best-of rerun pid=262275
-[final] 14:03:31 best-of rerun exited; writing final report
-wrote /home/renku/work/aitchinson-flow/runs/AE_EQM_FINAL_REPORT.md
-sections: comp(1) ae_scaling(4) vae(1) long_large(2)
-[final] 14:03:31 done

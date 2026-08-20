@@ -1,8 +1,0 @@
-[2026-06-07 16:55:25] ===== per-position OOD driver start =====
-[2026-06-07 16:55:25] BEGIN E4c:DFM
-[2026-06-07 16:59:31] END E4c:DFM rc=1
-[2026-06-07 16:59:31] BEGIN E4b:SFLMEBM
-[2026-06-07 17:10:21] END E4b:SFLMEBM rc=1
-[2026-06-07 17:10:21] BEGIN E4d:DFM
-[2026-06-07 17:15:02] END E4d:DFM rc=0
-[2026-06-07 17:15:02] ===== per-position OOD driver DONE =====

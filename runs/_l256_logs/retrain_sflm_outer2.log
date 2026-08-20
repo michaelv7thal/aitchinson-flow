@@ -1,3 +1,0 @@
-[2026-06-07 22:59:16] retrain_sflm: waiting for current evals (p0_main 1096391 + finish_dfm 1202210)
-[2026-06-07 22:59:16] GPU free; retraining SFLM (uniform schedule, alpha_hi=1.0)
-[2026-06-07 22:59:16] BEGIN SFLM:train

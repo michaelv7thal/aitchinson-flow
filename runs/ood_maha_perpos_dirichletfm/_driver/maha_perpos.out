@@ -1,9 +1,0 @@
-### MAHA-PERPOS START 2026-06-10_15:42:26 — waiting for VARGP-PERPOS COMPLETE
-### [2026-06-11_02:12:28] PerPosVarGP done — starting PerPosMaha runs
-### [2026-06-11_02:12:28] PerPosMaha bigger_ep30_d30k pca=0
-    OK -> runs/ood_maha_perpos_dirichletfm/bigger_ep30_d30k_pca0/maha_perpos_sweep.json
-### [2026-06-11_02:13:59] PerPosMaha bigger_ep30_d30k pca=128
-    OK -> runs/ood_maha_perpos_dirichletfm/bigger_ep30_d30k_pca128/maha_perpos_sweep.json
-### [2026-06-11_02:15:31] PerPosMaha baseline_ep10_d10k pca=0
-    OK -> runs/ood_maha_perpos_dirichletfm/baseline_ep10_d10k_pca0/maha_perpos_sweep.json
-### MAHA-PERPOS COMPLETE 2026-06-11_02:17:03 — see runs/ood_maha_perpos_dirichletfm/*/maha_perpos_sweep.json

@@ -1,9 +1,0 @@
-### VARGP-PERPOS START 2026-06-10_15:36:11 — waiting for OOD-SVGP COMPLETE (hinge 2x2 done)
-### [2026-06-11_02:07:13] hinge 2x2 done — starting PerPosVarGP runs
-### [2026-06-11_02:07:13] PerPosVarGP bigger_ep30_d30k pca=0
-    OK -> runs/ood_vargp_perpos_dirichletfm/bigger_ep30_d30k_pca0/vargp_perpos_sweep.json
-### [2026-06-11_02:08:54] PerPosVarGP bigger_ep30_d30k pca=64
-    OK -> runs/ood_vargp_perpos_dirichletfm/bigger_ep30_d30k_pca64/vargp_perpos_sweep.json
-### [2026-06-11_02:10:34] PerPosVarGP baseline_ep10_d10k pca=0
-    OK -> runs/ood_vargp_perpos_dirichletfm/baseline_ep10_d10k_pca0/vargp_perpos_sweep.json
-### VARGP-PERPOS COMPLETE 2026-06-11_02:12:14 — see runs/ood_vargp_perpos_dirichletfm/*/vargp_perpos_sweep.json
