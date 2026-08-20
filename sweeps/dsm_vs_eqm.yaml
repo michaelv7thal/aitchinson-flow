@@ -1,3 +1,8 @@
+# NOTE 2026-08-20: the frozen-AE checkpoint runs/ae_d1024_l8_z128_v3/ae/
+# epoch_final.pt was deleted in the repo cleanup (its tracked eval JSONs
+# survive; no published cell depends on it). The ae_ckpt_path cells below are
+# therefore UNRUNNABLE without retraining that AE first
+# (scripts/train_autoencoder.py at d_model=1024, d_latent=128, L=128).
 # DSM vs EqM — three-cell capstone comparison.
 #
 # Tests whether switching the training signal from FM regression
