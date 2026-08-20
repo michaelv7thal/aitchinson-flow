@@ -1,5 +1,14 @@
 # OOD detection + healing — `epoch_best.pt` rerun
 
+
+> **SUPERSEDED — dated 2026-07-03. Its recommendation is now reversed; do not pick a checkpoint from this document.**
+>
+> This compares two checkpoints of the *interrupted* full-text8 run: `DirichletFM/epoch_final.pt` (Jun 20) and `DirichletFM/epoch_best.pt` (Jul 2). Neither is the model the paper uses. The paper's downstream readouts all come from the **fully-annealed** `DirichletFM_converge/epoch_final.pt` (Aug 9, md5 `9946dce9…`), which did not exist when this was written, and which reaches a net recovery of **+0.432** — better than both the +0.407 and the +0.343 below.
+>
+> The paper's finding is therefore the opposite of this document's: "the annealed model repairs better and localizes character-level corruption at least as well, at a small cost on the false-information axis" (`chapters/results.tex` §Experimental Setup).
+>
+> Kept as the record of the best-vs-final ablation the paper refers to in that sentence, and because its observation that the GPT-2 rows are byte-identical across checkpoints is the reason a GPT-2 number can never date a result. Its seven data pointers (`ood_out*`, `heal_out*`) resolve at the git revision this file was archived at; the trees were removed from HEAD in the 2026-08-20 cleanup.
+
 Full OOD-detection + healing routine re-run against the **best-val** checkpoint of the
 full-text8 L256 DirichletFM run, mirroring the earlier `epoch_final.pt` routine
 (test split, fine corruption grid, n=256, fit-seqs=512, 5 corruption seeds).

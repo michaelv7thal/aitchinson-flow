@@ -1,5 +1,8 @@
 # DFM auditor — file index
 
+
+> **ARCHIVED (2026-08-20). Retired research line; ten of the files this index maps no longer exist.** This indexed the GPT-2 / HaluEval "DFM auditor" iteration of 2026-05. That line was retired (see `CLAUDE.md`), it contributed nothing to the capstone paper, and every training, caching and eval script listed below was deleted by commit `7474f16` ("Prune retired auditor/UQ/phase scripts"). Still present: `src/aitchinson_flow/models/dirichlet_fm_auditor.py`, `src/aitchinson_flow/data/hallueval_dfm.py` (its config fields are documented inline in `config.py`), and the `runs/dfm_auditor_*` result files. Kept as the record of what was tried. Do not follow any path in it without checking that the path exists.
+
 Pointers to all the code and docs added in this iteration. The runbook
 (`docs/cluster_runbook_dfm_auditor.md`) is the operational entry point;
 this file is a map of what's where for code review or debugging.

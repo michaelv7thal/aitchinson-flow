@@ -1,5 +1,14 @@
 # Latent-EqM (learned-embedding EqM) — initial results
 
+
+> **HISTORICAL (2026-05-09). Superseded; retained as the only record of the fixed-embedding recipe statistics (§"Fixed-embedding variant").**
+>
+> This documents the `EqMLatent` arm — Equilibrium Matching on a learnable `nn.Embedding`, tied decoder, no VAE. **It is not the paper's "EqM, VAE latent" row** (`tab:gen`), which is a genuine VAE at d_latent=64, β=0.1 (`tab:config`; frozen VAE config preserved at `runs/vae_a100_20g_L256/`). Do not read the numbers here as that arm's.
+>
+> The paper's verdict differs on which lever matters: the metric is a null, as this document says, but the cause is the regression TARGET, not the representation — the VAE-latent arm "changed the numbers without changing the outcome" (paper §The Negative Result). One live item survives: the `ce_min_gamma=0.0` result below (§"The trivial-CE-shortcut and the structural fix") is the configuration the paper lists as future work, already run here on this arm.
+>
+> Dead pointers: `scripts/sampler_artefact_check.py`, `scripts/hilbert_counterexample.py` (output survives at `runs/hilbert_counter/results.json`), `scripts/eqm_mnist_sanity.py`.
+
 Generated 2026-05-09. The simplex-EqM Phase 0-3 results in
 `RESULTS_DIRICHLET.md` motivate this pivot: the simplex *representation*
 (one-hot → CLR) is the bottleneck, not the metric on it.

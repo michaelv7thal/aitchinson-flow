@@ -1,5 +1,8 @@
 # Cluster runbook — DirichletFM auditor at LM scale
 
+
+> **ARCHIVED (2026-08-20). Retired research line; none of the commands below can run.** Operational runbook for the GPT-2 / HaluEval "DFM auditor" line of 2026-05. The line was retired and contributed nothing to the capstone paper, and every script invoked below was deleted by commit `7474f16`. Kept for the LM memory and disk-sizing tables (§1, §5) and the troubleshooting notes (§7), which are recorded nowhere else. Companion index: `docs/archive/dfm_auditor_README.md`.
+
 End-to-end guide for caching HaluEval-QA features under a chosen LM
 (GPT-2, Llama-3.2-1B, Llama-2-7B, Mistral-7B, …) and running the DFM
 auditor's three modes (Architecture A baseline, the unsupervised EBM,

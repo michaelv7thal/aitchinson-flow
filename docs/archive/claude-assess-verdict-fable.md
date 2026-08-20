@@ -1,3 +1,11 @@
+> **Archived 2026-08-20. This is a code-review transcript, not a research document.** Ten findings against an uncommitted diff, reviewed 2026-06-10. **All three findings that bear on published numbers were re-verified in 2026-08 and are still live in the working tree**, so this is an open-issues list rather than history:
+>
+> - **Finding 3 / 10 — provenance of the extended arm.** `tab:gen`'s "Dirichlet FM, 30 ep / 30k win" row and `tab:recovery`'s "30 ep" column rest on this arm, whose 30ep×30k recipe lives only in `drive_dfm_extended.sh` CLI flags, whose alias still sits in the default queue (`scripts/train_for_sflm_bench.py`), and whose `recovery.json` and checkpoint config still self-identify as plain `DirichletFM` — only `eval_all.json` was relabelled.
+> - **Finding 1 — EqM eval comparability.** `sample_batch_chunk` is still used in `models/eqm.py` and still absent from `config.py`, so chunk=16 applies unconditionally and changes the batch-mean best-iterate and batch-max early-stop statistics. Seeded EqM-family eval numbers are not comparable across that change.
+> - **Finding 5 — `drive_*.sh` always logs `exit=0`**, because `$(ts)` clobbers `$?` before it expands (`drive_train.sh` unfixed).
+>
+> Lines 100-107 are a corrupted duplicate paste; the array ends at 100.
+
 Review verdict
 
   I reviewed the uncommitted diff (train_for_sflm_bench.py, eqm.py, eqm_ae.py, fm_clr.py) plus the five new drive_*.sh orchestration scripts, with 7 finder angles

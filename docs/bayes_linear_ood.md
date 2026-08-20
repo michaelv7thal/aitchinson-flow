@@ -259,3 +259,21 @@ sequence is corrupted (concentration of measure in $\mathbb{R}^m$).
 | per-token energy/variance | $E_t,\operatorname{Var}_t$ | `score`, L203–205 |
 | sequence scores | $E_{\text{seq}},\operatorname{Var}_{\text{seq}}$ | `.mean(1)`, L220 |
 | AUROC sweep | — | L236–264 |
+
+## Why BLR and not a GP (folded from `docs/archive/gp_auditor_nonar_findings.md`, 2026-08-20)
+
+A discriminatively-trained SVGP predictive variance collapses to a constant:
+the variance never sees labels, so training the GP discriminatively makes the
+inducing set cover both the clean and the corrupt manifolds, and the variance
+loses its contrast. BLR's `Var(z) = zᵀ(Φ+λI)⁻¹z` is never optimized — it
+depends only on the clean-fit second moment — so it cannot collapse. That
+asymmetry, plus the concentration-of-measure failure of kernel distances at
+d=256 (`DFM_SVGP_FINDINGS.md`), is why the shipped detector is the
+Bayesian-linear head and not a Gaussian process.
+
+**`pca_dim=0` is deliberate.** The GP-era sweeps found that downsampling the
+features hurts every readout, which is why `BayesLinHead` runs on the full
+feature dimension. The archived GP findings also record an unreported positive
+the paper does not carry: pre-heal variance predicts which flagged corruptions
+the inpainter will fail to fix (AUROC 0.83, flagged-only, confound-controlled)
+— a heal-confidence channel, should one ever be needed.

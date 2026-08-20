@@ -1,5 +1,16 @@
 # Positioning — conservative energy-based diffusion language models
 
+
+> **HISTORICAL (2026-05-13). A pre-pivot strategy document. The contribution it scopes is not the contribution the paper makes, and its Claim 2 is contradicted by the paper's central mechanism.**
+>
+> The project did not swap flow matching for denoising score matching. DSM survives in the paper as two cells of the 2×2 ablation (`tab:ablation2x2`), which confirm this document's sign — a noisy-view target escapes the unigram collapse — while showing it does not buy generation, because it remains a pointwise L2 regression (paper §Energy and generation).
+>
+> **Claim 2 is wrong where it matters.** This document attributes the recovery deficit to continuous-Langevin instability on the log-simplex, "not to model defect", and names a Gibbs sampler as the appropriate intervention. The paper's finding is the opposite: the failure is training-time and no sampler repairs it. Injected Langevin noise buys 9–19% on the bigram divergence, leaves recovery a no-op, and does not approach the transport arms (paper app. §Sampling-time failure). `CAPSTONE_SUMMARY.md` carried an action item to rescope this claim; it was never executed.
+>
+> Also superseded: the closing "pass-grade story" scoping. The paper reports a working non-autoregressive generator, a detector suite, and a repair loop.
+>
+> Still worth keeping: the literature positioning against the continuous-lift diffusion-LM line (Diffusion-LM, SSD-LM, CDCD, Plaid) and the Bakhtin residual-EBM-for-text precedent, none of which the paper cites. Corrected pointer: `comp_runs_explainer.md` is at `runs/comp_runs_explainer.md`.
+
 This document scopes the capstone contribution against the prior work it
 needs to cite, and pins down the three claims (A, B, C) the experimental
 program is designed to substantiate. Companion artefacts:

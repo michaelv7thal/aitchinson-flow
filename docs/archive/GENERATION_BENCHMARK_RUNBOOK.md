@@ -1,5 +1,14 @@
 # Generation Benchmark Runbook — for a remote Claude Code session
 
+
+> **Superseded, 2026-06-08. This describes a 7-arm benchmark at a budget the paper does not use.**
+>
+> The paper's benchmark is **nine** arms at **10 epochs on 10,000 windows** (`chapters/results.tex` §Experimental Setup; `tab:config`). This runbook's §0 sets `EP=50` and `--max-train-windows 100000`. Re-running `tab:gen` from this recipe trains roughly fifty times the token budget and will not reproduce the table. The two arms added after this was written are Statistical FM (`models/sfm.py`, Cheng et al.) and Fisher FM (`models/fisher_fm.py`, Davis et al. — see `FISHER_FM_PLAN.md`).
+>
+> Its BPC framing is also stale: the paper reports no BPC for any of our models, and `tab:gen` has no BPC column.
+>
+> Still uniquely recorded here: the **EqMAE two-stage procedure** — train the VAE first at the same L, and do not change `--d-model`/`--d-latent` between stages, because `_model_cfg` reads the dims back from the checkpoint. The paper's VAE-latent arm depends on this. Also the cleanest statement of which model each arm name denotes, including that `EqMLatent` (learned-embedding EqM) is **not** the VAE arm — `EqMAE` is.
+
 **Goal.** Produce one **apples-to-apples generation benchmark** of the **7 model
 families** on **KL_uni, KL_bi, KL_tri, generation entropy (H_gen / H_ratio), and
 BPC (where valid)** — at **L=40** and **L=256**, every arm trained at the **same

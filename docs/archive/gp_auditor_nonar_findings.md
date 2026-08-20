@@ -1,5 +1,11 @@
 # Non-Autoregressive GP Auditor: Findings
 
+
+> **ARCHIVED (2026-08-20). Superseded, and measured on a checkpoint path that no longer exists.** Dated 2026-06-23. Two things to know before reading any number below.
+> 1. **The checkpoint is unidentifiable.** This work pinned `runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM_continue/epoch_final.pt`. There is no `DirichletFM_continue` arm on disk. The paper's results read `DirichletFM_converge/epoch_final.pt`. The numbers here cannot be tied to a surviving artifact.
+> 2. **The GP was dropped.** The paper's detectors are the training-free denoiser NLL, the Bayesian-linear head and the BGMM; no Gaussian process appears in it. And the NLL, listed here only as an open question, turned out to beat every fitted head (0.981 word-max on replace, `tab:ood-word`), so the "linear head is the best detector" framing below is not the final ordering.
+> Kept for two things that survive (both folded into `docs/bayes_linear_ood.md`): the argument for why a discriminatively trained SVGP variance collapses while BLR's closed-form variance cannot (the reason the shipped detector is BLR), and the heal-confidence finding — pre-heal variance predicts which corruptions the inpainter cannot fix at 0.83, flagged-only, confound-controlled — which the paper does not report at all.
+
 *Date: 2026-06-23. Frozen model: `runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM_continue/epoch_final.pt`
 (DirichletFM, K=27, L=256, d_model=1280, t_eval=4.5). Code: `scripts/heal_dirichlet.py`
 (`--localizer {linear,gp}`, `--gp-mode {oneclass,contrastive}`, `--uq gp_variance`);
