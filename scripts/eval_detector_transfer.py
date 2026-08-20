@@ -11,9 +11,10 @@ fits the detector on text8 and evaluates per-token + sequence AUROC on:
 so the drop (if any) is measured, not assumed.
 
     python scripts/eval_detector_transfer.py \
-        --ckpt runs/.../DirichletFM/epoch_best.pt \
-        --article-json heal_poc_insulin/insulin_article_extract.json \
-        --out bench_ood/transfer/insulin_transfer.json
+        --ckpt runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM_converge/epoch_final.pt \
+        --article-json bench_ood_final/transfer/semaglutide_article_extract.json \
+        --out bench_ood_final/transfer/semaglutide_transfer_gpt2.json \
+        --domain-name semaglutide_ood
 """
 
 from __future__ import annotations
@@ -69,8 +70,12 @@ def _score_auroc(score_fn, clean, corr, K, device):
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--ckpt", required=True)
-    ap.add_argument("--article-json", default="heal_poc_insulin/insulin_article_extract.json")
-    ap.add_argument("--out", default="bench_ood/transfer/insulin_transfer.json")
+    # Defaults retargeted 2026-08-20 to the run behind tab:ood-transfer. The old
+    # defaults scored the deliberately IN-distribution insulin article and wrote
+    # into the superseded tree, silently inverting the transfer conclusion.
+    ap.add_argument("--article-json",
+                    default="bench_ood_final/transfer/semaglutide_article_extract.json")
+    ap.add_argument("--out", default="bench_ood_final/transfer/semaglutide_transfer_gpt2.json")
     ap.add_argument("--t-eval", type=float, default=4.5)
     ap.add_argument("--fit-seqs", type=int, default=512)
     ap.add_argument("--n", type=int, default=128)
@@ -81,10 +86,10 @@ def main() -> int:
                          "transfer track (GPT2_NLL, the fair localization comparator); "
                          "'' disables the baseline")
     ap.add_argument("--seed", type=int, default=42)
-    ap.add_argument("--domain-name", default="insulin_ood",
-                    help="result key for the transfer domain (default keeps the "
-                         "original insulin naming; pass e.g. 'semaglutide_ood' "
-                         "when scoring a different article)")
+    ap.add_argument("--domain-name", default="semaglutide_ood",
+                    help="result key for the transfer domain (the paper's transfer "
+                         "article; pass 'insulin_ood' with the insulin extract to "
+                         "reproduce the superseded in-distribution take)")
     args = ap.parse_args()
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)

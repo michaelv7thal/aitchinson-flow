@@ -121,13 +121,13 @@ def main() -> int:
                     help="DirichletFM ckpt — used ONLY for its cfg/datamodule so the "
                          "test sequences match the NLL sweep (GPT-2 does the scoring)")
     ap.add_argument("--ref-lm", default="gpt2", help="HF causal LM (gpt2, distilgpt2, ...)")
-    ap.add_argument("--out", default="ood_out/gpt2_se/gpt2_spilled_energy_sweep.json")
+    ap.add_argument("--out", default="bench_ood_final/gpt2_se/gpt2_spilled_energy_sweep.json")
     ap.add_argument("--split", choices=["train", "val", "test"], default="test")
     ap.add_argument("--fit-seqs", type=int, default=512,
                     help="eval-slice offset; must match the NLL sweep (SE uses no fit)")
     ap.add_argument("--n", type=int, default=256, help="# eval sequences per split")
     ap.add_argument("--schemes", type=str, default="replace,shuffle,both,falseinfo")
-    ap.add_argument("--rates", type=str, default="0.1,0.3,0.5,0.7,1.0")
+    ap.add_argument("--rates", type=str, default="0.05,0.1,0.15,0.2,0.25,0.3,0.5,0.7,1.0")  # the bench ladder; the paper reads 0.15/0.30
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--chunk", type=int, default=32)
     ap.add_argument("--score", choices=["spilled", "nll"], default="spilled",

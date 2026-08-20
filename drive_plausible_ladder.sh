@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The plausible column of app:latent-ladder at the two rates flanking the main
 # operating point: 0.15 and 0.5. Rate 0.3 is not run here — it is stage C of
-# drive_latent_all.sh (bench_ood/latent_split_plausible), and this script links
+# drive_latent_all.sh (bench_ood_final/latent_split_plausible), and this script links
 # it into the ladder tree so the appendix row and tab:latent come from one JSON.
 #
 # Cost is set by the swap, not by the readout: every swapped word slot costs one
@@ -17,10 +17,10 @@
 set -uo pipefail
 cd /home/michael/projects/aitchinson-flow
 
-CKPT="runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM/epoch_best.pt"
+CKPT="runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM_converge/epoch_final.pt"
 RATES="0.15 0.5"                       # cheapest first
 COMMON=(--ckpt "$CKPT" --split test --n 256 --fit-seqs 192 --seed 42 --no-tsne)
-LADDER=bench_ood/latent_ladder_plausible
+LADDER=bench_ood_final/latent_ladder_plausible
 LOG=bench_ood/_driver
 mkdir -p "$LOG" "$LADDER"
 ts(){ date +%Y-%m-%d_%H:%M:%S; }
@@ -38,7 +38,7 @@ done
 echo "### PLAUSIBLE-LADDER START $(ts)"
 
 # rate 0.3 comes from stage C; link rather than recompute (hours) or copy
-if [ -s bench_ood/latent_split_plausible/latent_split.json ] \
+if [ -s bench_ood_final/latent_split_plausible/latent_split.json ] \
    && [ ! -e "$LADDER/rate_0.3" ]; then
   ln -s ../latent_split_plausible "$LADDER/rate_0.3"
   echo "### [$(ts)] linked rate_0.3 -> latent_split_plausible"

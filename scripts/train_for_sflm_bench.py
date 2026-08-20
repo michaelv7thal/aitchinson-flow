@@ -340,8 +340,10 @@ def _model_cfg(name: str, epochs: int, scale: str, *, out_dir: str | None = None
         # Standard Flow Matching (Lipman et al. 2022) on CLR — the linear-FM
         # control: regress the raw velocity to the CONSTANT conditional-OT
         # target (x0−x1) under uniform t, then Euler-integrate the ODE (no
-        # conservative-gradient step, no c(γ) decay, no aux CE — see
-        # models/fm_clr.py). gamma_power is irrelevant now (t is uniform).
+        # conservative-gradient step, no c(γ) decay — see models/fm_clr.py;
+        # the aux CE IS kept, contrary to what this comment used to say: the
+        # code and the trained checkpoint both carry it, and the paper's
+        # tab:config row is right). gamma_power is irrelevant (t is uniform).
         # Use the canonical Lipman base p0=N(0,I): source_sigma=1.0 (decoupled
         # from EqM's NAG-tuned σ=0.1) so the source carries real sampling
         # entropy instead of starting every trajectory at a near-point mass.

@@ -20,7 +20,7 @@
 set -uo pipefail
 cd /home/michael/projects/aitchinson-flow
 
-CKPT="runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM/epoch_best.pt"
+CKPT="runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM_converge/epoch_final.pt"
 CHEAP="replace,shuffle,falseinfo"
 RATES="0.05 0.1 0.15 0.2 0.25 0.3 0.5 0.7 1.0"
 COMMON=(--ckpt "$CKPT" --split test --n 256 --fit-seqs 192 --seed 42 --no-tsne)
@@ -40,7 +40,7 @@ done
 echo "### LATENT-LADDER START $(ts)  ckpt=$CKPT"
 
 # ---- A: the rate-0.3 grid the main-text figures are drawn from ------------
-A=bench_ood/latent_split_all
+A=bench_ood_final/latent_split_all
 if [ -s "$A/latent_split.json" ]; then
   echo "### [$(ts)] stage A already done — skip"
 else
@@ -54,7 +54,7 @@ fi
 
 # ---- B: the same three schemes across the corruption ladder ---------------
 for R in $RATES; do
-  D="bench_ood/latent_ladder/rate_${R}"
+  D="bench_ood_final/latent_ladder/rate_${R}"
   if [ -s "$D/latent_split.json" ]; then
     echo "### [$(ts)] ladder rate=$R already done — skip"; continue
   fi
@@ -74,7 +74,7 @@ done
 # labels. Measured at rate 0.3 (the tab:latent row) and at 0.05 (the one
 # app:latent-ladder row whose per-token sample falls short of 4000).
 for R in 0.3 0.05; do
-  D="bench_ood/latent_null/rate_${R}"
+  D="bench_ood_final/latent_null/rate_${R}"
   if [ -s "$D/latent_split.json" ]; then
     echo "### [$(ts)] null rate=$R already done — skip"; continue
   fi
@@ -88,7 +88,7 @@ for R in 0.3 0.05; do
 done
 
 # ---- C: plausible at rate 0.3 (the expensive cells of tab:latent) ---------
-C=bench_ood/latent_split_plausible
+C=bench_ood_final/latent_split_plausible
 if [ -s "$C/latent_split.json" ]; then
   echo "### [$(ts)] stage C already done — skip"
 else

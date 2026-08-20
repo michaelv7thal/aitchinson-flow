@@ -101,11 +101,30 @@ def ensure_checkpoint(
     ckpt = root / arm / "epoch_final.pt"
     if ckpt.exists():
         return ckpt
+    # A published arm may have lost its final while numbered checkpoints
+    # survive (SFLM at L=256: only epoch_10/20.pt remain). Prefer the highest
+    # surviving epoch over training a NEW model under the old arm's name --
+    # auto-training here would silently replace a published row's weights.
+    numbered = sorted(
+        (p for p in (root / arm).glob("epoch_*.pt")
+         if p.stem.split("_", 1)[1].isdigit()),
+        key=lambda p: int(p.stem.split("_", 1)[1]),
+    )
+    if numbered:
+        print(f"[{arm}] epoch_final.pt missing; using the highest surviving "
+              f"checkpoint {numbered[-1].name} instead of auto-training "
+              f"(a fresh train would not reproduce the published arm)")
+        return numbered[-1]
     if not auto_train:
         legacy = LEGACY_BASELINES.get(arm)
         if legacy and (_REPO_ROOT / legacy).exists():
             print(f"[{arm}] reusing legacy checkpoint {legacy}")
             return _REPO_ROOT / legacy
+        return None
+    if "L256" in scale:
+        print(f"[{arm}] refusing to auto-train at scale {scale}: the L=256 "
+              f"arms back published numbers; train explicitly via "
+              f"train_for_sflm_bench.py if a new model is really intended")
         return None
     rc = _run(
         [sys.executable, "scripts/train_for_sflm_bench.py",

@@ -18,16 +18,22 @@ REPO = Path(__file__).resolve().parents[2]
 # Which benchmark tree the figures are drawn from. Override to re-render the same
 # figures from a re-run of the benches on a different checkpoint, e.g.
 #   BENCH_OOD_DIR=bench_ood_final BENCH_HEAL_DIR=bench_heal_final uv run python fig_*.py
-BENCH_OOD = REPO / os.environ.get("BENCH_OOD_DIR", "bench_ood")
-BENCH_HEAL = REPO / os.environ.get("BENCH_HEAL_DIR", "bench_heal")
+# Defaults are the trees the paper's committed figures were rendered from
+# (the epoch_final benches). Retargeted 2026-08-20: the old defaults were the
+# superseded epoch_best trees, so an override-less re-render silently produced
+# figures that disagree with the paper.
+BENCH_OOD = REPO / os.environ.get("BENCH_OOD_DIR", "bench_ood_final")
+BENCH_HEAL = REPO / os.environ.get("BENCH_HEAL_DIR", "bench_heal_final")
 
-PAPER_FIGDIR = Path(os.environ.get(
-    "PAPER_FIGDIR", "/home/michael/projects/capstone-paper/figures"))
-PREVIEW_DIR = Path(os.environ.get(
-    "FIG_PREVIEW_DIR",
-    "/tmp/claude-1000/-home-michael-projects-capstone-paper/"
-    "30598ee3-292b-4d58-ad61-94cfc3b31d4e/scratchpad/figpreview",
-))
+# The paper repo is expected as a sibling checkout; on machines without it,
+# set PAPER_FIGDIR explicitly rather than writing PDFs into a phantom tree.
+_default_figdir = REPO.parent / "capstone-paper" / "figures"
+PAPER_FIGDIR = Path(os.environ.get("PAPER_FIGDIR", _default_figdir))
+if not PAPER_FIGDIR.parent.exists():
+    raise SystemExit(
+        f"PAPER_FIGDIR parent {PAPER_FIGDIR.parent} does not exist; "
+        "set PAPER_FIGDIR to the paper repo's figures/ directory")
+PREVIEW_DIR = Path(os.environ.get("FIG_PREVIEW_DIR", REPO / "figures" / "_preview"))
 
 # validated categorical slots (light mode)
 BLUE = "#2a78d6"

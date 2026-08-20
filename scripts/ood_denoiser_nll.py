@@ -88,9 +88,9 @@ def main() -> int:
     ap.add_argument("--ridge", type=float, default=0.1,
                     help="Laplace prior precision: Sigma_w=(Phi + ridge*tr(Phi)/d I)^-1")
     ap.add_argument("--schemes", type=str, default="replace,shuffle,both,falseinfo")
-    ap.add_argument("--rates", type=str, default="0.1,0.3,0.5,0.7,1.0")
+    ap.add_argument("--rates", type=str, default="0.05,0.1,0.15,0.2,0.25,0.3,0.5,0.7,1.0")  # the bench ladder; the paper reads 0.15/0.30
     ap.add_argument("--seed", type=int, default=42)
-    ap.add_argument("--split", choices=["train", "val", "test"], default="val",
+    ap.add_argument("--split", choices=["train", "val", "test"], default="test",  # the benches ran test (manifests common.split)
                     help="dataset split for fit/eval sequences "
                          "(test = held-out last-5M text8 split)")
     ap.add_argument("--chunk", type=int, default=16)

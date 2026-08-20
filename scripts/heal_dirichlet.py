@@ -688,10 +688,10 @@ def main() -> int:
     ap.add_argument("--out", default="heal_out/heal.json")
     ap.add_argument("--t-eval", type=float, default=None,
                     help="Dirichlet path-time for feature extraction (default cfg ~4.5)")
-    ap.add_argument("--fit-seqs", type=int, default=256,
+    ap.add_argument("--fit-seqs", type=int, default=512,  # bench_heal_final ran 512
                     help="# clean sequences to train the localizer head")
-    ap.add_argument("--n-demo", type=int, default=16, help="# sequences to corrupt & heal")
-    ap.add_argument("--n-seeds", type=int, default=5,
+    ap.add_argument("--n-demo", type=int, default=64, help="# sequences to corrupt & heal (the reported bench ran 64)")
+    ap.add_argument("--n-seeds", type=int, default=3,  # the reported bench pooled 3 corruption seeds
                     help="# independent demo-corruption realizations to average")
     ap.add_argument("--corrupt-rate", type=float, default=0.15,
                     help="substitution rate for the demo passage (the 'unknown' corruption)")
@@ -704,7 +704,7 @@ def main() -> int:
     ap.add_argument("--lr", type=float, default=5e-2)
     ap.add_argument("--nfe", type=int, default=100, help="Euler steps for inpainting")
     ap.add_argument("--seed", type=int, default=42)
-    ap.add_argument("--split", choices=["train", "val", "test"], default="val",
+    ap.add_argument("--split", choices=["train", "val", "test"], default="test",  # the benches ran test (manifests common.split)
                     help="dataset split for fit/cal/demo sequences "
                          "(test = held-out last-5M text8 split)")
     # --- localizer choice: linear hinge head (default) or post-hoc SVGP head ---
@@ -746,7 +746,7 @@ def main() -> int:
                     help="[bgmm] 0 = full-d_model; >0 truncates to top-k PCs before fitting")
     ap.add_argument("--bgmm-reg-covar", type=float, default=1e-4,
                     help="[bgmm] covariance-diagonal regulariser (singular-cov guard)")
-    ap.add_argument("--bgmm-max-iter", type=int, default=500,
+    ap.add_argument("--bgmm-max-iter", type=int, default=1000,  # the reported bench ran 1000
                     help="[bgmm] variational EM iterations (a full-cov DP mixture needs "
                          "~500 to converge)")
     ap.add_argument("--bgmm-weight-conc-prior", type=float, default=None,

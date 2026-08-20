@@ -323,7 +323,7 @@ def main() -> int:
                     help="# clean seqs to fit the BGMM density detector")
     ap.add_argument("--n", type=int, default=64, help="# eval passages")
     ap.add_argument("--rate", type=float, default=0.15, help="word-swap rate")
-    ap.add_argument("--t-eval", type=float, default=6.0,
+    ap.add_argument("--t-eval", type=float, default=7.5,  # the reported plausible arm ran 7.5 (the freq-matched control ran 6.0)
                     help="path-time for the BGMM density features (falseinfo "
                          "separated best at t=6.0/7.5 in the sweep)")
     ap.add_argument("--t-nll", type=float, default=3.0,

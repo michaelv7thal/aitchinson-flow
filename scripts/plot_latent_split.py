@@ -197,16 +197,16 @@ def _scatter(ax, xy, lab, title, xlabel, ylabel):
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--ckpt", required=True)
-    ap.add_argument("--out-dir", default="ood_out/latent_split")
+    ap.add_argument("--out-dir", default="bench_ood_final/latent_split")
     ap.add_argument("--t-eval", type=float, default=None)
     ap.add_argument("--fit-seqs", type=int, default=192)
     ap.add_argument("--n", type=int, default=256, help="# eval seqs per split")
     ap.add_argument("--rate", type=float, default=0.3, help="corruption rate shown")
-    ap.add_argument("--schemes", type=str, default="replace,shuffle",
+    ap.add_argument("--schemes", type=str, default="replace,shuffle,falseinfo",
                     help="comma list of per-sequence corruption schemes to show as "
                          "rows (e.g. replace,shuffle,falseinfo). 'falseinfo' = "
                          "lexically-valid same-length word swap (the hard semantic axis).")
-    ap.add_argument("--token-scheme", type=str, default="replace",
+    ap.add_argument("--token-scheme", type=str, default="falseinfo",  # fig:latent-token reads the falseinfo panel
                     help="corruption scheme(s) for the per-token figure, comma list "
                          "(replace, shuffle, falseinfo, plausible). Each becomes one "
                          "row with its own energy-hinge head, so the per-token view "

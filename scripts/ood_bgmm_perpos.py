@@ -135,7 +135,7 @@ def main() -> int:
     ap.add_argument("--reg-covar", type=float, default=1e-4,
                     help="added to the covariance diagonal (singular-cov guard).")
     ap.add_argument("--n-init", type=int, default=1)
-    ap.add_argument("--max-iter", type=int, default=500,
+    ap.add_argument("--max-iter", type=int, default=1000,  # the reported bench ran 1000
                     help="variational EM iterations. A full-cov DP mixture on the "
                          "PCA-64 cloud does NOT converge in the plain-GMM default of "
                          "~200 (sklearn ConvergenceWarning); 500 clears it.")
@@ -149,8 +149,8 @@ def main() -> int:
                          "in far fewer iterations.")
     # --- corruption ladder ---
     ap.add_argument("--schemes", type=str, default="replace,shuffle,both,falseinfo")
-    ap.add_argument("--rates", type=str, default="0.1,0.3,0.5,0.7,1.0")
-    ap.add_argument("--split", choices=["train", "val", "test"], default="val",
+    ap.add_argument("--rates", type=str, default="0.05,0.1,0.15,0.2,0.25,0.3,0.5,0.7,1.0")  # the bench ladder; the paper reads 0.15/0.30
+    ap.add_argument("--split", choices=["train", "val", "test"], default="test",  # the benches ran test (manifests common.split)
                     help="dataset split for fit/eval sequences "
                          "(test = held-out last-5M text8 split)")
     ap.add_argument("--seed", type=int, default=42)

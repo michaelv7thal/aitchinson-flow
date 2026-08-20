@@ -364,7 +364,7 @@ Plan §Phase 7 says to skip the curvature-regulariser phase if `|∇E|gen / |∇
 No run is within 5 %. The ratio swings either way depending on training mix, so the curvature penalty in Phase 7 is not the obvious fix; the diagnostic from Phase 4/8 makes a sampler-side fix more likely.
 
 **Watch-outs the next session must keep in mind:**
-- The fresh `runs/baseline_5ep/epoch_final.pt` is canonical; the original path `checkpoints/baseline_5ep/epoch_final.pt` referenced in TRAINING_PLAN.md does *not* exist.
+- ~~The fresh `runs/baseline_5ep/epoch_final.pt` is canonical; the original path `checkpoints/baseline_5ep/epoch_final.pt` referenced in TRAINING_PLAN.md does *not* exist.~~ **Inverted since (corrected 2026-08-20):** the surviving weights are at `checkpoints/baseline_5ep/epoch_final.pt` (384.8 MB, the sampler-diagnosis checkpoint of SAMPLER_FINDINGS.md), and `runs/baseline_5ep/` now holds only the tracked eval JSONs.
 - `_unigram_kl_probe` in `runner.py` now also returns `bigram_kl` and `trigram_kl`. It also dispatches between EqM (`max_steps=`) and DFM (`nfe=`) sampling APIs.
 - `EqM` config has new fields `lambda_bigram`, `lambda_trigram`, `time_conditioning` ("off"/"add"/"concat"), `sample_gamma` (default 0.5; γ=1 is degenerate). All defaults preserve the Phase-3 best-so-far behaviour.
 - `TransformerBackbone.forward` now optionally takes `gamma`; `EqM.forward` and `_compute_grad` route γ through. When `time_conditioning="off"` the new code is a no-op vs the original.

@@ -10,7 +10,7 @@ rates, timestamps, per-arm status/wall-time) is recorded in
 Continues past a failed arm (records it) so one OOM doesn't sink the suite.
 
     uv run python scripts/run_bench_ood.py \
-        --ckpt runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM/epoch_best.pt
+        --ckpt runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM_converge/epoch_final.pt
     uv run python scripts/run_bench_ood.py --ckpt ... --smoke   # tiny, fast
 """
 
@@ -41,8 +41,8 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--ckpt",
                     default="runs/sflm_bench_a100_20g_L256_d1280L14_full/"
-                            "DirichletFM/epoch_best.pt")
-    ap.add_argument("--out-dir", default="bench_ood")
+                            "DirichletFM_converge/epoch_final.pt")  # the paper's model (md5 9946dce9...)
+    ap.add_argument("--out-dir", default="bench_ood_final")
     ap.add_argument("--split", default="test")
     ap.add_argument("--n", type=int, default=256)
     ap.add_argument("--fit-seqs", type=int, default=512)
