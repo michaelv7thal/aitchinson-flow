@@ -1,0 +1,75 @@
+{
+  "purpose": "provenance for the paper-cited artifacts in this tree that are NOT arms of manifest.json",
+  "written": "2026-08-20",
+  "honesty": "these runs recorded no argv at run time; entries are reconstructed from each artifact's own self-recorded fields and run logs, verified against the paper (claims.tsv rows named per entry)",
+  "ckpt": "runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM_converge/epoch_final.pt",
+  "ckpt_md5": "9946dce94cb2051de0e288e4caa3ffbd",
+  "arms": [
+    {
+      "name": "transfer",
+      "out": "bench_ood_final/transfer/semaglutide_transfer_gpt2.json",
+      "script": "scripts/eval_detector_transfer.py",
+      "inputs": ["bench_ood_final/transfer/semaglutide_article_extract.json (Wikipedia revid 1369737560)"],
+      "self_recorded": {"detector": "logistic_falseinfo_fulldim", "baseline": "gpt2_nll", "t_eval": 4.5, "rate": 0.15, "n": 128},
+      "log": "bench_ood_final/transfer/run_semaglutide_gpt2.log",
+      "backs": "tab:ood-transfer (claims rows D291-D302); the sibling insulin_transfer_gpt2.json is the earlier superseded take"
+    },
+    {
+      "name": "latent_split_all",
+      "out": "bench_ood_final/latent_split_all/latent_split.json",
+      "script": "scripts/plot_latent_split.py",
+      "backs": "tab:latent (12 of 24 cells) + fig:latent-seq + fig:latent-token; latent_split_all_fullaxis/ is a content-identical superset (adds *_full_xy coords)"
+    },
+    {
+      "name": "latent_split_plausible",
+      "out": "bench_ood_final/latent_split_plausible/latent_split.json",
+      "script": "scripts/plot_latent_split.py",
+      "backs": "tab:latent plausible cells; also the real target of the latent_ladder_plausible/rate_0.3 symlink"
+    },
+    {
+      "name": "latent_ladder",
+      "out": "bench_ood_final/latent_ladder/rate_{0.05,0.1,0.15,0.2,0.25,0.3,0.5,0.7,1.0}/latent_split.json",
+      "script": "scripts/plot_latent_split.py (driver: drive_latent_all.sh)",
+      "backs": "tab:latent-ladder (162 cells, claims rows X28-X189) + fig:latent-ladder"
+    },
+    {
+      "name": "latent_ladder_plausible",
+      "out": "bench_ood_final/latent_ladder_plausible/rate_{0.15,0.3}/latent_split.json",
+      "script": "scripts/plot_latent_split.py (driver: drive_plausible_ladder.sh)",
+      "backs": "tab:latent-plausible (24 cells) + results.tex:564"
+    },
+    {
+      "name": "plausible_freqmatched",
+      "out": "bench_ood_final/plausible_freqmatched/plausible_swap.json",
+      "script": "scripts/ood_plausible_swap.py --swap-mode freq_matched",
+      "log": "bench_ood_final/plausible_freqmatched/run.log",
+      "caveat": "ran at t_eval=6.0 where the main plausible arm ran 7.5; the three numbers the paper quotes from this control (logistic probe + denoiser NLL) are unaffected, its BGMM/BLR rows are NOT comparable to the main table",
+      "backs": "results.tex:557-558 frequency-band control"
+    },
+    {
+      "name": "heatmap_examples",
+      "out": "bench_ood_final/nll/heatmap_examples.json",
+      "script": "scripts/dump_heatmap_examples.py",
+      "caveat": "train_word_counts.ping = 66 is a known undercount of the old padded-substring counter (fixed 2026-08-20); the true whole-word count is 67, see runs/text8_unigram_stats.json",
+      "backs": "fig:ood-heatmap + fig:ood-heatmap-30 + results.tex:389-418 counts"
+    },
+    {
+      "name": "bpe_token_counts",
+      "out": "bench_ood_final/gpt2_nll/bpe_token_counts.json",
+      "script": "scripts/dump_bpe_counts.py",
+      "backs": "results.tex:425-427 re-tokenization numbers (claims rows D319-D325)"
+    },
+    {
+      "name": "plausible_examples_replay",
+      "out": "bench_ood_final/plausible/plausible_examples_replay.json",
+      "script": "scripts/replay_plausible_window.py",
+      "backs": "the verbatim destruction->development excerpt at results.tex:542-544 (window 44); SOLE surviving instance (the script's own output path no longer exists)"
+    },
+    {
+      "name": "tsweep",
+      "out": "bench_ood_final/tsweep/t_selection.json",
+      "script": "scripts/ood_t_selection_sweep.py",
+      "backs": "the path-time selection procedure of appendix tab:config (t_nll=3.0, t_var=7.5); re-run 2026-08-20 on the pinned checkpoint because the original sweep recorded no output"
+    }
+  ]
+}

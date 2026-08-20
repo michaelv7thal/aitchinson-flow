@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "If you use this repository, please cite the capstone paper it backs."
+title: "aitchinson-flow: experiments for 'Flow Matching on the Simplex for Character-Level Text'"
+authors:
+  - family-names: "von Siebenthal"
+    given-names: "Michael"
+repository-code: "https://github.com/michaelv7thal/aitchinson-flow"
+type: software
+preferred-citation:
+  type: report
+  title: "Flow Matching on the Simplex for Character-Level Text: Generation, Healing, and the Limits of the Equilibrium Route"
+  authors:
+    - family-names: "von Siebenthal"
+      given-names: "Michael"
+  institution:
+    name: "ETH Zürich"
+  year: 2026
+  notes: "Capstone paper. Every number it prints is traceable via claims.tsv and check_claims.py in this repository; see REPRODUCE.md."

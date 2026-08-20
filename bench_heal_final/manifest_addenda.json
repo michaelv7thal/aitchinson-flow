@@ -1,0 +1,16 @@
+{
+  "purpose": "provenance for the paper-cited artifacts in this tree that are NOT arms of manifest.json",
+  "written": "2026-08-20",
+  "ckpt": "runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM_converge/epoch_final.pt",
+  "ckpt_md5": "9946dce94cb2051de0e288e4caa3ffbd",
+  "arms": [
+    {
+      "name": "falseinfo_demo_replay",
+      "out": "bench_heal_final/falseinfo_demo_replay.json",
+      "script": "scripts/replay_falseinfo_demo.py",
+      "self_recorded": {"seed": 42, "n_demo": 64, "corrupt_rate": 0.15, "fit_seqs": 256, "windows": 64},
+      "backs": "the 'fluid'->'carol' example of sec:heal-context (results.tex:750, window 31); windows 0-3 verified against nll_falseinfo.json examples; SOLE committed record of the quoted word"
+    }
+  ],
+  "note": "the insulin arms' input article is heal_poc_insulin/insulin_article_extract.json (the OLDER tree), per manifest.json common.insulin_article; that file is load-bearing and must not be pruned with its directory"
+}
