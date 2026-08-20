@@ -13,7 +13,7 @@ corrupted tokens using context**, on a real biomedical Wikipedia article. Driver
 article extract used). Reuses the `heal_out_best` machinery verbatim (NLL localizer →
 threshold calibrated on generic text8 → `inpaint` → `score_healing`).
 
-- **Checkpoint:** `runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM/epoch_best.pt` (epoch 5, best val — the healing checkpoint; see `RESULTS_OOD_HEAL_EPOCH_BEST.md`).
+- **Checkpoint:** `runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM/epoch_best.pt` (epoch 5, best val — the healing checkpoint; see `docs/archive/RESULTS_OOD_HEAL_EPOCH_BEST.md`).
 - **Demo set:** 32 windows (L=256) of the insulin article (211 windows total; "insulin" appears ~248×), 143 of which contain the name.
 - **Fit/calibration:** generic text8 **test** split (never the article). Operating point `fpr=0.02`, `thr=1.239`, chosen GT-free by max cal-F1.
 - **Corruption:** rate 0.15, mean over 3 seeds. Ran on an 8 GB laptop GPU (~17 min).

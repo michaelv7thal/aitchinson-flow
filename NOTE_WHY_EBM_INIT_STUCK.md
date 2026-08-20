@@ -356,7 +356,7 @@ space) and depends only on *contrasts* between components. MSE
 penalises the gauge direction equally with the informative directions,
 diluting the gradient signal.
 
-**Why it barely helps empirically.** From `RESULTS_LATENT.md`
+**Why it barely helps empirically.** From `docs/archive/RESULTS_LATENT.md`
 sanity-check (3-Dirichlet mixture in $S_5$):
 
 | loss | forward KL |
@@ -435,7 +435,7 @@ EBMs for the same reason.
 
 ## 10. Latent embeddings smooth the field — preliminary evidence
 
-`RESULTS_LATENT.md` / `RESULTS_LATENT_FINAL.md`. We replace
+`docs/archive/RESULTS_LATENT.md` / `RESULTS_LATENT_FINAL.md`. We replace
 one-hot CLR with a learned (or fixed) embedding
 $\phi:\{1,\ldots,K\}\to\mathbb{R}^d$ and run EqM in the embedding
 space. Variants tested:

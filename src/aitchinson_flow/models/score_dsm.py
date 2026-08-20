@@ -10,7 +10,7 @@ CDCD) applied to this codebase's AE latent. Its purpose in the
 ``sweeps/dsm_vs_eqm.yaml`` 3-cell comparison is to provide a clean
 direct-score baseline against which the energy-gradient parameterisation
 ``EqMDSM`` is measured — that's the A/B/C contribution outlined in
-``POSITIONING.md``.
+``docs/archive/POSITIONING.md (pre-pivot background; its Claim 2 is contradicted by the paper)``.
 
 Implementation notes:
   * Backbone reused from EqMAE (``_LatentBackbone``); σ-conditioning rides

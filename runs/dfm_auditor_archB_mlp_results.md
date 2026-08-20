@@ -123,5 +123,5 @@ locality gap is the honest per-position auditor."
     transformer backbone; both expose ``_encode_features`` so the
     EBM, generation sampler, and SVGP head all work unchanged.
   * `--backbone {transformer, mlp}` flag added to both run scripts.
-* Runbook: `docs/cluster_runbook_dfm_auditor.md` §2b' shows the
+* Runbook: `docs/archive/cluster_runbook_dfm_auditor.md` §2b' shows the
   Llama-equivalent invocation.
