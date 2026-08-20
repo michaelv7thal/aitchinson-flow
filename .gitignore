@@ -5,3 +5,5 @@ __pycache__/
 checkpoints/
 wandb/
 *.pt
+data/
+data_cache/

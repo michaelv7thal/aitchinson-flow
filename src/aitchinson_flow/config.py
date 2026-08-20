@@ -112,7 +112,9 @@ class Text8DataConfig:
     cache_dir: str | None = None
     trust_remote_code: bool = False
     streaming: bool = False
-    revision: str | None = None
+    # pinned to the afmck/text8 dataset commit the paper's runs actually read
+    # (previously None; the exact revision existed only in the local HF cache)
+    revision: str | None = "58c74e966ccc66eab2de6b52fad5b14ddb259fa4"
 
 
 @dataclass

@@ -157,9 +157,34 @@ def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
+def environment_record() -> dict:
+    """Interpreter/torch/CUDA/GPU versions, for manifest provenance.
+
+    Added 2026-08-20: earlier manifests recorded argv and checkpoints but not
+    the environment, so the versions behind the published runs survive only
+    circumstantially (uv.lock predates them unchanged).
+    """
+    import platform
+    import sys
+    rec = {
+        "python": sys.version.split()[0],
+        "platform": platform.platform(),
+    }
+    try:
+        import torch
+        rec["torch"] = torch.__version__
+        rec["cuda"] = torch.version.cuda
+        if torch.cuda.is_available():
+            rec["gpu"] = torch.cuda.get_device_name(0)
+    except Exception:  # environment capture must never fail a benchmark
+        pass
+    return rec
+
+
 def write_manifest(out_dir: str | Path, record: dict) -> Path:
     """Write/overwrite <out_dir>/manifest.json with a provenance record."""
     import json
+    record.setdefault("environment", environment_record())
     p = Path(out_dir) / "manifest.json"
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(json.dumps(record, indent=2))

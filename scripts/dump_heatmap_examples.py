@@ -197,9 +197,13 @@ def main() -> int:
         train_txt = load_text_column(cfg.text8_dataset, split="train")
         if not isinstance(train_txt, str):
             train_txt = " ".join(train_txt)
-        padded = f" {train_txt} "
+        # whole-word regex, NOT padded substring count: " w " misses adjacent
+        # occurrences ("ping ping" counts once) and undercounts. This is why the
+        # committed artifact says ping=66 where the true whole-word count is 67
+        # (the paper's caption is right); see runs/text8_unigram_stats.json.
+        import re as _re
         for w in [w for w in args.rare_words.split(",") if w.strip()]:
-            rarity[w] = padded.count(f" {w} ")
+            rarity[w] = len(_re.findall(rf"(?<![a-z]){_re.escape(w)}(?![a-z])", train_txt))
         print(f"[dump] train-corpus word counts ({len(train_txt)} chars): {rarity}")
     except Exception as exc:  # rarity is sidecar metadata, never fail the dump
         print(f"[dump] rarity count skipped: {exc}")
