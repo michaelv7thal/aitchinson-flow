@@ -1,5 +1,17 @@
 # Why energy-field learning gets stuck on text from random init
 
+
+> **Status: superseded in part, 2026-05-13. Read the paper's `app:theory` first.** This note derived the collapse mechanism the capstone paper adopts (the pointwise-L2 optimum at the no-information limit, `prop:collapse`), and §§2–7 remain the fullest derivation that exists. Four claims below did not survive the finished measurements:
+>
+> 1. **§2: the tilted plane has NO critical point.** The text says "one minimum at x=μ₁"; a linear functional has none. Corrected in the paper's appendix.
+> 2. **§2: μ₁ is an *affine* image of the unigram distribution**, μ₁ₖ = (a−b)·p_uni(k) + b, not the centred log-unigram vector.
+> 3. **§§3, 5.3, 6: the trained landscape is NOT single-basin.** Per-token minima do form and the descent reaches them from anywhere the input names a token, lifting p(true char) from 0.067 to 0.993 (`chapters/results.tex` §Energy landscape). The lazy-init argument describes where training starts, not where it ends. "No other minima to find" is the early reading and is wrong.
+> 4. **§§8, 11: the auxiliary CE does not act as an anchor.** Masked to γ≥0.5 it is solved before the first epoch ends (8×10⁻⁴ against ln 27), because the mask puts it where the label is already visible.
+>
+> Also dated: **§7.5's 2×2 table** is an earlier run set (`runs/comp_ref_det_mse`, `runs/dsm_clr_ablation`) whose DSM cells used σ_max=1.0 over 16 levels. The paper's `tab:ablation2x2` reads `runs/compu_mse_det`, `runs/compu_mse_thick`, `runs/dsmx_clr_det`, `runs/dsmx_clr_dir` at σ∈[0.01,12.3] over 24 levels. **§7.5's "flow map (Stark et al. 2024) → collapses" row is wrong and dangerous**: Stark 2024 is Dirichlet Flow Matching, the paper's *selected generator*; its CE posterior given a noisy Dirichlet draw is non-degenerate by construction. **§9's** prediction that Langevin fixes it was measured at 9–19% on the bigram divergence and does not approach transport. **§10's** "recovery is solid" reads a raw token accuracy, not the recovery gain Δ; EqM's measured Δ@.50 is −0.009 to +0.005, and its closing "cluster runs in flight" paragraph describes work that finished in 2026-06.
+>
+> Unique to this note and not superseded: the lazy-init OLS closed form (§3), the dual flat-field argument at γ→1 (§7), and the L=40→128 scaling probe (§10 — NB its KL_bi 0.92 is NOT the band-retargeted 0.92 of the paper; same rounded value, unrelated experiments).
+
 Sibling note to `NOTE_WHY_UNCONDITIONAL_FAILS.md`. That note treats the
 *sampling-time* failure (where chains end up); this note treats the
 *training-time* failure (why the field has nothing useful to descend on in

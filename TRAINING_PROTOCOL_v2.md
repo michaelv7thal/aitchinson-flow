@@ -1,5 +1,14 @@
 # Training Protocol v2 — UQ pipeline + continuous-FM validity
 
+
+> **HISTORICAL — 2026-05-07. Every phase in this document (K–P) describes a research direction the final paper does not contain.** There is no HaluEval-QA, no TruthfulQA, no per-token hallucination localisation and no two-model pipeline in the capstone. Phase K was run and left `runs/hal_gpt2_qa_*` plus the (now pruned) hallueval caches; nothing downstream of it was.
+>
+> **Do not build the Phase N SFM from the spec below.** Statistical Flow Matching *is* in the paper (`tab:gen`, "Statistical FM (Fisher–Rao)"), but as implemented it uses a **uniform-simplex source** μ₀ ~ Dir(1,…,1) mapped through π: μ → √μ, with `sample_nfe = 100` and `t_eps = 1e-3` — not the label-smoothed source, `diffeo_eps 0.01` and `sample_nfe 64` planned here. The authoritative record is `src/aitchinson_flow/models/sfm.py` and `SFMConfig`; that docstring also distinguishes **SFM** (Cheng et al.) from **SFLM** (Deschenaux et al.), separate arms of `tab:gen`.
+>
+> Its §2 authority line covers *forward* phases only: **it does not supersede v1's record.** `TRAINING_PROTOCOL.md` §6 Phase A remains the only place the resolved W1/W3/W4 verdicts are written up, and its Phase B and F–H sections are the only specification of the Logit-KL Flow arm and the retired auditor runs.
+>
+> §2's pinned versions are stale: `uv.lock` has transformers 5.8.0, not 5.5.4. Dead pointers: `cd /home/renku/work/aitchinson-flow`; `sweeps/phase{N_sfm,O_bpe_continuous,L_truthfulqa,M_localise,P_pipeline}.yaml`, `scripts/{cache_hallueval,eval_uq,phaseF_uq,cache_wiki,eval_continuous_bpe,integrate_pipeline}.py` and `data/wiki_cache_gpt2.pt` do not exist.
+
 > **Lead document for executing claude session(s) on the post-Phase-H
 > capstone work.** Specifies *what* to train, *in what order*, *with
 > what configs*, *what to watch*, and *when to stop or pivot*.

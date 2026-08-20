@@ -1,5 +1,14 @@
 # DFM + SVGP for OOD detection — findings
 
+
+> **SUPERSEDED — 2026-05-15. The SVGP detector head is not in the paper.**
+>
+> This arm was replaced by `BayesLinHead`: a linear energy head plus a closed-form Laplace / Bayesian-linear variance, which needs no inducing points and whose variance channel does not collapse (`chapters/methods.tex` §The Bayesian-Linear Head). The paper's detector set is the denoiser NLL, the Bayesian-linear head, the BGMM density, full-dimension logistic probes, and one unified head at three capacities. No SVGP.
+>
+> Stage 1's "best unconditional generation in the project" (KL_bi 0.4545) was true at development scale in May 2026. The paper's Dirichlet Flow Matching reaches **KL_bi 0.130** at L=256 on the full 90M-character split.
+>
+> **Kept because it is the record of why the GP head was abandoned.** The concentration-of-measure argument (with standardised d_embed=256 features every query sits at ‖x − z‖ ≈ √(2·256) ≈ 22.6, so the kernel cannot distinguish them) and the four-row table of mitigations that failed are the reason not to re-attempt this. `src/aitchinson_flow/models/sflm_svgp.py` and `scripts/train_for_sflm_bench.py` cite this file by name; do not move it without updating them.
+
 Two-stage pipeline: Stage 1 trains a Dirichlet Flow Matching denoiser
 (Stark et al. 2024) on text8; Stage 2 freezes it and fits a Sparse
 Variational GP head on pooled hidden states via a contrastive energy

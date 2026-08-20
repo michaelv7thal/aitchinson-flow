@@ -1,5 +1,15 @@
 # Cluster training plan — capstone EqM continuation
 
+
+> **HISTORICAL — 2026-05-07 handoff plan. Two of its three hypotheses were falsified, and its writeup framing is contradicted by the final paper.**
+>
+> W1 (Euler sampler swap) came back **negative**: best Euler-on-raw-f KL_bi 1.682 against NAG 1.382 — see `TRAINING_PROTOCOL.md` §6 Phase A and `runs/DECISION_LOG.md` (2026-05-07). The paper's appendix §Sampling-time failure settles it generally: a training-time failure cannot be fixed by changing the sampler.
+>
+> **Do not read §"Writeup arc" §3.** Its claim that EqM's energy field is the differentiator that can carry the writeup alone is false. The paper reports that EqM's trained energy has a minimum at *every* vertex, so the per-token OOD score was never readable; all detection and repair results run on a frozen **Dirichlet Flow Matching** backbone instead (`chapters/results.tex` §OOD Detection). W4 was an informative negative (FMonCLR 1.559, near EqM, not DFM).
+>
+> Still useful for: the measured A100/20 GB-MIG wall-clock table, the ~3 GB peak-memory probe at B=64, the offline-cluster HuggingFace notes, and the `u_tgt = c(γ)(x0 − x1)` sign convention in §W1.
+> Dead pointers: all four sweeps it tells you to run moved to `sweeps/archive/`, so every `run_sweep.py --sweep sweeps/phaseNN_*.yaml` command below fails as written.
+
 > Handoff document for the cluster Claude session. The local session added
 > code (W1 Euler sampler, W2 non-factorised bigram head, W3 OOD eval, W4
 > FMonCLR baseline) but **did not run any experiments**. This file describes

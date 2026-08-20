@@ -9,8 +9,11 @@ recovery, the model-class taxonomy, SFM≠EBM) lives in
 **`NOTE_EQUILIBRIUM_FAILURE_CLASS.md`**; the failure derivations and numbers are
 in `NOTE_WHY_EBM_INIT_STUCK.md` and `NOTE_WHY_UNCONDITIONAL_FAILS.md`.
 
-**Capstone scope note.** This project is not for publication; documenting *why*
-an approach fails is a valid outcome. The thesis here is therefore deliberately
+**Capstone scope note (updated 2026-08-20).** The capstone paper is written
+(`../capstone-paper/`); its §The Negative Result and appendix `app:theory` are
+the published form of this material, and this document's lineage argument
+(Hopfield/Boltzmann/DEQ) was not carried into it — it survives only here.
+Documenting *why* an approach fails is a valid outcome. The thesis here is therefore deliberately
 negative-but-grounded: the equilibrium setting is a classical, well-studied
 framework whose known limitations *predict* the text failure, and this project
 *instantiates and localizes* that failure on character-level text8. We inherit
@@ -101,8 +104,10 @@ Character-level text8 (K=27) at window length L has support on `K^L ≈ 10^57`
 near-vertex configurations of the probability simplex. As a Gibbs measure this is
 a **low-temperature Potts-like model**: astronomically many sharp modes (valid
 sequences), separated by large energy barriers, with a marginal (unigram) mean
-`μ₁` that is a smooth interior point **no real sequence is ever near** (Hilbert
-distance `Θ(√L)` from every vertex; see `NOTE_WHY_EBM_INIT_STUCK.md` §4).
+`μ₁` that is a smooth interior point **no real sequence is ever near** (the
+`Θ(√L)` distance is the quadrature Aitchison-norm aggregate over positions —
+the per-position Hilbert distance is a constant independent of L; see the
+paper's appendix §sqrt-L and `NOTE_WHY_EBM_INIT_STUCK.md` §4).
 
 ### 3.2 The four established results that apply
 
@@ -138,8 +143,12 @@ the noise→data interpolant (flat near data, unigram-tilted far from it), and t
 per-token basins are sub-resolution spikes. Consequently:
 
 - **Generation** (descend from noise) collapses to the unigram peak.
-- **Recovery** (descend from a perturbed input) is a **no-op** — the init lands on
-  a flat shoulder with `∇E ≈ 0`, so descent returns the corrupted string. (This
+- **Recovery** (descend from a perturbed input) is a **no-op** — the descent
+  applies its one rule (sharpen whichever token already dominates) where that
+  rule does not apply, and an isotropic perturbation starts it outside the
+  trained radius (paper §Energy landscape; the earlier "flat shoulder, ∇E ≈ 0"
+  mechanism did not survive measurement — the near-data field is an aggressive
+  sharpener). (This
   supersedes earlier "recovery works" claims; only a marginal, non-competitive
   bump survives at mid-perturbation α∈[0.5,0.7].)
 - **Only *evaluation* survives** — OOD detection via a discriminative head on

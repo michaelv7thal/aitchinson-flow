@@ -1,5 +1,12 @@
 # Flow Matching for Text Generation & OOD — Findings Summary and Results Structure
 
+
+> **MOSTLY CURRENT (2026-06-06), with one section that is now wrong. §1.1, §1.2 and §1.4 are the paper's conclusion chapter in draft and still hold. §1.3 and the OOD bullets of §2 are superseded and inverted.**
+>
+> What changed: the "Spilled Energy beats trained probes" claim below rested on a GPT-2 baseline that was computing a per-token NLL under the wrong name and attributing byte-pair scores down onto characters by uniform spreading (corrected 2026-07-13). At the fair word unit our training-free denoiser NLL localizes replaced words at 0.981 against 0.727 for spilled energy and 0.738 for the GPT-2 likelihood (`tab:ood-word`), and the gap survives thresholding. So §1.3's conclusion and §2's "even with home-field advantage the FM signal loses to a zero-shot LLM method" are backwards on the geometric axis. The surviving scoped version: on CONTEXTUAL corruption (false information) the pretrained model is the better sequence-level triage model.
+>
+> Of §4's proposed experiments, P1, P2, P4 and the t-sweep half of P5 were run and are in the paper; the epsilon sweep, P3 (probability-flow ODE likelihood baseline) and P6 (curl fraction) were not.
+
 This document has four parts: (1) the established conceptual findings to use as the spine of the
 write-up, (2) a soundness checklist for the methodology, (3) a section-by-section results structure,
 and (4) a prioritized list of additional experiments.

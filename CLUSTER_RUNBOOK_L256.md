@@ -1,5 +1,19 @@
 # Cluster runbook — L=256 GPU workstream (for a fresh Claude session)
 
+
+> **Superseded, 2026-06-06. The recipe still runs; its purpose and its reporting destination are both stale.**
+>
+> What this runbook was for — a peer-comparable `DFM.elbo_bpc` at L=256 folded back into `EVAL_ASSESSMENT.md` — is a deliverable the paper dropped, and `EVAL_ASSESSMENT.md` is itself superseded.
+>
+> **What this run actually produced is the most important artifact in the repository.** §2's optional `--only DirichletFM` command, with §1's `--full-split`, trained the L=256 full-corpus Dirichlet Flow Matching model that carries the entire second half of the paper. Its final checkpoint is `runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM_converge/epoch_final.pt` (md5 `9946dce9…`), pinned by both `_final` manifests; the paper narrates this run's interruption and batch 48 → 24 → 16 resumption in §Experimental Setup.
+>
+> Corrections for anyone following it:
+> - §3 and §3b build a hinge-**SVGP** detector. Superseded by `BayesLinHead` (`scripts/ood_bayes_linear.py`), which is what the paper's BLR rows report. The SVGP runs exist and are not in the paper.
+> - §2's `SFLMEBM` / `SFLMEBM_FM` arms were never trained at L=256; both directories are absent. The "EBM fails on shuffle" evidence §4 and §6 treat as a headline does not exist at this length, and the paper locates the equilibrium failure differently (the trained energy has a minimum at *every* vertex).
+> - §6's verification cannot be satisfied: `runs/sflm_bench_a100_20g_L256/bench.json` does not exist, and a finite DFM BPC is no longer a paper deliverable.
+>
+> Still uniquely recorded here: the two MIG allocator crashes and their fixes (batch-chunking `SFLMEBM.position_uncertainty`; making `SFLMEBM.eval_step` a no-grad CE readout), and the §3 warning that `fit_dfm_svgp_hinge.py` needs a `DirichletFMSvgp` checkpoint rather than the `DFM` arm — a Dirichlet-FM-versus-Discrete-FM confusion that costs a GPU run.
+
 **You are a new Claude Code session running on the 20 GB compute cluster** (the
 A100 MIG / equivalent). This is the **GPU-bound part** of the capstone eval work;
 everything non-GPU (the assessment doc, code fixes, repo cleanup) was already done

@@ -1,5 +1,22 @@
 # Capstone follow-up experiments — protocol
 
+
+> **Executed in full, 2026-05-08 to 2026-05-09. Results are in `runs/capstone/`, not at the paths §15 predicts.** Read this for the design rationale; read the run directories for outcomes.
+>
+> | Phase | Outcome | Artifact | In the paper? |
+> |---|---|---|---|
+> | R — SDE sampling | Strong FAIL of R-H1; noise buys 9–19% and does not approach the transport control | `runs/capstone/R/` (13 cells) | **Yes** — appendix §Sampling-time failure |
+> | S — K=2 collapse | EqM 0.1248, LogitKLFlow 0.1049, Discrete FM 0.0186, **FMonCLR 0.0033** | `runs/capstone/S/` | No |
+> | T — conservative-gradient regression | PASS: KL_bi 0.425, and 0.328 at lr 2.5e-4 | `runs/capstone/T/` | No |
+> | U — cascade audit | U-H2 falsified: the shuffle ablation separates nothing (AUROC₃ ≈ AUROC₁ for every method). The AUROC₂ diagnostic does survive. | `runs/capstone/U/` | No |
+> | V — SAPLMA replication | Diagnostic did not fire as specified (needed AUROC₃ < 0.70, got 0.993) | `runs/capstone/V/` | No |
+>
+> Two of the unreported phases deserve a reader's attention rather than silence:
+> - **Phase S** is the only measurement of the K-dependence of the gap, and at K=2 a continuous method (FMonCLR, 0.0033) beats the discrete control (0.0186). The paper bounds its collapse claim to vertex-supported data (`chapters/conclusion.tex` §Scope); K=2 text8 is vertex-supported, so this cell sits outside that bound and is unaccounted for.
+> - **Phase T** trains EqM's own target (`c(γ)·(x₀ − x₁)`, γ withheld) but parametrises the output as the conservative gradient, and reaches KL_bi 0.328 at 50,000 windows where the paper's 50k EqM cell is 1.38. Before reading this as "EqM generates after all": its natural sampler is Euler over γ from 0 to 1, which is a time-indexed transport, not the fixed-point descent the paper's negative result is about. On that reading it supports the paper's evaluation-versus-iteration line rather than contradicting it. The distinction has not been checked experimentally.
+>
+> Phases U and V belong to the retired GPT-2/WikiText auditor line. They are kept as the record of a diagnostic that was proposed and then failed on its own criterion.
+
 **Version:** 1.0  •  **Drafted:** 2026-05-08  •  **Supersedes:** none (new)
 
 This protocol covers three focused follow-up tracks identified after the

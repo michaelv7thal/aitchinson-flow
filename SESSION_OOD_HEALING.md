@@ -1,5 +1,19 @@
 # Session findings — OOD detection & self-healing benchmark (2026-07-12)
 
+
+> **SUPERSEDED — 2026-07-14. Every flow-matching number in this log was measured on the early-stopping checkpoint, not the model the paper reports.**
+>
+> This session read `runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM/epoch_best.pt` (md5 `f1d809e8…`), the checkpoint behind `bench_ood/` and `bench_heal/`. The paper reads the fully-annealed `DirichletFM_converge/epoch_final.pt` (md5 `9946dce9…`), in `bench_ood_final/` and `bench_heal_final/`. Date any number here by it: shuffle word-max **0.963** here against **0.967** in the paper, false-info NLL **0.813** against **0.807**. `epoch_best` and `epoch_final` are different artifacts — check the md5, not the name. GPT-2 rows are identical across both trees and cannot date anything.
+>
+> **Two conclusions here are reversed in the paper.**
+>
+> 1. Finding 2 concludes supervision does not pay on false information (NLL 0.813 > BLR_fi 0.800). On the final model the ordering flips — BLR_fi 0.812 > NLL 0.807 — and the paper reports the supervised falseinfo head as the leading detector on that axis (`tab:ood-word`, §Sequence-level triage).
+> 2. **Finding 4 calls the insulin article out-of-domain. It is not.** A 2006 revision of that article is in the `text8` training split and the word *insulin* occurs 347 times there, so the paper uses insulin as a deliberately **in-distribution** real-text healing check. The paper's out-of-domain transfer article is **semaglutide**, created in 2016, a decade after the dump behind `text8` (`tab:ood-transfer`). Finding 4's "both would be OOD" mechanism and its per-passage-normalisation prescription rest on the wrong premise, and its numbers are not the paper's transfer numbers.
+>
+> **Still the best record of two things.** Finding 3b's geometry is the measurement behind the paper's claim that the two corruption types displace features in opposing directions, and the parenthetical at the top of that section is the **only** place in the repository recording that the measurement must be *paired*: an unpaired mean difference gives a spurious +0.85 because corrupted positions are always letters and never spaces, so it measures "letter vs space" rather than corruption. Finding 5 is the spilled-energy correction and the char-vs-BPE protocol.
+>
+> §5's reproduction recipe points at `bench_ood/`; for the paper's numbers use `bench_ood_final/` and `bench_heal_final/`.
+
 Scope: built a **reproducible, comparable benchmark** for Objective 3 (OOD detection
 + localize-then-inpaint healing) on the frozen full-text8 L256 `DirichletFM`
 checkpoint (`runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM/epoch_best.pt`,

@@ -1,5 +1,8 @@
 # Training plan — DSM vs EqM, three-cell capstone experiment
 
+
+> **ARCHIVED / SUPERSEDED (banner added 2026-08-20).** Execution plan from 2026-05-13 for the three-cell DSM-against-EqM comparison, on the frozen d=1024 autoencoder latent. The published version of this experiment is `tab:ablation2x2` in the paper, and it crosses the training target against the *endpoint recipe* at development scale L=40 (`runs/dsmx_clr_*`, `runs/compu_*`), not the latent cells planned here. Its verdict: DSM escapes the unigram collapse and still does not generate. Two stale pointers: the `POSITIONING.md` link in the header does not resolve from this directory (the file is now at `docs/archive/POSITIONING.md`), and `runs/ae_d256_l2_z64/ae/epoch_final.pt` no longer exists.
+
 This document is the execution-side counterpart of
 [`POSITIONING.md`](POSITIONING.md). It is intended to be handed to a
 fresh cloud Claude Code session with no prior context. Read it

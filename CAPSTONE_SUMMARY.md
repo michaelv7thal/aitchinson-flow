@@ -1,5 +1,15 @@
 # Capstone summary — what I have, what it addresses, what's left
 
+
+> **Superseded, 2026-05-13, three months before the paper. Its headline result is not the paper's headline result, and its 2×2 numbers are not the paper's 2×2 numbers.**
+>
+> - **The sign is reversed.** This document calls Δ@.50 = +0.060 from Dirichlet x₁ thickening "the headline positive of the project". The paper reports the same cell at +0.050 inside its *negative* result (`tab:ablation2x2`) and reads it as "neither escape buys structure" — the thickened cell's output entropy sits within 0.001 of uniform. The paper's headline positives are Dirichlet Flow Matching generation (KL_bi 0.130), corruption localization (word AUROC 0.981), and repair (net +0.432), none of which existed when this was written.
+> - **Do not trace paper numbers to this table.** §1.3's cells come from `runs/comp_*` and `runs/dsm_clr_ablation/`. The paper's `tab:ablation2x2` comes from `runs/compu_*` and `runs/dsmx_*`. The values nearly collide — `runs/comp_mse_seed42/eval.json` holds 0.6614/5.924 against the paper's 0.660/5.990 — but they are different runs. The DSM row makes the difference visible: 0.630/0.645 here, 0.285/0.351 in the paper.
+> - The §3 and §5 mappings to a supervisor's unpublished WIP documents, and the §8/§9 framing and morale sections, are private working context with no counterpart in the paper.
+>
+> Still valuable and recorded nowhere else: the **two-Dirichlets distinction** (§2.4, x₀ source versus x₁ target thickening as structurally distinct fixes), the six-axis fix taxonomy (§2.2), and the AE-latent scaling observation that d=256 partly recovers (Δ@.50 +0.080) where d=1024 is a complete no-op (§5b).
+> Path corrections: `CAPSTONE_OUTLINE.md` and `TRAINING_PLAN_DSM_VS_EQM.md` are in `docs/archive/`; `scripts/recovery_check_product_gp.py` no longer exists.
+
 **Goal:** pass. A well-described negative result also passes. The supervisor is the grader.
 
 This document maps **my empirical and theoretical work** against the **seven WIP documents the supervisor shared**, identifies my contributions, identifies where I verify or sharpen his analysis, and lists the open points still required for submission.

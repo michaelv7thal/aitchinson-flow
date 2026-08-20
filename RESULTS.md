@@ -1,5 +1,18 @@
 # EqM vs DFM on text8 — Capstone results
 
+
+> **STALE — dated 2026-07-14. Read `bench_ood_final/RESULTS.md` instead for anything in §Objective 3.**
+>
+> This document predates the paper. Three of its conclusions are now **wrong**, not merely out of date:
+>
+> 1. **The sampler is not the bottleneck.** This document diagnoses EqM's failure as sampler-side and recommends replacing NAG-GD with an Euler integrator over gamma. The paper's finding is the opposite: the failure is a **training-time** property of the regression target, and no sampler change repairs it (paper `appendix/appendix.tex` §Training-time collapse / §Sampling-time failure; `chapters/results.tex` §The Negative Result). The recommendations in "Next steps" §1 were not adopted.
+> 2. **False information DOES need the supervised head.** This document's "a supervised head is NOT needed for false-info" rests on NLL 0.813 > BLR_FI 0.800, read from `bench_ood/` (checkpoint `DirichletFM/epoch_best.pt`, md5 `f1d809e8…`). On the paper's model (`DirichletFM_converge/epoch_final.pt`, md5 `9946dce9…`, tree `bench_ood_final/`) the ordering **flips**: NLL 0.807 < BLR_FI 0.812.
+> 3. **Insulin is not the out-of-domain probe.** §"Transfer to real out-of-domain text" treats the insulin article as out of domain. It is **in-distribution**: a 2006 revision of it is in the text8 training split and "insulin" occurs 347× there (paper `chapters/results.tex` §Repair on a real biomedical article). The paper's transfer article is **semaglutide** (`tab:ood-transfer`; artifact `bench_ood_final/transfer/`).
+>
+> Every detector number in §Objective 3 is an `epoch_best`-era reading, superseded by `bench_ood_final/` and `bench_heal_final/`. The GPT-2 rows are the exception: they are byte-identical across both trees because GPT-2 never reads our checkpoint.
+>
+> Still valid and not superseded: the L=40 generation sweep (§"What was run" through §"Phase 4"), whose numbers the paper reproduces in its appendix §Budget; and the Phase-5 factorised-bigram-NLL negative result, which the paper does not report at all. The six `sweeps/phase*.yaml` files in §"Reproducing the results" moved to `sweeps/archive/`.
+
 A synthesis of the sweeps run for the [TRAINING_PLAN](TRAINING_PLAN.md). Focuses on
 *why* each lever moved or didn't move bigram coherence — the per-run hypothesis
 notes live in [`runs/DECISION_LOG.md`](runs/DECISION_LOG.md).

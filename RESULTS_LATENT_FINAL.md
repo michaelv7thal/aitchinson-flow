@@ -1,5 +1,16 @@
 # Latent-EqM final findings — d=128 trainable + tied + CE + time-cond + Euler
 
+
+> **HISTORICAL (2026-05-10). The two "working modes" claimed below do not survive — one is retracted by this document's own cluster-scaling section, the other by the paper.**
+>
+> Read this before the TL;DR:
+>
+> - **Mode 1 (sequence healing) is retracted in this same file.** See "Recovery from perturbation — sampler is doing very little work" (~line 442): `pt_acc ≈ tok_acc` at every α, so the recovery credited to the energy field is the embedding's local nearest-neighbour decode, and the sampler's contribution is a fraction of a percent. This is why the paper reports `Δ_α = tok_acc − tok_acc_perturbed` rather than raw token accuracy (paper §3.7).
+> - **Mode 2 (per-position UQ) is the score the paper shows was never there.** The trained energy has a minimum at every vertex, the wrong ones included, so it scores how sharp a position is, not whether its token fits the context (paper §4.3, §5.1). The UQ demo below is consistent with that: in-distribution 0.723 vs permuted 0.727 vs foreign 0.741 is not a separation.
+> - **This is the `EqMLatent` arm** (learnable embedding, tied decoder), not the paper's "EqM, VAE latent" row, and its working configuration uses a γ-walking Euler sampler rather than the fixed-point descent that defines Equilibrium Matching. The paper's EqM verdict is not a verdict on this configuration, and this configuration is not evidence against it.
+>
+> What is still worth reading: the pt_acc-vs-tok_acc correction, the L=40 → L=128 sequence-length finding (KL_bi 1.48 → 0.92), and the γ=0 averaging trap measured identically at three scales. Dead pointer: `data/skipgram_d256.pt`.
+
 A working configuration for EqM-on-text. Single-seed, laptop GPU (8 GB
 Blackwell), 20 epochs, 90M-parameter transformer.
 

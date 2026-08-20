@@ -1,5 +1,12 @@
 # BayesLinHead — Bayesian linear OOD detector (math)
 
+
+> **Status (2026-08-20): current for the head's algebra, stale on the read-out configuration.** The energy head, the hinge with margin 4, the closed-form variance and the exact-pooling identity below are what the paper uses and are the fuller derivation of `chapters/methods.tex` §BayesLinHead. Three things have moved since this was written (2026-06-12):
+> 1. **Two passes, not one.** The energy is read at `t_eval=4.5`; the variance is read at a *second* pass at `t_var=7.5` on near-one-hot input, with its own standardization. Read at 4.5 the variance signal *inverts*. See the paper's `tab:config`, row BayesLinHead.
+> 2. **The backbone is d_model=1280**, the scaled full-corpus run, not the d_model=1024 benchmark backbone assumed in the notation above.
+> 3. **The corruption ladder has four schemes** (replace, shuffle, false information, plausible), not the three below; "both" is now only one of the negative sets for the BLR_all variant.
+> §6's claim that the variance separates only under heavy corruption was true of the single-pass version and is not true of the two-pass one (it matches the energy at rate 0.15 sequence-level and beats it per token on false information).
+
 Reference for `scripts/ood_bayes_linear.py`. The detector bolts a **linear energy
 head** plus a **Laplace / Bayesian-linear posterior** onto the frozen `DirichletFM`
 backbone. It produces two scores at two granularities from a single feature pass:

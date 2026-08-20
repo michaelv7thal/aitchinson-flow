@@ -1,5 +1,18 @@
 # Compositional EqM — Proposal
 
+
+> **STALE PROPOSAL — 2026-05-10. The recipe was run; it works as a mechanism probe and not as the repair proposed here.**
+>
+> Dirichlet thickening does what §3 predicts to the *variance floor*, and the paper adopts that argument (appendix §Training-time collapse, "Variance floor"). What it does not do is yield a working generator. In the paper's 2×2 ablation the thickened cell escapes the unigram collapse only by moving to the *other* trivial distribution: its generated entropy sits within 0.001 of uniform (ln 27 ≈ 3.296) and its bigram divergence is the worst in the table, 5.990 (`tab:ablation2x2`).
+>
+> **§6 does not hold.** None of the four "downstream applications enabled by this recipe" — healing, per-position UQ, sequence-level OOD, energy-based language modelling — survived. The trained energy has a minimum at every vertex, the wrong ones included, so it scores how *sharp* a position is and not whether its token fits the context; the per-token OOD score is instead read off the frozen transport backbone (`chapters/results.tex` §What survives, §OOD Detection).
+>
+> **§1 attributes the uniform collapse to the wrong variant.** It is the *thickened* recipe that spreads towards uniform (KL_uni 0.611, H_ratio 1.154); the *deterministic*-CLR recipe collapses onto the corpus unigram distribution (KL_uni 0.093, H_ratio 0.958). See `tab:gen`.
+>
+> **§3.1 / §4.2 / §5.3 on Hilbert were settled by this proposal's own sweep.** `runs/compositional_eqm_test_summary.md` finds MSE and Hilbert a wash, with no broadening of the denoising regime. The paper reports it as a confirmatory null (`tab:hilbert-null`).
+>
+> **Kept because Appendix A and §8 are the only record of how the thickening was calibrated** — the closed-form Dirichlet-under-CLR covariance, the per-γ floor decay, and why `alpha_peak = 10` / `alpha_base = 0.1`, which is the setting the paper's reproducibility table prints without derivation. `sweeps/compositional_eqm_test.yaml` and `NOTE_WHY_EBM_INIT_STUCK.md` cite this file by section.
+
 A coherent recipe for training Equilibrium Flow Matching (EqM) on discrete
 data (text, character sequences, vocab-bound categorical streams). The recipe
 combines three ingredients that, used together, eliminate the dominant

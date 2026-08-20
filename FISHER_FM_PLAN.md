@@ -247,3 +247,15 @@ That editing is the paper session's job, not yours.
 - No exact CNF likelihood / peer-comparable BPC.
 - No hyperparameter search. One seed (42), one budget, defaults from the paper.
 - No changes to the eight existing arms, their configs, or their artifacts.
+
+## Result (added 2026-08-20)
+
+**Executed 2026-08-04/05. Done.** The arm trained and became the ninth row of
+`tab:gen`: KL_uni 0.006, KL_bi 1.418, KL_tri 5.151, H_ratio 0.996, Δ@.50 −0.000
+— landing in the unigram-collapse group beside Statistical FM's 1.494, as §0
+predicted, with Dirichlet FM's selection claim intact. The §1 recipe answers
+are recorded in the paper's `tab:config`, "Fisher FM" row. The arm count was
+updated to nine in all six locations listed in §9.
+Artifact: `runs/sflm_bench_a100_20g_L256/FisherFM/` (the paper reads this, the
+**smoothed** target). A `FisherFM_nosmooth/` control also exists at KL_bi 1.578
+— the ablation of the §1-question-2 ambiguity — and is not reported in the paper.

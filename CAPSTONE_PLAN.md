@@ -1,5 +1,16 @@
 # Capstone implementation plan — UQ for LLM generations + continuous-FM validity
 
+
+> **Superseded, 2026-05-08. This is a plan for a different capstone.**
+> The project pivoted away from the two-model LLM-UQ pipeline described here. The finished paper is `../capstone-paper/`: a nine-arm text8 generation benchmark, a frozen-backbone per-token OOD detector, a localize-then-inpaint repair loop, and the Equilibrium Matching negative result. Nothing on the correctness-track side of this document (SVGP on GPT-2 hidden states, HaluEval, TruthfulQA, the combined predictor) appears in the paper, and the GPT-2/WikiText auditor line it builds on is retired (see CLAUDE.md "Known dead code").
+>
+> Two specific corrections, because both mislead:
+> - **"The OOD prong is closed" is inverted.** OOD detection became the paper's main positive result (`chapters/results.tex` §Out-of-Distribution Detection).
+> - **Priority 2a misattributes its own reference.** arXiv:2405.16441 and the 1.39 text8 BPC are Cheng et al., *Statistical Flow Matching* (the paper's "Statistical FM" arm, `models/sfm.py`), not Stark et al., whose Dirichlet Flow Matching is a different construction. Davis et al., *Fisher Flow Matching* (arXiv:2405.14664) is a third, separate arm — see `FISHER_FM_PLAN.md`. The paper trains both Fisher-Rao arms and never writes "the Fisher-Rao arm" in the singular.
+> - Its Priority-2a success criterion ("KL_bi ≥ 1.0 confirms the continuous-on-simplex negative at the published-method level") is a conclusion the paper explicitly declines to draw.
+>
+> **Preserved unreported result:** Priority 1 ran and passed its own bar. SVGP on GPT-2 features reaches AUROC 0.996 at ECE 0.023 on HaluEval-QA (`runs/hal_gpt2_qa_{lasttoken,meanpool}/uq_eval.json`). This is not in the paper and this document plus those two JSONs are its only record.
+
 *Strategic document for the next-phase capstone work. Companion to
 [`TRAINING_PROTOCOL_v2.md`](TRAINING_PROTOCOL_v2.md) which gives the
 operational/per-phase steps. Reads from

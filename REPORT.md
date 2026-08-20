@@ -1,5 +1,16 @@
 # Continuous Flow Matching on the Simplex for Text Generation and OOD Detection
 
+
+> **STALE — 2026-05-09. Superseded by the capstone paper; two headline claims here are now contradicted.**
+>
+> **Do not read §3' / §6' (Phase T) as overturning the negative result.** The "KL_bi 1.4 → 0.41" figure was measured with **Euler integration over the path** ("Euler on output"), not with equilibrium descent. The same consgrad-trained model sampled by NAG scores **KL_bi 3.608** — see this document's own table, §3'. That is transport, not equilibrium: the paper's `evaluation vs iteration` distinction (`chapters/results.tex` §Discussion), not a repair of EqM. The paper's finding stands: no EqM variant generates or recovers text, and the collapse is a property of the regression optimum.
+>
+> **"DFM" in this document means Discrete Flow Matching, never Dirichlet Flow Matching.** §6's recommendation that "continuous-on-simplex methods are not competitive at K=27 and should not be pursued" was written before Dirichlet FM was trained. Dirichlet FM *is* a continuous-state simplex method and *is* the paper's selected generator (KL_bi 0.130 on the full corpus). Do not archive a run on the strength of this recommendation.
+>
+> Still accurate and still cited: the Phase B/C development-scale numbers behind the paper's budget ablations (Discrete FM control KL_bi 0.148, the epoch/capacity ladder) and the Phase R SDE table behind the paper's "9 to 19%" Langevin claim (`runs/capstone/R/`). The WikiText-2 / GPT-2 auditor line (Phases F, H, F+, U, V) was retired and appears nowhere in the paper.
+>
+> Dead pointers: `runs/best_so_far.pt`, `runs/best_auditor.pt`, `data/wiki_cache_gpt2.pt`, and Appendix B's `plot_phaseC.py`, `eval_auditor_wiki.py`, `phaseF_denoise_test.py`, `cache_wiki.py`, `cascade_audit.py`, `phaseF_uq.py`, `generate_audited.py` — Appendix B is largely unrunnable as written.
+
 *Capstone technical report — 2026-05-07*
 
 ## Executive summary

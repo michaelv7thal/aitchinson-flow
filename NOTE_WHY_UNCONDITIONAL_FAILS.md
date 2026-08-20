@@ -1,5 +1,13 @@
 # Why unconditional generation does not work for EqM (and EBMs in general)
 
+
+> **Extended 2026-08-20: the existing 2026-06-21 correction below covers recovery only; two further claims did not survive.**
+>
+> - **The "spurious minima dominate the noise space" picture is not what was measured.** The trained energy has a minimum at *every* vertex, right and wrong alike, and scores a position by how sharp its state is rather than whether its token fits the context (`chapters/results.tex` §What survives). The descent is not losing a race against spurious basins; every basin it can reach is equally valid to it. The spurious-basin story does hold for one case the paper reports: an *undertrained latent-space* field, whose unigram statistics injected noise fully repairs (appendix §Sampling-time failure).
+> - **The remedies were tried and ranked.** Stochastic sampling (§1) buys 9–19% on the bigram divergence and does not approach the transport arms. The latent route (§"What does work") was run as the VAE-latent arm and "changes the numbers without changing the outcome" (`tab:gen`: KL_bi 2.612, H_ratio 0.904) — the `runs/ae_d256_l2_z64` KL_uni 0.006 quoted here did not carry to the publication arm.
+>
+> The §"Recommended order for this project (formal)" queue ran in 2026-06/07; read it as a record of what was planned, not of what is pending. Still live and not superseded: the β-VAE proposal in remedy §4, which the paper carries as open future work, and the costings for PCD, best-of-N and GFlowNets, which exist nowhere else.
+
 > **CORRECTION (2026-06-21) — recovery also fails; this note's premise is partly superseded.**
 > The premise below that EqM "recovers cleanly from a perturbed input" (TL;DR and
 > §"Why recovery works") is **empirically false.** EqM/SFLMEBM energy descent is a

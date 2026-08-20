@@ -1,5 +1,12 @@
 # Heal-from-context proof of concept — insulin (in-distribution protein)
 
+
+> **Numbers superseded 2026-08-10; conclusions intact.** This ran against `DirichletFM/epoch_best.pt`; the paper's insulin results come from the fully-annealed `DirichletFM_converge/epoch_final.pt` (`bench_heal_final/`, `heal_poc_insulin_final/`) and read Track A **+0.377** / Track C **−0.106** against the +0.374 / −0.142 below. Same signs, same conclusion. The operating point here was selected by max cal-F1, a rule later replaced by the least-damaging swept FPR (paper `chapters/results.tex` §Repair).
+>
+> Two clarifications. Insulin is **in-distribution by design**, not a domain-shift probe: a 2006 revision of this article is in the text8 training split (paper §Repair on a real biomedical article). Where Track A is described below as running on a "held-out" article, that means held out of the *calibration* set, not out of domain — the paper's out-of-domain transfer article is semaglutide (`tab:ood-transfer`). And the "pending cluster run" for the GMM localizer on Track C has since been answered: the full-covariance mixture reaches **−0.047** on insulin Track C (paper `tab:heal-insulin`), confirming this document's prediction that feature density does not fact-check either.
+>
+> Retained as the only record of why insulin was chosen over BRCA1, and as the provenance of the Track-B example quoted verbatim in the paper.
+
 Goal: demonstrate that the frozen full-text8 L256 `DirichletFM` healer can **recover
 corrupted tokens using context**, on a real biomedical Wikipedia article. Driver:
 `scripts/heal_protein_poc.py`; outputs in `heal_poc_insulin/` (JSON + log + the exact

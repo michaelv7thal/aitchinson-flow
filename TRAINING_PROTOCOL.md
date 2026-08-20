@@ -1,5 +1,18 @@
 # Training Protocol — Aitchison-Flow capstone (multi-session execution)
 
+
+> **HISTORICAL — Phases A–J, executed 2026-05-07 onward; A resolved, B and F–H superseded or retired. Not an instruction set. Read for the record, not the plan.**
+>
+> Its **Phase A verdict table (§6) is still accurate and load-bearing**: W1 sampler swap negative (Euler 1.682 vs NAG 1.382), W4 FMonCLR 1.559 near EqM rather than near Discrete FM's 0.148, W3 EqM sequence energy at chance. Those findings are what the paper's negative result rests on.
+>
+> **Phase B (Logit-KL Flow) landed and is in the paper** as the third family of the noise-injection sweep in the appendix §Sampling-time failure; the authoritative configuration is `LogitKLFlowConfig` in `src/aitchinson_flow/config.py`, not the YAML sketched here.
+>
+> **Phases F/G/H (the GPT-2/Qwen auditor track) are retired** — the trained auditor added nothing beyond a linear probe or spilled energy (see `CLAUDE.md`). The paper contains no auditor, no WikiText-2 and no TriviaQA. This document is nevertheless the only specification of what `runs/aud_gpt2_*` and `runs/dfm_auditor_*` contain.
+>
+> **Phase E's peer-comparable-BPC goal was dropped.** The final paper reports no BPC for any of our own models; `tab:config` marks `bpd()` "diagnostic only".
+>
+> Dead pointers: the boot command `cd /home/renku/work/aitchinson-flow` is a stale cluster path; `sweeps/phaseB_logitkl.yaml` moved to `sweeps/archive/`; `sweeps/phase{D_loss,G_auditor_trivia,H_auditor_gen,I_sfm,J_longrun}.yaml`, `src/aitchinson_flow/data/trivia.py`, `scripts/generate_audited.py`, `scripts/eval_auditor_wiki.py`, `runs/best_{so_far,lkflow,auditor}.pt` and `data/wiki_cache_gpt2.pt` were never created or no longer exist.
+
 > **Purpose.** Lead document for the executing claude session(s). Specifies
 > *what* to train, *in what order*, *with what configs*, *what to watch*, and
 > *when to stop or pivot*. The cluster is available 24/7 with W&B sync; this

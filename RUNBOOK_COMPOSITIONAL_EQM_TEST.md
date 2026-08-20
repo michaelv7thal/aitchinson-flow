@@ -1,5 +1,14 @@
 # Compositional EqM — MSE vs Hilbert test runbook
 
+
+> **CURRENT as provenance — 2026-05-10.** This runbook produced the eight cells behind the paper's Hilbert-versus-MSE null result (`chapters/results.tex`, `tab:hilbert-null`), where "Compositional" is written **"Dirichlet-thickened"**. Results: `runs/compositional_eqm_test_summary.md`; per-cell data: `runs/comp_{mse,hilbert}_seed{42,43,44}/` and `runs/comp_ref_det_{mse,hilbert}/`.
+>
+> **Do not run §6.** Its cleanup loop deletes `epoch_final.pt` from every `runs/comp_*/` directory. Those checkpoints are the T2 reproduction path for a published table and are untracked, so the deletion is unrecoverable and costs a retrain to undo. The two `comp_ref_det_*` directories are already in the post-loop state: their weights are gone, and the deterministic-clr rows of `tab:hilbert-null` are permanently T1.
+>
+> The "Reference: cell expectations" table at the foot is a pre-run sanity target taken from `runs/dphase3_mse_dirichlet` and `runs/dphase5_hilbert_dirichlet`, not from these cells. Its deterministic row (`acc@0.50 ≈ 1.00`) is superseded: the measured value is 0.523, against a perturbed-input baseline of 0.528. Read the measured numbers from the summary and the `recovery.json` files, not from this table.
+>
+> The outcome was a null: MSE +0.060 against Hilbert +0.054 on Δ@.50 (per-condition means; the paper re-derives +0.050/+0.048 against one common perturbed reference), a wash, where the proposal predicted Hilbert marginally ahead. Note for the paper's caption: three seeds per compositional condition were run and averaged; the caption says "one seed per cell".
+
 You are a Claude session running on a compute cluster. Your job is to
 execute the Compositional EqM ablation defined in
 `sweeps/compositional_eqm_test.yaml` and report results back. The sweep

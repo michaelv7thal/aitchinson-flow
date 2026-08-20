@@ -1,5 +1,15 @@
 # Why the equilibrium / energy-based frame is structurally exclusive with categorical text generation
 
+
+> **Status: current in Part A, B.3 and C.1/C.2/C.4; the mechanism in B.1–B.2 and the reasoning in C.3 were superseded by measurement.** This note's "iteration fails, evaluation survives" (B.3) is the capstone paper's own dividing line (`chapters/results.tex` §Discussion, `chapters/conclusion.tex`), and its Part A — why Statistical Flow Matching cannot be reframed as an equilibrium model, including the Tweedie-cancellation obstruction — exists nowhere else and is not superseded.
+>
+> Two corrections:
+>
+> - **B.1/B.2: the near-data field is not flat.** It is a maximally aggressive sharpener: descended from the interpolant above γ=0.05 it returns the text character for character and drives p(true char) from 0.067 to 0.993, out at the data radius 12.27 (`fig:energy-landscape`). Recovery fails because the field applies that one rule where the rule does not apply, and because an isotropic α-perturbation starts the descent outside the trained radius — not because ∇E≈0 on a flat shoulder. The centre-peaked recovery-vs-α curve is also not the tell it is claimed to be: the *working* transport model peaks at α=0.6 too (`tab:recovery`).
+> - **C.3: Dirichlet Flow Matching's target is not the degenerate flow-map target.** Its CE posterior is conditioned on a noisy Dirichlet draw and is non-degenerate by construction. And the paper's DSM cells *were* σ-conditioned with a 24-level annealed-Langevin schedule and still failed, so "no schedule to transport along" is not the reason. The settled cut is between pointwise and distributional *targets* (`chapters/conclusion.tex` §Energy and generation), with autonomous fixed-point iteration as its operational signature rather than its cause.
+>
+> Terminology: read "Equilibrium (Flow) Matching" here as Equilibrium Matching. The paper reserves "flow matching" for time-conditioned transport.
+
 **Scope.** This note answers three linked questions that recur in the project and
 in the capstone paper's "negative EqM / exclusivity" arm:
 

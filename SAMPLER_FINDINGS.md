@@ -47,9 +47,9 @@ trajectory makes it visible.
   "all-fixes" config from `SESSION_SUMMARY.md` (conservative-grad sampling,
   matched train/sample σ=0.1, aux CE on implied-x1, γ-importance sampling).
 - Diagnostics:
-  - `scripts/diagnose_overshoot.py` — B=32, 7 sampler variants + grad-norm
+  - `scripts/legacy/diagnose_overshoot.py` — B=32, 7 sampler variants + grad-norm
     trajectory.
-  - `scripts/diagnose_overshoot_v2.py` — adaptive restart, μ schedule,
+  - `scripts/legacy/diagnose_overshoot_v2.py` — adaptive restart, μ schedule,
     η decay, gradient clip.
 - Reference corpus: `text8` train split (K=27, L=40 windows).
 
@@ -175,12 +175,12 @@ sample_return_best: True   # NEW — return the lowest-‖∇E‖ iterate
 
 Expected effect on the in-training unigram-KL probe: **0.065 → ~0.048**
 (B=64, same compute). The headline number on `evaluate_eqm.py` panel C and
-on `quick_eval.py` should drop similarly.
+on `scripts/quick_eval.py` should drop similarly.
 
-### Validation — `quick_eval.py` after the patch
+### Validation — `scripts/quick_eval.py` after the patch
 
 After applying the recommended changes (`grad_clip=1.0`, `return_best=True`,
-`max_steps=200`) to `EqM.sample`, running `quick_eval.py` end-to-end at
+`max_steps=200`) to `EqM.sample`, running `scripts/quick_eval.py` end-to-end at
 B=64 / 200 steps reproduces the diagnostic-predicted improvement:
 
 ```
@@ -250,9 +250,9 @@ text8 across batch positions, not template-locked.
 
 ```bash
 # Iter 1 — sweep + grad-norm trajectory
-python -u scripts/diagnose_overshoot.py    checkpoints/baseline_5ep/epoch_final.pt
+python -u scripts/legacy/diagnose_overshoot.py    checkpoints/baseline_5ep/epoch_final.pt
 # Iter 2 — overshoot-targeted variants
-python -u scripts/diagnose_overshoot_v2.py checkpoints/baseline_5ep/epoch_final.pt
+python -u scripts/legacy/diagnose_overshoot_v2.py checkpoints/baseline_5ep/epoch_final.pt
 ```
 
 Each run is ≈ 4 min on a single ~8 GB consumer GPU (RTX PRO 1000 Black).

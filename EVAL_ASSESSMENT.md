@@ -1,5 +1,19 @@
 # Evaluation assessment — which evals to report, and what they show
 
+
+> **STALE (banner 2026-08-20). Retained for its protocol reasoning and run triage; its per-objective VERDICTS are superseded by the paper and three of them are now wrong.**
+>
+> This file was last substantively true on 2026-07-15, before the full-corpus Dirichlet Flow Matching run and before the final-checkpoint benchmark re-run. Against the finished paper:
+>
+> - **Obj 1 is not a negative result.** The claim below (§Objective 1) that "no model produces English words" and that the failure is "structural, not just scale" was true of the 10k-window budget only. The full-corpus model generates mostly word-like English with local syntax at KL_bi = 0.13 (paper `tab:gen` lower block).
+> - **Obj 2 fails only for Equilibrium Matching.** Transport recovery is a headline success for the selected model: Δ@.50 = +0.282 (paper `tab:recovery`). Read every "recovery fails" statement below as scoped to the EqM arms.
+> - **Obj 3's detector recommendation is inverted.** The strongest localizer is the training-free denoiser NLL (word-max 0.981 on replace), not a fitted head; the Bayesian-linear energy head is second at 0.930, and SVGP is not in the paper at all.
+> - **False information is a triage signal, not a word-level fix.** The 2026-07-12 banner's claim that "sequence-triage-only was an artifact of measuring per-character" does not survive: the paper reads the same ~0.81 as the triage regime (per-word F1 ≤ 0.435, `tab:ood-prf`).
+> - **No peer-comparable BPC was ever produced.** The peer-comparability section below describes a deliverable the paper does not cash; `bpd()` is marked "diagnostic only" throughout (paper `tab:config`).
+> - **All detector/healing numbers below are epoch_best-era** (`bench_ood/`, `bench_heal/`). The paper reads `bench_ood_final/` and `bench_heal_final/`. Tell them apart by shuffle: 0.963 is old, 0.967 is current.
+>
+> Current sources: the paper's chapters 4–5, `bench_ood_final/RESULTS.md`, and the benchmark manifests in `bench_ood_final/` and `bench_heal_final/`.
+
 Capstone: continuous flow-matching on the simplex for character-level **text8**
 (K=27). This document picks the **meaningful eval per objective**, states **what
 works / what fails and WHY** (linked to theory), makes the benchmarking

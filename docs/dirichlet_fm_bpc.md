@@ -1,5 +1,9 @@
 # A peer-comparable BPC for Dirichlet FM (variational dequantization ELBO)
 
+
+> **Status (2026-08-20): the spec of `scripts/eval_dirichletfm_elbo_bpc.py`, for a number the paper does not report.** This note is about **Dirichlet Flow Matching**, not the Discrete Flow Matching arm that shares the "DFM" abbreviation. The derivation and especially the measure conventions below are correct and are the only record of them, and the script still implements them.
+> What changed: the paper reports **no bits-per-character figure for any of our models**. `tab:config` marks `bpd()` "diagnostic only" for both Dirichlet FM and Fisher FM, and the only BPC in the paper is Statistical Flow Matching's *published* 1.39. An earlier draft carried a BPC column and a `tab:bpc-frontier` table; both were cut. No output artifact from this estimator exists in the repository, so treat it as an unrun design and not as a source of a number.
+
 DirichletFM has no closed-form discrete likelihood (unlike the `DFM` D3PM-uniform
 arm). Its forward process is a **continuous Dirichlet path** on the simplex, so
 the only honest bits-per-character is a **continuous-flow (CNF) likelihood**

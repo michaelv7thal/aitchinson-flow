@@ -1,5 +1,14 @@
 # S-FLM-as-EBM viability probe — findings
 
+
+> **Status: the probe stands, the verdict does not. 2026-05-20.** This note's toy probe on `a + b = c mod 7` — including the finding that the original "stuck at E[x1]" collapse was a *diagnostic* bug — is the only record of that work and is not superseded.
+>
+> Its recommendation is. The capstone paper concluded that **the per-token energy readout this note proposes does not exist on text**: the trained energy has a minimum at every vertex, the right one and the wrong ones alike, so it scores a position by how sharp its state is and not by whether its token fits the context, and the free OOD score was never there to read (`chapters/results.tex` §What survives). Every detector in the paper reads the frozen **Dirichlet Flow Matching** backbone; no SFLMEBM detector was carried forward. Read "SFLMEBM: viable EBM / OOD-auditor / verifier" as the 2026-05 reading of a toy task, not as a result.
+>
+> On text, the hyperspherical arm generates at KL_bi 1.378 — inside the unigram-collapse regime (`tab:gen`), which agrees with this note's generator verdict.
+>
+> Two reading notes: the tables' **"DFM" is Discrete FM** while **`DFM_SVGP` is a Dirichlet-FM head** — the sentence "DFM wins raw detection … cf. DFM_SVGP_FINDINGS" crosses between the two arms. And the "in progress" / "ready to train" / "pending the proper runs" status lines all refer to runs that completed in 2026-06/07.
+
 Question: can the time-free hyperspherical flow model (S-FLM,
 arXiv:2605.11125) be turned into a usable EBM (EqM-style,
 arXiv:2510.02300) on a toy task, or does it collapse to the trivial

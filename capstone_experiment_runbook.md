@@ -1,5 +1,17 @@
 # Capstone Experiment Runbook — for an autonomous Claude Code session (A100, 20 GB MIG)
 
+
+> **Superseded as a plan, 2026-06-06. Useful as a record of what was intended and of the operational policies, which are still accurate. Two of its rules were not followed and one of its P0 deliverables was dropped.**
+>
+> - **The 3-seed policy did not happen.** §1 requires headline generation, recovery and OOD to be 3-seed with mean ± std. Every number in the paper is single-seed; `chapters/results.tex` says so twice. Do not read any paper table as a 3-seed mean.
+> - **The peer-comparable BPC was abandoned.** E1's BPC half and §2 gap 7 aimed at a `DFM.elbo_bpc` number against the SEDD/D3PM frontier. The paper reports no BPC for any of our models.
+> - **The SVGP workstream was superseded, not dropped.** P0 items E4a and E4f ran (`runs/dfm_svgp_L256/`, `runs/sflm_bench_a100_20g_L256/DFM_SVGP/`) but the paper's detector is `BayesLinHead`. SVGP appears nowhere in the paper.
+> - Never run at all: E4d (ELBO-as-OOD-score), E4e (constant-character and valid-permutation controls), E2d (field-geometry curl probe), E5a at L=256, E6a/E6b (Qwen auditor — retired), X0's physical archival (done differently in the 2026-08-20 cleanup), and E7's `results/RESULTS.md`.
+> - E3b's stated prediction is wrong: it expects the healing curve to peak at r = 0.2–0.3; the measured peak is α = 0.6 for all three budgets.
+>
+> Still correct and worth keeping: the memory-fallback ladder and its rung order, the collapse guard (KL_uni < 0.05 ∧ KL_bi > 1.0, the paper's unigram-collapse signature in operational form), and the sign-inversion guard.
+> **Do not reuse §3's X0 legacy list as a deletion list.** It was written three months before the paper and marks families the paper later cashed in.
+
 **Audience:** a Claude Code agent running unattended on the cluster, 24/7, processing
 experiments one at a time. **Goal:** by end of week, produce a complete, principled,
 reproducible set of results for the DAS capstone (pass/fail), with the publishable

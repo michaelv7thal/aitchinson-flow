@@ -1,5 +1,18 @@
 # Aitchison Flow — Session Summary
 
+
+> **STALE — 2026-05-05, and still the right document to read before touching the EqM training step. Two of its verdicts were reversed by the paper.**
+>
+> **Reversed — the auxiliary CE is not the anti-collapse fix.** §4 presents the aux CE on the implied `x1` as "the structural fix" that "installs per-token attractors". The paper finds the opposite: masked to γ ≥ 0.5 the term sits where the interpolant already carries 95% of its mass on the correct character, so it is solved before the first epoch ends (8e-4 against ln 27 = 3.30 for a uniform predictor, and 0.049 for reading the raw interpolant untrained) and supplies none of the per-token information the regression target lacks. See the paper's appendix §Training-time collapse and `chapters/methods.tex` §Equilibrium Matching.
+>
+> **Reversed — recovery does not work.** §1 and §5.5 report reconstruction as succeeding while only unconditional generation fails. It was measured with the BPD metric this document's own §5.3 shows to be tautological. Measured properly, the recovery gain of all three EqM variants sits between −0.009 and +0.005: generation and recovery are one failure, not two (`chapters/results.tex` §The Negative Result).
+>
+> Read `H_gen/H_gt = 0.94` in §4 as a mode-collapse check only, not as evidence of learned structure — the paper's entropy ratio carries exactly that limited role.
+>
+> **Still load-bearing, and why this document is kept in place:** §2.1 and §2.2 (the Hilbert-stall and all-space phenotypes), the bug table in §2.3 — especially A (sampler descending raw `f`) and B (train/sample σ mismatch) — and §5.6 (dead code). These are the only record of what the current configuration defaults were fixing, and `config.py` cites this file by name.
+>
+> §2.2's diagnosis is correct and is the ancestor of the paper's collapse proposition: at γ → 0 the interpolant carries no information about `x1`, so the L2 optimum is the marginal `−E[x1]`, the unigram direction.
+
 ## 1. Starting state
 
 **Goal**: train a continuous flow-matching model on text8 (K=27, L=40) so that

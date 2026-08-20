@@ -1,5 +1,18 @@
 # Research Findings — Continuous flow matching on the simplex for valid-text generation
 
+
+> **STALE — 2026-05-08. Research synthesis and forward plan, written before any of the paper's results existed.** Its own header block already records three of its predictions coming back negative; this banner records the rest.
+>
+> **Superseded:** §2.3 and §1.1 present the auxiliary CE on the implied `x1` as the fix that "stops mode collapse". The paper concludes the opposite — masked to γ ≥ 0.5 the anchor is solved before the first epoch ends because it sits where the label is already visible, so it supplies no per-token information (paper appendix §Training-time collapse). Do not carry the "ablation-paper-worthy fixes" framing forward.
+>
+> **Never cashed:** §5 item 5 calls expressing our own models in BPC "non-negotiable for writeup defensibility". The final paper reports **no BPC for any of our models**; the only BPC it cites is Statistical Flow Matching's published 1.39, used to bound the scope of our budget-matched ordering. The frontier table in §1.2 / §2.1 remains the repo's record of that comparison.
+>
+> **Never run:** everything in §3.D, §3.E and §5 items 3, 6, 7, 8 — the LLM-auditor track, TriviaQA semantic hallucination, the SEP / MARS / Min-K%++ comparisons, and experiments E1–E3 / F1–F3. This line was retired.
+>
+> **Still current:** §1.3 and §4.1 on the Hilbert metric. The 2-sparse subgradient argument is the reason the paper uses the LSE-smoothed variation seminorm, and this document is the only place the derivation is written out.
+>
+> Naming: "DFM" throughout this document means **Discrete** Flow Matching. Dirichlet Flow Matching, the paper's selected generator, appears only as cited literature.
+
 > **Scope.** Independent research synthesis prepared while a separate Claude
 > Code session executes the W1–W5 sweeps from `CLUSTER_TRAINING_PLAN.md`.
 > No code or configs are changed by this document. Goal: identify viable

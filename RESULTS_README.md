@@ -1,5 +1,12 @@
 # RESULTS_README — objective → script → artifact → manifest map
 
+
+> **PARTLY STALE — dated 2026-07-12.** The harness table, the resume contract and the experiment registry are accurate: all 24 registry scripts still exist, and the early-stopping semantics in "How to resume" are load-bearing (see below).
+>
+> Two things are superseded. The **BPC protocol** in "Standard eval protocol" describes a deliverable the paper never cashed: no bits-per-character figure for any of our own models appears in the final paper, which marks `bpd()` diagnostic-only (`tab:config`) and quotes only Statistical Flow Matching's published 1.39. The **Objective-3 headline** is no longer "shuffle-axis AUROC anchored to `gpt2_baseline`" — the paper's unit is the **word**, with two GPT-2 baselines (`gpt2_se` and `gpt2_nll`); see `bench_ood_final/RESULTS.md`.
+>
+> **Do not prune checkpoints by filename on the strength of this harness.** As "How to resume" records, `--early-stop-patience` *restores the best-validation checkpoint as* `epoch_final.pt`, so that name does not certify "last epoch". Verify by md5 against the benchmark manifests. `results/RESULTS.md` (registry row E7) was never produced.
+
 The reproducibility map for the capstone L=256 cloud run. Pairs each **objective**
 and **experiment** (`capstone_experiment_runbook.md`) with the **canonical script**,
 its **output artifact**, and the **manifest `exp_id`**. Start from

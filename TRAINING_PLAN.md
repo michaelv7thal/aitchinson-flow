@@ -1,5 +1,13 @@
 # EqM Training Improvement Plan — text8 (capstone)
 
+
+> **HISTORICAL — superseded 2026-05-07, verdict inverted by the final paper.** Written 2026-05-06 as an improvement plan for EqM generation at the development scale (L=40, d_model=1024, 8 layers, B=64). Its target of bigram KL ≤ 0.50 was never reached: the full scaling sweep tops out at KL_bi 1.38, roughly an order of magnitude above the Discrete Flow Matching control at the same scale (0.148) — see the paper's appendix §Budget, capacity, and conditioning.
+>
+> **Its Phase 8 framing is the opposite of the paper's finding.** The paper does not claim continuous flow on the simplex matches the discrete baseline; it reports that no EqM variant generates text, and selects a *transport* model (Dirichlet Flow Matching) as the generator. For the settled verdicts read `chapters/results.tex` §The Negative Result.
+>
+> Phase-A outcomes for this line are recorded in `TRAINING_PROTOCOL.md` §6 Phase A and `runs/DECISION_LOG.md`. Phase 5's n-gram-aware loss WAS run and the paper does not report it: `runs/ng_bg05_data50k/` and `runs/ng_bg10_data50k/` hold the numbers, and this document plus `RESULTS.md`'s Phase-5 derivation are their only description. Retained because three code/config comments cite this file.
+> Dead pointers: `scripts/diagnose_overshoot.py` is now `scripts/legacy/`; `runs/best_so_far.pt` does not exist; the surviving baseline checkpoint is `checkpoints/baseline_5ep/epoch_final.pt`.
+
 > **Audience**: a fresh Claude Code session running on a single 20 GB A100
 > MIG slice. You will *supervise* this plan: pick the next experiment, kick
 > it off, summarise its result, and decide whether to branch or continue.

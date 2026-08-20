@@ -1,5 +1,11 @@
 # Capstone outline — for supervisor walkthrough
 
+
+> **ARCHIVED / SUPERSEDED (banner added 2026-08-20). The central claim below was tested and REVERSED. Do not cite it.** A supervisor-walkthrough outline from 2026-05-13.
+> **The DSM fix did not work.** The paper's finding is that denoising score matching escapes the unigram collapse and *still does not generate*, because it is a pointwise L2 regression either way; the operative distinction is distributional against pointwise targets, not denoising against fixed-interpolant. See `chapters/conclusion.tex` §Energy and generation and `tab:ablation2x2`, where the DSM cells are worse than the collapsed cell on both divergences and negative on recovery. Claim C10 ("DSM beats EqM-FM 4×/2.5×") is inverted by the published table.
+> **Numbers here are pre-publication and collide with published cells** (e.g. slide 5's 0.666/5.994/+0.060 against the paper's 0.660/5.990/+0.050 — different runs). Quote the paper, never this file.
+> What survives: C5 (MSE against Hilbert is second-order) became the paper's confirmatory null; C9 (the training signal is the load-bearing axis) holds; slide 6's autoencoder-latent ladder is the only consolidated record of that sweep; and C12's `start_sigma` protocol bug is the reason pre-patch recovery numbers for NCSN-style samplers are invalid.
+
 **Branch.** `capstone-project`. **Working title** — "Conservative energy-based
 generative models for text: a training-signal diagnosis and a
 denoising-score-matching fix."

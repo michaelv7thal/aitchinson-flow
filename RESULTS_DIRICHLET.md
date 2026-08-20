@@ -1,5 +1,8 @@
 # Dirichlet capstone — Phase 0-3 results
 
+
+> **Current (2026-05-09), with one heading corrected below.** The measurements here are upstream provenance the paper still uses: the FM-target magnitudes 12.27 / 12.51 (`runs/dirichlet_phase0_diag.json`), the unigram-baseline KL_bi 1.692 (`runs/unigram_baseline/eval.json`), and the gradient_lambda recalibration derivation. The Phase 5 "Hilbert vs Aitchison ablation" marked "(in progress)" below is **completed — a null result**: the smoothed Hilbert loss does not rescue the collapse (paper `tab:hilbert-null`). The two `sweeps/dirichlet_phase{4_5_quick,5_minimal}.yaml` files named in its run command no longer exist.
+
 Generated 2026-05-09 from a single 8 GB Blackwell laptop GPU run.
 
 ## What the change is
