@@ -25087,3 +25087,17 @@ Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF
 Wrote runs/band_L256_ep10_d10k/recovery_bandmap_a08.json
   alpha=1.0  rescale g=0.0083
 Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+=== Unconditional generation === SKIPPED (--skip-uncond)
+
+=== Recovery from perturbation ===
+  embed_norm_mean=12.2723  σ_source=0.1000
+    α  σ_perturb        Δ  tok_acc tok_acc_pt    KL_bi  sample[0]: gt / pt / rc
+ 1.00     12.272   0.0975   0.2917     0.1943   0.2724  gt='e the capital of one government after another one of such governments was established in one eight six four as a second mexican empire the short lived monarchy led by maximilian of habsburg left its mark on the reconstruction of chapultepec castle and othe'
+                                             pt='x rhihfckmtal cbyuxvsgecbdqecnteafteozmjttamtponaloxzjmglinveouniqntzwyesaekkhq  nxwovwjsvvppai ht audmfqvddrq cibjmdglfcelisodgpdxnagmgetmukgfvevnoeghtwqwbthholpiqe  lztmwbcq jrmsfycgspzegopzav qpgrjajulqjsrjeoriccthsqidqbiozuf dkdkfmwewsbjpqhnyhejqdawtde'
+                                             rc='e thehec mtal aneedessecbare nteafterinnttameconalon taitinge aninnta tes eknget ne o wysvitpei ht audafond rt cisead lacelisongpeanag getiungfve tseritwnabthcolon e il tiaich rrmifyc s segopaan itg  arulty rie ricithteice it of ond f wewee phon heawd othe'
+
+Wrote runs/band_L256_ep10_d10k/recovery_bandmap_a10.json
+### stage 3/4  OOD scorecard, energy read inside the band
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[band-ood] runs/band_L256_ep10_d10k/epoch_final.pt
+[band-ood] L=256 K=27 sigma=0.1 decay=band gamma_lo=0.005 gamma_hi=0.03 gamma_star=0.03 lambda=1.0

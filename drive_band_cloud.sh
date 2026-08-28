@@ -151,7 +151,8 @@ for a in A:
         meas[a] = json.loads(f.read_text())["rows"][0]["delta"]
 row(f"THIS RUN  {band.name}", meas)
 for label, vals in (
-    ("band d1024/10L 10k x 10ep (dev)", {"0.3": 0.040, "0.5": 0.122, "0.6": 0.123}),
+    ("band d1024/10L 10k x 10ep (dev)", {"0.3": 0.040, "0.5": 0.122, "0.6": 0.123,
+                                         "0.7": 0.117, "0.8": 0.109, "1.0": 0.098}),
     ("tab:gen   Dirichlet FM, matched", {"0.3": 0.051, "0.5": 0.090, "0.7": 0.101, "0.8": 0.094}),
     ("tab:gen   Dirichlet FM, full corpus", {"0.3": 0.139, "0.5": 0.282, "0.7": 0.289, "0.8": 0.184}),
     ("tab:gen   EqM det-CLR, no rescale", {"0.3": -0.000, "0.5": -0.094, "0.7": -0.158, "0.8": -0.125}),
