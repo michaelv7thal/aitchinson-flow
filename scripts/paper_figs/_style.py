@@ -66,9 +66,9 @@ TEXTWIDTH_IN = 5.90  # \textwidth = 15.0 cm on the paper's A4 geometry
 DETECTORS = [
     # (paper label, subdir/file, key suffix, color)
     ("NLL", "nll/denoiser_nll_sweep.json", "nll", BLUE),
-    ("BLR", "blr/bayes_linear_sweep.json", "energy", ORANGE),
-    (r"$\mathrm{BLR}_{\mathrm{all}}$", "blr_adv/bayes_linear_adv_sweep.json", "energy", AQUA),
-    (r"$\mathrm{BLR}_{\mathrm{fi}}$", "blr_fi/bayes_linear_fi_sweep.json", "energy", YELLOW),
+    ("LinE", "blr/bayes_linear_sweep.json", "energy", ORANGE),
+    (r"$\mathrm{LinE}_{\mathrm{all}}$", "blr_adv/bayes_linear_adv_sweep.json", "energy", AQUA),
+    (r"$\mathrm{LinE}_{\mathrm{fi}}$", "blr_fi/bayes_linear_fi_sweep.json", "energy", YELLOW),
     ("BGMM", "bgmm/bgmm_perpos_sweep.json", "gmm", MAGENTA),
     ("GPT-2 SE", "gpt2_se/gpt2_spilled_energy_sweep.json", "se", GREEN),
     ("GPT-2 NLL", "gpt2_nll/gpt2_nll_sweep.json", "se", VIOLET),

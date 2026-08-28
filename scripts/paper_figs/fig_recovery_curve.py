@@ -59,10 +59,6 @@ def main():
     ax.text(0.60, 0.240, "30 ep / 30k windows", fontsize=8.5, color=INK, ha="center")
     ax.text(0.60, 0.118, "10 ep (benchmark)", fontsize=8.5, color=INK, ha="center")
 
-    # common floor at alpha = 1.0
-    ax.text(1.04, 0.006, "common floor", fontsize=8, color=MUTED,
-            ha="right", va="bottom")
-
     ax.set_xlabel(r"perturbation $\alpha$")
     ax.set_ylabel(r"recovery gain $\Delta_\alpha$")
     ax.set_xticks([0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0])

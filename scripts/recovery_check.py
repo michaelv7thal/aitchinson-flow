@@ -163,6 +163,19 @@ def main() -> int:
         help="Override cfg.eqm.sde_alpha (Langevin diffusion coefficient). "
              "Has no effect for non-SDE samplers.",
     )
+    ap.add_argument(
+        "--band-gamma",
+        type=float,
+        default=None,
+        help="Simplex-EqM only: map the perturbed state into the trained band "
+             "before the descent, x = g*z_init (--band-mode scale, argmax "
+             "unchanged) or x = (1-g)*x0 + g*z_init with fresh source noise x0 "
+             "(--band-mode interp). For band-trained cells "
+             "(eqm.decay_strategy=band), whose field is untrained at data "
+             "radius. Delta stays measured against the unmapped perturbed argmax; "
+             "the mapped input's accuracy is recorded as token_acc_perturbed_band.",
+    )
+    ap.add_argument("--band-mode", choices=["scale", "interp"], default="scale")
     args = ap.parse_args()
 
     payload = torch.load(args.ckpt, map_location="cpu", weights_only=False)
@@ -237,9 +250,10 @@ def main() -> int:
             print(
                 f"  grad_norm: mean={ref_scores['grad_norm']['mean']:.3f}  std={ref_scores['grad_norm']['std']:.3f}"
             )
-            print(
-                f"  curvature: mean={ref_scores['curvature']['mean']:.3f}  std={ref_scores['curvature']['std']:.3f}"
-            )
+            if "curvature" in ref_scores:
+                print(
+                    f"  curvature: mean={ref_scores['curvature']['mean']:.3f}  std={ref_scores['curvature']['std']:.3f}"
+                )
             rows.append({"mode": "score_reference", **ref_scores})
 
     # ─── (A) Unconditional ────────────────────────────────────────────────
@@ -289,9 +303,14 @@ def main() -> int:
             print(
                 f"  grad_norm: mean={uncond_scores['grad_norm']['mean']:.3f}  std={uncond_scores['grad_norm']['std']:.3f}"
             )
-            print(
-                f"  curvature: mean={uncond_scores['curvature']['mean']:.3f}  std={uncond_scores['curvature']['std']:.3f}"
-            )
+            # Same guard as the score-reference block above: score_curvature is
+            # skipped (with a [warn]) when it OOMs, so the key may be absent —
+            # printing it unconditionally turned a handled OOM into a fatal
+            # KeyError that killed the whole recovery run (2026-08-23, EqMAE).
+            if "curvature" in uncond_scores:
+                print(
+                    f"  curvature: mean={uncond_scores['curvature']['mean']:.3f}  std={uncond_scores['curvature']['std']:.3f}"
+                )
         rows.append(
             {
                 "mode": "unconditional",
@@ -332,6 +351,7 @@ def main() -> int:
     alphas = [float(a) for a in args.alphas.split(",") if a.strip()]
     is_dirichlet = categorical and hasattr(model, "_sample_xt")
     for alpha in alphas:
+        ids_pt_band = None
         torch.manual_seed(args.seed + int(alpha * 1000))
         rc_scores: dict = {}
         if categorical and is_dirichlet:
@@ -417,6 +437,19 @@ def main() -> int:
                 log_probs_pt = model.decode_to_logprobs(z_init)
                 ids_pt = log_probs_pt.argmax(-1).cpu()
 
+                if args.band_gamma is not None:
+                    # Band-trained fields (eqm.decay_strategy=band) are trained
+                    # only on x_g = (1-g) x0 + g x1 for g in [gamma_lo, gamma_hi];
+                    # a data-scale perturbed state is outside anything they saw.
+                    g = float(args.band_gamma)
+                    if args.band_mode == "interp":
+                        x0 = sigma * torch.randn_like(z_init)
+                        x0 = x0 - x0.mean(dim=-1, keepdim=True)
+                        z_init = (1.0 - g) * x0 + g * z_init
+                    else:
+                        z_init = g * z_init
+                    ids_pt_band = model.decode_to_logprobs(z_init).argmax(-1).cpu()
+
                 # NCSN-style annealed-Langevin samplers (ScoreDSM/EqMDSM) accept a
                 # ``start_sigma`` kwarg that restricts the σ-ladder to values ≤
                 # the perturbation magnitude — without it the sampler re-noises
@@ -456,6 +489,12 @@ def main() -> int:
                 "token_acc": token_acc,
                 "token_acc_perturbed": token_acc_pt,
                 "delta": delta,
+                "band_gamma": args.band_gamma,
+                "band_mode": args.band_mode if args.band_gamma is not None else None,
+                "token_acc_perturbed_band": (
+                    float((ids_pt_band == val_pick.cpu()).float().mean())
+                    if ids_pt_band is not None else None
+                ),
                 "gt_sample0": sample_gt,
                 "perturbed_sample0": sample_pt,
                 "rc_sample0": sample_rc,

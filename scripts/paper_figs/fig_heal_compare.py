@@ -15,7 +15,7 @@ import _style
 from _style import BASELINE, BENCH_HEAL, BLUE, INK, ORANGE
 
 BENCH = BENCH_HEAL
-LOCALIZERS = [("NLL", "nll"), ("BLR", "blr"), ("BGMM", "bgmm")]
+LOCALIZERS = [("NLL", "nll"), ("LinE", "blr"), ("BGMM", "bgmm")]
 SCHEMES = [("replace (geometric)", "replace", BLUE),
            ("false information (contextual)", "falseinfo", ORANGE)]
 PANELS = [("net recovery / corrupt token", "net_per_corrupt"),

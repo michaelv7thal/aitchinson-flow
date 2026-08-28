@@ -1,0 +1,19 @@
+{
+  "rows": [
+    {
+      "mode": "recovery",
+      "alpha": 0.5,
+      "sigma_perturb": 6.136150360107422,
+      "KL_bi": 1.0717113018035889,
+      "token_acc": 0.5760742425918579,
+      "token_acc_perturbed": 0.5282226800918579,
+      "delta": 0.0478515625,
+      "band_gamma": 0.016,
+      "band_mode": "scale",
+      "token_acc_perturbed_band": 0.5282226800918579,
+      "gt_sample0": "e the capital of one government after an",
+      "perturbed_sample0": "k thezclphral of zni goyrrnmeltr ster an",
+      "rc_sample0": "e theocnpera  of oni g yrrnmel r ster an"
+    }
+  ]
+}

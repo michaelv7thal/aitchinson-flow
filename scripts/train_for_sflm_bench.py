@@ -278,7 +278,8 @@ ARMS = list(ARM_TO_MODEL)
 
 
 def _model_cfg(name: str, epochs: int, scale: str, *, out_dir: str | None = None,
-               ae_ckpt: str | None = None, **base_kw) -> Config:
+               ae_ckpt: str | None = None, gamma_power: float | None = None,
+               **base_kw) -> Config:
     out_dir = out_dir or f"runs/sflm_bench_{scale}/{name}"
     cfg = _base_cfg(epochs, out_dir, scale, **base_kw)
     model_name = ARM_TO_MODEL[name]
@@ -361,6 +362,18 @@ def _model_cfg(name: str, epochs: int, scale: str, *, out_dir: str | None = None
             )
         payload = torch.load(ae_ckpt, map_location="cpu", weights_only=False)
         ae_cfg = (payload.get("cfg") or {}).get("autoencoder", {}) or {}
+        if not ae_cfg:
+            # A *reconstructed* VAE checkpoint is a bare state dict with no cfg
+            # payload (see runs/vae_a100_20g_L256/RECONSTRUCTED.md), so the line
+            # above silently yields {} and every field below keeps its dataclass
+            # default — including mode="ae", which is precisely the failure the
+            # comment below claims to guard against. Recover the block from the
+            # config.json the AE's own training run wrote beside the checkpoint.
+            sib = Path(ae_ckpt).parent / "config.json"
+            if sib.exists():
+                ae_cfg = (json.loads(sib.read_text()).get("autoencoder") or {})
+                print(f"[EqMAE] ae_cfg recovered from {sib} "
+                      f"(checkpoint carries no cfg payload)")
         # Copy *every* saved AE field that exists on the dataclass, not a
         # hardcoded dims-only subset. `mode` ('ae'|'vae') in particular changes
         # which submodules TextAutoencoder builds: omitting it silently loaded a
@@ -371,9 +384,28 @@ def _model_cfg(name: str, epochs: int, scale: str, *, out_dir: str | None = None
         valid = {f.name for f in fields(cfg.autoencoder)}
         cfg.autoencoder = replace(cfg.autoencoder, **{
             k: v for k, v in ae_cfg.items() if k in valid})
+        # Ground truth for `mode` is the WEIGHTS, not any config file: a VAE
+        # checkpoint carries mu_head/logsig_head and no to_latent. If the
+        # resolved mode disagrees, TextAutoencoder builds the wrong latent head
+        # and load_state_dict(strict=False) leaves it at random init — EqM then
+        # trains over a random projection and feeds the frozen decoder a
+        # mismatched latent. Fail loudly rather than train a broken arm.
+        _sd = payload.get("model_state_dict", payload)
+        _keys = set(_sd) if isinstance(_sd, dict) else set()
+        _inferred = "vae" if any(k.endswith("mu_head.weight") for k in _keys) else "ae"
+        if cfg.autoencoder.mode != _inferred:
+            print(f"[EqMAE] AE mode {cfg.autoencoder.mode!r} contradicts the "
+                  f"checkpoint weights ({_inferred!r}) — using {_inferred!r}")
+            cfg.autoencoder = replace(cfg.autoencoder, mode=_inferred)
         cfg.eqm_ae = replace(cfg.eqm_ae, ae_ckpt_path=ae_ckpt)
         cfg.eqm = replace(cfg.eqm, sampler="euler")  # latent-space Euler (as EqMLatent)
     # DFM: Config defaults are its known-good recipe.
+    if gamma_power is not None:
+        # γ-schedule override (γ = U(0,1)**p; 1.0 = uniform, 0.5 = the
+        # published √u recipe). Applied AFTER the arm blocks so it beats the
+        # defensive 0.5 pins above. Only the EqM-family arms read
+        # cfg.eqm.gamma_power; for the others this is inert.
+        cfg.eqm = replace(cfg.eqm, gamma_power=gamma_power)
     return cfg
 
 
@@ -417,7 +449,8 @@ def _train_arm(name: str, *, scale: str, epochs: int, seed: int, out_dir: str,
                max_hours: float | None = None, length: int | None = None,
                ae_ckpt: str | None = None, resume_weights: str | None = None,
                batch_override: int | None = None, lr: float = 3e-4,
-               warmup_epochs: int | None = None) -> dict:
+               warmup_epochs: int | None = None,
+               gamma_power: float | None = None) -> dict:
     """Train one (arm, seed) with the memory-fallback ladder. Writes
     ``train_meta.json`` recording the stage that succeeded (or the failure)
     and returns that record. ``batch_override`` replaces the scale's batch
@@ -447,6 +480,7 @@ def _train_arm(name: str, *, scale: str, epochs: int, seed: int, out_dir: str,
             val_eval=val_eval, lazy=lazy,
             early_stop_patience=early_stop_patience, es_min_delta=es_min_delta,
             max_hours=max_hours, lr=lr, warmup_epochs=warmup_epochs,
+            gamma_power=gamma_power,
         )
         tag = (f"stage{stage_i}: B={cfg.training.B} L={cfg.training.L} "
                f"grad_ckpt={grad_ckpt}")
@@ -487,6 +521,7 @@ def _train_arm(name: str, *, scale: str, epochs: int, seed: int, out_dir: str,
                 "arm": name, "seed": seed, "scale": scale, "status": "done",
                 "stage": stage_i, "batch": cfg.training.B, "L": cfg.training.L,
                 "grad_checkpointing": grad_ckpt,
+                "gamma_power": cfg.eqm.gamma_power,
                 "length_fallback": cfg.training.L if cfg.training.L != SCALES[scale].get("L", 40) else None,
                 "max_train_windows": cfg.text8_dataset.max_train_windows,
                 "lazy_features": cfg.text8_dataset.lazy_features,
@@ -579,6 +614,12 @@ def main() -> None:
                     help="LR warmup epochs (default 1). Set 0 for a warm-start "
                          "continuation so the cosine starts at the peak LR "
                          "immediately (no re-warmup bump, no wasted ramp epoch).")
+    ap.add_argument("--gamma-power", type=float, default=None,
+                    help="override eqm.gamma_power for the EqM-family arms "
+                         "(γ = U(0,1)**p; 1.0 = uniform, 0.5 = the published "
+                         "√u recipe; inert for the non-EqM arms). Output dir "
+                         "gets a _gp<p> suffix so the canonical runs are "
+                         "never overwritten.")
     args = ap.parse_args()
 
     if args.seeds:
@@ -600,6 +641,8 @@ def main() -> None:
             out_dir = _out_dir(args.scale, name, seed)
             if args.length is not None and args.length != s.get("L", 40):
                 out_dir = f"{out_dir}_L{args.length}"
+            if args.gamma_power is not None:
+                out_dir = f"{out_dir}_gp{str(args.gamma_power).replace('.', 'p')}"
             ckpt = Path(out_dir) / "epoch_final.pt"
             if ckpt.exists() and not args.force:
                 print(f"[skip] {name} seed={seed}: {ckpt} exists "
@@ -621,6 +664,7 @@ def main() -> None:
                 resume_weights=args.resume_weights,
                 batch_override=args.batch, lr=args.lr,
                 warmup_epochs=args.warmup_epochs,
+                gamma_power=args.gamma_power,
             )
 
 

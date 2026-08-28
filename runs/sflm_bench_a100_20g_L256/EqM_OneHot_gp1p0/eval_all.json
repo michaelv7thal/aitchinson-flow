@@ -1,0 +1,29 @@
+{
+  "model_name": "EqM_OneHot",
+  "model_class": "EqM",
+  "L": 256,
+  "epoch": 10,
+  "n_samples": 256,
+  "sample_steps": 200,
+  "split": "test",
+  "KL_uni": 0.01846114918589592,
+  "KL_bi": 1.581807017326355,
+  "KL_tri": 5.042047500610352,
+  "H_gen": 2.7559051513671875,
+  "H_gt": 2.8561434745788574,
+  "H_ratio": 0.9649043109690243,
+  "per_pos_entropy": 2.622333288192749,
+  "bpc": null,
+  "generation_metric_valid": false,
+  "collapsed": true,
+  "samples": [
+    "  hhiidaetrrrxl bo  theaclbt roi pegfn ilniai oaud  es dceiolpir l r art roltoen viearncir ppiiee  nrfda n  lnnts i umteod oatdsrb cnau cnr   sstcnioas le  o lehdaphhlt aiaacdr e rheri ettdaccstowirr  taeotea  ar eauhin ctddtrrvotr knl  eaeiawtlalr nllowai",
+    "dv e   hleb h soohrunrnlds niontn  e oaeest aontnineeoer t o auenmdwss itt goeetsuloas eh  ps  snlitepuaeni t a  os ieinetl tciita t can lpnnna uhra  td in  deipier a hrtshoancth  deaicvhe ss neeis iclelee eihhldtl oean doa arr ysizfa oaodanceue oplte e ai",
+    "ipnesry eiafehgawznab wala pp ope  c aur nraeesal crieeaaia hdtttrere drlsoehe eilmtegoeaeaioua r ntsr tirni e h p umedait ilaaedidndmda tur n eherhineeeeasaa    yt  u nheaylhl in oorv tltpt lgrina gl eaeog on dac nieertf   a l gt rn entoye ivosrgwso atldo",
+    "ortasaefln oatit g  nfdcnrttr  ule  swesaro rpaohaat al r  tnaeriiteihalsuauebeousliacenenltpn er  dttteeijtsrro  on adtro    ai  v see ledtha oagaii trterahg hris dt hnlioitie  ierneorreoa wec ou  ol newt acthtscenr cianbnd nt iiarrhnyesa eui eeehrfcai p ",
+    "ect  ogreennnoersooeti nl   rainoodr airisoiocoep aradnce sfeeirtwaoioft   asitseteaa ho ge lceheeaioheoi yagrlcishtserrinn  haeftroo asbeivsaeatlnn ueeetoc  pyemyetala o a  l nhcvrs aoaeolelipiergsrdn dreay rrgettr srr p euo s nowetfo ip aa uxi ren rwr en",
+    "imshpncrow o ielebcnn omlir rreiete ootrcea ureoe rfwao uoihn as v sioettund  dr tettge e rpesi phaeh o  ewrt nonls eatrsn or itwrstaolwoi   a orlni a bd aell y eo g ehooivrnh tgntnet ea    x cttws ireoljer al ot ogemasahlhah t hoieoci rirnieattrn i ddotpn",
+    "rnokrsdnta rl ta eorls rharnp anaevasaeeelan tnn rh   oruetrranettaao opr artrodrptf pyyl  x u ttanpenihutniatleslguo  fislugaidhu snnpinteae leths fnplega eaihuhossn sfo t atrps aaiagtaneltxd oeaecnmeeitri  aue tcbaeo  icas ttftso  ep e lsg o cd otfkeh ea",
+    " tfdairehilea oieplori ryr lisnrw  nhetlvanmnoet sahi v lddtto  wtasnktoastrtihciueedhi dtr e   a udie tise roass atensthoormonlh xcavirianer oe e r setdnptra hes coa  o mhoa  r iddharani lmxevtn oo stahi r nupetoefhrnso  atssrhapenektt oeurgfy  iierrcm ea"
+  ]
+}

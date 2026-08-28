@@ -1,0 +1,49 @@
+{
+  "rows": [
+    {
+      "mode": "recovery",
+      "alpha": 0.3,
+      "sigma_perturb": 0.3,
+      "KL_bi": 0.316654235124588,
+      "token_acc": 0.86376953125,
+      "token_acc_perturbed": 0.773144543170929,
+      "delta": 0.09062498807907104,
+      "band_gamma": null,
+      "band_mode": null,
+      "token_acc_perturbed_band": null,
+      "gt_sample0": "e the capital of one government after an",
+      "perturbed_sample0": "e the cajitfu jfoone govbrxdent afwerhan",
+      "rc_sample0": "e the calitau of one govbrxdent af er an"
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.5,
+      "sigma_perturb": 0.5,
+      "KL_bi": 0.3115551769733429,
+      "token_acc": 0.7518554925918579,
+      "token_acc_perturbed": 0.5785156488418579,
+      "delta": 0.17333984375,
+      "band_gamma": null,
+      "band_mode": null,
+      "token_acc_perturbed_band": null,
+      "gt_sample0": "e the capital of one government after an",
+      "perturbed_sample0": "k thezclphral of zni goyrrnmeltr ster an",
+      "rc_sample0": "e thezcaperal of one goverimeler ster an"
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.7,
+      "sigma_perturb": 0.7,
+      "KL_bi": 0.3177313506603241,
+      "token_acc": 0.5072265863418579,
+      "token_acc_perturbed": 0.33642578125,
+      "delta": 0.1708008050918579,
+      "band_gamma": null,
+      "band_mode": null,
+      "token_acc_perturbed_band": null,
+      "gt_sample0": "e the capital of one government after an",
+      "perturbed_sample0": "yvnhve vwieiopbfybtk g veggmvnovokirridv",
+      "rc_sample0": "e thee pwitions ybar a vergmend oeseride"
+    }
+  ]
+}

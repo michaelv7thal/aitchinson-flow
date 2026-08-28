@@ -1,0 +1,19 @@
+# Dirichlet FM reference at the exact development configuration of the EqM band cells:
+# default backbone (d_model 1024, 8 layers, B=64, L=40), 5 epochs, 10,000 windows, seed 42.
+# Same launcher and eval (n=256, 200 steps) as runs/dfm_data50k_ep5_v2.
+- name: dirfm_dev_L40_ep5
+  overrides:
+    training.model_name: DirichletFM
+    training.epochs: 5
+    text8_dataset.max_train_windows: 10000
+# Matched Dirichlet FM budgets for the band cells of sweeps/band_budget.yaml (run with the default --steps 200):
+- name: dirfm_dev_L40_ep25
+  overrides:
+    training.model_name: DirichletFM
+    training.epochs: 25
+    text8_dataset.max_train_windows: 10000
+- name: dirfm_dev_L40_d50k
+  overrides:
+    training.model_name: DirichletFM
+    training.epochs: 5
+    text8_dataset.max_train_windows: 50000
