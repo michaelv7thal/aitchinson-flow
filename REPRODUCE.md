@@ -32,6 +32,14 @@ Figures: the nine data figures re-render from the committed JSONs on CPU via
 correct `bench_*_final` trees; `fig:heal-compare` reproduces byte-identically
 modulo the PDF timestamp).
 
+Band geometry: the constants of `sec:res-eqm-band` (Δ = 12.51, the 95% / 99%
+decodability points γ* = 0.0298 / 0.0357, A_K at the band edges, the
+closed-form rescale factor σ/(σ+αΔ)) are closed form plus 1-D quadrature, no
+GPU. They are committed as `docs/band_geometry.json` (+ the full printout
+`docs/band_geometry_output.txt`) and regenerate with
+`uv run python scripts/band_geometry.py --acc 0.95 --json docs/band_geometry.json`
+(needs the venv: SciPy). The derivation is `docs/band_geometry_theory.md`.
+
 Caveat for non-Python tooling: several sweep artifacts contain bare `NaN`
 (the undefined-cell value, kept deliberately). Python and `jq` parse them;
 strict RFC-8259 parsers reject them.

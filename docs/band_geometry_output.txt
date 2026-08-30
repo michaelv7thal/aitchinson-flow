@@ -1,0 +1,42 @@
+==========================================================================
+BAND GEOMETRY   K=27  eps=0.0001  sigma=0.1
+==========================================================================
+
+1. SCALARS [EXACT]
+   Delta = log((1-eps+eps/K)*K/eps)      = 12.5061
+   ||x1|| = Delta*sqrt((K-1)/K)          = 12.2723
+   ||x0|| = sigma*sqrt(K-1)              = 0.5099
+   data/noise scale gap                  = 24.1x
+
+2. gamma* FROM DECODABILITY [EXACT]  (A_K inversion)
+     target       t*    gamma*
+      50.0%   1.9733   0.01553
+      95.0%   3.8399   0.02979  <- chosen
+      99.0%   4.6336   0.03573
+      99.9%   5.5416   0.04243
+   ||x_gamma*|| = 0.6151   sample_grad_clip -> 0.993
+   alpha_cross = sigma(1-g*)/(g*·Delta)  = 0.2604
+
+3. gamma_lo — TWO REQUIREMENTS, both in t
+   [N] SNR:     W <= 30%  ->  t =  2.577  gamma_lo = 0.02019
+   [S] support: init within kappa=0.123 of the noise radius sqrt(K-1)=5.099
+                             ->  t =  0.627  gamma_lo = 0.00499
+   ratio t_S/t_N = 0.24   ->  INCOMPATIBLE (S < N)
+
+      gamma   decode      rho   (rho stderr ~0.0000)
+     0.0050    0.113    0.017
+     0.0100    0.262    0.101
+     0.0155    0.498    0.327
+     0.0298    0.950    0.923
+
+4. RESCALE CONSTANTS [EXACT] — independent of gamma*
+    alpha  gamma_match   |x_gm|     |z_a|         g        t  1/alpha  A_K(t_z)
+     0.30      0.02596   0.5901    22.729   0.02596   3.3333   3.3333    0.8961
+     0.50      0.01574   0.5378    34.165   0.01574   2.0000   2.0000    0.5231
+     0.60      0.01315   0.5284    40.181   0.01315   1.6667   1.6667    0.4027
+     0.70      0.01129   0.5228    46.294   0.01129   1.4286   1.4286    0.3211
+     0.80      0.00990   0.5193    52.470   0.00990   1.2500   1.2500    0.2648
+     1.00      0.00793   0.5151    64.939   0.00793   1.0000   1.0000    0.1952
+
+==========================================================================
+wrote docs/band_geometry.json
