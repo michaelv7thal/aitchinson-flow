@@ -1,8 +1,14 @@
 #!/usr/bin/env bash
-# The plausible column of app:latent-ladder at the two rates flanking the main
-# operating point: 0.15 and 0.5. Rate 0.3 is not run here — it is stage C of
+# The plausible column of app:latent-ladder across the FULL nine-rate ladder
+# (author request 2026-08-30: "run the plausible swaps across the same corruption
+# rates for completeness"). Rate 0.3 is not run here — it is stage C of
 # drive_latent_all.sh (bench_ood_final/latent_split_plausible), and this script links
 # it into the ladder tree so the appendix row and tab:latent come from one JSON.
+# Rate 0.15 was run 2026-08-11; both existing rates are skipped by the resume check.
+#
+# --token-fit-cache: the rate-0.5 token-head fit swap (4040 slots, ~2.3 h) is
+# byte-identical across rates (fixed rate, same seed/fit set), so it is computed
+# once into the cache below and reused by every later rate.
 #
 # Cost is set by the swap, not by the readout: every swapped word slot costs one
 # forward over 48 model-scored candidates. Per rate that is 704 sequences at the
@@ -18,10 +24,11 @@ set -uo pipefail
 cd /home/michael/projects/aitchinson-flow
 
 CKPT="runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM_converge/epoch_final.pt"
-RATES="0.15 0.5"                       # cheapest first
+RATES="0.05 0.1 0.2 0.25 0.5 0.7 1.0"  # cheapest first; 0.15 done, 0.3 linked
 COMMON=(--ckpt "$CKPT" --split test --n 256 --fit-seqs 192 --seed 42 --no-tsne)
 LADDER=bench_ood_final/latent_ladder_plausible
-LOG=bench_ood/_driver
+LOG=bench_ood_final/_driver
+FITCACHE=$LADDER/token_fit_r0.5.pt
 mkdir -p "$LOG" "$LADDER"
 ts(){ date +%Y-%m-%d_%H:%M:%S; }
 
@@ -54,6 +61,7 @@ for R in $RATES; do
   # happen; block-buffered stdout hid all progress on the 0.3 run.
   uv run python -u scripts/plot_latent_split.py "${COMMON[@]}" --rate "$R" \
       --schemes plausible --token-scheme plausible --t-nll 3.0 --n-cands 48 \
+      --token-fit-cache "$FITCACHE" \
       --out-dir "$D" \
       > "$LOG/latent_plausible_${R}.log" 2>&1
   rc=$?

@@ -206,6 +206,13 @@ def main() -> int:
                     help="comma list of per-sequence corruption schemes to show as "
                          "rows (e.g. replace,shuffle,falseinfo). 'falseinfo' = "
                          "lexically-valid same-length word swap (the hard semantic axis).")
+    ap.add_argument("--token-fit-cache", type=str, default=None,
+                    help="optional .pt path caching the rate-0.5 token-head fit "
+                         "corruption per scheme; it is identical across ladder "
+                         "rates (same ckpt/split/fit-seqs/seed/t-nll/n-cands), "
+                         "so a ladder pays the expensive plausible fit swap once. "
+                         "Validated against those parameters and the fit tokens; "
+                         "a mismatch recomputes rather than reuses.")
     ap.add_argument("--token-scheme", type=str, default="falseinfo",  # fig:latent-token reads the falseinfo panel
                     help="corruption scheme(s) for the per-token figure, comma list "
                          "(replace, shuffle, falseinfo, plausible). Each becomes one "
@@ -389,7 +396,39 @@ def main() -> int:
     fig2, ax2 = plt.subplots(len(tschemes), 3,
                              figsize=(13.5, 4.5 * len(tschemes)), squeeze=False)
     for row, tscheme in enumerate(tschemes):
-        corr_fit = corrupt(fit_tok.clone(), tscheme, 0.5, args.seed)
+        # The fit corruption is at the FIXED rate 0.5 (the rate the hinge head is
+        # trained at), so across a ladder of --rate values it is byte-identical.
+        # --token-fit-cache stores it once per scheme; for plausible that is the
+        # multi-hour half of every run.
+        corr_fit = None
+        cache_meta = {"tscheme": tscheme, "fit_rate": 0.5, "seed": args.seed,
+                      "fit_seqs": args.fit_seqs, "split": args.split,
+                      "t_nll": args.t_nll, "n_cands": args.n_cands,
+                      "ckpt": args.ckpt}
+        cp = Path(args.token_fit_cache) if args.token_fit_cache else None
+        if cp is not None and cp.is_file():
+            try:
+                blob = torch.load(cp, map_location="cpu")
+            except Exception as e:  # unreadable cache: recompute, never trust
+                print(f"[token:{tscheme}] cache unreadable ({e}); recomputing", flush=True)
+                blob = {}
+            ent = blob.get(tscheme)
+            if ent is not None and ent["meta"] == cache_meta \
+                    and torch.equal(ent["fit_tok"], fit_tok):
+                corr_fit = ent["corr_fit"]
+                print(f"[token:{tscheme}] fit corruption from cache {cp}", flush=True)
+        if corr_fit is None:
+            corr_fit = corrupt(fit_tok.clone(), tscheme, 0.5, args.seed)
+            if cp is not None:
+                try:
+                    blob = torch.load(cp, map_location="cpu") if cp.is_file() else {}
+                except Exception:
+                    blob = {}
+                blob[tscheme] = {"meta": cache_meta, "fit_tok": fit_tok.clone(),
+                                 "corr_fit": corr_fit.clone()}
+                cp.parent.mkdir(parents=True, exist_ok=True)
+                torch.save(blob, cp)
+                print(f"[token:{tscheme}] fit corruption cached -> {cp}", flush=True)
         zk_fit_all = ztok(corr_fit).reshape(-1, d)
         yk_fit = (corr_fit != fit_tok).reshape(-1).numpy()
         head = nn.Linear(d, 1).to(device)
