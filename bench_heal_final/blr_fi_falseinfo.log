@@ -1,0 +1,33 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[heal] ckpt=runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM_converge/epoch_final.pt
+[heal] K=27 L=256 t_max=8.0 t_eval=4.5 device=cuda
+[heal] disjoint splits: fit=512 cal=512 demo=64  n_seeds=3
+[heal] word-swap vocab: lengths 2-18 (e.g. len-6: ['ensure', 'action', 'assist', 'safety', 'fitted'])
+=== build per-token localizer (linear_fi) ===
+  [hinge] train mix falseinfo @ rate 0.3: [('falseinfo', 29024)]  (scheme, #corrupt tokens)
+  [hinge] step    0  E_valid=-0.003  E_corrupt=+0.096  gap=+0.098
+  [hinge] step  200  E_valid=+0.489  E_corrupt=+1.499  gap=+1.011
+  [hinge] step  400  E_valid=+0.489  E_corrupt=+1.517  gap=+1.027
+  [hinge] step  599  E_valid=+0.502  E_corrupt=+1.360  gap=+0.857
+  [hinge] fit on 233120+29024 tok @ t=4.5
+=== heal sweep (mean over 3 corruption seeds) ===
+  fpr     thr  loc_P  loc_R  loc_F1    fix    dmg    net/corrupt   delta_ws
+ 0.02   2.186  0.434  0.199   0.273  0.052  0.027   -0.167±0.008    -0.0181  <- selected
+ 0.05   1.713  0.343  0.310   0.326  0.062  0.054   -0.380±0.017    -0.0413
+ 0.10   1.336  0.276  0.448   0.341  0.052  0.101   -0.775±0.016    -0.0841
+
+--- example[0] @ selected fpr=0.02 (chosen by cal-set F0.5) ---
+  clean : 'yed back using a compatible pc karaoke player display the lyrics karaoke style while playing the song although the midi karaoke format precludes the use of background vocals and harmonies the incredibly small size of the file in comparison to other digital'
+  corr  : 'yed back using a compatible pc definit player display the lyrics karaoke dense while playing the song although the midi karaoke defied precludes the use of background vocals and harmonies the incredibly small size of the file in amphitrite in words digital'
+  truec :                                ^^^^^^^                                   ^^^^                                                   ^^^^^^                                                                                               ^^^^^^^^^^ ^^ ^^^^^        
+  flag  :                             **                             **       * *   *                                         ***    * *    *                                    *                                 *                           *                          
+  healed: 'yed back using a compatible in definit player display the logics karbone dense while playing the song although the mace karbone devied precludes the use of background locals and harmonies the incredible small size of the file in amphitrite in words digital'
+
+=== HEADLINE @ selected fpr=0.02 (mean±std over 3 seeds) ===
+  localize    = P 0.434 / R 0.199 / F1 0.273   (per-token detection of the corrupt positions)
+  fix_rate    = 0.052   (corrupt token -> correct)
+  damage_rate = 0.027   (clean token -> broken)
+  net/corrupt = -0.167 ± 0.008   (net tokens recovered per corrupt token; >0 ⇒ net benefit)
+  delta_ws    = -0.0181 ± 0.0010   (whole-seq; diluted, capped near corrupt_rate — diagnostic only)
+
+Wrote bench_heal_final/blr_fi_falseinfo.json

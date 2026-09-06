@@ -1,0 +1,34 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[heal] ckpt=runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM_converge/epoch_final.pt
+[heal] K=27 L=256 t_max=8.0 t_eval=7.5 device=cuda
+[heal] disjoint splits: fit=512 cal=512 demo=64  n_seeds=3
+[heal] word-swap vocab: lengths 2-18 (e.g. len-6: ['ensure', 'action', 'assist', 'safety', 'fitted'])
+=== build per-token localizer (linear_all) ===
+  [hinge] train mix replace+shuffle+falseinfo+both @ rate 0.3: [('replace', 39305), ('shuffle', 35693), ('falseinfo', 28872), ('both', 63839)]  (scheme, #corrupt tokens)
+  [hinge] step    0  E_valid=+0.007  E_corrupt=+0.027  gap=+0.019
+  [hinge] step  200  E_valid=+0.457  E_corrupt=+1.868  gap=+1.411
+  [hinge] step  400  E_valid=+0.447  E_corrupt=+1.810  gap=+1.363
+  [hinge] step  599  E_valid=+0.495  E_corrupt=+2.100  gap=+1.605
+  [hinge] fit on 487651+167709 tok @ t=7.5
+[heal] plausible: corrupting 128/512 calibration windows for the operating-point stats (the threshold still uses all 512)
+=== heal sweep (mean over 3 corruption seeds) ===
+  fpr     thr  loc_P  loc_R  loc_F1    fix    dmg    net/corrupt   delta_ws
+ 0.02   1.642  0.000  0.000   0.000  0.000  0.010   -0.080±0.001    -0.0089
+ 0.05   1.486  0.000  0.000   0.000  0.000  0.012   -0.099±0.003    -0.0110
+ 0.10   1.292  0.000  0.000   0.000  0.000  0.017   -0.135±0.002    -0.0151  <- selected
+
+--- example[0] @ selected fpr=0.1 (chosen by cal-set F0.5) ---
+  clean : 'yed back using a compatible pc karaoke player display the lyrics karaoke style while playing the song although the midi karaoke format precludes the use of background vocals and harmonies the incredibly small size of the file in comparison to other digital'
+  corr  : 'yed back using a compatible pc between player display the lyrics karaoke other while playing the song although the midi karaoke system precludes the use of background vocals and harmonies the incredibly small size of the file in considered in allow digital'
+  truec :                                ^^^^^^^                                   ^ ^^^                                                  ^^^^^^                                                                                                 ^^^^^^^^ ^^ ^^^^^        
+  flag  : *  *    *     *             ***       *      *       *          **    *       *     *       *        *        *   *   ***    * *      **        *   *   *  *    *     *      *   *         *   *          *          *  *   *    *  *          *        *       
+  healed: 'sed back using a compatible io between player display the lyrics haraole other while playing the song although the mide haraole systems recludes the use of background vocals and harmonies the incredibly small size of the file in considered in allow digital'
+
+=== HEADLINE @ selected fpr=0.1 (mean±std over 3 seeds) ===
+  localize    = P 0.000 / R 0.000 / F1 0.000   (per-token detection of the corrupt positions)
+  fix_rate    = 0.000   (corrupt token -> correct)
+  damage_rate = 0.017   (clean token -> broken)
+  net/corrupt = -0.135 ± 0.002   (net tokens recovered per corrupt token; >0 ⇒ net benefit)
+  delta_ws    = -0.0151 ± 0.0004   (whole-seq; diluted, capped near corrupt_rate — diagnostic only)
+
+Wrote bench_heal_final/blr_adv_plausible.json

@@ -1,0 +1,156 @@
+{
+  "source_tokens": "bench_ood_final/plausible/plausible_swap_var.tokens.pt",
+  "ckpt": "runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM_converge/epoch_final.pt",
+  "t_nll": 3.0,
+  "rate": 0.15,
+  "seed": 42,
+  "swap_mode": "min_nll",
+  "n": 64,
+  "L": 256,
+  "pooling": "each word's score is the max or the mean of the character NLLs inside it (methods, Comparison unit)",
+  "char_level": {
+    "clean_mean_nll": 0.12417629361152649,
+    "random_swapped_mean_nll": 0.5349076986312866,
+    "plausible_swapped_mean_nll": 0.003265268402174115
+  },
+  "char_level_rows": {
+    "clean_all_chars": {
+      "n": 16384,
+      "mean": 0.12417630679103259,
+      "median": 0.0035173948854207993
+    },
+    "clean_in_eligible_words": {
+      "n": 13175,
+      "mean": 0.1386807019201139,
+      "median": 0.004710173700004816
+    },
+    "random": {
+      "swapped_word": {
+        "all": {
+          "n": 1803,
+          "mean": 0.51197210384367,
+          "median": 0.08878740668296814
+        },
+        "changed": {
+          "n": 1665,
+          "mean": 0.5349077232420153,
+          "median": 0.09424346685409546
+        }
+      },
+      "word_it_replaced": {
+        "all": {
+          "n": 1803,
+          "mean": 0.13174125711671356,
+          "median": 0.005834572017192841
+        },
+        "changed": {
+          "n": 1665,
+          "mean": 0.1333330155364143,
+          "median": 0.005773771554231644
+        }
+      }
+    },
+    "plausible": {
+      "swapped_word": {
+        "all": {
+          "n": 1922,
+          "mean": 0.0030959924842595453,
+          "median": 0.00017474555352237076
+        },
+        "changed": {
+          "n": 1774,
+          "mean": 0.0032652682472478255,
+          "median": 0.00019202772818971425
+        }
+      },
+      "word_it_replaced": {
+        "all": {
+          "n": 1922,
+          "mean": 0.1233647007703359,
+          "median": 0.003941862843930721
+        },
+        "changed": {
+          "n": 1774,
+          "mean": 0.1272472837579959,
+          "median": 0.004239263013005257
+        }
+      }
+    }
+  },
+  "char_level_published": {
+    "clean_mean_nll": 0.12417630851268768,
+    "random_swapped_mean_nll": 0.5349077582359314,
+    "plausible_swapped_mean_nll": 0.0032652695663273335
+  },
+  "char_level_max_drift": 5.960464477539063e-08,
+  "word_level": {
+    "clean_all_words": {
+      "max": {
+        "n": 2748,
+        "mean": 0.3617900220636507,
+        "median": 0.03141474723815918
+      },
+      "mean": {
+        "n": 2748,
+        "mean": 0.1363576243150552,
+        "median": 0.013968241401016712
+      }
+    },
+    "random": {
+      "swapped_word": {
+        "max": {
+          "n": 390,
+          "mean": 1.4100723612601704,
+          "median": 0.8167714476585388
+        },
+        "mean": {
+          "n": 390,
+          "mean": 0.7498613986684061,
+          "median": 0.33037495613098145
+        }
+      },
+      "word_it_replaced": {
+        "max": {
+          "n": 390,
+          "mean": 0.3678870522684473,
+          "median": 0.030478578060865402
+        },
+        "mean": {
+          "n": 390,
+          "mean": 0.12455985539887386,
+          "median": 0.014248107559978962
+        }
+      },
+      "n_words": 390,
+      "chars_changed": 1665
+    },
+    "plausible": {
+      "swapped_word": {
+        "max": {
+          "n": 392,
+          "mean": 0.009638892574167696,
+          "median": 0.001416156766936183
+        },
+        "mean": {
+          "n": 392,
+          "mean": 0.006137763334823849,
+          "median": 0.0006203027442097664
+        }
+      },
+      "word_it_replaced": {
+        "max": {
+          "n": 392,
+          "mean": 0.33436182002655146,
+          "median": 0.030125495046377182
+        },
+        "mean": {
+          "n": 392,
+          "mean": 0.1183339205054796,
+          "median": 0.013246077112853527
+        }
+      },
+      "n_words": 392,
+      "chars_changed": 1774
+    }
+  }
+}

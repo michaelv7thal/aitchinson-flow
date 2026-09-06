@@ -58,13 +58,17 @@ def _bootstrap() -> None:
 _bootstrap()
 
 from scripts.ood_variance_perpos import _load_dirichletfm, _auroc, _perpos_feats  # noqa: E402
-from scripts._bench_common import det_metrics  # noqa: E402
+from scripts._bench_common import (  # noqa: E402
+    det_metrics, word_metrics, word_metrics_from_segments,
+)
 from scripts.heal_dirichlet import (  # noqa: E402
     make_bgmm_localizer,
     make_nll_localizer,
     train_localizer,
 )
-from scripts.bench_sflm_ebm import _load_gpt2, _gpt2_per_char_SE  # noqa: E402
+from scripts.bench_sflm_ebm import (  # noqa: E402
+    _load_gpt2, _gpt2_per_char_SE, _gpt2_bpe_scores,
+)
 from aitchinson_flow.training import build_training_datamodule  # noqa: E402
 from aitchinson_flow.data.corruption import (  # noqa: E402
     corrupt_false_info,
@@ -158,7 +162,8 @@ def plausible_swap(model, windows, rate, by_len, *, t_nll, K, device,
 
 def train_logistic_head(model, clean_tok, corrupt_tok, t_eval, device, *,
                         max_fit=60000, C=1.0, seed=42, extra_pairs=None,
-                        kind="logistic", mlp_steps=2000):
+                        kind="logistic", mlp_steps=2000,
+                        hinge_margin=4.0, hinge_steps=600, hinge_lr=5e-2):
     """Full-dim energy head on standardised per-token features at t_eval, trained on
     clean(0) vs changed(1) tokens. Returns score(tok) -> (B,L) energy.
 
@@ -197,6 +202,43 @@ def train_logistic_head(model, clean_tok, corrupt_tok, t_eval, device, *,
         neg_parts.append(zk_i[lab_i])    # the actually-changed tokens = corrupt
     zpos = torch.cat(pos_parts, 0)
     zneg = torch.cat(neg_parts, 0)
+
+    if kind == "hinge":
+        # The LinE objective (bounded energy: valid -> 0, corrupt >= margin) on the SAME
+        # pooled negatives as the logistic head, so a LinE/LOG pair built here differs in
+        # the objective alone. Mirrors the hinge branch of ood_bayes_linear.py, including
+        # its margin / steps / lr, so LinE_all and LinE_fi reproduce their bench defaults.
+        import torch.nn as nn
+        head = nn.Linear(d, 1).to(device)
+        opt = torch.optim.Adam(head.parameters(), lr=hinge_lr)
+        bs = int(min(16384, zpos.shape[0], zneg.shape[0]))
+        g = torch.Generator().manual_seed(seed)
+        for step in range(hinge_steps):
+            pi = torch.randint(zpos.shape[0], (bs,), generator=g)
+            ni = torch.randint(zneg.shape[0], (bs,), generator=g)
+            opt.zero_grad()
+            ep = head(zpos[pi].to(device)).squeeze(-1)
+            en = head(zneg[ni].to(device)).squeeze(-1)
+            loss = ep.pow(2).mean() + torch.relu(hinge_margin - en).mean()
+            loss.backward()
+            opt.step()
+            if step % 200 == 0 or step == hinge_steps - 1:
+                print(f"  [hinge] step {step:4d}  E_valid={ep.mean():+.3f}  "
+                      f"E_corrupt={en.mean():+.3f}  gap={(en.mean() - ep.mean()):+.3f}")
+        head.eval()
+        print(f"  [hinge] fit on {zpos.shape[0]}+{zneg.shape[0]} tok @ t={t_eval}")
+
+        @torch.no_grad()
+        def score_hinge(tok, chunk=16):
+            outs = []
+            for i in range(0, tok.shape[0], chunk):
+                h = _perpos_feats(model, tok[i:i + chunk], t_eval, device)
+                b_, Lq, _ = h.shape
+                z = _proj(h.reshape(-1, d)).to(device)
+                outs.append(head(z).squeeze(-1).reshape(b_, Lq).cpu())
+            return torch.cat(outs)
+
+        return score_hinge
 
     def _samp(t, cap):
         return t[torch.randperm(t.shape[0])[:cap]] if t.shape[0] > cap else t
@@ -314,6 +356,41 @@ def _seq_tok_auroc(score_clean, score_ood, changed):
     return seq, tok, m_seq, m_tok
 
 
+def make_variance_head(model, fit_tok, t_var, device, ridge: float = 0.1, chunk: int = 16):
+    """The training-free VARIANCE head of the LinE section, fitted in closed form on
+    CLEAN per-token features at t_var: standardise, Phi = E[z z^T],
+    Sigma_w^-1 = Phi + ridge*tr(Phi)/d * I = L L^T, Var(z) = ||L^-1 z||^2.
+    Mirrors scripts/ood_bayes_linear.py (pca_dim 0) so the row here is the same head
+    as the sweep's `auroc_*_uncertainty`. Returns score(tok) -> per-token Var (B,L), CPU."""
+    fc = _perpos_feats(model, fit_tok, t_var, device)  # (Nf,L,d)
+    d = fc.shape[-1]
+    flat = fc.reshape(-1, d)
+    mu = flat.mean(0)
+    sigma = flat.std(0).clamp_min(1e-6)
+    Phi = torch.zeros(d, d, dtype=torch.float64)
+    nrow = 0
+    for i in range(0, flat.shape[0], 32768):
+        zb = ((flat[i:i + 32768] - mu) / sigma).double()
+        Phi += zb.T @ zb
+        nrow += zb.shape[0]
+    Phi /= nrow
+    jit = ridge * Phi.trace() / d
+    L = torch.linalg.cholesky(Phi + jit * torch.eye(d, dtype=Phi.dtype))  # CPU double
+
+    @torch.no_grad()
+    def score(tok):
+        out = []
+        for i in range(0, tok.shape[0], chunk):
+            h = _perpos_feats(model, tok[i:i + chunk], t_var, device)
+            b, Lq, _ = h.shape
+            z = ((h.reshape(-1, d) - mu.to(h.device)) / sigma.to(h.device)).cpu()
+            w = torch.linalg.solve_triangular(L, z.double().T, upper=False)
+            out.append((w * w).sum(0).reshape(b, Lq).float())
+        return torch.cat(out)
+
+    return score
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--ckpt", required=True)
@@ -341,6 +418,12 @@ def main() -> int:
                     help="path-time for the BLR hinge-energy features")
     ap.add_argument("--blr-train-rate", type=float, default=0.5,
                     help="corruption rate for the BLR hinge training negatives")
+    ap.add_argument("--var-t-eval", type=float, default=7.5,
+                    help="path-time of the training-free VARIANCE head features "
+                         "(the LinE section's second readout; the sweep ran 7.5)")
+    ap.add_argument("--var-ridge", type=float, default=0.1,
+                    help="Laplace prior precision of the variance head "
+                         "(scripts/ood_bayes_linear.py --ridge)")
     ap.add_argument("--ref-lm", default="gpt2", help="HF causal LM for spilled energy")
     ap.add_argument("--lin-t-eval", type=float, default=4.5,
                     help="path-time for the full-dim LOGISTIC heads (latent-split t)")
@@ -351,6 +434,8 @@ def main() -> int:
                          "implied by the opposed mean shifts) / mlp (general).")
     ap.add_argument("--unified-steps", type=int, default=2000,
                     help="training steps for the quad/mlp unified heads")
+    ap.add_argument("--no-line-family", action="store_true",
+                    help="skip the LinE_all / LinE_fi hinge arms")
     ap.add_argument("--no-unified", action="store_true",
                     help="skip the UNIFIED head (trained on the union of "
                          "replace+shuffle+falseinfo+plausible) \u2014 the test of "
@@ -405,6 +490,9 @@ def main() -> int:
     blr_score, _ = train_localizer(
         model, fit_tok, args.blr_t_eval, device, train_rate=args.blr_train_rate,
         margin=4.0, steps=600, lr=5e-2, seed=args.seed)
+    print("=== fit training-free VARIANCE head (closed form on clean features) ===")
+    var_score = make_variance_head(model, fit_tok, args.var_t_eval, device,
+                                   ridge=args.var_ridge)
     print(f"=== load GPT-2 external-LM detectors ({args.ref_lm}) ===")
     gpt2_model, gpt2_tok = _load_gpt2(args.ref_lm, device)
 
@@ -471,6 +559,33 @@ def main() -> int:
                 model, fit_tok, fi_neg, args.lin_t_eval, device, seed=args.seed,
                 extra_pairs=extra, kind=kind, mlp_steps=args.unified_steps)
 
+    # ---- the two remaining LinE arms, so tab:ood-plausible carries the same hinge
+    # family as tab:ood-word / tab:ood-prf. Both reproduce their bench definitions:
+    # LinE_fi  = falseinfo negatives at the LinE training rate, t = blr_t_eval (4.5);
+    # LinE_all = union of replace+shuffle+falseinfo+both at that rate, t = t_eval (7.5).
+    # Built AFTER every head above so the RNG stream those heads consumed is unchanged.
+    lin_fi = lin_all = None
+    if not args.no_line_family:
+        r_hi = args.blr_train_rate
+        fi_hi = corrupt_false_info(fit_tok.clone(), r_hi, by_len, seed=args.seed + 21)
+        rp_hi = corrupt_token_ids(fit_tok.clone(), vocab_size=K, corrupt_rate=r_hi,
+                                  seed=args.seed + 23)
+        sh_hi = partially_shuffle_token_ids(fit_tok.clone(), shuffle_rate=r_hi,
+                                            seed=args.seed + 25)
+        both_hi = partially_shuffle_token_ids(
+            corrupt_token_ids(fit_tok.clone(), vocab_size=K, corrupt_rate=r_hi,
+                              seed=args.seed + 27),
+            shuffle_rate=r_hi, seed=args.seed + 28)
+        print(f"=== train LinE_fi hinge head (falseinfo @ {r_hi}, t={args.blr_t_eval}) ===")
+        lin_fi = train_logistic_head(model, fit_tok, fi_hi, args.blr_t_eval, device,
+                                     seed=args.seed, kind="hinge")
+        print(f"=== train LinE_all hinge head (replace+shuffle+falseinfo+both @ {r_hi}, "
+              f"t={args.t_eval}) ===")
+        lin_all = train_logistic_head(model, fit_tok, fi_hi, args.t_eval, device,
+                                      seed=args.seed, kind="hinge",
+                                      extra_pairs=[(fit_tok, rp_hi), (fit_tok, sh_hi),
+                                                   (fit_tok, both_hi)])
+
     # ---- how "plausible" is plausible? mean denoiser NLL at the swapped chars ----
     nll_clean = nll_score(eval_tok)
     nll_rand = nll_score(rand_tok)
@@ -492,10 +607,16 @@ def main() -> int:
                                    bgmm_score(plaus_tok))
     blr_clean, blr_rand, blr_plaus = (blr_score(eval_tok), blr_score(rand_tok),
                                       blr_score(plaus_tok))
+    var_clean, var_rand, var_plaus = (var_score(eval_tok), var_score(rand_tok),
+                                      var_score(plaus_tok))
     lfi_clean, lfi_rand, lfi_plaus = (log_fi(eval_tok), log_fi(rand_tok),
                                       log_fi(plaus_tok))
     lpl_clean, lpl_rand, lpl_plaus = (log_pl(eval_tok), log_pl(rand_tok),
                                       log_pl(plaus_tok))
+    line_scores = {}
+    for _nm, _fn in (("LinE_all", lin_all), ("LinE_fi", lin_fi)):
+        if _fn is not None:
+            line_scores[_nm] = (_fn(eval_tok), _fn(rand_tok), _fn(plaus_tok))
     uni_scores = {k: (fn(eval_tok), fn(rand_tok), fn(plaus_tok))
                   for k, fn in unified.items()}
     se_clean, se_rand, se_plaus = (se_score(eval_tok), se_score(rand_tok),
@@ -503,11 +624,26 @@ def main() -> int:
     gn_clean, gn_rand, gn_plaus = (gpt2_nll_score(eval_tok), gpt2_nll_score(rand_tok),
                                    gpt2_nll_score(plaus_tok))
 
+    # Native BPE segments for the two GPT-2 arms. The per-character rows above go
+    # through the boundary attribution, which understates the LM; pooling segment ->
+    # word is exact (a BPE token never straddles a word boundary), so the word column
+    # is the one place GPT-2 is compared on equal terms (sec:ood-det-method).
+    _bpe = {}
+    for _kind in ("spilled", "nll"):
+        _bpe[_kind] = {
+            "clean": _gpt2_bpe_scores(gpt2_model, gpt2_tok, eval_tok, chunk=16, score=_kind),
+            "random": _gpt2_bpe_scores(gpt2_model, gpt2_tok, rand_tok, chunk=16, score=_kind),
+            "plausible": _gpt2_bpe_scores(gpt2_model, gpt2_tok, plaus_tok, chunk=16, score=_kind),
+        }
+    _GPT2_KIND = {"GPT2_SE": "spilled", "GPT2_NLL": "nll"}
+    _OOD_TOK = {"random": rand_tok, "plausible": plaus_tok}
+
     rows = []
     print(f"\n{'detector':>14} {'corruption':>10} {'seq_AUROC':>10} {'token_AUROC':>12} "
-          f"{'tokP@5':>7} {'tokR@5':>7} {'tokF1@5':>8}")
+          f"{'word_AUROC':>9} {'tokP@5':>7} {'tokR@5':>7} {'tokF1@5':>8}")
     dets = [("NLL", nll_clean, nll_rand, nll_plaus),
             ("BLR", blr_clean, blr_rand, blr_plaus),
+            ("Var", var_clean, var_rand, var_plaus),
             ("Logistic_fi", lfi_clean, lfi_rand, lfi_plaus),
             ("Logistic_plaus", lpl_clean, lpl_rand, lpl_plaus),
             ("BGMM", bg_clean, bg_rand, bg_plaus),
@@ -516,19 +652,42 @@ def main() -> int:
     # the unifying heads — the rows that decide whether ONE head can cover corruptions
     # whose specialists anti-transfer (linear -> quadratic -> MLP, in increasing capacity)
     _UNI_LABEL = {"logistic": "ALL_linear", "quad": "ALL_quad", "mlp": "ALL_mlp"}
+    for _nm, (c_, r_, p_) in line_scores.items():
+        dets.append((_nm, c_, r_, p_))
     for k, (c_, r_, p_) in uni_scores.items():
         dets.append((_UNI_LABEL.get(k, f"ALL_{k}"), c_, r_, p_))
     for det, cln, rnd, pls in dets:
         for name, ood, ch in [("random", rnd, ch_rand), ("plausible", pls, ch_plaus)]:
             seq, tok, m_seq, m_tok = _seq_tok_auroc(cln, ood, ch)
+            ood_tok_ids = _OOD_TOK[name]
+            if det in _GPT2_KIND:
+                _k = _GPT2_KIND[det]
+                cv, cs = _bpe[_k]["clean"]
+                ov, os_ = _bpe[_k][name]
+                wmax = word_metrics_from_segments(cv, cs, eval_tok, ov, os_,
+                                                  ood_tok_ids, ch, op="max")
+                wmean = word_metrics_from_segments(cv, cs, eval_tok, ov, os_,
+                                                   ood_tok_ids, ch, op="mean")
+            else:
+                wmax = word_metrics(cln.numpy(), eval_tok, ood.numpy(),
+                                    ood_tok_ids, ch, op="max")
+                wmean = word_metrics(cln.numpy(), eval_tok, ood.numpy(),
+                                     ood_tok_ids, ch, op="mean")
             p5 = m_tok["prf"].get("0.05", {})
             print(f"{det:>14} {name:>10} {seq:>10.3f} {tok:>12.3f} "
+                  f"{(wmax['word'].get('auroc') or float('nan')):>9.3f} "
                   f"{p5.get('precision', float('nan')):>7.3f} "
                   f"{p5.get('recall', float('nan')):>7.3f} "
                   f"{p5.get('f1', float('nan')):>8.3f}")
             rows.append({"detector": det, "corruption": name,
                          "seq_auroc": seq, "token_auroc": tok,
-                         "prf_seq": m_seq, "prf_token": m_tok})
+                         "prf_seq": m_seq, "prf_token": m_tok,
+                         "auroc_word_max": wmax["word"].get("auroc"),
+                         "auroc_word_mean": wmean["word"].get("auroc"),
+                         "word_max": wmax["word"], "word_mean": wmean["word"],
+                         "word_seq_max": wmax["seq"].get("auroc"),
+                         "word_unit": ("bpe segments pooled to words"
+                                       if det in _GPT2_KIND else "characters pooled to words")})
 
     # ---- example: clean vs plausible swap text (to eyeball fluency) ----
     ex = []
@@ -550,6 +709,7 @@ def main() -> int:
         "ckpt": args.ckpt, "split": args.split, "n": int(eval_tok.shape[0]),
         "rate": args.rate, "t_eval": args.t_eval, "t_nll": args.t_nll,
         "blr_t_eval": args.blr_t_eval, "ref_lm": args.ref_lm,
+        "var_t_eval": args.var_t_eval, "var_ridge": args.var_ridge,
         "swap_mode": args.swap_mode, "lin_t_eval": args.lin_t_eval,
         "n_cands": args.n_cands, "bgmm_n_effective": n_eff,
         "detector": "plausible_vs_random_swap",
@@ -558,6 +718,12 @@ def main() -> int:
         "surprise": surprise, "rows": rows, "examples": ex,
     }, indent=2))
     print(f"\nWrote {out_path}")
+    # the swapped windows themselves, so a later readout can be added by REPLAY instead
+    # of regenerating the swaps (the expensive part: n_cands model forwards per slot)
+    tok_path = out_path.with_suffix(".tokens.pt")
+    torch.save({"eval_tok": eval_tok, "rand_tok": rand_tok, "plaus_tok": plaus_tok,
+                "rate": args.rate, "seed": args.seed, "swap_mode": args.swap_mode}, tok_path)
+    print(f"Wrote {tok_path}")
     return 0
 
 

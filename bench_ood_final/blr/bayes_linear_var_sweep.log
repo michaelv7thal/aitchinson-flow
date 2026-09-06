@@ -1,0 +1,60 @@
+.venv/bin/python scripts/ood_bayes_linear.py --ckpt runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM_converge/epoch_final.pt --split test --n 256 --fit-seqs 512 --rates 0.05,0.1,0.15,0.2,0.25,0.3,0.5,0.7,1.0 --seed 42 --schemes replace,shuffle,falseinfo --train-schemes replace --pca-dim 0 --ridge 0.1 --no-plot --out bench_ood_final/blr/bayes_linear_var_sweep.json
+Sat Aug 29 01:30:06 PM CEST 2026
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+/home/michael/projects/aitchinson-flow/.venv/lib/python3.13/site-packages/torch/utils/data/dataloader.py:1118: UserWarning: 'pin_memory' argument is set as true but no accelerator is found, then device pinned memory won't be used.
+  super().__init__(loader)
+[bayeslin] adversarial train mix: [('replace', 65361)]  (scheme, #corrupt tokens)
+[bayeslin] d_model=1280 feat_dim=1280 t_eval=4.5 clean_tok=131072 corr_tok(label1)=65361 mix=replace
+  step    0  E_valid=-0.020  E_corrupt=-0.169  gap=-0.149
+  step  100  E_valid=+0.421  E_corrupt=+2.629  gap=+2.209
+  step  200  E_valid=+0.448  E_corrupt=+2.797  gap=+2.349
+  step  300  E_valid=+0.394  E_corrupt=+2.656  gap=+2.262
+  step  400  E_valid=+0.381  E_corrupt=+2.598  gap=+2.217
+  step  500  E_valid=+0.432  E_corrupt=+2.802  gap=+2.370
+  step  599  E_valid=+0.400  E_corrupt=+2.705  gap=+2.305
+[bayeslin] energy @ t_eval=4.5  variance @ var_t=7.5 (feat_dim_var=1280)
+[blr] false-info vocab: lengths 2-18
+
+   scheme  rate  AUROC_seq_E  AUROC_seq_Var  tokAUROC_E  tokAUROC_Var  tokP@5  tokR@5  tokF1@5
+  replace  0.05       0.8452         0.9177      0.8933        0.8646   0.348   0.727    0.470
+  replace  0.10       0.9719         0.9849      0.8935        0.8312   0.451   0.766    0.567
+  replace  0.15       0.9935         0.9963      0.8894        0.8022   0.494   0.789    0.608
+  replace  0.20       0.9998         0.9995      0.8874        0.7689   0.517   0.826    0.636
+  replace  0.25       1.0000         0.9999      0.8796        0.7375   0.538   0.844    0.657
+  replace  0.30       1.0000         1.0000      0.8719        0.6978   0.542   0.876    0.670
+  replace  0.50       1.0000         1.0000      0.8219        0.5560   0.610   0.929    0.736
+  replace  0.70       1.0000         1.0000      0.7710        0.4935   0.752   0.940    0.836
+  replace  1.00       1.0000         1.0000         nan           nan     nan     nan      nan
+  shuffle  0.05       0.7894         0.8797      0.8259        0.8308   0.256   0.539    0.347
+  shuffle  0.10       0.9386         0.9749      0.8136        0.7914   0.358   0.575    0.441
+  shuffle  0.15       0.9861         0.9932      0.8062        0.7565   0.405   0.620    0.490
+  shuffle  0.20       0.9966         0.9982      0.7966        0.7290   0.437   0.663    0.527
+  shuffle  0.25       0.9997         0.9994      0.7803        0.7018   0.456   0.687    0.548
+  shuffle  0.30       1.0000         0.9999      0.7605        0.6708   0.471   0.713    0.568
+  shuffle  0.50       1.0000         1.0000      0.6821        0.5904   0.553   0.791    0.651
+  shuffle  0.70       1.0000         1.0000      0.6055        0.5388   0.681   0.818    0.743
+  shuffle  1.00       1.0000         1.0000      0.5963        0.4922   0.929   0.815    0.869
+falseinfo  0.05       0.5503         0.5718      0.5260        0.6953   0.092   0.145    0.113
+falseinfo  0.10       0.5806         0.6133      0.5268        0.6956   0.167   0.134    0.149
+falseinfo  0.15       0.6183         0.6920      0.5290        0.7046   0.260   0.151    0.191
+falseinfo  0.20       0.6753         0.7355      0.5269        0.6943   0.312   0.145    0.198
+falseinfo  0.25       0.7232         0.7923      0.5347        0.6966   0.368   0.155    0.218
+falseinfo  0.30       0.7458         0.8271      0.5309        0.6969   0.425   0.155    0.227
+falseinfo  0.50       0.8850         0.9401      0.5395        0.7009   0.593   0.173    0.268
+falseinfo  0.70       0.9316         0.9763      0.5397        0.7112   0.715   0.188    0.298
+falseinfo  1.00       0.9824         0.9889      0.5403        0.7592   0.861   0.225    0.356
+
+=== healing-style examples ===
+  [examples] flag thr=0.7897 @ fpr=0.05 (key=E_t)
+  --- clean #0 ---
+    flag :                         *                  *       **                                            *   *       *          
+  --- replace30 #0 ---
+    truec:  ^  ^ ^     ^^   ^ ^         ^       ^ ^ ^^      ^^   ^ ^      ^  ^^     ^       ^  ^     ^^  ^^^   ^^^  ^  ^      ^^^^ 
+    flag : ***** **  *    * * *   ***   *       * *****  **** **  **     **   **    *      *** ** * **** ** *   ** *** ****  ******
+  --- falseinfo30 #0 ---
+    truec:   ^^^^^^^          ^^^^^^^^^^^                     ^^                       ^^^        ^^ ^^^^   ^^ ^^^           ^^^   
+    flag :         *             *  *               * *  *     *                                  * **       *          *  ****    
+
+Wrote bench_ood_final/blr/bayes_linear_var_sweep.json
+exit 0
+Sat Aug 29 03:00:52 PM CEST 2026

@@ -1,0 +1,28 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[heal] ckpt=runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM_converge/epoch_final.pt
+[heal] K=27 L=256 t_max=8.0 t_eval=7.5 device=cuda
+[heal] disjoint splits: fit=512 cal=512 demo=64  n_seeds=3
+[heal] word-swap vocab: lengths 2-18 (e.g. len-6: ['ensure', 'action', 'assist', 'safety', 'fitted'])
+=== build per-token localizer (var) ===
+  [var] training-free Laplace variance @ t_var=7.5 ridge=0.1 (clean features only, no negatives)
+=== heal sweep (mean over 3 corruption seeds) ===
+  fpr     thr  loc_P  loc_R  loc_F1    fix    dmg    net/corrupt   delta_ws
+ 0.02 1038.574  0.149  0.038   0.060  0.003  0.007   -0.053±0.003    -0.0057
+ 0.05 926.726  0.165  0.103   0.127  0.010  0.019   -0.143±0.002    -0.0155
+ 0.10 832.938  0.169  0.207   0.186  0.016  0.048   -0.377±0.003    -0.0409  <- selected
+
+--- example[0] @ selected fpr=0.1 (chosen by cal-set F0.5) ---
+  clean : 'yed back using a compatible pc karaoke player display the lyrics karaoke style while playing the song although the midi karaoke format precludes the use of background vocals and harmonies the incredibly small size of the file in comparison to other digital'
+  corr  : 'yed back using a compatible pc definit player display the lyrics karaoke dense while playing the song although the midi karaoke defied precludes the use of background vocals and harmonies the incredibly small size of the file in amphitrite in words digital'
+  truec :                                ^^^^^^^                                   ^^^^                                                   ^^^^^^                                                                                               ^^^^^^^^^^ ^^ ^^^^^        
+  flag  : *     *            *    *    *   *        *     *          **      *       *            *                            **   *       * *     * *                 * * **     *                           * *    *      *                  **                   *    
+  healed: 'sed back using a compatible pg definit player display the logics karaoke dense while playing the song although the mile karaoke demind pre lades the use of backer and vocals and harmonies the incredibly small size of the file in architrite in words digital'
+
+=== HEADLINE @ selected fpr=0.1 (mean±std over 3 seeds) ===
+  localize    = P 0.169 / R 0.207 / F1 0.186   (per-token detection of the corrupt positions)
+  fix_rate    = 0.016   (corrupt token -> correct)
+  damage_rate = 0.048   (clean token -> broken)
+  net/corrupt = -0.377 ± 0.003   (net tokens recovered per corrupt token; >0 ⇒ net benefit)
+  delta_ws    = -0.0409 ± 0.0002   (whole-seq; diluted, capped near corrupt_rate — diagnostic only)
+
+Wrote bench_heal_final/var_falseinfo.json

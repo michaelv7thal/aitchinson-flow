@@ -1,0 +1,433 @@
+# false information substitutions
+#
+# Each planted word is a random OTHER word of the same length, drawn from the
+# length-bucketed text8 vocabulary of build_vocab_by_len (first-seen order, so
+# roughly frequency-ranked). The text stays lexically valid and the character
+# statistics barely move, but the word does not fit its context. This is the
+# cheap scheme: it costs no model calls at all.
+#
+# source      : bench_ood_final/plausible/plausible_swap_var.tokens.pt
+# checkpoint  : runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM_converge/epoch_final.pt
+# split       : test   windows: 64   rate: 0.15   seed: 42
+# words planted: 390  over 64 windows  (6.1 per window)
+#
+# The sibling file holds the plausible substitutions of the same windows.
+# The two schemes draw their slots from the same eligible words at the same
+# rate, so the budget matches, but the draws are independent: 67 of the
+# slots below are also corrupted in the sibling file.
+#
+# window  start  original -> planted   context (clean text, [original>planted])
+
+     0     62  one            -> ost             nt in washington dc october [one>ost] nine nine six monica samill
+     0    166  who            -> reg             three is an american woman [who>reg] was thrust into the public
+     0    197  limelight      -> etabolism       was thrust into the public [limelight>etabolism] after having a sexual affai
+     0    213  having         -> retire          the public limelight after [having>retire] a sexual affair with u s pr
+     0    245  president      -> gymnastic       ng a sexual affair with u s [president>gymnastic] b
+     1     25  started        -> eugenio         ill clinton their affair [started>eugenio] while lewinsky was working
+     1    124  the            -> tip             he mid one nine nine zero s [the>tip] affair s repercussions for
+     1    151  for            -> reg             the affair s repercussions [for>reg] president clinton are often
+     1    198  the            -> man             on are often referred to as [the>man] lewinsky scandal or monicag
+     1    211  scandal        -> bahamut         referred to as the lewinsky [scandal>bahamut] or monicagate monicagate ha
+     1    222  monicagate     -> clunkiness      as the lewinsky scandal or [monicagate>clunkiness] monicagate has garnered
+     2     35  the            -> gay             ky much notoriety following [the>gay] scandal life lewinsky was b
+     2     70  in             -> ug              ndal life lewinsky was born [in>ug] san francisco and grew up i
+     2    122  on             -> ha              w up in southern california [on>ha] the west side of los angele
+     2    129  west           -> ball            southern california on the [west>ball] side of los angeles and in
+     2    175  her            -> end             ngeles and in beverly hills [her>end] father was born in el salva
+     2    210  but            -> gib             her was born in el salvador [but>gib] comes from a family of germ
+     2    227  family         -> loaded          l salvador but comes from a [family>loaded] of german jewish immig
+     3     16  mother         -> solids          rants while her [mother>solids] s family were jewish immigr
+     3    101  college        -> peeling         transferring from community [college>peeling] she graduated with a psycho
+     3    113  graduated      -> mesoscale       from community college she [graduated>mesoscale] with a psychology degree fr
+     3    148  from           -> grip            ed with a psychology degree [from>grip] lewis i did not have sexual
+     3    221  the            -> gib             th that woman miss lewinsky [the>gib] line later became a punchli
+     3    225  line           -> paul            hat woman miss lewinsky the [line>paul] later became a punchline f
+     4    145  with           -> area            e is no sexual relationship [with>area] lewinsky a statement which
+     4    177  he             -> is              lewinsky a statement which [he>is] later said was truthful dep
+     4    186  said           -> roof            a statement which he later [said>roof] was truthful depending on o
+     4    246  pressure       -> bacillus        ne s definition of is under [pressure>bacillus] f
+     5     43  from           -> edge            linton learned had obtained [from>edge] lewinsky a blue dress with
+     5     59  blue           -> true            ad obtained from lewinsky a [blue>true] dress with clinton s semen
+     5     91  stain          -> known           dress with clinton s semen [stain>known] as well as testimony from l
+     5    168  in             -> un              president had used a cigar [in>un] a sexual manner with her cl
+     5    213  on             -> an              r with her clinton admitted [on>an] august one nine one nine ni
+     5    223  one            -> ssa             clinton admitted on august [one>ssa] nine one nine nine eight th
+     5    246  eight          -> storm           gust one nine one nine nine [eight>storm] that
+     6     47  had            -> etc             ican people and that he had [had>etc] an inappropriate relationsh
+     6    103  denied         -> remake          nship with lewinsky clinton [denied>remake] having committed perjury be
+     6    171  not            -> all             in his opinion oral sex was [not>all] a sexual relation in additi
+     6    193  in             -> cl              x was not a sexual relation [in>cl] addition relying upon the d
+     6    205  relying        -> address         sexual relation in addition [relying>address] upon the definition of sexu
+     6    218  the            -> cas             on in addition relying upon [the>cas] definition of sexual relati
+     7     10  judge          -> party           worded by [judge>party] susan webber wright who was
+     7    135  not            -> mya             acts were performed on him [not>mya] by him he did not engage in
+     7    146  he             -> by              performed on him not by him [he>by] did not engage in sexual re
+     7    195  testimony      -> according       sexual relations lewinsky s [testimony>according] to the starr commission how
+     7    208  the            -> ceo             ons lewinsky s testimony to [the>ceo] starr commission however co
+     8     35  in             -> nj              im of being totally passive [in>nj] their encounters clinton s
+     8     84  explain        -> audible         linton s lawyer would later [explain>audible] that different people can r
+     8    118  remember       -> studying        n that different people can [remember>studying] the same events in differen
+     8    127  the            -> mic             fferent people can remember [the>mic] same events in different wa
+     8    240  senate         -> detect          es but not convicted in the [senate>detect] so he was
+     9     13  from           -> ring            not removed [from>ring] office interestingly clinto
+     9    122  after          -> burma           people increase during and [after>burma] the scandal it has been sug
+     9    128  the            -> won             e increase during and after [the>won] scandal it has been suggest
+     9    132  scandal        -> swedish         crease during and after the [scandal>swedish] it has been suggested howev
+     9    175  the            -> oil             been suggested however that [the>oil] moral questions raised by h
+     9    248  gore           -> cruz            nted then vice president al [gore>cruz] s c
+    10     68  sordid         -> merely          ero zero the affair and its [sordid>merely] details led to a period of
+    10     83  led            -> did             fair and its sordid details [led>did] to a period of cultural cel
+    10    121  for            -> his             eriod of cultural celebrity [for>his] lewinsky as an unlikely sex
+    10    137  an             -> om              l celebrity for lewinsky as [an>om] unlikely sex symbol and as
+    10    194  of             -> kt              a younger generation nexus [of>kt] a political storm that was
+    10    246  extremely      -> ballistic       t was both lighthearted and [extremely>ballistic]
+    11     96  though         -> hammer          ists as a term for oral sex [though>hammer] lewinsky references and jok
+    11    112  references     -> richardson      or oral sex though lewinsky [references>richardson] and jokes have long cooled
+    11    123  and            -> twa             though lewinsky references [and>twa] jokes have long cooled in t
+    11    127  jokes          -> sicos           ugh lewinsky references and [jokes>sicos] have long cooled in the pub
+    11    188  considered     -> processors      lic interest many feminists [considered>processors] the extensive attention to
+    11    213  attention      -> publishes       ts considered the extensive [attention>publishes] to lewinsky to be indicatio
+    12     89  years          -> slash           famous during the last two [years>slash] of the one nine nine zero s
+    12    102  one            -> mws             g the last two years of the [one>mws] nine nine zero s by her own
+    12    106  nine           -> elia            e last two years of the one [nine>elia] nine zero s by her own acco
+    12    126  her            -> cut             the one nine nine zero s by [her>cut] own account lewinsky surviv
+    12    130  own            -> for             one nine nine zero s by her [own>for] account lewinsky survived t
+    12    172  media          -> tests           winsky survived the intense [media>tests] attention by knitting she n
+    13     30  of             -> uk              dbags she was also the host [of>uk] the short lived reality tel
+    13     49  reality        -> attacks         the host of the short lived [reality>attacks] television dating program c
+    13     68  dating         -> loving          rt lived reality television [dating>loving] program called mr personali
+    13    134  currently      -> hollywood       wo zero zero three lewinsky [currently>hollywood] studies an msc in social ps
+    13    201  of             -> jr              hology at the london school [of>jr] economics lewinsky criticiz
+    14     17  he             -> as              y my life saying [he>as] could have made it right wi
+    14     31  made           -> vary            y life saying he could have [made>vary] it right with the book but
+    14     66  hasn           -> came            right with the book but he [hasn>came] t he is a revisionist of hi
+    14     96  history        -> require         sn t he is a revisionist of [history>require] he has lied other informati
+    14    111  lied           -> rank            visionist of history he has [lied>rank] other information lewinsky
+    14    197  school         -> heavil          al psychology at the london [school>heavil] of economics on march four
+    14    220  march          -> waves           ndon school of economics on [march>waves] four one nine nine nine mon
+    15     64  clinton        -> spatial         ailing her affair with bill [clinton>spatial] went on sale in the united
+    15    119  zero           -> need            united states in early two [zero>need] zero zero lewinsky served a
+    15    129  zero           -> mars            ates in early two zero zero [zero>mars] lewinsky served as spokeswo
+    15    150  as             -> de              o zero zero lewinsky served [as>de] spokeswoman for the jenny c
+    15    169  the            -> eye             y served as spokeswoman for [the>eye] jenny craig weight loss pla
+    15    213  blue           -> ieee            weight loss plan trivia the [blue>ieee] dress lewinsky wore was pur
+    15    242  purchased      -> naturally       lue dress lewinsky wore was [purchased>naturally] at t
+    16      3  gap            -> gun             he [gap>gun] it is currently owned and s
+    16     10  is             -> re              he gap it [is>re] currently owned and stored
+    16    103  monica         -> robert          s administration references [monica>robert] s story by andrew morton pa
+    16    135  paperback      -> depending       ca s story by andrew morton [paperback>depending] one nine nine nine publishe
+    16    177  marshal        -> antwerp         nine nine nine publisher st [marshal>antwerp] s press isbn zero three one
+    16    238  two            -> gym             ne two nine seven three six [two>gym] four one scand
+    17     20  lewinsky       -> isomeric        alous story clinton [lewinsky>isomeric] and thirteen days that tarn
+    17     42  days           -> used            inton lewinsky and thirteen [days>used] that tarnished american jou
+    17     94  kalb           -> rise            ican journalism by marvin l [kalb>rise] our monica ourselves the cl
+    17     99  our            -> sun             journalism by marvin l kalb [our>sun] monica ourselves the clinto
+    17    170  cultures       -> integral        the public interest sexual [cultures>integral] by lauren berlant and lisa
+    17    234  report         -> israel          duggan external links starr [report>israel] nature of presi
+    18     33  monica         -> jacopo          clinton s relationship with [monica>jacopo] lewinsky a guide to the mon
+    18     91  the            -> nch             monica lewinsky story also [the>nch] starr report tripp tapes ar
+    18    120  articles       -> lenition        he starr report tripp tapes [articles>lenition] of impeachment the stalker
+    18    129  of             -> ms              report tripp tapes articles [of>ms] impeachment the stalker tal
+    18    168  lewinsky       -> genetics        ent the stalker tale monica [lewinsky>genetics] profile in the washington p
+    18    239  eight          -> stand           uary two four one nine nine [eight>stand] timeline fr
+    19     19  lewinsky       -> daughter        om washington post [lewinsky>daughter] profile in new york magazin
+    19     28  profile        -> ontario         om washington post lewinsky [profile>ontario] in new york magazine two ze
+    19    157  clinton        -> contact         ine seven three births bill [clinton>contact] jewish american history liv
+    19    165  jewish         -> pupils          n three births bill clinton [jewish>pupils] american history living peo
+    19    181  history        -> amplona         ill clinton jewish american [history>amplona] living people people associ
+    19    244  of             -> rd              ated with the london school [of>rd] economics
+    20     13  is             -> an              a manometer [is>an] a pressure measuring instru
+    20    191  of             -> ak              s a u shaped tube half full [of>ak] liquid where the measured p
+    20    201  where          -> guild           ed tube half full of liquid [where>guild] the measured pressure is ap
+    20    229  is             -> me              where the measured pressure [is>me] applied to one side of t
+    20    247  side           -> wond            pressure is applied to one [side>wond] of t
+    21      3  tube           -> last            he [tube>last] whilst the reference pressu
+    21     60  atmosphere     -> simplified      ssure which might be of the [atmosphere>simplified] is applied to the other the
+    21     74  applied        -> enzymes         ght be of the atmosphere is [applied>enzymes] to the other the difference
+    21    175  to             -> ur              d pressure it is quite easy [to>ur] make a homemade manometer f
+    21    208  low            -> lpx             ke a homemade manometer for [low>lpx] pressure differences water
+    21    221  differences    -> linguistics     manometer for low pressure [differences>linguistics] water is a commonly use
+    22      2  liquid         -> unique          d [liquid>unique] and inches of water is a co
+    22     43  used           -> arab            ches of water is a commonly [used>arab] pressure unit for larger pr
+    22     62  for            -> nch             commonly used pressure unit [for>nch] larger pressure differences
+    22    117  mercury        -> address         nces the greater density of [mercury>address] makes it more useful a sing
+    22    134  more           -> norm            density of mercury makes it [more>norm] useful a single limb liquid
+    22    215  of             -> en              a larger reservoir instead [of>en] one side of the u tube and
+    22    245  has            -> deo             one side of the u tube and [has>deo] a scale
+    23     21  column         -> knight          beside the narrower [column>knight] the column may be inclined
+    23     43  be             -> jr              rower column the column may [be>jr] inclined to further amplify
+    23     55  to             -> ng              the column may be inclined [to>ng] further amplify the liquid
+    23    160  between        -> nearest         o measure small differences [between>nearest] great pressures membrane ty
+    23    193  type           -> diet            en great pressures membrane [type>diet] manometer a second type use
+    23    227  the            -> hts             anometer a second type uses [the>hts] deflection of a flexible
+    24      9  that           -> both            membrane [that>both] seals a fixed pressure refe
+    24     47  volume         -> lyrics          a fixed pressure reference [volume>lyrics] to determine the pressure t
+    24     91  of             -> un              ine the pressure the amount [of>un] deflection is repeatable fo
+    24    146  pressure       -> illinois        for known pressures so the [pressure>illinois] can be determined using a l
+    24    210  bourdon        -> unknown         ookup table a third variant [bourdon>unknown] gauge uses a coiled tube wh
+    25     14  pressure       -> algernon        xpands due to [pressure>algernon] increase causes a rotation
+    25     23  increase       -> trattato        xpands due to pressure [increase>trattato] causes a rotation of an arm
+    25     86  use            -> jor             m connected to the tube one [use>jor] of manometers is to measure
+    25    125  pressures      -> solutions       meters is to measure vacuum [pressures>solutions] especially in the range fro
+    25    146  in             -> ev              vacuum pressures especially [in>ev] the range from zero zero ze
+    25    149  the            -> met             uum pressures especially in [the>met] range from zero zero zero o
+    25    215  helpful        -> company         spheres to one atm they are [helpful>company] because the deflection of t
+    26     38  of             -> ny              not dependent upon the type [of>ny] gas being measured unlike o
+    26     45  being          -> still           endent upon the type of gas [being>still] measured unlike other types
+    26     96  in             -> kt              ther types of vacuum gauges [in>kt] this pressure range the def
+    26    137  the            -> gli             ure range the deflection of [the>gli] piston is often one half of
+    26    151  often          -> gives           deflection of the piston is [often>gives] one half of a capacitor so
+    26    157  one            -> edy             tion of the piston is often [one>edy] half of a capacitor so that
+    26    211  the            -> had             that when the piston moves [the>had] capacitance of the device c
+    27     19  proper         -> ponder          a common way with [proper>ponder] calibrations to get a very
+    27     39  to             -> fr              ay with proper calibrations [to>fr] get a very precise electron
+    27     72  reading        -> weather         t a very precise electronic [reading>weather] from a manometer and this c
+    27    175  low            -> etc             meter vacuum gauge for very [low>etc] pressures high vacuums aka
+    27    228  electronic     -> geologists      s aka hard vacuums entirely [electronic>geologists] means ion gauges
+    27    245  ion            -> oem             s entirely electronic means [ion>oem] gauges
+    28    111  en             -> is              wo pessure gauge vocabulary [en>is] eight three seven one press
+    28    145  gauges         -> grains          ht three seven one pressure [gauges>grains] bourdon tube pressure gauge
+    28    174  gauges         -> ticket          auges bourdon tube pressure [gauges>ticket] dimensions metrology requir
+    28    181  dimensions     -> fraternity      ourdon tube pressure gauges [dimensions>fraternity] metrology requirements and
+    28    215  and            -> get             ions metrology requirements [and>get] testing en eight three seve
+    28    242  seven          -> ogies           and testing en eight three [seven>ogies] two pres
+    29    102  pressure       -> released        en eight three seven three [pressure>released] gauges diaphragm and capsul
+    29    111  gauges         -> future          three seven three pressure [gauges>future] diaphragm and capsule press
+    29    128  and            -> you             e pressure gauges diaphragm [and>you] capsule pressure gauges dim
+    29    156  dimensions     -> ironically      and capsule pressure gauges [dimensions>ironically] metrology requirements and
+    29    228  barometer      -> mentioned       g see also sphygmomanometer [barometer>mentioned] mcleod gauge paten
+    30     72  manometer      -> meitneriu       er external links home made [manometer>meitneriu] pressure gauges the first d
+    30    214  of             -> tw              ly which is after the start [of>tw] the renaissance however we
+    30    233  however        -> objects         he start of the renaissance [however>objects] we know that da
+    31     18  in             -> to              ncing was popular [in>to] europe during the middle ag
+    31     71  in             -> ir              le ages for it was depicted [in>ir] paintings and illuminations
+    31    102  and            -> mhz             paintings and illuminations [and>mhz] described in texts forms of
+    31    131  of             -> as              nd described in texts forms [of>as] dance during the middle age
+    31    203  carol          -> vocal           carol and the estampie the [carol>vocal] consists of a circle of dan
+    31    218  of             -> sh              estampie the carol consists [of>sh] a circle of dancers holding
+    32      4  the            -> gsm             ith [the>gsm] dancers singing while danci
+    32     16  singing        -> mastery         ith the dancers [singing>mastery] while dancing both the caro
+    32     30  dancing        -> briefly         h the dancers singing while [dancing>briefly] both the carol and the esta
+    32     87  forms          -> chips           e estampie are also musical [forms>chips] the christmas carol as a mu
+    32     97  christmas      -> wadsworth       are also musical forms the [christmas>wadsworth] carol as a musical form sur
+    32    126  form           -> lake            hristmas carol as a musical [form>lake] survives to the modern era
+    33     38  and            -> end             y created by fred gallagher [and>end] rodney caston it is now wri
+    33     62  now            -> nlx             her and rodney caston it is [now>nlx] written and drawn in a mang
+    33     74  and            -> sed             ey caston it is now written [and>sed] drawn in a manga influenced
+    33     95  influenced     -> mechanisms      ritten and drawn in a manga [influenced>mechanisms] style by gallagher the comi
+    33    112  by             -> si              in a manga influenced style [by>si] gallagher the comic was sta
+    33    170  zero           -> ways            rted on august one four two [zero>ways] zero zero megatokyo s conte
+    33    237  are            -> bus             comic strip on the website [are>bus] available compl
+    34      6  free           -> ever            etely [free>ever] the contents are generally
+    34     28  generally      -> parameter       etely free the contents are [generally>parameter] updated every monday wednes
+    34     38  updated        -> attempt         the contents are generally [updated>attempt] every monday wednesday and
+    34     80  it             -> se              monday wednesday and friday [it>se] has also been translated un
+    34    161  elsewhere      -> windspeed       anguages that are available [elsewhere>windspeed] on the web see translation
+    34    216  took           -> disk            anslation section megatokyo [took>disk] its name from its internet
+    35     18  short          -> usage           hich had hosted a [short>usage] lived news site of caston s
+    35     86  news           -> says            the start of the comic the [news>says] site in turn took its name
+    35     91  site           -> each            start of the comic the news [site>each] in turn took its name from
+    35    104  took           -> burn            comic the news site in turn [took>burn] its name from the city in t
+    35    139  bubblegum      -> prominent       s name from the city in the [bubblegum>prominent] crisis anime series megatok
+    35    179  frequently     -> triangular      isis anime series megatokyo [frequently>triangular] uses l three three t speak
+    35    190  uses           -> ring            series megatokyo frequently [uses>ring] l three three t speak and s
+    36     32  mainstream     -> convoluted      roduce that style to a more [mainstream>convoluted] audience plot strip six one
+    36     57  strip          -> tense           re mainstream audience plot [strip>tense] six one nine depicting piro
+    36     63  six            -> ras             nstream audience plot strip [six>ras] one nine depicting piro lar
+    36     71  nine           -> colt            audience plot strip six one [nine>colt] depicting piro largo sonoda
+    36    193  the            -> hts             zero four megatokyo follows [the>hts] story of two americans piro
+    36    220  piro           -> down            the story of two americans [piro>down] and largo who are stuck in
+    37     10  unable         -> rhymed          o and are [unable>rhymed] to get home the two protago
+    37     75  two            -> emo             ts are based on megatokyo s [two>emo] creators or their online pe
+    37    153  of             -> mm              ional characters with lives [of>mm] their own piro is a shy and
+    37    162  own            -> has             racters with lives of their [own>has] piro is a shy and somewhat
+    37    230  japanese       -> occasion        fident person who cherishes [japanese>occasion] pop culture inclu
+    38     32  games          -> below           manga anime and dating sim [games>below] largo the more extroverted
+    38     44  the            -> chi             and dating sim games largo [the>chi] more extroverted of the pai
+    38     65  of             -> jr              largo the more extroverted [of>jr] the pair is obsessed with b
+    38    122  and            -> way             building high end computers [and>way] playing games on them somew
+    38    179  between        -> through         ewhat unable to distinguish [between>through] the fictional and the real
+    38    209  real           -> moon            tween the fictional and the [real>moon] world he sees elements from
+    39     28  modern         -> robbie          verything around him like a [modern>robbie] day don quixote the two arr
+    39     51  the            -> cup             ke a modern day don quixote [the>cup] two arrive in tokyo after a
+    39     75  after          -> drain           ote the two arrive in tokyo [after>drain] an incident at the e gaming
+    39     93  at             -> ed              in tokyo after an incident [at>ed] the e gaming exposition and
+    39    124  find           -> side            the e gaming exposition and [find>side] themselves with no money to
+    39    154  to             -> cl              nd themselves with no money [to>cl] buy plane tickets home afte
+    40     26  make           -> ring            are eventually forced to [make>ring] an independent living in ja
+    40     62  piro           -> upon            independent living in japan [piro>upon] finds work at a computer ga
+    40     78  at             -> ic              ng in japan piro finds work [at>ic] a computer game store calle
+    40     92  game           -> easy            ro finds work at a computer [game>easy] store called megagamers whi
+    40    171  the            -> due             omewhat irregular jobs with [the>due] police and as an english te
+    40    213  local          -> depth           as an english teacher at a [local>depth] high school megatokyo s pac
+    40    248  and            -> lie             igh school megatokyo s pace [and>lie] styl
+    41     64  of             -> if              ry of the comic itself much [of>if] the early humor consists of
+    41     83  consists       -> emerging        elf much of the early humor [consists>emerging] of video game culture jokes
+    41    128  as             -> mo              game culture jokes as well [as>mo] culture clash issues during
+    41    139  clash          -> union           re jokes as well as culture [clash>union] issues during this early ph
+    41    170  phase          -> solar           sh issues during this early [phase>solar] the story moved along at a
+    41    213  pace           -> test            moved along at a haphazard [pace>test] and was often interrupted b
+    41    226  often          -> gatos           at a haphazard pace and was [often>gatos] interrupted by pure gag
+    42     33  changed        -> carrier         des and dead piro days this [changed>carrier] over time with the greatest
+    42    111  took           -> cell            after gallagher completely [took>cell] over megatokyo the comic fe
+    42    121  megatokyo      -> abdulaziz       lagher completely took over [megatokyo>abdulaziz] the comic features aspects
+    42    150  aspects        -> started         egatokyo the comic features [aspects>started] from a number of different
+    42    195  manga          -> diose           mber of different anime and [manga>diose] archetypes usually making l
+    42    212  usually        -> nicolas         anime and manga archetypes [usually>nicolas] making light of the genre s
+    43     23  who            -> pcs             clich s junpei a ninja [who>pcs] takes on largo as his l thr
+    43    102  zilla          -> upper           ant saurians such as rent a [zilla>upper] roaming the streets that ca
+    43    128  that           -> burn            a zilla roaming the streets [that>burn] can be hired for specific p
+    43    172  tokyo          -> shook           d for specific purposes the [tokyo>shook] police cataclysm division w
+    43    178  police         -> virgil          specific purposes the tokyo [police>virgil] cataclysm division which fi
+    43    204  which          -> homer           o police cataclysm division [which>homer] fights the monsters with gi
+    43    248  and            -> gun             monsters with giant robots [and>gun] over
+    44     84  of             -> st              tion of predesignated areas [of>st] the city ping a cute robot
+    44    114  girl           -> moon            the city ping a cute robot [girl>moon] who becomes friends with pi
+    44    131  friends        -> raiatua         cute robot girl who becomes [friends>raiatua] with piro and a school girl
+    44    155  school         -> poorly          mes friends with piro and a [school>poorly] girl yuki who possibly is i
+    44    210  has            -> dag             ly is in love with piro and [has>dag] just started taking art les
+    44    234  art            -> six             and has just started taking [art>six] lessons from him l
+    44    251  him            -> iva             ted taking art lessons from [him>iva] l
+    45      5  somehow        -> forgery         argo [somehow>forgery] manages to become an englis
+    45     31  an             -> fu              o somehow manages to become [an>fu] english teacher at a high s
+    45     92  three          -> force           ol and teaches them about l [three>force] three seven games and hacki
+    45    149  friends        -> useless         acking dom and ed real life [friends>useless] of fred gallagher and rodne
+    46     16  armed          -> local           l americans are [armed>local] to the teeth erika is a for
+    46     46  former         -> senior          med to the teeth erika is a [former>senior] idol singer and voice actre
+    46     83  her            -> sit             ol singer and voice actress [her>sit] roommate kimiko is an aspir
+    46    203  and            -> amd             ho tohya she befriends ping [and>amd] seems to enjoy playing with
+    46    222  playing        -> concert         nds ping and seems to enjoy [playing>concert] with piro psychologically
+    46    230  with           -> rome            and seems to enjoy playing [with>rome] piro psychologically
+    47     26  chapters       -> syllabic        megatokyo is divided into [chapters>syllabic] each consisting of approxim
+    47    107  subsumes       -> reaction        ro pages chapter zero which [subsumes>reaction] all of the comic s early ex
+    47    120  of             -> va              ter zero which subsumes all [of>va] the comic s early experimen
+    47    127  comic          -> gives           o which subsumes all of the [comic>gives] s early experimental phase
+    47    209  of             -> dr              pan of about six weeks each [of>dr] the subsequent chapters chr
+    47    247  the            -> par             sequent chapters chronicles [the>par] event
+    48     44  bugs           -> logy            y the seventh chapter known [bugs>logy] and security flaws started
+    48     76  august         -> pintel          and security flaws started [august>pintel] two zero zero five usually
+    48     92  zero           -> thus            aws started august two zero [zero>thus] five usually characters in
+    48    158  some           -> took            kyo speak japanese although [some>took] speak english or l three th
+    48    206  under          -> aucti           r l three three t subtitled [under>aucti] most circumstances when a c
+    49     64  with           -> gico            urrounding the english text [with>gico] angle brackets not every ch
+    49     75  brackets       -> sighting        the english text with angle [brackets>sighting] not every character speaks
+    49     94  character      -> identidem       th angle brackets not every [character>identidem] speaks every language so oc
+    49    126  so             -> gi              acter speaks every language [so>gi] occasionally characters are
+    49    182  another        -> printed         re unable to understand one [another>printed] in several scenes a charact
+    49    232  written        -> dressed         nes a character s speech is [written>dressed] entirely in r ma
+    50     25  this           -> wife            ji japanese to emphasize [this>wife] largo for instance speaks n
+    50     82  series         -> poetry          s no japanese at all as the [series>poetry] progresses he has periods w
+    50    100  he             -> if              ll as the series progresses [he>if] has periods where he become
+    50    115  where          -> oscar           s progresses he has periods [where>oscar] he becomes more and more wi
+    50    201  zombies        -> aldoses         asy world of videogames and [zombies>aldoses] possibly because he has no
+    50    240  to             -> si              sibly because he has no one [to>si] talk to besid
+    50    243  talk           -> need            ly because he has no one to [talk>need] to besid
+    51      8  and            -> sar             es piro [and>sar] himself and boo the hamster
+    51     98  all            -> zmi             ason but who can t speak at [all>zmi] for more information on the
+    51    106  more           -> move            who can t speak at all for [more>move] information on the cast of
+    51    123  on             -> mo              at all for more information [on>mo] the cast of megatokyo see c
+    51    130  cast           -> made            for more information on the [cast>made] of megatokyo see characters
+    51    215  nine           -> thin            zero megatokyo one one two [nine>thin] ch one do you want to save
+    51    227  do             -> ga              kyo one one two nine ch one [do>ga] you want to save before yo
+    52     11  three          -> numer           u quit one [three>numer] four one nine two ch two th
+    52     17  four           -> base            u quit one three [four>base] one nine two ch two things
+    52     56  little         -> quoted          ne two ch two things change [little>quoted] by little one nine six thre
+    52     92  zero           -> plus            y little one nine six three [zero>plus] one ch three am i your numb
+    52    104  three          -> again           nine six three zero one ch [three>again] am i your number one fan th
+    52    115  your           -> hand            hree zero one ch three am i [your>hand] number one fan three zero s
+    52    141  zero           -> elia            i your number one fan three [zero>elia] seven three nine seven ch f
+    52    163  seven          -> mouth           three zero seven three nine [seven>mouth] ch four low ping rate four
+    53     72  ch             -> ex              x three nine seven two nine [ch>ex] seven known bugs seven four
+    53    121  gaps           -> glos            even four three current the [gaps>glos] in the strip number indicat
+    53    146  indicate       -> maritime        he gaps in the strip number [indicate>maritime] omake manga or other nonplo
+    53    155  omake          -> monos           n the strip number indicate [omake>monos] manga or other nonplot rela
+    53    167  or             -> au              number indicate omake manga [or>au] other nonplot related strip
+    53    216  piro           -> long            ted strips major characters [piro>long] the protagonist and the inc
+    54     19  he             -> fr              of fred gallagher [he>fr] is a fairly skilled artist
+    54     53  speaks         -> advent          a fairly skilled artist who [speaks>advent] fluent japanese and takes l
+    54     67  japanese       -> divorced        ed artist who speaks fluent [japanese>divorced] and takes largo with him to
+    54     76  and            -> can             who speaks fluent japanese [and>can] takes largo with him to jap
+    54     80  takes          -> still           speaks fluent japanese and [takes>still] largo with him to japan lar
+    54     97  him            -> her             panese and takes largo with [him>her] to japan largo the second p
+    54    139  in             -> ug              argo the second protagonist [in>ug] megatokyo and is the incarn
+    55     22  japan          -> scene           t piro brings him to [japan>scene] after he gets drunk at e th
+    55     53  three          -> irony           an after he gets drunk at e [three>irony] erika kimiko s roommate she
+    55     65  kimiko         -> second          gets drunk at e three erika [kimiko>second] s roommate she was a former
+    55    140  at             -> hk              and voice actress she works [at>hk] megagamers and is piro s co
+    55    185  erika          -> brecc           is piro s co worker kimiko [erika>brecc] s roommate she is an aspiri
+    55    239  is             -> re              aspiring voice actress and [is>re] soft spoken an
+    56      6  she            -> has             d shy [she>has] works at anna miller s rest
+    56     19  anna           -> sued            d shy she works at [anna>sued] miller s restauraunt ping a
+    56     70  two            -> hey             nt ping a robot playstation [two>hey] acessory built by sony she
+    56     97  she            -> ann             two acessory built by sony [she>ann] desires to make people happ
+    56    109  to             -> kb              y built by sony she desires [to>kb] make people happy but often
+    56    182  best           -> ruiz            emotions and situations her [best>ruiz] friend is miho miho a manip
+    57      7  both           -> wide            ent in [both>wide] english and japanese and en
+    57     12  english        -> forming         ent in both [english>forming] and japanese and enjoys toy
+    57    154  boo            -> ita             sarah fred gallagher s wife [boo>ita] a hamster with strap on win
+    57    179  on             -> ar              fe boo a hamster with strap [on>ar] wings and a temp conscience
+    57    182  wings          -> rails           boo a hamster with strap on [wings>rails] and a temp conscience who i
+    57    199  conscience     -> transition      h strap on wings and a temp [conscience>transition] who is assigned to largo as
+    57    226  to             -> uk              conscience who is assigned [to>uk] largo asmodeus piro s anti
+    58     24  to             -> ii              conscience who attempts [to>ii] undo everything that seraph
+    58    132  the            -> oil             ion of ken hashimoto one of [the>oil] megatokyo forum admistrator
+    58    146  forum          -> chase           himoto one of the megatokyo [forum>chase] admistrators junpei a ninja
+    58    152  admistrators   -> occasionally    one of the megatokyo forum [admistrators>occasionally] junpei a ninja who original
+    58    180  who            -> uae             admistrators junpei a ninja [who>uae] originally fought largo in
+    58    208  in             -> it              who originally fought largo [in>it] mortal kombat because largo
+    59     26  largo          -> simon           e is later apprenticed to [largo>simon] to learn his l three three
+    59     87  old            -> aka             t ways yuki a one five year [old>aka] high school student she com
+    59    115  comes          -> ready           old high school student she [comes>ready] upon piro s sketch book and
+    59    174  books          -> intel           nd becomes obsessed with it [books>intel] megatokyo comics are now pu
+    59    201  now            -> are             books megatokyo comics are [now>are] published by dc comics unde
+    59    240  cmx            -> taq             ed by dc comics under their [cmx>taq] manga imprin
+    60     52  dark           -> ofte            three are available through [dark>ofte] horse comics as of february
+    60     63  comics         -> budget          vailable through dark horse [comics>budget] as of february nine th two
+    60     93  two            -> hit             mics as of february nine th [two>hit] zero zero six three volumes
+    60    111  three          -> plane           y nine th two zero zero six [three>plane] volumes are available for p
+    60    228  now            -> chi             pilation of strips that are [now>chi] included in volume one g
+    60    232  included       -> earnings        tion of strips that are now [included>earnings] in volume one g
+    61     57  on             -> fm              ble to come to an agreement [on>fm] further volumes and so dark
+    61     80  so             -> on              ment on further volumes and [so>on] dark horse comics was the p
+    61     83  dark           -> kill            t on further volumes and so [dark>kill] horse comics was the publis
+    61     94  comics         -> design          r volumes and so dark horse [comics>design] was the publisher of choice
+    61    129  for            -> van             was the publisher of choice [for>van] megatokyo volumes one three
+    61    247  one            -> bil             and polish megatokyo volume [one>bil] chapt
+    62     26  one            -> nlx             er zero megatokyo vol one [one>nlx] st ed isbn one nine two nin
+    62     50  two            -> ink             one one st ed isbn one nine [two>ink] nine zero nine zero three z
+    62     74  three          -> scope           ine two nine zero nine zero [three>scope] zero seven megatokyo volume
+    62    136  two            -> hts             one two nd ed march two one [two>hts] zero zero four isbn one fiv
+    62    169  nine           -> into            ero zero four isbn one five [nine>into] three zero seven one six th
+    62    180  zero           -> snow            ur isbn one five nine three [zero>snow] seven one six three nine me
+    62    195  six            -> ago             e nine three zero seven one [six>ago] three nine megatokyo volume
+    62    243  two            -> chi             okyo volume two january two [two>chi] two zero
+    63     10  isbn           -> ctor            zero four [isbn>ctor] one five nine three zero se
+    63    102  two            -> bit             o volume three february two [two>bit] zero zero five isbn one fiv
+    63    126  one            -> due             two two zero zero five isbn [one>due] five nine three zero seven
+    63    130  five           -> case            two zero zero five isbn one [five>case] nine three zero seven three
+    63    199  zero           -> reat            e four sales as of july two [zero>reat] zero four megatokyo is the
+    63    237  best           -> know            four megatokyo is the tenth [best>know] selling manga
+    63    250  manga          -> amino           o is the tenth best selling [manga>amino]
+
+# distinct planted words: 352 of 390 substitutions
+# most-planted words:
+#      3x  ring
+#      3x  jr
+#      3x  hts
+#      3x  chi
+#      2x  reg
+#      2x  ug
+#      2x  end
+#      2x  gib
+#      2x  is
+#      2x  un
+#      2x  an
+#      2x  etc
+#      2x  cl
+#      2x  address
+#      2x  oil
+#      2x  kt
+#      2x  elia
+#      2x  uk
+#      2x  as
+#      2x  need

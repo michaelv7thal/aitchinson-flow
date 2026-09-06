@@ -1,0 +1,13 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[latent] ckpt=runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM_converge/epoch_final.pt
+[latent] t_eval=4.5 K=27 fit=192 eval=256 rate=1.0
+[latent] false-info vocab: lengths 2-16 (e.g. len-6: ['ensure', 'action', 'assist', 'safety', 'fitted'])
+[plausible] 192 seqs @ rate 1.0: 8089 slots, 15958s
+[plausible] 256 seqs @ rate 1.0: 10251 slots, 20311s
+[seq:plausible] PCA(PC1-2)=0.821  LDA-axis=1.000  full-linear=1.000  nulls=None / None
+Wrote bench_ood_final/latent_ladder_plausible/rate_1.0/latent_split_sequence.png
+[token:plausible] fit corruption from cache bench_ood_final/latent_ladder_plausible/token_fit_r0.5.pt
+[plausible] 256 seqs @ rate 1.0: 10251 slots, 20313s
+[token:plausible] PCA(PC1-2)=0.599  energy-axis=0.976  full-linear=1.000  nulls=None / None
+Wrote bench_ood_final/latent_ladder_plausible/rate_1.0/latent_split_token_plausible.png
+Wrote bench_ood_final/latent_ladder_plausible/rate_1.0/latent_split.json

@@ -38,18 +38,21 @@ from pathlib import Path
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # scripts/, for band_geometry
 import matplotlib.pyplot as plt
 from matplotlib.patches import ConnectionPatch
 
 import _style
 from _style import BASELINE, BLUE, INK, INK2, MUTED, ROLE_FIELD
+from band_geometry import A_K, geometry, t_of
 
 RUN = Path(__file__).resolve().parents[2] / "runs" / "compu_mse_det"
 FILES = ("recovery_native_path.json", "recovery_native_path_fine.json",
          "native_radius.json", "recovery_native_path_fill.json")
 
-G_FLAT = 0.005        # below this the interpolant carries no information
-G_DECIDED = 0.03      # above this its argmax is already the true character
+K, EPS, SIGMA = 27, 1e-4, 0.10
+G_FLAT = 0.005        # gamma_lo, the trained band's lower edge (A_K = 0.11)
+G_DECIDED = 0.03      # gamma*, its equilibrium (A_K = 0.95); paper sec:res-eqm-band
 UNIFORM = 1.0 / 27.0
 LINTHRESH, LINSCALE = 0.005, 0.62
 XLO, XHI = -6e-4, 1.15
@@ -114,8 +117,15 @@ def main():
     regimes(axA, 0.0, 1.0)
     axA.fill_between(g_acc, acc_pre, acc_post, color=ROLE_FIELD, alpha=0.6,
                      lw=0, zorder=3, label="_")
+    # the closed-form decode probability of the band derivation
+    # (paper app:band-edges): the measured input curve should sit on it
+    geo = geometry(K, EPS, SIGMA)
+    g_th = np.concatenate([[0.0], np.geomspace(2e-4, 0.95, 90)])
+    ak = np.array([A_K(t_of(g, geo["Delta"], SIGMA), K) for g in g_th])
+    axA.plot(g_th, ak, color=INK, lw=0.9, zorder=6,
+             label=r"closed form $A_K(t(\gamma))$")
     axA.plot(g_acc, acc_pre, color=MUTED, lw=1.5, ls=(0, (4, 2)), zorder=4,
-             label="before the descent")
+             label=r"the input $x_\gamma$")
     axA.plot(g_acc, acc_post, color=BLUE, lw=1.5, marker="o", ms=2.7, zorder=5,
              label="after the descent")
     axA.set_yticks([0, 0.5, 1.0])
@@ -128,7 +138,7 @@ def main():
 
     axA.text(0.0016, 1.09, "no\ninformation", fontsize=7, color=INK2, ha="center",
              va="center", linespacing=1.25)
-    axA.text(0.0122, 1.09, "the neighbours\nwould be needed", fontsize=7,
+    axA.text(0.0122, 1.09, "the band $[\\gamma_{\\mathrm{lo}},\\,\\gamma^{\\ast}]$:\nthe neighbours are needed", fontsize=7,
              color=INK2, ha="center", va="center", linespacing=1.25)
     axA.text(0.2, 1.09, "the input already names the token", fontsize=7,
              color=INK2, ha="center", va="center")
@@ -148,8 +158,10 @@ def main():
     axB.set_ylim(2.5e-6, 3.0)
     regimes(axB, 0.0, 1.0)
     axB.axhline(UNIFORM, color=BASELINE, lw=0.7, zorder=1)
-    axB.plot(g_in, p_in, color=MUTED, lw=1.5, ls=(0, (4, 2)), zorder=3)
-    axB.plot(g_out, p_out, color=BLUE, lw=1.6, marker="o", ms=2.9, zorder=4)
+    axB.plot(g_in, p_in, color=MUTED, lw=1.5, ls=(0, (4, 2)), zorder=3,
+             label=r"the input $x_\gamma$")
+    axB.plot(g_out, p_out, color=BLUE, lw=1.6, marker="o", ms=2.9, zorder=4,
+             label="after the descent")
     axB.minorticks_off()
     axB.set_yticks([1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1.0])
     axB.set_yticklabels([r"$10^{-5}$", r"$10^{-4}$", r"$10^{-3}$",
@@ -157,16 +169,21 @@ def main():
     # landmark ticks, every one a measured gamma; the paper caption lists the
     # full 18-point grid the markers sit on
     axB.set_xticks([0.0, 0.005, 0.03, 0.05, 0.1, 0.3, 0.9])
-    axB.set_xticklabels(["0", "0.005", "0.03", "0.05", "0.1", "0.3", "0.9"])
+    axB.set_xticklabels(["0",
+                         "$\\gamma_{\\mathrm{lo}}$\n0.005",
+                         "$\\gamma^{\\ast}$\n0.03",
+                         "0.05", "0.1", "0.3", "0.9"])
     axB.tick_params(axis="y", left=True, labelleft=True, labelsize=7)
     axB.tick_params(axis="x", which="major", bottom=True, labelbottom=True,
                     labelsize=7, length=2.6, pad=2)
     axB.grid(False)
-    axB.set_ylabel("mass on the true character", fontsize=8, color=INK2,
+    axB.legend(loc="lower right", bbox_to_anchor=(1.0, 0.02), fontsize=7.2,
+               labelcolor=INK2, borderpad=0.2)
+    axB.set_ylabel("mean mass on the\ntrue character", fontsize=8, color=INK2,
                    labelpad=3)
     axB.set_xlabel(r"$\gamma$: position along the training path "
                    r"$x_\gamma=(1-\gamma)x_0+\gamma x_1$", fontsize=8.5,
-                   labelpad=3)
+                   labelpad=6)
 
     axB.text(1.14, UNIFORM * 1.45, r"uniform chance $1/K$", fontsize=7,
              color=MUTED, ha="right", va="bottom")

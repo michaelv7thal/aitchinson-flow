@@ -1,0 +1,7 @@
+### [2026-09-02_21:51:21] logreg  --train-schemes replace --t-eval 4.5
+### [2026-09-02_22:06:32] logreg exit 0
+### [2026-09-02_22:06:32] logreg_fi  --train-schemes falseinfo --t-eval 4.5
+### [2026-09-02_22:21:41] logreg_fi exit 0
+### [2026-09-02_22:21:41] logreg_adv  --train-schemes replace,shuffle,falseinfo,both --t-eval 7.5
+### [2026-09-02_22:38:13] logreg_adv exit 0
+### [2026-09-02_22:38:13] LOGREG FAMILY COMPLETE

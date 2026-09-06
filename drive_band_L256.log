@@ -25101,3 +25101,289 @@ Wrote runs/band_L256_ep10_d10k/recovery_bandmap_a10.json
 Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
 [band-ood] runs/band_L256_ep10_d10k/epoch_final.pt
 [band-ood] L=256 K=27 sigma=0.1 decay=band gamma_lo=0.005 gamma_hi=0.03 gamma_star=0.03 lambda=1.0
+
+=== gamma=0.005  [in band]  clean |E| mean=89.58 U_pos mean=2.621
+  scheme  rate  AU_char  AU_word_max  AU_word_mean  AU_seq_E  AU_seq_|E|
+ replace  0.05   0.4551       0.6079        0.5092    0.5628      0.4372
+ replace  0.10   0.4537       0.6246        0.5275    0.6204      0.3796
+ replace  0.15   0.4556       0.6370        0.5249    0.6724      0.3276
+ replace  0.20   0.4562       0.6539        0.5270    0.7271      0.2729
+ replace  0.30   0.4558       0.6877        0.5388    0.8139      0.1861
+ shuffle  0.05   0.5012       0.6065        0.5262    0.5051      0.4949
+ shuffle  0.10   0.4978       0.6247        0.5324    0.5137      0.4863
+ shuffle  0.15   0.4905       0.6358        0.5264    0.5130      0.4870
+ shuffle  0.20   0.4924       0.6507        0.5272    0.5219      0.4781
+ shuffle  0.30   0.4886       0.6931        0.5559    0.5307      0.4693
+
+=== gamma=0.01  [in band]  clean |E| mean=105.6 U_pos mean=3.175
+  scheme  rate  AU_char  AU_word_max  AU_word_mean  AU_seq_E  AU_seq_|E|
+ replace  0.05   0.3815       0.5714        0.4675    0.6259      0.3741
+ replace  0.10   0.3845       0.5842        0.4735    0.7345      0.2655
+ replace  0.15   0.3858       0.5928        0.4705    0.8163      0.1837
+ replace  0.20   0.3882       0.6048        0.4659    0.8898      0.1102
+ replace  0.30   0.3880       0.6331        0.4717    0.9646      0.0354
+ shuffle  0.05   0.4697       0.5774        0.4909    0.5280      0.4720
+ shuffle  0.10   0.4663       0.6015        0.4939    0.5631      0.4369
+ shuffle  0.15   0.4661       0.6115        0.4981    0.5774      0.4226
+ shuffle  0.20   0.4629       0.6207        0.4983    0.6136      0.3864
+ shuffle  0.30   0.4652       0.6603        0.5239    0.6570      0.3430
+
+=== gamma=0.016  [in band]  clean |E| mean=146.8 U_pos mean=3.775
+  scheme  rate  AU_char  AU_word_max  AU_word_mean  AU_seq_E  AU_seq_|E|
+ replace  0.05   0.2819       0.5346        0.3889    0.6872      0.3128
+ replace  0.10   0.2900       0.5398        0.3821    0.8325      0.1675
+ replace  0.15   0.2919       0.5448        0.3711    0.9146      0.0854
+ replace  0.20   0.2964       0.5584        0.3638    0.9709      0.0291
+ replace  0.30   0.3018       0.5684        0.3448    0.9967      0.0033
+ shuffle  0.05   0.3916       0.5399        0.4188    0.5766      0.4234
+ shuffle  0.10   0.3961       0.5605        0.4183    0.6567      0.3433
+ shuffle  0.15   0.4064       0.5755        0.4296    0.7069      0.2931
+ shuffle  0.20   0.4044       0.5818        0.4262    0.7783      0.2217
+ shuffle  0.30   0.4167       0.6231        0.4494    0.8597      0.1403
+
+=== gamma=0.02  [in band]  clean |E| mean=183 U_pos mean=3.354
+  scheme  rate  AU_char  AU_word_max  AU_word_mean  AU_seq_E  AU_seq_|E|
+ replace  0.05   0.2428       0.5225        0.3457    0.7224      0.2776
+ replace  0.10   0.2525       0.5330        0.3380    0.8779      0.1221
+ replace  0.15   0.2567       0.5382        0.3273    0.9517      0.0483
+ replace  0.20   0.2621       0.5498        0.3166    0.9874      0.0126
+ replace  0.30   0.2701       0.5537        0.2863    0.9991      0.0009
+ shuffle  0.05   0.3539       0.5287        0.3821    0.6029      0.3971
+ shuffle  0.10   0.3618       0.5507        0.3824    0.7048      0.2952
+ shuffle  0.15   0.3762       0.5621        0.3901    0.7703      0.2297
+ shuffle  0.20   0.3789       0.5698        0.3832    0.8463      0.1537
+ shuffle  0.30   0.3941       0.6069        0.4039    0.9210      0.0790
+
+=== gamma=0.03  [in band]  clean |E| mean=239 U_pos mean=0.4816
+  scheme  rate  AU_char  AU_word_max  AU_word_mean  AU_seq_E  AU_seq_|E|
+ replace  0.05   0.4434       0.5691        0.4864    0.7553      0.2447
+ replace  0.10   0.4336       0.5835        0.4881    0.9089      0.0911
+ replace  0.15   0.4213       0.5925        0.4895    0.9672      0.0328
+ replace  0.20   0.4070       0.5894        0.4711    0.9941      0.0059
+ replace  0.30   0.4065       0.5945        0.4469    0.9997      0.0003
+ shuffle  0.05   0.4695       0.5690        0.4952    0.6241      0.3759
+ shuffle  0.10   0.4645       0.5774        0.4834    0.7475      0.2525
+ shuffle  0.15   0.4721       0.5769        0.4760    0.8223      0.1777
+ shuffle  0.20   0.4690       0.5894        0.4834    0.8974      0.1026
+ shuffle  0.30   0.4706       0.6134        0.4859    0.9551      0.0449
+
+=== gamma=1  [data scale (control)]  clean |E| mean=6012 U_pos mean=4.572
+  scheme  rate  AU_char  AU_word_max  AU_word_mean  AU_seq_E  AU_seq_|E|
+ replace  0.05   0.5373       0.6598        0.5954    0.3130      0.6870
+ replace  0.10   0.5302       0.6805        0.6118    0.1921      0.8079
+ replace  0.15   0.5183       0.6958        0.6180    0.1078      0.8922
+ replace  0.20   0.5146       0.7126        0.6306    0.0807      0.9193
+ replace  0.30   0.4909       0.7355        0.6361    0.0402      0.9598
+ shuffle  0.05   0.4893       0.5906        0.5272    0.5108      0.4892
+ shuffle  0.10   0.4912       0.6129        0.5346    0.5098      0.4902
+ shuffle  0.15   0.4948       0.6191        0.5360    0.4962      0.5038
+ shuffle  0.20   0.4932       0.6310        0.5400    0.5020      0.4980
+ shuffle  0.30   0.4952       0.6658        0.5659    0.4982      0.5018
+
+Wrote runs/band_L256_ep10_d10k/band_ood.json
+best word-max AUROC 0.7355 at gamma=1, replace 0.30
+paper reference at rate 0.15: Dirichlet FM denoiser NLL 0.981 word-level, GPT-2 baselines at most 0.75, chance 0.5
+### stage 4/4  the whole-path benchmark arm, same two protocols (control)
+  control alpha=0.3  rescale g=0.0237
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+=== Unconditional generation === SKIPPED (--skip-uncond)
+
+=== Recovery from perturbation ===
+  embed_norm_mean=12.2723  σ_source=0.1000
+    α  σ_perturb        Δ  tok_acc tok_acc_pt    KL_bi  sample[0]: gt / pt / rc
+ 0.30      3.682  -0.0216   0.8741     0.8957   0.2874  gt='e the capital of one government after another one of such governments was established in one eight six four as a second mexican empire the short lived monarchy led by maximilian of habsburg left its mark on the reconstruction of chapultepec castle and othe'
+                                             pt='e the cajitpu of one govbrxment afqer anothrr one of such govergments mas establishedqin one eight six fdur as a seconk mexican empire the shortalived mofarchy aed by mawimilian of hmbsburg left its rark on the rpconstruction of ch puxtepec castle and othe'
+                                             rc='e the calitpu of one goverxment after anothrr one of such govergments  as established in one eight six frar as a second menican empire the shortalived mooarchy aed cy mawiiilian of habsburg left its rark on tte rlconstruction of ch puitepec castte and othe'
+
+Wrote runs/sflm_bench_a100_20g_L256/EqM_OneHot_gp1p0/recovery_bandmap_a03.json
+  control alpha=0.5  rescale g=0.0160
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+=== Unconditional generation === SKIPPED (--skip-uncond)
+
+=== Recovery from perturbation ===
+  embed_norm_mean=12.2723  σ_source=0.1000
+    α  σ_perturb        Δ  tok_acc tok_acc_pt    KL_bi  sample[0]: gt / pt / rc
+ 0.50      6.136   0.0433   0.5662     0.5229   1.0463  gt='e the capital of one government after another one of such governments was established in one eight six four as a second mexican empire the short lived monarchy led by maximilian of habsburg left its mark on the reconstruction of chapultepec castle and othe'
+                                             pt='k thezclphral of zni goyrrnmeltr ster anatver oye ll sumhjxoyllnreqts whszesyabhiphxdtiwrore eiphfsw xhbouw ak nuiecxip mfxican ekpcdefthedohlrt libegrgoyarhj glcmebqemgkismfots omcquob urg yehobtts kgryo npthe aenoxssruoupcfioftchbjultevec bavnlepand nthe'
+                                             rc='e theocnphta  of oni govrrnmeltr ster anather one pl suth xoynlnrento nas estanlishi ainrore e ahfsw rheo y at a iecoid iflican  uscde rhe ohlrt r beirlo aahe tle  b e a iso oto oonhaen urn aeho tts tarh  n the aenonstruouic iofteh pultepee eavnae and ntne'
+
+Wrote runs/sflm_bench_a100_20g_L256/EqM_OneHot_gp1p0/recovery_bandmap_a05.json
+  control alpha=0.6  rescale g=0.01342
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+=== Unconditional generation === SKIPPED (--skip-uncond)
+
+=== Recovery from perturbation ===
+  embed_norm_mean=12.2723  σ_source=0.1000
+    α  σ_perturb        Δ  tok_acc tok_acc_pt    KL_bi  sample[0]: gt / pt / rc
+ 0.60      7.363   0.0619   0.4642     0.4023   1.2654  gt='e the capital of one government after another one of such governments was established in one eight six four as a second mexican empire the short lived monarchy led by maximilian of habsburg left its mark on the reconstruction of chapultepec castle and othe'
+                                             pt='oerrv xqpvta w f kdn gqkorviyqtacfahr aqoslqtyoneoorebuchzgofpratena  yasiosljbleqhodfiwmoae ecgeigstxxfkuvpaltd wmoona mlgdnanzezcy edmcudyarev llked mrnarcjy ktd nqcwaxp wliad oipyabjbwxenleet nts mxvk pysuhexooyoamlruczmohsff uhoculmeqecuxdszlfzvzz otqe'
+                                             rc='oetra  npita   i ddn go orxieataafahr antseat oneoorer  h aoh ritena  was ost ble hod is oae ecgetestx four alta sloona tlgdnan  bcy e jcudsarea llved  enarcal s d nn waxp fli t oi ia sssrenleet nrs m i  rnsaheeo aoallr co ohsof oh slnae et ea slrulnd otte'
+
+Wrote runs/sflm_bench_a100_20g_L256/EqM_OneHot_gp1p0/recovery_bandmap_a06.json
+  control alpha=0.7  rescale g=0.01165
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+=== Unconditional generation === SKIPPED (--skip-uncond)
+
+=== Recovery from perturbation ===
+  embed_norm_mean=12.2723  σ_source=0.1000
+    α  σ_perturb        Δ  tok_acc tok_acc_pt    KL_bi  sample[0]: gt / pt / rc
+ 0.70      8.591   0.0716   0.3931     0.3214   1.3845  gt='e the capital of one government after another one of such governments was established in one eight six four as a second mexican empire the short lived monarchy led by maximilian of habsburg left its mark on the reconstruction of chapultepec castle and othe'
+                                             pt='yvnhve vwitiorbfybtk gwveggmvnovokirrihvgphwr onm ewjancs boiebnkdnjlsprs nkbablqshm  olsoasdsogtt uoxysvul gqeoxswbony mzrhtad emaiscdrzh sqdnxmix sd nplxzzhyppeufbxzkstix lnap oo jautbcrkmlefi stkkmahdnflmirewreajnsjryobiox qo lykhwhtzesz cvsmlpuanmihksh'
+                                             rc='e  hee iwitior  aott gwveogmeeo oeirriheophwr onm ao anri soieonodnnt wrs eliablishc  oisoas sogtt  ot antl  ieansweony marita  emaise rnt ssdn ti  sd nnlaehayp e e e setia lnap oo  autiara lefi stp mah  rlairedreatnsorlaniot qf l ah lteen  cvxcl  ani hnsh'
+
+Wrote runs/sflm_bench_a100_20g_L256/EqM_OneHot_gp1p0/recovery_bandmap_a07.json
+  control alpha=0.8  rescale g=0.01027
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+=== Unconditional generation === SKIPPED (--skip-uncond)
+
+=== Recovery from perturbation ===
+  embed_norm_mean=12.2723  σ_source=0.1000
+    α  σ_perturb        Δ  tok_acc tok_acc_pt    KL_bi  sample[0]: gt / pt / rc
+ 0.80      9.818   0.0751   0.3404     0.2653   1.4656  gt='e the capital of one government after another one of such governments was established in one eight six four as a second mexican empire the short lived monarchy led by maximilian of habsburg left its mark on the reconstruction of chapultepec castle and othe'
+                                             pt=' isc tfzpiwajsajlgne cljr n ecamqfpea etummei oaejwfesesbho voifx otsrkafujktvvojfjedjur jze ebngvkkxxyrbce lsrqyrjbinf xqwccxu nbdrrt mhxsuburq lezf vmosarcmyyl drbz ybycxtlyanfff powvyudfbgletoptkt ldtqdlvwdedhaxon gjdxqion owfctn ujhtsbcarjyfle lbdkoeyj'
+                                             rc=' isc aespita sa ltne nl r n ecanlopea etnteei oae pfesesbht voifo ntsr a  e ta oafled ut one e nnrvsr rrnce ls aertbinr mewceii n drrt aho ob af le f   os aooy l trha xn   tl an ot hole urp xletoptat lrt dl rdedhaxon griecion ov htn  iit ecara rle lydwoeyt'
+
+Wrote runs/sflm_bench_a100_20g_L256/EqM_OneHot_gp1p0/recovery_bandmap_a08.json
+  control alpha=1.0  rescale g=0.0083
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+=== Unconditional generation === SKIPPED (--skip-uncond)
+
+=== Recovery from perturbation ===
+  embed_norm_mean=12.2723  σ_source=0.1000
+    α  σ_perturb        Δ  tok_acc tok_acc_pt    KL_bi  sample[0]: gt / pt / rc
+ 1.00     12.272   0.0743   0.2686     0.1943   1.5331  gt='e the capital of one government after another one of such governments was established in one eight six four as a second mexican empire the short lived monarchy led by maximilian of habsburg left its mark on the reconstruction of chapultepec castle and othe'
+                                             pt='x rhihfckmtal cbyuxvsgecbdqecnteafteozmjttamtponaloxzjmglinveouniqntzwyesaekkhq  nxwovwjsvvppai ht audmfqvddrq cibjmdglfcelisodgpdxnagmgetmukgfvevnoeghtwqwbthholpiqe  lztmwbcq jrmsfycgspzegopzav qpgrjajulqjsrjeoriccthsqidqbiozuf dkdkfmwewsbjpqhnyhejqdawtde'
+                                             rc='e rhihec ital oneedissec are n eafterinnttateeona oxttamlinreoanifntawtesaegka   neeo ees ippai ht aidaf vh rt  isdad lfcelis nrpdanag getpvn fbettoerhtwnabthcoloi e  l t agch rrrifya s segowaao iig  arultt rie ricnthtr ceiih tf ona fltewee ashn heawd  ede'
+
+Wrote runs/sflm_bench_a100_20g_L256/EqM_OneHot_gp1p0/recovery_bandmap_a10.json
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[band-ood] runs/sflm_bench_a100_20g_L256/EqM_OneHot_gp1p0/epoch_final.pt
+[band-ood] L=256 K=27 sigma=0.1 decay=linear gamma_lo=0.0 gamma_hi=1.0 gamma_star=0.05 lambda=3.0
+[band-ood] NOTE: this checkpoint was trained on the whole path, so it is the control, not a band cell.
+
+=== gamma=0.005  [in band]  clean |E| mean=50.07 U_pos mean=0.9851
+  scheme  rate  AU_char  AU_word_max  AU_word_mean  AU_seq_E  AU_seq_|E|
+ replace  0.05   0.4724       0.5997        0.5071    0.5545      0.4455
+ replace  0.10   0.4698       0.6173        0.5163    0.6063      0.3937
+ replace  0.15   0.4683       0.6269        0.5166    0.6509      0.3491
+ replace  0.20   0.4697       0.6427        0.5134    0.6998      0.3002
+ replace  0.30   0.4715       0.6819        0.5311    0.7801      0.2199
+ shuffle  0.05   0.4983       0.5890        0.5058    0.5001      0.4999
+ shuffle  0.10   0.5001       0.6261        0.5334    0.5034      0.4966
+ shuffle  0.15   0.4991       0.6274        0.5209    0.4987      0.5013
+ shuffle  0.20   0.5020       0.6465        0.5265    0.4990      0.5010
+ shuffle  0.30   0.4963       0.6758        0.5353    0.4999      0.5001
+
+=== gamma=0.01  [in band]  clean |E| mean=54.97 U_pos mean=1.163
+  scheme  rate  AU_char  AU_word_max  AU_word_mean  AU_seq_E  AU_seq_|E|
+ replace  0.05   0.4248       0.5829        0.4886    0.6027      0.3973
+ replace  0.10   0.4166       0.5982        0.4909    0.6957      0.3043
+ replace  0.15   0.4179       0.6091        0.4870    0.7700      0.2300
+ replace  0.20   0.4188       0.6272        0.4886    0.8427      0.1573
+ replace  0.30   0.4203       0.6648        0.5024    0.9280      0.0720
+ shuffle  0.05   0.5023       0.5847        0.4983    0.4989      0.5011
+ shuffle  0.10   0.5006       0.6177        0.5182    0.5050      0.4950
+ shuffle  0.15   0.4991       0.6219        0.5140    0.4984      0.5016
+ shuffle  0.20   0.4942       0.6363        0.5114    0.5024      0.4976
+ shuffle  0.30   0.4938       0.6694        0.5308    0.4998      0.5002
+
+=== gamma=0.016  [in band]  clean |E| mean=70.59 U_pos mean=2.022
+  scheme  rate  AU_char  AU_word_max  AU_word_mean  AU_seq_E  AU_seq_|E|
+ replace  0.05   0.3561       0.5751        0.4454    0.6239      0.3761
+ replace  0.10   0.3472       0.5768        0.4392    0.7425      0.2575
+ replace  0.15   0.3494       0.5893        0.4304    0.8236      0.1764
+ replace  0.20   0.3508       0.6020        0.4254    0.9091      0.0909
+ replace  0.30   0.3470       0.6258        0.4143    0.9711      0.0289
+ shuffle  0.05   0.4966       0.5829        0.4926    0.4991      0.5009
+ shuffle  0.10   0.4964       0.6181        0.5000    0.5059      0.4941
+ shuffle  0.15   0.4964       0.6217        0.4963    0.4989      0.5011
+ shuffle  0.20   0.4914       0.6371        0.5000    0.5059      0.4941
+ shuffle  0.30   0.4915       0.6692        0.5080    0.5027      0.4973
+
+=== gamma=0.02  [in band]  clean |E| mean=92.58 U_pos mean=2.713
+  scheme  rate  AU_char  AU_word_max  AU_word_mean  AU_seq_E  AU_seq_|E|
+ replace  0.05   0.3335       0.5765        0.4275    0.6328      0.3672
+ replace  0.10   0.3264       0.5792        0.4221    0.7582      0.2418
+ replace  0.15   0.3279       0.5886        0.4078    0.8419      0.1581
+ replace  0.20   0.3262       0.5990        0.3939    0.9267      0.0733
+ replace  0.30   0.3217       0.6153        0.3752    0.9787      0.0213
+ shuffle  0.05   0.4939       0.5775        0.4886    0.4989      0.5011
+ shuffle  0.10   0.4919       0.6195        0.4896    0.5070      0.4930
+ shuffle  0.15   0.4949       0.6276        0.4875    0.5006      0.4994
+ shuffle  0.20   0.4905       0.6392        0.4915    0.5052      0.4948
+ shuffle  0.30   0.4911       0.6733        0.5005    0.5058      0.4942
+
+=== gamma=0.03  [in band]  clean |E| mean=184.8 U_pos mean=3.664
+  scheme  rate  AU_char  AU_word_max  AU_word_mean  AU_seq_E  AU_seq_|E|
+ replace  0.05   0.3629       0.5870        0.4134    0.6342      0.3658
+ replace  0.10   0.3487       0.5903        0.3973    0.7656      0.2344
+ replace  0.15   0.3491       0.6000        0.3860    0.8529      0.1471
+ replace  0.20   0.3423       0.6124        0.3708    0.9358      0.0642
+ replace  0.30   0.3297       0.6290        0.3402    0.9813      0.0187
+ shuffle  0.05   0.4914       0.5907        0.4836    0.4980      0.5020
+ shuffle  0.10   0.4943       0.6151        0.4753    0.5070      0.4930
+ shuffle  0.15   0.5003       0.6298        0.4810    0.5069      0.4931
+ shuffle  0.20   0.4980       0.6447        0.4791    0.5042      0.4958
+ shuffle  0.30   0.4982       0.6764        0.4739    0.5042      0.4958
+
+=== gamma=1  [data scale (control)]  clean |E| mean=6198 U_pos mean=0.07211
+  scheme  rate  AU_char  AU_word_max  AU_word_mean  AU_seq_E  AU_seq_|E|
+ replace  0.05   0.6292       0.6684        0.6013    0.5776      0.4224
+ replace  0.10   0.6512       0.6979        0.6216    0.6367      0.3633
+ replace  0.15   0.6534       0.7216        0.6363    0.6830      0.3170
+ replace  0.20   0.6611       0.7490        0.6545    0.7498      0.2502
+ replace  0.30   0.6607       0.7904        0.6819    0.8379      0.1621
+ shuffle  0.05   0.5020       0.5924        0.5267    0.5005      0.4995
+ shuffle  0.10   0.5053       0.6056        0.5157    0.5001      0.4999
+ shuffle  0.15   0.4971       0.6174        0.5166    0.4996      0.5004
+ shuffle  0.20   0.5045       0.6324        0.5254    0.5035      0.4965
+ shuffle  0.30   0.5049       0.6625        0.5308    0.4991      0.5009
+
+Wrote runs/sflm_bench_a100_20g_L256/EqM_OneHot_gp1p0/band_ood.json
+best word-max AUROC 0.7904 at gamma=1, replace 0.30
+paper reference at rate 0.15: Dirichlet FM denoiser NLL 0.981 word-level, GPT-2 baselines at most 0.75, chance 0.5
+
+==============================================================================
+1. GENERATION  (lower is better)
+==============================================================================
+THIS RUN  band_L256_ep10_d10k              0.010  0.265  1.744   H_ratio 0.975
+    'ecoat aalsqsarut w tha aults lore d ng pomngnton oofnanenfo wem aliti e ne es e a canintainr rom'
+    'n f phiem twh nd orereanas re  at ue atie ivops wuias ooge orvosde o e t wor ibn aiy eime mof an'
+    'eco cipin stahat e onar ewonce aca sthe onertococa cun on  bce aiy f ot o sne t msche se a ithh '
+                                          KL_uni  KL_bi KL_tri
+tab:gen  EqM det-CLR, whole path, L=256    0.018  1.582  5.042
+tab:gen  Dirichlet FM, matched budget      0.009  0.959  4.088
+tab:gen  Discrete FM (collapsed flag)      0.001  1.466  5.141
+L=40     band 5ep/50k                      0.018  0.287  1.781
+L=40     Discrete FM control 5ep/50k       0.007  0.148  1.402
+
+==============================================================================
+2. RECOVERY, input rescaled into the band  (Delta vs the unrescaled argmax)
+==============================================================================
+                                       a=0.3     a=0.5     a=0.6     a=0.7     a=0.8     a=1.0
+THIS RUN  band_L256_ep10_d10k         +0.040    +0.122    +0.123    +0.117    +0.109    +0.097
+CONTROL   EqM_OneHot_gp1p0            -0.022    +0.043    +0.062    +0.072    +0.075    +0.074
+L=40      band 5ep/50k, rescaled      +0.046    +0.161         —    +0.155         —    +0.122
+L=40      whole path, rescaled        -0.014    +0.048         —    +0.074         —    +0.071
+tab:gen   EqM det-CLR, no rescale     -0.000    -0.094         —    -0.158    -0.125         —
+tab:gen   Dirichlet FM, matched       +0.051    +0.090         —    +0.101    +0.094         —
+tab:gen   Dirichlet FM, full corpus    +0.139    +0.282         —    +0.289    +0.184         —
+  a=0.6 is where every transport budget peaks; a=0.8 is the matched-damage
+  column tab:gen reads the Fisher-Rao arms at. Neither has an L=40 reference.
+
+==============================================================================
+3. OOD  (word-level AUROC of per-position ||grad E||, max-pooled)
+==============================================================================
+THIS RUN band_L256_ep10_d10k   band_trained=True
+     replace @0.15: best 0.696 at gamma=1, data scale 0.696
+     shuffle @0.15: best 0.636 at gamma=0.005, data scale 0.619
+    best overall 0.736 (gamma=1, replace 0.30)
+CONTROL  EqM_OneHot_gp1p0   band_trained=False
+     replace @0.15: best 0.722 at gamma=1, data scale 0.722
+     shuffle @0.15: best 0.630 at gamma=0.03, data scale 0.617
+    best overall 0.790 (gamma=1, replace 0.30)
+  reference @0.15: Dirichlet FM denoiser NLL 0.981 word-level, GPT-2 <= 0.75, chance 0.5
+==============================================================================
+
+Done. Re-print this summary any time with:  ./drive_band_L256.sh summary
+Everything landed in runs/band_L256_ep10_d10k (and the control's own directory).

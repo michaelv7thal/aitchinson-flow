@@ -1,0 +1,594 @@
+{
+  "source": "HF afmck/text8",
+  "git_sha": "0a059199070c9feb7a352207fbae122321c45efb",
+  "written": "2026-09-03T21:00:13+00:00",
+  "article": "bench_ood_final/transfer/semaglutide_article_extract.json",
+  "split_chars": {
+    "train": 90000000,
+    "validation": 5000000,
+    "test": 5000000
+  },
+  "split_words": {
+    "train": 15301749,
+    "validation": 848226,
+    "test": 855233
+  },
+  "split_types": {
+    "train": 239974,
+    "validation": 45371,
+    "test": 47725
+  },
+  "term_counts": {
+    "the drug and its brands": {
+      "train": {
+        "semaglutide": 0,
+        "ozempic": 0,
+        "wegovy": 0,
+        "rybelsus": 0
+      },
+      "validation": {
+        "semaglutide": 0,
+        "ozempic": 0,
+        "wegovy": 0,
+        "rybelsus": 0
+      },
+      "test": {
+        "semaglutide": 0,
+        "ozempic": 0,
+        "wegovy": 0,
+        "rybelsus": 0
+      }
+    },
+    "the same drug class": {
+      "train": {
+        "liraglutide": 0,
+        "exenatide": 1,
+        "byetta": 1,
+        "victoza": 0,
+        "dulaglutide": 0,
+        "lixisenatide": 0,
+        "albiglutide": 0,
+        "tirzepatide": 0,
+        "incretin": 0,
+        "glp": 2,
+        "agonist": 10,
+        "agonists": 23
+      },
+      "validation": {
+        "liraglutide": 0,
+        "exenatide": 0,
+        "byetta": 0,
+        "victoza": 0,
+        "dulaglutide": 0,
+        "lixisenatide": 0,
+        "albiglutide": 0,
+        "tirzepatide": 0,
+        "incretin": 0,
+        "glp": 0,
+        "agonist": 0,
+        "agonists": 0
+      },
+      "test": {
+        "liraglutide": 0,
+        "exenatide": 0,
+        "byetta": 0,
+        "victoza": 0,
+        "dulaglutide": 0,
+        "lixisenatide": 0,
+        "albiglutide": 0,
+        "tirzepatide": 0,
+        "incretin": 0,
+        "glp": 0,
+        "agonist": 1,
+        "agonists": 2
+      }
+    },
+    "underlying biology": {
+      "train": {
+        "glucagon": 19,
+        "insulin": 347,
+        "peptide": 57,
+        "peptides": 15,
+        "hormone": 153,
+        "hormones": 160,
+        "pancreas": 46,
+        "pancreatic": 28,
+        "islet": 35,
+        "islets": 72,
+        "receptor": 176,
+        "receptors": 169,
+        "glucose": 367,
+        "metabolism": 163,
+        "metabolic": 106,
+        "endocrine": 77,
+        "subcutaneous": 5
+      },
+      "validation": {
+        "glucagon": 0,
+        "insulin": 1,
+        "peptide": 0,
+        "peptides": 1,
+        "hormone": 0,
+        "hormones": 0,
+        "pancreas": 1,
+        "pancreatic": 0,
+        "islet": 2,
+        "islets": 6,
+        "receptor": 6,
+        "receptors": 5,
+        "glucose": 3,
+        "metabolism": 5,
+        "metabolic": 7,
+        "endocrine": 0,
+        "subcutaneous": 0
+      },
+      "test": {
+        "glucagon": 0,
+        "insulin": 0,
+        "peptide": 0,
+        "peptides": 1,
+        "hormone": 4,
+        "hormones": 4,
+        "pancreas": 0,
+        "pancreatic": 0,
+        "islet": 0,
+        "islets": 1,
+        "receptor": 5,
+        "receptors": 6,
+        "glucose": 9,
+        "metabolism": 30,
+        "metabolic": 17,
+        "endocrine": 1,
+        "subcutaneous": 1
+      }
+    },
+    "the conditions it treats": {
+      "train": {
+        "diabetes": 149,
+        "diabetic": 37,
+        "obesity": 41,
+        "obese": 24,
+        "overweight": 28,
+        "hypoglycemia": 150,
+        "hyperglycaemia": 0,
+        "hyperglycemia": 8
+      },
+      "validation": {
+        "diabetes": 2,
+        "diabetic": 0,
+        "obesity": 2,
+        "obese": 0,
+        "overweight": 1,
+        "hypoglycemia": 0,
+        "hyperglycaemia": 0,
+        "hyperglycemia": 0
+      },
+      "test": {
+        "diabetes": 6,
+        "diabetic": 0,
+        "obesity": 2,
+        "obese": 0,
+        "overweight": 0,
+        "hypoglycemia": 0,
+        "hyperglycaemia": 0,
+        "hyperglycemia": 0
+      }
+    },
+    "pharmacology and trials": {
+      "train": {
+        "pharmacokinetics": 7,
+        "placebo": 43,
+        "clinical": 372,
+        "trials": 364,
+        "dose": 189,
+        "dosage": 49,
+        "nausea": 70,
+        "efficacy": 86,
+        "approval": 431,
+        "nordisk": 11
+      },
+      "validation": {
+        "pharmacokinetics": 0,
+        "placebo": 0,
+        "clinical": 10,
+        "trials": 7,
+        "dose": 3,
+        "dosage": 2,
+        "nausea": 1,
+        "efficacy": 2,
+        "approval": 23,
+        "nordisk": 2
+      },
+      "test": {
+        "pharmacokinetics": 0,
+        "placebo": 1,
+        "clinical": 16,
+        "trials": 21,
+        "dose": 7,
+        "dosage": 1,
+        "nausea": 1,
+        "efficacy": 3,
+        "approval": 15,
+        "nordisk": 0
+      }
+    }
+  },
+  "phrase_counts": {
+    "the molecular target": {
+      "glucagon like": {
+        "train": 0,
+        "validation": 0,
+        "test": 0
+      },
+      "glp one": {
+        "train": 0,
+        "validation": 0,
+        "test": 0
+      },
+      "glucagon like peptide": {
+        "train": 0,
+        "validation": 0,
+        "test": 0
+      }
+    },
+    "the manufacturer": {
+      "novo nordisk": {
+        "train": 5,
+        "validation": 0,
+        "test": 0
+      }
+    },
+    "the disease": {
+      "type two diabetes": {
+        "train": 8,
+        "validation": 1,
+        "test": 0
+      }
+    }
+  },
+  "article_vs_train": {
+    "chars": 40426,
+    "tokens": 6396,
+    "types": 1583,
+    "unseen_types": 110,
+    "unseen_type_rate": 0.06948831332912192,
+    "unseen_tokens": 304,
+    "unseen_token_rate": 0.047529706066291436,
+    "unseen_type_list": [
+      "agrp",
+      "alkem",
+      "alterme",
+      "ampk",
+      "angptl",
+      "anorexigenic",
+      "anvisa",
+      "apotex",
+      "arteritic",
+      "autophagy",
+      "bariatric",
+      "belching",
+      "biomm",
+      "bjerre",
+      "bullous",
+      "chmp",
+      "cholelithiasis",
+      "cirrhotic",
+      "cspc",
+      "cxcl",
+      "dipeptidyl",
+      "doustdar",
+      "downregulating",
+      "dulaglutide",
+      "dysglycemia",
+      "endotoxins",
+      "eosinophilic",
+      "foxo",
+      "glenmark",
+      "glipiq",
+      "goodrx",
+      "habener",
+      "hepaglide",
+      "hfpef",
+      "hims",
+      "huadong",
+      "hypera",
+      "immunoregulatory",
+      "incretin",
+      "injectables",
+      "jesper",
+      "jiuyuan",
+      "jnk",
+      "juul",
+      "kayshild",
+      "lifesciences",
+      "lipogenic",
+      "lipopolysaccharides",
+      "liraglutide",
+      "mashema",
+      "masld",
+      "metformin",
+      "mitophagy",
+      "morbilliform",
+      "naion",
+      "natco",
+      "nauck",
+      "nct",
+      "neovascular",
+      "nonalcoholic",
+      "noncirrhotic",
+      "nonfatal",
+      "noveltreat",
+      "novonordisk",
+      "npy",
+      "nrf",
+      "obeda",
+      "obesema",
+      "orexigenic",
+      "ozempic",
+      "ozivy",
+      "panniculitis",
+      "pemphigoid",
+      "peptidase",
+      "pharma",
+      "pharmacare",
+      "plosbrio",
+      "pomc",
+      "poviztra",
+      "proopiomelanocortin",
+      "radiologically",
+      "rybelsus",
+      "saxenda",
+      "semafull",
+      "semaglutide",
+      "semaglyn",
+      "semalix",
+      "semanat",
+      "semasize",
+      "sematrinity",
+      "sembolic",
+      "sevmia",
+      "sihuan",
+      "sitagliptin",
+      "socs",
+      "somasignal",
+      "steatohepatitis",
+      "steatotic",
+      "sundae",
+      "teva",
+      "tfeb",
+      "thyroids",
+      "tirzepatide",
+      "transaminitis",
+      "tregs",
+      "trumprx",
+      "upregulates",
+      "upregulating",
+      "wegovy",
+      "zydus"
+    ]
+  },
+  "text8_test_baseline_vs_train": {
+    "chars": 40426,
+    "tokens": 7321,
+    "types": 1955,
+    "unseen_types": 46,
+    "unseen_type_rate": 0.023529411764705882,
+    "unseen_tokens": 71,
+    "unseen_token_rate": 0.009698128670946592
+  },
+  "article_top_content_words": [
+    {
+      "word": "zero",
+      "article": 151,
+      "text8_train": 233930
+    },
+    {
+      "word": "semaglutide",
+      "article": 112,
+      "text8_train": 0
+    },
+    {
+      "word": "diabetes",
+      "article": 36,
+      "text8_train": 149
+    },
+    {
+      "word": "weight",
+      "article": 35,
+      "text8_train": 1050
+    },
+    {
+      "word": "drug",
+      "article": 30,
+      "text8_train": 1113
+    },
+    {
+      "word": "glp",
+      "article": 26,
+      "text8_train": 2
+    },
+    {
+      "word": "treatment",
+      "article": 23,
+      "text8_train": 1384
+    },
+    {
+      "word": "generic",
+      "article": 23,
+      "text8_train": 308
+    },
+    {
+      "word": "novo",
+      "article": 22,
+      "text8_train": 37
+    },
+    {
+      "word": "nordisk",
+      "article": 22,
+      "text8_train": 11
+    },
+    {
+      "word": "obesity",
+      "article": 20,
+      "text8_train": 41
+    },
+    {
+      "word": "wegovy",
+      "article": 20,
+      "text8_train": 0
+    },
+    {
+      "word": "type",
+      "article": 18,
+      "text8_train": 3150
+    },
+    {
+      "word": "cardiovascular",
+      "article": 18,
+      "text8_train": 43
+    },
+    {
+      "word": "ozempic",
+      "article": 17,
+      "text8_train": 0
+    },
+    {
+      "word": "risk",
+      "article": 17,
+      "text8_train": 918
+    },
+    {
+      "word": "like",
+      "article": 17,
+      "text8_train": 8881
+    },
+    {
+      "word": "approved",
+      "article": 17,
+      "text8_train": 570
+    },
+    {
+      "word": "loss",
+      "article": 16,
+      "text8_train": 1299
+    },
+    {
+      "word": "fda",
+      "article": 16,
+      "text8_train": 186
+    },
+    {
+      "word": "people",
+      "article": 16,
+      "text8_train": 13299
+    },
+    {
+      "word": "trials",
+      "article": 16,
+      "text8_train": 364
+    },
+    {
+      "word": "trial",
+      "article": 16,
+      "text8_train": 1044
+    },
+    {
+      "word": "united",
+      "article": 15,
+      "text8_train": 12963
+    },
+    {
+      "word": "brand",
+      "article": 14,
+      "text8_train": 488
+    },
+    {
+      "word": "states",
+      "article": 14,
+      "text8_train": 13410
+    },
+    {
+      "word": "adults",
+      "article": 14,
+      "text8_train": 343
+    },
+    {
+      "word": "administration",
+      "article": 13,
+      "text8_train": 1331
+    },
+    {
+      "word": "name",
+      "article": 12,
+      "text8_train": 9524
+    },
+    {
+      "word": "associated",
+      "article": 12,
+      "text8_train": 2145
+    },
+    {
+      "word": "effects",
+      "article": 12,
+      "text8_train": 2000
+    },
+    {
+      "word": "use",
+      "article": 12,
+      "text8_train": 12697
+    },
+    {
+      "word": "including",
+      "article": 12,
+      "text8_train": 8693
+    },
+    {
+      "word": "participants",
+      "article": 12,
+      "text8_train": 263
+    },
+    {
+      "word": "management",
+      "article": 11,
+      "text8_train": 1263
+    },
+    {
+      "word": "canada",
+      "article": 11,
+      "text8_train": 3106
+    },
+    {
+      "word": "european",
+      "article": 11,
+      "text8_train": 5258
+    },
+    {
+      "word": "blood",
+      "article": 11,
+      "text8_train": 1804
+    },
+    {
+      "word": "versions",
+      "article": 11,
+      "text8_train": 1391
+    },
+    {
+      "word": "drugs",
+      "article": 11,
+      "text8_train": 834
+    }
+  ],
+  "train_context": {
+    "glp": [
+      "hamilton green guyana democratic party or gdp asgar ally guyana labor party or glp leader na guyanese organization for liberty and democracy party or gold anth",
+      "ylamide is a neurotoxin and needs to be handled using good laboratory practices glp to avoid poisoning the second part electrophoresis refers to the electromoti"
+    ],
+    "exenatide": [
+      "he united states approved a drug for the management of type two diabetes byetta exenatide a synthetic version of a protein derived from the gila monster s saliv"
+    ],
+    "byetta": [
+      "on of the united states approved a drug for the management of type two diabetes byetta exenatide a synthetic version of a protein derived from the gila monster"
+    ]
+  },
+  "note": "whole-word counts over the space-separated text8 splits (wikifil spells digits out, so 'GLP-1' enters as 'glp one'). unseen_* are measured against the TRAIN split vocabulary, the corpus the backbone was fitted on."
+}

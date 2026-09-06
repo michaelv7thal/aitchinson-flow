@@ -1,75 +1,277 @@
 {
-  "purpose": "provenance for the paper-cited artifacts in this tree that are NOT arms of manifest.json",
-  "written": "2026-08-20",
-  "honesty": "these runs recorded no argv at run time; entries are reconstructed from each artifact's own self-recorded fields and run logs, verified against the paper (claims.tsv rows named per entry)",
-  "ckpt": "runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM_converge/epoch_final.pt",
-  "ckpt_md5": "9946dce94cb2051de0e288e4caa3ffbd",
-  "arms": [
-    {
-      "name": "transfer",
-      "out": "bench_ood_final/transfer/semaglutide_transfer_gpt2.json",
-      "script": "scripts/eval_detector_transfer.py",
-      "inputs": ["bench_ood_final/transfer/semaglutide_article_extract.json (Wikipedia revid 1369737560)"],
-      "self_recorded": {"detector": "logistic_falseinfo_fulldim", "baseline": "gpt2_nll", "t_eval": 4.5, "rate": 0.15, "n": 128},
-      "log": "bench_ood_final/transfer/run_semaglutide_gpt2.log",
-      "backs": "tab:ood-transfer (claims rows D291-D302); the sibling insulin_transfer_gpt2.json is the earlier superseded take"
-    },
-    {
-      "name": "latent_split_all",
-      "out": "bench_ood_final/latent_split_all/latent_split.json",
-      "script": "scripts/plot_latent_split.py",
-      "backs": "tab:latent (12 of 24 cells) + fig:latent-seq + fig:latent-token; latent_split_all_fullaxis/ is a content-identical superset (adds *_full_xy coords)"
-    },
-    {
-      "name": "latent_split_plausible",
-      "out": "bench_ood_final/latent_split_plausible/latent_split.json",
-      "script": "scripts/plot_latent_split.py",
-      "backs": "tab:latent plausible cells; also the real target of the latent_ladder_plausible/rate_0.3 symlink"
-    },
-    {
-      "name": "latent_ladder",
-      "out": "bench_ood_final/latent_ladder/rate_{0.05,0.1,0.15,0.2,0.25,0.3,0.5,0.7,1.0}/latent_split.json",
-      "script": "scripts/plot_latent_split.py (driver: drive_latent_all.sh)",
-      "backs": "tab:latent-ladder (162 cells, claims rows X28-X189) + fig:latent-ladder"
-    },
-    {
-      "name": "latent_ladder_plausible",
-      "out": "bench_ood_final/latent_ladder_plausible/rate_{0.15,0.3}/latent_split.json",
-      "script": "scripts/plot_latent_split.py (driver: drive_plausible_ladder.sh)",
-      "backs": "tab:latent-plausible (24 cells) + results.tex:564"
-    },
-    {
-      "name": "plausible_freqmatched",
-      "out": "bench_ood_final/plausible_freqmatched/plausible_swap.json",
-      "script": "scripts/ood_plausible_swap.py --swap-mode freq_matched",
-      "log": "bench_ood_final/plausible_freqmatched/run.log",
-      "caveat": "ran at t_eval=6.0 where the main plausible arm ran 7.5; the three numbers the paper quotes from this control (logistic probe + denoiser NLL) are unaffected, its BGMM/BLR rows are NOT comparable to the main table",
-      "backs": "results.tex:557-558 frequency-band control"
-    },
-    {
-      "name": "heatmap_examples",
-      "out": "bench_ood_final/nll/heatmap_examples.json",
-      "script": "scripts/dump_heatmap_examples.py",
-      "caveat": "train_word_counts.ping = 66 is a known undercount of the old padded-substring counter (fixed 2026-08-20); the true whole-word count is 67, see runs/text8_unigram_stats.json",
-      "backs": "fig:ood-heatmap + fig:ood-heatmap-30 + results.tex:389-418 counts"
-    },
-    {
-      "name": "bpe_token_counts",
-      "out": "bench_ood_final/gpt2_nll/bpe_token_counts.json",
-      "script": "scripts/dump_bpe_counts.py",
-      "backs": "results.tex:425-427 re-tokenization numbers (claims rows D319-D325)"
-    },
-    {
-      "name": "plausible_examples_replay",
-      "out": "bench_ood_final/plausible/plausible_examples_replay.json",
-      "script": "scripts/replay_plausible_window.py",
-      "backs": "the verbatim destruction->development excerpt at results.tex:542-544 (window 44); SOLE surviving instance (the script's own output path no longer exists)"
-    },
-    {
-      "name": "tsweep",
-      "out": "bench_ood_final/tsweep/t_selection.json",
-      "script": "scripts/ood_t_selection_sweep.py",
-      "backs": "the path-time selection procedure of appendix tab:config (t_nll=3.0, t_var=7.5); re-run 2026-08-20 on the pinned checkpoint because the original sweep recorded no output"
-    }
-  ]
+ "purpose": "provenance for the paper-cited artifacts in this tree that are NOT arms of manifest.json",
+ "written": "2026-08-20",
+ "honesty": "these runs recorded no argv at run time; entries are reconstructed from each artifact's own self-recorded fields and run logs, verified against the paper (claims.tsv rows named per entry)",
+ "ckpt": "runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM_converge/epoch_final.pt",
+ "ckpt_md5": "9946dce94cb2051de0e288e4caa3ffbd",
+ "arms": [
+  {
+   "name": "transfer",
+   "out": "bench_ood_final/transfer/semaglutide_transfer_gpt2.json",
+   "script": "scripts/eval_detector_transfer.py",
+   "inputs": [
+    "bench_ood_final/transfer/semaglutide_article_extract.json (Wikipedia revid 1369737560)"
+   ],
+   "self_recorded": {
+    "detector": "logistic_falseinfo_fulldim",
+    "baseline": "gpt2_nll",
+    "t_eval": 4.5,
+    "rate": 0.15,
+    "n": 128
+   },
+   "log": "bench_ood_final/transfer/run_semaglutide_gpt2.log",
+   "backs": "tab:ood-transfer (claims rows D291-D302); the sibling insulin_transfer_gpt2.json is the earlier superseded take"
+  },
+  {
+   "name": "latent_split_all",
+   "out": "bench_ood_final/latent_split_all/latent_split.json",
+   "script": "scripts/plot_latent_split.py",
+   "backs": "tab:latent (12 of 24 cells) + fig:latent-seq + fig:latent-token; latent_split_all_fullaxis/ is a content-identical superset (adds *_full_xy coords)"
+  },
+  {
+   "name": "latent_split_plausible",
+   "out": "bench_ood_final/latent_split_plausible/latent_split.json",
+   "script": "scripts/plot_latent_split.py",
+   "backs": "tab:latent plausible cells; also the real target of the latent_ladder_plausible/rate_0.3 symlink"
+  },
+  {
+   "name": "latent_ladder",
+   "out": "bench_ood_final/latent_ladder/rate_{0.05,0.1,0.15,0.2,0.25,0.3,0.5,0.7,1.0}/latent_split.json",
+   "script": "scripts/plot_latent_split.py (driver: drive_latent_all.sh)",
+   "backs": "tab:latent-ladder (162 cells, claims rows X28-X189) + fig:latent-ladder"
+  },
+  {
+   "name": "latent_ladder_plausible",
+   "out": "bench_ood_final/latent_ladder_plausible/rate_{0.15,0.3}/latent_split.json",
+   "script": "scripts/plot_latent_split.py (driver: drive_plausible_ladder.sh)",
+   "backs": "tab:latent-plausible (24 cells) + results.tex:564"
+  },
+  {
+   "name": "plausible_freqmatched",
+   "out": "bench_ood_final/plausible_freqmatched/plausible_swap.json",
+   "script": "scripts/ood_plausible_swap.py --swap-mode freq_matched",
+   "log": "bench_ood_final/plausible_freqmatched/run.log",
+   "caveat": "ran at t_eval=6.0 where the main plausible arm ran 7.5; the three numbers the paper quotes from this control (logistic probe + denoiser NLL) are unaffected, its BGMM/BLR rows are NOT comparable to the main table",
+   "backs": "results.tex:557-558 frequency-band control"
+  },
+  {
+   "name": "heatmap_examples",
+   "out": "bench_ood_final/nll/heatmap_examples.json",
+   "script": "scripts/dump_heatmap_examples.py",
+   "caveat": "train_word_counts.ping = 66 is a known undercount of the old padded-substring counter (fixed 2026-08-20); the true whole-word count is 67, see runs/text8_unigram_stats.json",
+   "backs": "fig:ood-heatmap + fig:ood-heatmap-30 + results.tex:389-418 counts"
+  },
+  {
+   "name": "bpe_token_counts",
+   "out": "bench_ood_final/gpt2_nll/bpe_token_counts.json",
+   "script": "scripts/dump_bpe_counts.py",
+   "backs": "results.tex:425-427 re-tokenization numbers (claims rows D319-D325)"
+  },
+  {
+   "name": "plausible_examples_replay",
+   "out": "bench_ood_final/plausible/plausible_examples_replay.json",
+   "script": "scripts/replay_plausible_window.py",
+   "backs": "the verbatim destruction->development excerpt at results.tex:542-544 (window 44); SOLE surviving instance (the script's own output path no longer exists)"
+  },
+  {
+   "name": "tsweep",
+   "out": "bench_ood_final/tsweep/t_selection.json",
+   "script": "scripts/ood_t_selection_sweep.py",
+   "backs": "the path-time selection procedure of appendix tab:config (t_nll=3.0, t_var=7.5); re-run 2026-08-20 on the pinned checkpoint because the original sweep recorded no output"
+  },
+  {
+   "name": "blr_var",
+   "out": "bench_ood_final/blr/bayes_linear_var_sweep.json",
+   "script": "scripts/ood_bayes_linear.py",
+   "cmd": [
+    ".venv/bin/python",
+    "scripts/ood_bayes_linear.py",
+    "--ckpt",
+    "runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM_converge/epoch_final.pt",
+    "--split",
+    "test",
+    "--n",
+    "256",
+    "--fit-seqs",
+    "512",
+    "--rates",
+    "0.05,0.1,0.15,0.2,0.25,0.3,0.5,0.7,1.0",
+    "--seed",
+    "42",
+    "--schemes",
+    "replace,shuffle,falseinfo",
+    "--train-schemes",
+    "replace",
+    "--pca-dim",
+    "0",
+    "--ridge",
+    "0.1",
+    "--no-plot",
+    "--out",
+    "bench_ood_final/blr/bayes_linear_var_sweep.json"
+   ],
+   "run": "2026-08-29 on this laptop, CPU only (CUDA_VISIBLE_DEVICES empty, 12 threads), wall_s 5446",
+   "self_recorded": {
+    "t_eval": 4.5,
+    "var_t_eval": 7.5,
+    "pca_dim": 0,
+    "ridge": 0.1,
+    "margin": 4.0,
+    "n": 256,
+    "fit_seqs": 512,
+    "schemes": "replace,shuffle,falseinfo"
+   },
+   "log": "bench_ood_final/blr/bayes_linear_var_sweep.log",
+   "adds": "word pooling (auroc_word_{max,mean}_var, word_{max,mean}_var) and clean-calibrated PRF (prf_{seq,token}_var) for the training-free variance head; the canonical blr/bayes_linear_sweep.json carries these for the energy head only",
+   "reproduction": "auroc_seq_uncertainty / auroc_token_uncertainty equal the canonical json to 4 decimals in all 27 cells; energy cells differ by at most 0.0006 (CPU vs A100 hinge fit) and every LinE cell in the paper keeps reading the canonical json",
+   "backs": "Var rows of tab:ood-word, tab:ood-falseinfo, tab:ood-prf, tab:ood-seq-char and the Var numbers in sec:ood-word / sec:ood-falseinfo / sec:ood-operating (claims rows D486-D537)"
+  },
+  {
+   "name": "plausible_var",
+   "out": "bench_ood_final/plausible/plausible_swap_var.json",
+   "script": "scripts/ood_plausible_swap.py",
+   "cmd": [
+    ".venv/bin/python",
+    "scripts/ood_plausible_swap.py",
+    "--ckpt",
+    "runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM_converge/epoch_final.pt",
+    "--split",
+    "test",
+    "--n",
+    "64",
+    "--fit-seqs",
+    "512",
+    "--rate",
+    "0.15",
+    "--t-eval",
+    "7.5",
+    "--t-nll",
+    "3.0",
+    "--blr-t-eval",
+    "4.5",
+    "--lin-t-eval",
+    "4.5",
+    "--n-cands",
+    "48",
+    "--ref-lm",
+    "gpt2",
+    "--swap-mode",
+    "min_nll",
+    "--seed",
+    "42",
+    "--var-t-eval",
+    "7.5",
+    "--var-ridge",
+    "0.1",
+    "--out",
+    "bench_ood_final/plausible/plausible_swap_var.json"
+   ],
+   "run": "2026-08-29 on this laptop GPU (RTX PRO 1000, 8 GB), queued behind the band evals by drive_plausible_var.sh; gpu free 2026-08-29_16:53:55, done 2026-08-29_17:51:30",
+   "self_recorded": {
+    "n": 64,
+    "rate": 0.15,
+    "t_eval": 7.5,
+    "t_nll": 3.0,
+    "blr_t_eval": 4.5,
+    "lin_t_eval": 4.5,
+    "var_t_eval": 7.5,
+    "var_ridge": 0.1,
+    "n_cands": 48,
+    "swap_mode": "min_nll",
+    "ref_lm": "gpt2",
+    "split": "test"
+   },
+   "log": "bench_ood_final/plausible/plausible_swap_var.log",
+   "adds": "the detector=Var rows (random and plausible) with prf_seq / prf_token for the training-free variance head",
+   "reproduction": "every other detector row equals the canonical plausible_swap.json: max |difference| 0.00e+00 over all seq/token AUROC and F1@{0.01,0.05,0.1} cells; the canonical json stays the source of every non-Var cell",
+   "backs": "Var row of tab:ood-plausible and the variance-head numbers in the sec:ood-plausible collapse sentence (claims rows D538-D545)"
+  },
+  {
+   "name": "word_level_surprise",
+   "out": "bench_ood_final/plausible/word_level_surprise.json",
+   "script": "scripts/word_level_surprise.py",
+   "inputs": [
+    "bench_ood_final/plausible/plausible_swap_var.tokens.pt (the saved windows of the plausible arm)"
+   ],
+   "self_recorded": {
+    "t_nll": 3.0,
+    "rate": 0.15,
+    "n": 64,
+    "seed": 42,
+    "swap_mode": "min_nll"
+   },
+   "backs": "the two word-level surprise sentences of sec:ood-plausible (claims rows D360-D362, D546). Re-derives the character-level surprise trio of plausible_swap*.json (0.535/0.003/0.124) to 6e-08 and refuses to write unless it does, so the word-level pooling is provably the same run's; the character-level trio is no longer printed in the paper"
+  },
+  {
+   "name": "transfer_all",
+   "out": "bench_ood_final/transfer/semaglutide_transfer_all.json",
+   "script": "scripts/eval_detector_transfer_all.py",
+   "cmd": [
+    ".venv/bin/python",
+    "scripts/eval_detector_transfer_all.py",
+    "--check",
+    "--out",
+    "bench_ood_final/transfer/semaglutide_transfer_all.json"
+   ],
+   "run": "2026-09-03 on this laptop (RTX PRO 1000 Blackwell, 8 GB)",
+   "log": "bench_ood_final/transfer/run_transfer_all.log",
+   "self_recorded": {
+    "rate": 0.15,
+    "train_rate": 0.5,
+    "n": 128,
+    "fit_seqs": 512,
+    "seed": 42,
+    "vocab_chars": 8000000
+   },
+   "reproduction": "the run asserts its LOG_fi and GPT-2 NLL cells against the published two-arm transfer/semaglutide_transfer_gpt2.json: all 12 fields match to 0.00e+00 (see the [check] block at the end of the log)",
+   "deviation": "the three LinE arms take their false-information training negatives from the corpus-level by_len (first 8M train chars), where ood_bayes_linear.py builds by_len from the fit windows' own text; one convention is used for every arm of this track, matching the published LOG_fi arm. Fit windows are TRAIN-split (offset 8M chars), not the test-split fit windows the tab:ood-prf bench uses, so these cells are NOT the tab:ood-prf cells at rate 0.15",
+   "backs": "tab:ood-transfer, all nine rows (extends the two-arm version)"
+  },
+  {
+   "name": "text8_topic_coverage",
+   "out": "bench_ood_final/transfer/text8_topic_coverage.json",
+   "script": "scripts/text8_topic_coverage.py",
+   "cmd": [
+    ".venv/bin/python",
+    "scripts/text8_topic_coverage.py",
+    "--context-terms",
+    "glp,exenatide,byetta",
+    "--context",
+    "2"
+   ],
+   "run": "2026-09-03 on this laptop, CPU only",
+   "log": "bench_ood_final/transfer/run_topic_coverage.log",
+   "inputs": [
+    "HF afmck/text8 (all three splits)",
+    "bench_ood_final/transfer/semaglutide_article_extract.json"
+   ],
+   "backs": "tab:transfer-topic (whole-word train counts), tab:transfer-entity (per-split counts for the drug, its brands, its class and its target, plus the two glp context snippets quoted in the caption), and the vocabulary sentence of sec:ood-transfer (110 of 1583 types, 4.75% of tokens against 0.97% for the text8 test baseline)"
+  },
+  {
+   "name": "transfer_examples",
+   "out": "bench_ood_final/transfer/transfer_examples.json",
+   "script": "scripts/render_transfer_examples.py",
+   "cmd": [
+    ".venv/bin/python",
+    "scripts/render_transfer_examples.py"
+   ],
+   "run": "2026-09-05 on this laptop, CPU only",
+   "self_recorded": {
+    "rate": 0.15,
+    "seed": 42,
+    "n": 128,
+    "L": 256,
+    "detector": "LOG_fi",
+    "t_eval": 4.5,
+    "fit_seqs": 512,
+    "example_fpr": 0.05,
+    "word_threshold": 1.2405,
+    "pooling": "word max"
+   },
+   "reproduction": "windows and corruption draw identical to eval_detector_transfer_all.py (text8 test split first 128 windows; article windows likewise; corrupt_false_info rate 0.15 seed 51; by_len from the first 8M train chars)",
+   "backs": "the clean/corrupted/scored excerpt above tab:ood-transfer (text8 test window 0 and semaglutide window 0, planted words bold and flagged words underlined); the per-word scores quoted in that passage (strider 0.29, ejected 1.62, push 1.76, semaglutide 0.99, diabetes 0.96, obesity 0.92, diabetic 1.24 against threshold 1.24); the recall 0.632 / FPR 0.077 vs 0.121 calibration-transfer sentence; and the replacement word-likeness sentence (median train count 25, ~a third under 10 occurrences)",
+   "caveat": "the text8 side of tab:ood-transfer is NOT an article: the first 33,792 characters of the test split span the M16 rifle article (windows 0-~68), a units-of-geological-time article (~72-77) and Marlon Brando (from char 19,774, inside window 77)",
+   "detector_note": "one word-max threshold calibrated at 5% FPR on clean text8 test words and applied UNCHANGED to both domains, which is the deployed setting; per-domain it yields precision 0.563 / recall 0.632 on text8 and 0.458 / 0.632 on semaglutide"
+  }
+ ]
 }

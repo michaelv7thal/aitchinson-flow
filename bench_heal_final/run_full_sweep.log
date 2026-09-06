@@ -1,0 +1,44 @@
+### [only] carrying 10 unselected arm(s) over untouched: nll_replace, nll_falseinfo, blr_replace, blr_falseinfo, bgmm_replace, bgmm_falseinfo, var_replace, insulin_nll, insulin_gmm, insulin_bgmm
+### [2026-09-03T22:11:13+00:00] START nll_shuffle
+### [2026-09-03T22:58:45+00:00] OK    nll_shuffle (2852.6s, rc=0)
+### [2026-09-03T22:58:45+00:00] START nll_plausible
+### [2026-09-04T00:50:49+00:00] OK    nll_plausible (6723.3s, rc=0)
+### [2026-09-04T00:50:49+00:00] START blr_shuffle
+### [2026-09-04T01:39:20+00:00] OK    blr_shuffle (2911.0s, rc=0)
+### [2026-09-04T01:39:20+00:00] START blr_plausible
+### [2026-09-04T03:32:13+00:00] OK    blr_plausible (6773.1s, rc=0)
+### [2026-09-04T03:32:13+00:00] START bgmm_shuffle
+### [2026-09-04T04:23:13+00:00] OK    bgmm_shuffle (3060.0s, rc=0)
+### [2026-09-04T04:23:13+00:00] START bgmm_plausible
+### [2026-09-04T06:16:58+00:00] OK    bgmm_plausible (6824.6s, rc=0)
+### [2026-09-04T06:16:58+00:00] START blr_adv_replace
+### [2026-09-04T07:05:48+00:00] OK    blr_adv_replace (2930.9s, rc=0)
+### [2026-09-04T07:05:48+00:00] START blr_adv_shuffle
+### [2026-09-04T07:52:47+00:00] OK    blr_adv_shuffle (2819.0s, rc=0)
+### [2026-09-04T07:52:47+00:00] START blr_adv_falseinfo
+### [2026-09-04T08:39:39+00:00] OK    blr_adv_falseinfo (2811.2s, rc=0)
+### [2026-09-04T08:39:39+00:00] START blr_adv_plausible
+### [2026-09-04T10:32:43+00:00] OK    blr_adv_plausible (6784.0s, rc=0)
+### [2026-09-04T10:32:43+00:00] START blr_fi_replace
+### [2026-09-04T11:19:41+00:00] OK    blr_fi_replace (2818.0s, rc=0)
+### [2026-09-04T11:19:41+00:00] START blr_fi_shuffle
+### [2026-09-04T12:06:06+00:00] OK    blr_fi_shuffle (2785.9s, rc=0)
+### [2026-09-04T12:06:06+00:00] START blr_fi_falseinfo
+### [2026-09-04T12:51:47+00:00] OK    blr_fi_falseinfo (2740.0s, rc=0)
+### [2026-09-04T12:51:47+00:00] START blr_fi_plausible
+### [2026-09-04T14:43:43+00:00] OK    blr_fi_plausible (6716.6s, rc=0)
+### [2026-09-04T14:43:43+00:00] START logreg_fi_replace
+### [2026-09-04T15:30:50+00:00] OK    logreg_fi_replace (2826.9s, rc=0)
+### [2026-09-04T15:30:50+00:00] START logreg_fi_shuffle
+### [2026-09-04T16:17:56+00:00] OK    logreg_fi_shuffle (2826.2s, rc=0)
+### [2026-09-04T16:17:56+00:00] START logreg_fi_falseinfo
+### [2026-09-04T17:05:03+00:00] OK    logreg_fi_falseinfo (2826.9s, rc=0)
+### [2026-09-04T17:05:03+00:00] START logreg_fi_plausible
+### [2026-09-04T18:56:21+00:00] OK    logreg_fi_plausible (6677.8s, rc=0)
+### [2026-09-04T18:56:21+00:00] START var_shuffle
+### [2026-09-04T19:41:14+00:00] OK    var_shuffle (2693.5s, rc=0)
+### [2026-09-04T19:41:14+00:00] START var_falseinfo
+### [2026-09-04T20:26:47+00:00] OK    var_falseinfo (2732.2s, rc=0)
+### [2026-09-04T20:26:47+00:00] START var_plausible
+### [2026-09-04T22:17:04+00:00] OK    var_plausible (6617.6s, rc=0)
+Wrote bench_heal_final/RESULTS.md

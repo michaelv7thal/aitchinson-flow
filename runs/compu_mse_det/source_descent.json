@@ -1,0 +1,1438 @@
+{
+  "ckpt": "runs/compu_mse_det/epoch_final.pt",
+  "n": 256,
+  "L": 40,
+  "steps_run": 200,
+  "data_radius_per_pos": 12.2723,
+  "mu1_norm_per_pos": 2.4284,
+  "source": {
+    "radius": 0.5048796534538269,
+    "kl_unigram": 0.6487147808074951,
+    "kl_uniform": 0.0005915714427828789
+  },
+  "sample": {
+    "radius": 12.273341178894043,
+    "mean_max_prob": 0.9998937845230103,
+    "agree_with_source_argmax": 0.4520507752895355,
+    "chance_agreement": 0.037316396832466125,
+    "kl_unigram": 0.031449299305677414,
+    "kl_uniform": 0.5737597942352295
+  },
+  "argmax_settled": {
+    "1": 0.7059570550918579,
+    "2": 0.9156250357627869,
+    "3": 0.982714831829071,
+    "5": 0.997753918170929,
+    "10": 0.999707043170929,
+    "20": 1.0,
+    "50": 1.0,
+    "100": 1.0,
+    "200": 1.0
+  },
+  "sample_strings": {
+    "source_argmax": " ltvxbfkhulwwhuob fxnkpahshpadscouaecwci",
+    "sample": " ltrestt  ltwhho   snnpahsepan  opaelfii"
+  },
+  "trajectory": [
+    {
+      "step": 1,
+      "grad_norm": 1.0,
+      "radius": 0.5570532083511353,
+      "agree_with_source_argmax": 0.694140613079071,
+      "kl_unigram": 0.14249542355537415
+    },
+    {
+      "step": 2,
+      "grad_norm": 1.0,
+      "radius": 0.6144934892654419,
+      "agree_with_source_argmax": 0.5086914300918579,
+      "kl_unigram": 0.018265308812260628
+    },
+    {
+      "step": 3,
+      "grad_norm": 1.0,
+      "radius": 0.6760902404785156,
+      "agree_with_source_argmax": 0.46220704913139343,
+      "kl_unigram": 0.025818005204200745
+    },
+    {
+      "step": 4,
+      "grad_norm": 1.0,
+      "radius": 0.7444795966148376,
+      "agree_with_source_argmax": 0.455078125,
+      "kl_unigram": 0.029584482312202454
+    },
+    {
+      "step": 5,
+      "grad_norm": 1.0,
+      "radius": 0.818769633769989,
+      "agree_with_source_argmax": 0.45361328125,
+      "kl_unigram": 0.030665963888168335
+    },
+    {
+      "step": 6,
+      "grad_norm": 1.0,
+      "radius": 0.8977445960044861,
+      "agree_with_source_argmax": 0.4530273377895355,
+      "kl_unigram": 0.03084627166390419
+    },
+    {
+      "step": 7,
+      "grad_norm": 1.0,
+      "radius": 0.9803758859634399,
+      "agree_with_source_argmax": 0.45244142413139343,
+      "kl_unigram": 0.031197071075439453
+    },
+    {
+      "step": 8,
+      "grad_norm": 1.0,
+      "radius": 1.0658721923828125,
+      "agree_with_source_argmax": 0.45234376192092896,
+      "kl_unigram": 0.031284332275390625
+    },
+    {
+      "step": 9,
+      "grad_norm": 1.0,
+      "radius": 1.1536325216293335,
+      "agree_with_source_argmax": 0.45234376192092896,
+      "kl_unigram": 0.031286660581827164
+    },
+    {
+      "step": 10,
+      "grad_norm": 1.0,
+      "radius": 1.2432013750076294,
+      "agree_with_source_argmax": 0.4522460997104645,
+      "kl_unigram": 0.03128766641020775
+    },
+    {
+      "step": 11,
+      "grad_norm": 1.0,
+      "radius": 1.3342288732528687,
+      "agree_with_source_argmax": 0.4521484375,
+      "kl_unigram": 0.031407278031110764
+    },
+    {
+      "step": 12,
+      "grad_norm": 1.0,
+      "radius": 1.426444172859192,
+      "agree_with_source_argmax": 0.4521484375,
+      "kl_unigram": 0.031407278031110764
+    },
+    {
+      "step": 13,
+      "grad_norm": 1.0,
+      "radius": 1.5196350812911987,
+      "agree_with_source_argmax": 0.4521484375,
+      "kl_unigram": 0.031407278031110764
+    },
+    {
+      "step": 14,
+      "grad_norm": 1.0,
+      "radius": 1.6136360168457031,
+      "agree_with_source_argmax": 0.4521484375,
+      "kl_unigram": 0.031407278031110764
+    },
+    {
+      "step": 15,
+      "grad_norm": 1.0,
+      "radius": 1.7083152532577515,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031442783772945404
+    },
+    {
+      "step": 16,
+      "grad_norm": 1.0,
+      "radius": 1.803567886352539,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031442783772945404
+    },
+    {
+      "step": 17,
+      "grad_norm": 1.0,
+      "radius": 1.899307131767273,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031442783772945404
+    },
+    {
+      "step": 18,
+      "grad_norm": 1.0,
+      "radius": 1.9954636096954346,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031442783772945404
+    },
+    {
+      "step": 19,
+      "grad_norm": 1.0,
+      "radius": 2.0919787883758545,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 20,
+      "grad_norm": 1.0,
+      "radius": 2.1888058185577393,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 21,
+      "grad_norm": 1.0,
+      "radius": 2.2859041690826416,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 22,
+      "grad_norm": 1.0,
+      "radius": 2.3832409381866455,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 23,
+      "grad_norm": 1.0,
+      "radius": 2.480787515640259,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 24,
+      "grad_norm": 1.0,
+      "radius": 2.5785200595855713,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 25,
+      "grad_norm": 1.0,
+      "radius": 2.6764180660247803,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 26,
+      "grad_norm": 1.0,
+      "radius": 2.774463653564453,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 27,
+      "grad_norm": 1.0,
+      "radius": 2.8726422786712646,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 28,
+      "grad_norm": 1.0,
+      "radius": 2.970939874649048,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 29,
+      "grad_norm": 1.0,
+      "radius": 3.069345235824585,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 30,
+      "grad_norm": 1.0,
+      "radius": 3.1678483486175537,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 31,
+      "grad_norm": 1.0,
+      "radius": 3.2664401531219482,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 32,
+      "grad_norm": 1.0,
+      "radius": 3.3651123046875,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 33,
+      "grad_norm": 1.0,
+      "radius": 3.4638593196868896,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 34,
+      "grad_norm": 1.0,
+      "radius": 3.562673330307007,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 35,
+      "grad_norm": 1.0,
+      "radius": 3.6615493297576904,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 36,
+      "grad_norm": 1.0,
+      "radius": 3.7604825496673584,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 37,
+      "grad_norm": 1.0,
+      "radius": 3.8594682216644287,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 38,
+      "grad_norm": 1.0,
+      "radius": 3.9585022926330566,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 39,
+      "grad_norm": 1.0,
+      "radius": 4.057581424713135,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 40,
+      "grad_norm": 1.0,
+      "radius": 4.156702041625977,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 41,
+      "grad_norm": 1.0,
+      "radius": 4.255861759185791,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 42,
+      "grad_norm": 1.0,
+      "radius": 4.355057716369629,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 43,
+      "grad_norm": 1.0,
+      "radius": 4.454286575317383,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 44,
+      "grad_norm": 1.0,
+      "radius": 4.553546905517578,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 45,
+      "grad_norm": 1.0,
+      "radius": 4.652836799621582,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 46,
+      "grad_norm": 1.0,
+      "radius": 4.7521538734436035,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 47,
+      "grad_norm": 1.0,
+      "radius": 4.85149621963501,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 48,
+      "grad_norm": 1.0,
+      "radius": 4.950863361358643,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 49,
+      "grad_norm": 1.0,
+      "radius": 5.050252437591553,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 50,
+      "grad_norm": 1.0,
+      "radius": 5.149662971496582,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 51,
+      "grad_norm": 1.0,
+      "radius": 5.249093532562256,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 52,
+      "grad_norm": 1.0,
+      "radius": 5.3485426902771,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 53,
+      "grad_norm": 1.0,
+      "radius": 5.448009014129639,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 54,
+      "grad_norm": 1.0,
+      "radius": 5.547492504119873,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 55,
+      "grad_norm": 1.0,
+      "radius": 5.64699125289917,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 56,
+      "grad_norm": 1.0,
+      "radius": 5.746505260467529,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 57,
+      "grad_norm": 1.0,
+      "radius": 5.846032619476318,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 58,
+      "grad_norm": 1.0,
+      "radius": 5.945573329925537,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 59,
+      "grad_norm": 1.0,
+      "radius": 6.045126438140869,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 60,
+      "grad_norm": 1.0,
+      "radius": 6.144691467285156,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 61,
+      "grad_norm": 1.0,
+      "radius": 6.244267463684082,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 62,
+      "grad_norm": 1.0,
+      "radius": 6.343853950500488,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 63,
+      "grad_norm": 1.0,
+      "radius": 6.4434494972229,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 64,
+      "grad_norm": 1.0,
+      "radius": 6.543056011199951,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 65,
+      "grad_norm": 1.0,
+      "radius": 6.642669677734375,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 66,
+      "grad_norm": 1.0,
+      "radius": 6.742292881011963,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 67,
+      "grad_norm": 1.0,
+      "radius": 6.841923713684082,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 68,
+      "grad_norm": 1.0,
+      "radius": 6.941562175750732,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 69,
+      "grad_norm": 1.0,
+      "radius": 7.041207790374756,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 70,
+      "grad_norm": 1.0,
+      "radius": 7.140859127044678,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 71,
+      "grad_norm": 1.0,
+      "radius": 7.240518093109131,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 72,
+      "grad_norm": 1.0,
+      "radius": 7.34018087387085,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 73,
+      "grad_norm": 1.0,
+      "radius": 7.439850807189941,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 74,
+      "grad_norm": 1.0,
+      "radius": 7.539525032043457,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 75,
+      "grad_norm": 1.0,
+      "radius": 7.639204502105713,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 76,
+      "grad_norm": 1.0,
+      "radius": 7.738887310028076,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 77,
+      "grad_norm": 1.0,
+      "radius": 7.8385748863220215,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 78,
+      "grad_norm": 1.0,
+      "radius": 7.938265323638916,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 79,
+      "grad_norm": 1.0,
+      "radius": 8.037959098815918,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 80,
+      "grad_norm": 1.0,
+      "radius": 8.137656211853027,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 81,
+      "grad_norm": 1.0,
+      "radius": 8.23735523223877,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 82,
+      "grad_norm": 1.0,
+      "radius": 8.337056159973145,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 83,
+      "grad_norm": 1.0,
+      "radius": 8.436758995056152,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 84,
+      "grad_norm": 1.0,
+      "radius": 8.536462783813477,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 85,
+      "grad_norm": 1.0,
+      "radius": 8.636168479919434,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 86,
+      "grad_norm": 1.0,
+      "radius": 8.735872268676758,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 87,
+      "grad_norm": 1.0,
+      "radius": 8.835576057434082,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 88,
+      "grad_norm": 1.0,
+      "radius": 8.935279846191406,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 89,
+      "grad_norm": 1.0,
+      "radius": 9.034982681274414,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 90,
+      "grad_norm": 1.0,
+      "radius": 9.134681701660156,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 91,
+      "grad_norm": 1.0,
+      "radius": 9.23437786102295,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 92,
+      "grad_norm": 1.0,
+      "radius": 9.334071159362793,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 93,
+      "grad_norm": 1.0,
+      "radius": 9.433758735656738,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 94,
+      "grad_norm": 1.0,
+      "radius": 9.533440589904785,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 95,
+      "grad_norm": 1.0,
+      "radius": 9.633115768432617,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 96,
+      "grad_norm": 1.0,
+      "radius": 9.732782363891602,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 97,
+      "grad_norm": 1.0,
+      "radius": 9.832438468933105,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 98,
+      "grad_norm": 1.0,
+      "radius": 9.932082176208496,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 99,
+      "grad_norm": 1.0,
+      "radius": 10.031712532043457,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 100,
+      "grad_norm": 1.0,
+      "radius": 10.13132381439209,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 101,
+      "grad_norm": 1.0,
+      "radius": 10.230915069580078,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 102,
+      "grad_norm": 1.0,
+      "radius": 10.33048152923584,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 103,
+      "grad_norm": 0.9999985098838806,
+      "radius": 10.430017471313477,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 104,
+      "grad_norm": 0.9999867677688599,
+      "radius": 10.52951717376709,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 105,
+      "grad_norm": 0.9999545216560364,
+      "radius": 10.628972053527832,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 106,
+      "grad_norm": 0.999911904335022,
+      "radius": 10.728367805480957,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 107,
+      "grad_norm": 0.9998093843460083,
+      "radius": 10.827692031860352,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 108,
+      "grad_norm": 0.9993692636489868,
+      "radius": 10.926918029785156,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 109,
+      "grad_norm": 0.9969404339790344,
+      "radius": 11.025992393493652,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 110,
+      "grad_norm": 0.98553866147995,
+      "radius": 11.124682426452637,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 111,
+      "grad_norm": 0.9540418982505798,
+      "radius": 11.222067832946777,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 112,
+      "grad_norm": 0.8984073996543884,
+      "radius": 11.316121101379395,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 113,
+      "grad_norm": 0.8310745358467102,
+      "radius": 11.404428482055664,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 114,
+      "grad_norm": 0.764377772808075,
+      "radius": 11.485821723937988,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 115,
+      "grad_norm": 0.7030565142631531,
+      "radius": 11.560357093811035,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 116,
+      "grad_norm": 0.6479990482330322,
+      "radius": 11.628552436828613,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 117,
+      "grad_norm": 0.5989810228347778,
+      "radius": 11.69101619720459,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 118,
+      "grad_norm": 0.5553231239318848,
+      "radius": 11.748326301574707,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 119,
+      "grad_norm": 0.5167185068130493,
+      "radius": 11.801005363464355,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 120,
+      "grad_norm": 0.48273059725761414,
+      "radius": 11.84953784942627,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 121,
+      "grad_norm": 0.4527324140071869,
+      "radius": 11.894363403320312,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 122,
+      "grad_norm": 0.4265694320201874,
+      "radius": 11.935858726501465,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 123,
+      "grad_norm": 0.40386247634887695,
+      "radius": 11.974387168884277,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 124,
+      "grad_norm": 0.3841886520385742,
+      "radius": 12.010255813598633,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 125,
+      "grad_norm": 0.36736392974853516,
+      "radius": 12.043742179870605,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 126,
+      "grad_norm": 0.35310879349708557,
+      "radius": 12.075106620788574,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 127,
+      "grad_norm": 0.3412798047065735,
+      "radius": 12.104571342468262,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 128,
+      "grad_norm": 0.33157411217689514,
+      "radius": 12.132357597351074,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 129,
+      "grad_norm": 0.32385069131851196,
+      "radius": 12.158648490905762,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 130,
+      "grad_norm": 0.31786173582077026,
+      "radius": 12.183623313903809,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 131,
+      "grad_norm": 0.3135915696620941,
+      "radius": 12.207439422607422,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 132,
+      "grad_norm": 0.31082525849342346,
+      "radius": 12.230245590209961,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 133,
+      "grad_norm": 0.3093436658382416,
+      "radius": 12.252169609069824,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 134,
+      "grad_norm": 0.3091817796230316,
+      "radius": 12.273341178894043,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 135,
+      "grad_norm": 0.3101331889629364,
+      "radius": 12.293865203857422,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 136,
+      "grad_norm": 0.3119913637638092,
+      "radius": 12.313857078552246,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 137,
+      "grad_norm": 0.31481224298477173,
+      "radius": 12.333407402038574,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 138,
+      "grad_norm": 0.318518728017807,
+      "radius": 12.352608680725098,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 139,
+      "grad_norm": 0.3229637145996094,
+      "radius": 12.371546745300293,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 140,
+      "grad_norm": 0.3280859887599945,
+      "radius": 12.390303611755371,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 141,
+      "grad_norm": 0.333857923746109,
+      "radius": 12.408947944641113,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 142,
+      "grad_norm": 0.3402257561683655,
+      "radius": 12.427547454833984,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 143,
+      "grad_norm": 0.3470940589904785,
+      "radius": 12.446158409118652,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 144,
+      "grad_norm": 0.3543926179409027,
+      "radius": 12.464842796325684,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 145,
+      "grad_norm": 0.3621772825717926,
+      "radius": 12.483642578125,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 146,
+      "grad_norm": 0.3702501952648163,
+      "radius": 12.50261116027832,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 147,
+      "grad_norm": 0.3786938786506653,
+      "radius": 12.521796226501465,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 148,
+      "grad_norm": 0.38750553131103516,
+      "radius": 12.541239738464355,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 149,
+      "grad_norm": 0.3968336284160614,
+      "radius": 12.560988426208496,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 150,
+      "grad_norm": 0.4063814580440521,
+      "radius": 12.581086158752441,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 151,
+      "grad_norm": 0.4160917401313782,
+      "radius": 12.601563453674316,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 152,
+      "grad_norm": 0.42610809206962585,
+      "radius": 12.622450828552246,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 153,
+      "grad_norm": 0.43632394075393677,
+      "radius": 12.643780708312988,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 154,
+      "grad_norm": 0.4465222954750061,
+      "radius": 12.66557788848877,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 155,
+      "grad_norm": 0.45701512694358826,
+      "radius": 12.687861442565918,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 156,
+      "grad_norm": 0.46770763397216797,
+      "radius": 12.710654258728027,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 157,
+      "grad_norm": 0.4786151945590973,
+      "radius": 12.733986854553223,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 158,
+      "grad_norm": 0.4894320070743561,
+      "radius": 12.757887840270996,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 159,
+      "grad_norm": 0.5003517866134644,
+      "radius": 12.782366752624512,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 160,
+      "grad_norm": 0.5112445950508118,
+      "radius": 12.807446479797363,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 161,
+      "grad_norm": 0.5221531391143799,
+      "radius": 12.833136558532715,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 162,
+      "grad_norm": 0.5330199599266052,
+      "radius": 12.85943603515625,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 163,
+      "grad_norm": 0.5440090894699097,
+      "radius": 12.886367797851562,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 164,
+      "grad_norm": 0.5549814105033875,
+      "radius": 12.91394329071045,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 165,
+      "grad_norm": 0.5657736659049988,
+      "radius": 12.94217586517334,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 166,
+      "grad_norm": 0.576643168926239,
+      "radius": 12.971063613891602,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 167,
+      "grad_norm": 0.5875439047813416,
+      "radius": 13.000617980957031,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 168,
+      "grad_norm": 0.5984609723091125,
+      "radius": 13.030860900878906,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 169,
+      "grad_norm": 0.6091675758361816,
+      "radius": 13.061785697937012,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 170,
+      "grad_norm": 0.6197038888931274,
+      "radius": 13.093396186828613,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 171,
+      "grad_norm": 0.6300097107887268,
+      "radius": 13.125683784484863,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 172,
+      "grad_norm": 0.6400803327560425,
+      "radius": 13.158652305603027,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 173,
+      "grad_norm": 0.6499620079994202,
+      "radius": 13.192294120788574,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 174,
+      "grad_norm": 0.6597563624382019,
+      "radius": 13.226614952087402,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 175,
+      "grad_norm": 0.6693031787872314,
+      "radius": 13.261609077453613,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 176,
+      "grad_norm": 0.6787541508674622,
+      "radius": 13.297279357910156,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 177,
+      "grad_norm": 0.688033401966095,
+      "radius": 13.333625793457031,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 178,
+      "grad_norm": 0.697163999080658,
+      "radius": 13.370640754699707,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 179,
+      "grad_norm": 0.7060571908950806,
+      "radius": 13.408319473266602,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 180,
+      "grad_norm": 0.7148405909538269,
+      "radius": 13.44665813446045,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 181,
+      "grad_norm": 0.7234212160110474,
+      "radius": 13.485661506652832,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 182,
+      "grad_norm": 0.7318412661552429,
+      "radius": 13.525334358215332,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 183,
+      "grad_norm": 0.7401068806648254,
+      "radius": 13.565655708312988,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 184,
+      "grad_norm": 0.7481698393821716,
+      "radius": 13.606622695922852,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 185,
+      "grad_norm": 0.7559060454368591,
+      "radius": 13.648215293884277,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 186,
+      "grad_norm": 0.7634581327438354,
+      "radius": 13.690421104431152,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 187,
+      "grad_norm": 0.7707875967025757,
+      "radius": 13.733230590820312,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 188,
+      "grad_norm": 0.7780284881591797,
+      "radius": 13.776640892028809,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 189,
+      "grad_norm": 0.7850068211555481,
+      "radius": 13.820642471313477,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 190,
+      "grad_norm": 0.7918106913566589,
+      "radius": 13.86523723602295,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 191,
+      "grad_norm": 0.7985647916793823,
+      "radius": 13.91041088104248,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 192,
+      "grad_norm": 0.8049349188804626,
+      "radius": 13.956155776977539,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 193,
+      "grad_norm": 0.8110008239746094,
+      "radius": 14.002459526062012,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 194,
+      "grad_norm": 0.8168301582336426,
+      "radius": 14.049307823181152,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 195,
+      "grad_norm": 0.8225412368774414,
+      "radius": 14.096684455871582,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 196,
+      "grad_norm": 0.8280027508735657,
+      "radius": 14.144586563110352,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 197,
+      "grad_norm": 0.8333287239074707,
+      "radius": 14.19300365447998,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 198,
+      "grad_norm": 0.8385744094848633,
+      "radius": 14.24193000793457,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 199,
+      "grad_norm": 0.8435915112495422,
+      "radius": 14.291354179382324,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    },
+    {
+      "step": 200,
+      "grad_norm": 0.8485309481620789,
+      "radius": 14.341270446777344,
+      "agree_with_source_argmax": 0.4520507752895355,
+      "kl_unigram": 0.031449299305677414
+    }
+  ]
+}

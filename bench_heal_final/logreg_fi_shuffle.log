@@ -1,0 +1,28 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[heal] ckpt=runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM_converge/epoch_final.pt
+[heal] K=27 L=256 t_max=8.0 t_eval=4.5 device=cuda
+[heal] disjoint splits: fit=512 cal=512 demo=64  n_seeds=3
+=== build per-token localizer (logistic_fi) ===
+  [logistic] train mix falseinfo @ rate 0.15: [('falseinfo', 14576)]  (scheme, #corrupt tokens)
+  [logistic] fit on 74576 tok (pos=60000 neg=14576) @ t=4.5
+=== heal sweep (mean over 3 corruption seeds) ===
+  fpr     thr  loc_P  loc_R  loc_F1    fix    dmg    net/corrupt   delta_ws
+ 0.02   0.377  0.256  0.341   0.293  0.105  0.126   -0.697±0.014    -0.0944  <- selected
+ 0.05  -0.134  0.218  0.498   0.303  0.094  0.243   -1.457±0.030    -0.1976
+ 0.10  -0.565  0.191  0.615   0.291  0.076  0.377   -2.328±0.051    -0.3156
+
+--- example[0] @ selected fpr=0.02 (chosen by cal-set F0.5) ---
+  clean : 'yed back using a compatible pc karaoke player display the lyrics karaoke style while playing the song although the midi karaoke format precludes the use of background vocals and harmonies the incredibly small size of the file in comparison to other digital'
+  corr  : 'yed baak usinr a iorgatiblp  r kaoaokg playem display the lyeics ktraokr styee wrzle playing thensong ilthouoh rhe midi kaeaoke forcct plecludea thu use of backgrognd vocafs and harmonies the incredlbly small sime oe the file in chmpacisos pa other ditital'
+  truec :       ^      ^   ^ ^^     ^ ^^   ^   ^      ^               ^     ^    ^    ^   ^^              ^     ^     ^  ^          ^        ^^   ^      ^   ^               ^       ^                          ^            ^   ^              ^   ^   ^ ^^         ^    
+  flag  :      ***    **   *****  ***  *       *     **    **              ** *    *     **                   * *             ***  * *     *****  *** ****  **           *  * *  * *              *        * *  ****       *    *               *   * *** **        *  *  
+  healed: 'yed b  e using a b  datif e  e kaoaoke playez display the lyeics harbokr styee bzzle playing thensong althouoh rhe m  e k ezoke f q  q p z l o e the use of backgr g d mozafs and harmonies the incked z e small fime oe the file in comparioke oe other datibal'
+
+=== HEADLINE @ selected fpr=0.02 (mean±std over 3 seeds) ===
+  localize    = P 0.256 / R 0.341 / F1 0.293   (per-token detection of the corrupt positions)
+  fix_rate    = 0.105   (corrupt token -> correct)
+  damage_rate = 0.126   (clean token -> broken)
+  net/corrupt = -0.697 ± 0.014   (net tokens recovered per corrupt token; >0 ⇒ net benefit)
+  delta_ws    = -0.0944 ± 0.0008   (whole-seq; diluted, capped near corrupt_rate — diagnostic only)
+
+Wrote bench_heal_final/logreg_fi_shuffle.json

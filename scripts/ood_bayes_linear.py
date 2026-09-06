@@ -375,6 +375,7 @@ def main() -> int:
     schemes = [s for s in args.schemes.split(",") if s.strip()]
     rates = [float(r) for r in args.rates.split(",") if r.strip()]
     Ep_tok = Ep.numpy().reshape(-1)  # clean per-token energy: threshold calibration
+    Vp_tok = Vp.numpy().reshape(-1)  # clean per-token variance: same role for the Var head
     for scheme in schemes:
         for r in rates:
             ot = _corrupt(pos_tok.clone(), scheme, r, args.seed + int(1000 * r))
@@ -396,6 +397,14 @@ def main() -> int:
             # WORD level — the common unit vs the BPE-tokenised LM baselines.
             w_max = word_metrics(Ep, pos_tok, Eo, ot, changed, op="max")
             w_mean = word_metrics(Ep, pos_tok, Eo, ot, changed, op="mean")
+            # --- the same report for the VARIANCE head (training-free), so it can be
+            # read at the word unit and at a clean-calibrated threshold like the energy.
+            Vo_seq = Vo.mean(1).numpy()
+            m_seq_v = det_metrics(Vp_seq, Vp_seq, Vo_seq)
+            vo_tok = Vo.numpy().reshape(-1)
+            m_tok_v = det_metrics(Vp_tok, vo_tok[cm == 0], vo_tok[cm == 1])
+            w_max_v = word_metrics(Vp, pos_tok, Vo, ot, changed, op="max")
+            w_mean_v = word_metrics(Vp, pos_tok, Vo, ot, changed, op="mean")
             p5 = m_tok["prf"].get("0.05", {})
             print(
                 f"{scheme:>9} {r:>5.2f} {au_E:>12.4f} {au_V:>14.4f} {tl_E:>11.4f} "
@@ -418,6 +427,12 @@ def main() -> int:
                     "word_mean": w_mean,
                     "auroc_word_max": w_max["word"].get("auroc"),
                     "auroc_word_mean": w_mean["word"].get("auroc"),
+                    "prf_seq_var": m_seq_v,
+                    "prf_token_var": m_tok_v,
+                    "word_max_var": w_max_v,
+                    "word_mean_var": w_mean_v,
+                    "auroc_word_max_var": w_max_v["word"].get("auroc"),
+                    "auroc_word_mean_var": w_mean_v["word"].get("auroc"),
                     "E_seq_mean": float(Eo.mean()),
                     "Var_seq_mean": float(Vo.mean()),
                 }

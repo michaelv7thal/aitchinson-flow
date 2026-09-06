@@ -1,0 +1,25 @@
+### gamma*=0.03 rescale: alpha=0.5  g=0.01827  -> runs/band_L256_ep10_d10k/recovery_gstar030_a05.json
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+=== Unconditional generation === SKIPPED (--skip-uncond)
+
+=== Recovery from perturbation ===
+  embed_norm_mean=12.2723  σ_source=0.1000
+    α  σ_perturb        Δ  tok_acc tok_acc_pt    KL_bi  sample[0]: gt / pt / rc
+ 0.50      6.136   0.1092   0.6322     0.5229   0.3037  gt='e the capital of one government after another one of such governments was established in one eight six four as a second mexican empire the short lived monarchy led by maximilian of habsburg left its mark on the reconstruction of chapultepec castle and othe'
+                                             pt='k thezclphral of zni goyrrnmeltr ster anatver oye ll sumhjxoyllnreqts whszesyabhiphxdtiwrore eiphfsw xhbouw ak nuiecxip mfxican ekpcdefthedohlrt libegrgoyarhj glcmebqemgkismfots omcquob urg yehobtts kgryo npthe aenoxssruoupcfioftchbjultevec bavnlepand nthe'
+                                             rc='e theoclperal of oni goyrrnmeltr ster anather one of sumh govllerents was estanhephidtinrore e phfss r eo w as aunecoid milican eupprefthe ohlrt t beirgo arhe tlem b emg isofots oenouen urg aeho its tary on the aenonesruouicfioftch pulteves bavnte and nthe'
+
+Wrote runs/band_L256_ep10_d10k/recovery_gstar030_a05.json
+### gamma*=0.03 rescale: alpha=0.6  g=0.01553  -> runs/band_L256_ep10_d10k/recovery_gstar030_a06.json
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+=== Unconditional generation === SKIPPED (--skip-uncond)
+
+=== Recovery from perturbation ===
+  embed_norm_mean=12.2723  σ_source=0.1000
+    α  σ_perturb        Δ  tok_acc tok_acc_pt    KL_bi  sample[0]: gt / pt / rc
+ 0.60      7.363   0.1076   0.5099     0.4023   0.3524  gt='e the capital of one government after another one of such governments was established in one eight six four as a second mexican empire the short lived monarchy led by maximilian of habsburg left its mark on the reconstruction of chapultepec castle and othe'
+                                             pt='oerrv xqpvta w f kdn gqkorviyqtacfahr aqoslqtyoneoorebuchzgofpratena  yasiosljbleqhodfiwmoae ecgeigstxxfkuvpaltd wmoona mlgdnanzezcy edmcudyarev llked mrnarcjy ktd nqcwaxp wliad oipyabjbwxenleet nts mxvk pysuhexooyoamlruczmohsff uhoculmeqecuxdszlfzvzz otqe'
+                                             rc='oerra oppita r f ddn gocorvieqtanf hr anoslat oneoorer ch roferatenan w siosl ble hed in owe ecleiestx fkur alta wmoona mlginane bcy e mcudyarev llved sengrcly s d nd waxp wliat oithabsburenleer nts m ve pyscherooacallr comor ff choculae er td elruand ot e'
+
+Wrote runs/band_L256_ep10_d10k/recovery_gstar030_a06.json
+### GSTAR CHECK DONE

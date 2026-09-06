@@ -99,18 +99,18 @@ def fig_seq():
         _scatter(axes[0, col], coords[f"seq_{key}_pca_xy"], lab)
         axes[0, col].set_title(label, pad=4)
         # Name the readout in every annotation, in the words tab:latent gives its
-        # columns ("PC 1-2 probe", "LDA / hinge axis"). The two rows are two
-        # different readouts, and a bare "AUROC" leaves the reader to work out
-        # which. "probe" is the paper's word for a fitted logistic regression, so
-        # the top-row number reads as the LR score on PC1-2 and not as PCA alone.
+        # columns ("PC 1-2", "Fisher LDA"). The two rows are two different
+        # readouts, and a bare "AUROC" leaves the reader to work out which.
+        # (author, 2026-08-30: no "probe" on the PC row and no "axis" on the
+        # LDA row; the annotation and the x-label both read "Fisher LDA".)
         # Two lines: on one line the label runs into the next panel's y ticks.
-        _annot(axes[0, col], f"PC 1-2 probe\nAUROC {m['pca_pc12_probe_auroc']:.3f}")
+        _annot(axes[0, col], f"PC 1-2\nAUROC {m['pca_pc12_probe_auroc']:.3f}")
         _scatter(axes[1, col], coords[f"seq_{key}_lda_xy"], lab)
-        _annot(axes[1, col], f"LDA axis\nAUROC {m['lda_axis_auroc']:.3f}")
+        _annot(axes[1, col], f"Fisher LDA\nAUROC {m['lda_axis_auroc']:.3f}")
         # Each row labels its own x-axis under each of its panels: a single
         # centred label per row lands between the rows and belongs to neither.
         axes[0, col].set_xlabel("PC1")
-        axes[1, col].set_xlabel("LDA axis")
+        axes[1, col].set_xlabel("Fisher LDA")
         print(f"[seq:{key}] probe={m['pca_pc12_probe_auroc']:.3f} "
               f"lda={m['lda_axis_auroc']:.3f} "
               f"full={m['full_dim_linear_auroc']:.3f}")

@@ -39,6 +39,7 @@ def main():
         for ax, series in zip(axes, (seq, tok)):
             rates, vals = zip(*series)
             (ln,) = ax.plot(rates, vals, color=color,
+                            ls="--" if det_label == "Var" else "-",
                             lw=2.0 if hero else 1.3,
                             marker="o", ms=4.0 if hero else 3.2,
                             mec="white", mew=0.7,
@@ -57,7 +58,7 @@ def main():
     axes[0].text(0.98, 0.508, "chance", fontsize=7, color=MUTED,
                  ha="right", va="bottom", transform=axes[0].get_yaxis_transform())
     fig.supxlabel("false-information swap rate", fontsize=9)
-    fig.legend(handles, labels, ncol=7, loc="outside upper center")
+    fig.legend(handles, labels, ncol=8, loc="outside upper center")
 
     _style.save(fig, "ood_falseinfo_seq_tok")
 

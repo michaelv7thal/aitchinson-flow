@@ -14,12 +14,13 @@ BENCH = BENCH_OOD
 SCHEMES = [("replace", "replace"), ("shuffle", "shuffle"), ("falseinfo", "false information")]
 
 
-def load_word_max(relpath):
+def load_word_max(relpath, sfx="energy"):
     rows = json.loads((BENCH / relpath).read_text())["rows"]
+    key = "auroc_word_max_var" if sfx == "uncertainty" else "auroc_word_max"
     out = {}
     for r in rows:
-        if r.get("rate", 0) > 0 and r.get("scheme") in {s for s, _ in SCHEMES} and "auroc_word_max" in r:
-            out.setdefault(r["scheme"], []).append((r["rate"], r["auroc_word_max"]))
+        if r.get("rate", 0) > 0 and r.get("scheme") in {s for s, _ in SCHEMES} and key in r:
+            out.setdefault(r["scheme"], []).append((r["rate"], r[key]))
     return {k: sorted(v) for k, v in out.items()}
 
 
@@ -28,12 +29,13 @@ def main():
     fig, axes = plt.subplots(1, 3, figsize=(_style.TEXTWIDTH_IN, 2.45),
                              sharey=True, layout="constrained")
     handles, labels = [], []
-    for det_label, relpath, _sfx, color in DETECTORS:
-        data = load_word_max(relpath)
+    for det_label, relpath, sfx, color in DETECTORS:
+        data = load_word_max(relpath, sfx)
         hero = det_label == "NLL"
         for ax, (scheme, _tag) in zip(axes, SCHEMES):
             rates, vals = zip(*data[scheme])
             (ln,) = ax.plot(rates, vals, color=color,
+                            ls="--" if det_label == "Var" else "-",
                             lw=2.0 if hero else 1.3,
                             marker="o", ms=4.0 if hero else 3.2,
                             mec="white", mew=0.7,
@@ -52,7 +54,7 @@ def main():
     axes[0].text(0.98, 0.508, "chance", fontsize=7, color=MUTED,
                  ha="right", va="bottom", transform=axes[0].get_yaxis_transform())
     fig.supxlabel("corruption rate", fontsize=9)
-    fig.legend(handles, labels, ncol=7, loc="outside upper center")
+    fig.legend(handles, labels, ncol=8, loc="outside upper center")
 
     _style.save(fig, "ood_word_auroc_max")
 

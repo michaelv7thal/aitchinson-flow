@@ -1,0 +1,37 @@
+{
+  "ckpt": "runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM_converge/epoch_final.pt",
+  "split": "test",
+  "t_eval": 4.5,
+  "d_model": 1280,
+  "rate": 0.2,
+  "fit_seqs": 192,
+  "n": 256,
+  "schemes": [
+    "plausible"
+  ],
+  "token_scheme": "plausible",
+  "token_schemes": [
+    "plausible"
+  ],
+  "per_sequence": {
+    "plausible": {
+      "pca_pc12_probe_auroc": 0.566131591796875,
+      "lda_axis_auroc": 0.8512115478515625,
+      "full_dim_linear_auroc": 0.983978271484375,
+      "pca_pc12_probe_null": null,
+      "full_dim_linear_null": null,
+      "n_points": 512
+    }
+  },
+  "per_token": {
+    "plausible": {
+      "token_scheme": "plausible",
+      "pca_pc12_probe_auroc": 0.5924134375000001,
+      "energy_axis_auroc": 0.886861625,
+      "full_dim_linear_auroc": 0.9813176875,
+      "pca_pc12_probe_null": null,
+      "full_dim_linear_null": null,
+      "n_per_class": 4000
+    }
+  }
+}

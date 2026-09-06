@@ -74,6 +74,7 @@ from scripts.ood_variance_perpos import _load_dirichletfm, _perpos_feats  # noqa
 from aitchinson_flow.training import build_training_datamodule  # noqa: E402
 from aitchinson_flow.data.corruption import (  # noqa: E402
     corrupt_token_ids,
+    partially_shuffle_token_ids,
     corrupt_false_info,
     build_vocab_by_len,
 )
@@ -150,6 +151,135 @@ def train_localizer(model, fit_tok, t_eval, device, *, train_rate, margin, steps
         return torch.cat(outs)  # (B, L)
 
     return score, d
+
+
+# --------------------------------------------------------------------------- #
+# Localizer (logistic): the full-dimension logistic probe of the latent-split
+# analysis, deployed as a per-token localizer.
+#
+# Identical features, standardiser and replace-negatives to train_localizer above;
+# the OBJECTIVE alone differs (logistic loss in place of the bounded-energy hinge),
+# so the pair is an honest A/B on the loss with everything else held fixed. Same
+# (score, d) interface, so it drops into the identical calibrate -> inpaint ->
+# score pipeline. Detector counterpart: ood_bayes_linear.py --head logistic.
+# --------------------------------------------------------------------------- #
+def train_logistic_localizer(model, fit_tok, t_eval, device, *, train_rate, seed,
+                             C=1.0, max_iter=2000, max_fit=60000):
+    """Fit a full-dim LogisticRegression on frozen features; score = decision fn."""
+    from sklearn.linear_model import LogisticRegression
+
+    K = model.K
+    fc = _perpos_feats(model, fit_tok, t_eval, device)   # (Nf, L, d) clean
+    d = fc.shape[-1]
+    corr_tok = corrupt_token_ids(
+        fit_tok.clone(), vocab_size=K, corrupt_rate=train_rate, seed=seed
+    )
+    fk = _perpos_feats(model, corr_tok, t_eval, device)  # (Nf, L, d) corrupted
+    label_corr = (corr_tok != fit_tok).reshape(-1)       # (Nf*L,) bool
+
+    mu = fc.reshape(-1, d).mean(0)
+    sigma = fc.reshape(-1, d).std(0).clamp_min(1e-6)
+
+    def _proj(h_flat):
+        m, s = mu.to(h_flat.device), sigma.to(h_flat.device)
+        return (h_flat - m) / s
+
+    zc = _proj(fc.reshape(-1, d))       # CPU
+    zk = _proj(fk.reshape(-1, d))       # CPU
+    yk = label_corr
+    zpos = torch.cat([zc, zk[~yk]], 0)  # valid chars (clean + unchanged-corrupt)
+    zneg = zk[yk]                       # corrupted chars
+
+    gen = torch.Generator().manual_seed(seed)
+
+    def _samp(t, cap):  # sklearn is dense/in-core; cap the per-class token pool
+        if t.shape[0] > cap:
+            return t[torch.randperm(t.shape[0], generator=gen)[:cap]]
+        return t
+
+    Xp, Xn = _samp(zpos, max_fit).numpy(), _samp(zneg, max_fit).numpy()
+    Xtr = np.concatenate([Xp, Xn], 0)
+    ytr = np.r_[np.zeros(Xp.shape[0]), np.ones(Xn.shape[0])]
+    clf = LogisticRegression(C=C, max_iter=max_iter)
+    clf.fit(Xtr, ytr)
+    print(f"  [logistic] full-dim probe fit on {Xtr.shape[0]} tok "
+          f"(d={d}, C={C}); score = LR decision function")
+
+    @torch.no_grad()
+    def score(tok, chunk=16):
+        outs = []
+        for i in range(0, tok.shape[0], chunk):
+            h = _perpos_feats(model, tok[i:i + chunk], t_eval, device)  # (b,L,d) CPU
+            b, Lq, _ = h.shape
+            z = _proj(h.reshape(-1, d))
+            e = torch.from_numpy(clf.decision_function(z.numpy())).float()
+            outs.append(e.reshape(b, Lq))
+        return torch.cat(outs)  # (B, L)
+
+    return score, d
+
+
+# --------------------------------------------------------------------------- #
+# Localizers (multi-scheme): the remaining readouts of the detector table, so the
+# repair sweep can cover the same roster the detection sweep does.
+#
+# train_localizer / train_logistic_localizer above are hard-wired to REPLACE
+# negatives, which is exactly what LinE and LOG mean in the detector tables. The
+# heads that differ from those only in WHICH corruptions they are shown (LinE_all on
+# the four-scheme mix, LinE_fi and LOG_fi on false information) are built here from
+# the same frozen features by the same fitting code the detector tables use, so a row
+# added to the repair table is the same head as the row of that name in the detection
+# table. Var is the training-free Laplace predictive variance, fitted in closed form
+# on clean features alone.
+#
+# The imports are deferred into the function bodies on purpose: ood_plausible_swap
+# imports THIS module, so pulling it in at module scope would be circular.
+# --------------------------------------------------------------------------- #
+def build_scheme_localizer(model, fit_tok, t_eval, device, *, schemes, train_rate,
+                           kind, seed, K, margin=4.0, steps=600, lr=5e-2,
+                           t_nll=3.0, n_cands=48, plausible_seqs=128):
+    """Hinge or logistic head trained on the named corruption schemes.
+
+    Returns the same ``(score, d)`` pair as ``train_localizer``, so it drops into the
+    identical calibrate -> inpaint -> score pipeline. The false-information
+    replacement vocabulary is built from the fit windows' own text, as
+    ``ood_bayes_linear.py`` does, so LinE_all / LinE_fi here match their detector
+    counterparts.
+    """
+    from scripts.ood_plausible_swap import train_logistic_head
+    from scripts._bench_common import make_adversarial_negatives
+
+    by_len_tr = None
+    if any(s in ("falseinfo", "wordswap", "plausible") for s in schemes):
+        by_len_tr = build_vocab_by_len(" ".join(_decode(row) for row in fit_tok))
+    adv = make_adversarial_negatives(fit_tok, K=K, by_len=by_len_tr, schemes=schemes,
+                                     rate=train_rate, seed=seed, model=model,
+                                     t_nll=t_nll, device=device, n_cands=n_cands,
+                                     plausible_seqs=plausible_seqs)
+    print(f"  [{kind}] train mix {'+'.join(schemes)} @ rate {train_rate}: "
+          f"{[(s, int(m.sum())) for s, _, m in adv]}  (scheme, #corrupt tokens)")
+    pairs = [(fit_tok[: ct.shape[0]], ct) for _s, ct, _m in adv]
+    (cl0, ct0), extra = pairs[0], pairs[1:]
+    score = train_logistic_head(model, cl0, ct0, t_eval, device, seed=seed, kind=kind,
+                                extra_pairs=extra, hinge_margin=margin,
+                                hinge_steps=steps, hinge_lr=lr)
+    d = int(_perpos_feats(model, fit_tok[:1], t_eval, device).shape[-1])
+    return score, d
+
+
+def build_variance_localizer(model, fit_tok, t_var, device, *, ridge=0.1):
+    """Laplace predictive variance on clean features alone; no corruption is shown.
+
+    Same closed form as the variance half of ``ood_bayes_linear.py``: standardise,
+    Phi = E[z z^T] over clean per-token features, Var(z) = ||L^-1 z||^2 with
+    Phi + ridge*tr(Phi)/d*I = L L^T. Read at the peaky path time, where a corrupted
+    token lands genuinely off-manifold and the variance is not inverted.
+    """
+    from scripts.ood_plausible_swap import make_variance_head
+
+    print(f"  [var] training-free Laplace variance @ t_var={t_var} ridge={ridge} "
+          f"(clean features only, no negatives)")
+    return make_variance_head(model, fit_tok, t_var, device, ridge=ridge), 0
 
 
 # --------------------------------------------------------------------------- #
@@ -499,14 +629,22 @@ def fbeta(stats, beta: float = 0.5) -> float:
     return (1 + b2) * p * r / den if den > 0 else 0.0
 
 
-def calibrate_threshold(score, clean_tok, corrupt_tok, *, target_fpr):
+def calibrate_threshold(score, clean_tok, corrupt_tok, *, target_fpr,
+                        stat_clean_tok=None):
     """Threshold giving ~target_fpr on clean tokens; report its precision/recall/F1
     on the held-out calibration corrupt batch (used for GT-free operating-point
-    selection)."""
+    selection).
+
+    ``stat_clean_tok`` is the clean counterpart of ``corrupt_tok`` when the corrupt
+    calibration batch covers only a PREFIX of ``clean_tok``. The threshold itself is
+    always the quantile over the full clean batch; only the reported stats shrink.
+    This exists for the plausible scheme, whose swap search costs n_cands forward
+    passes per swapped word and so is not run over all 512 calibration windows."""
     E_clean = score(clean_tok).reshape(-1)
     thr = float(torch.quantile(E_clean, 1.0 - target_fpr))
     E_corr = score(corrupt_tok)
-    true_corrupt = (corrupt_tok != clean_tok).cpu()
+    ref = clean_tok if stat_clean_tok is None else stat_clean_tok
+    true_corrupt = (corrupt_tok != ref).cpu()
     pred = E_corr > thr
     tp = float((pred & true_corrupt).sum())
     fp = float((pred & ~true_corrupt).sum())
@@ -691,6 +829,8 @@ def main() -> int:
     ap.add_argument("--fit-seqs", type=int, default=512,  # bench_heal_final ran 512
                     help="# clean sequences to train the localizer head")
     ap.add_argument("--n-demo", type=int, default=64, help="# sequences to corrupt & heal (the reported bench ran 64)")
+    ap.add_argument("--n-examples", type=int, default=4,
+                    help="# demo windows to serialize under 'examples' (default 4 = the reported bench)")
     ap.add_argument("--n-seeds", type=int, default=3,  # the reported bench pooled 3 corruption seeds
                     help="# independent demo-corruption realizations to average")
     ap.add_argument("--corrupt-rate", type=float, default=0.15,
@@ -708,20 +848,63 @@ def main() -> int:
                     help="dataset split for fit/cal/demo sequences "
                          "(test = held-out last-5M text8 split)")
     # --- localizer choice: linear hinge head (default) or post-hoc SVGP head ---
-    ap.add_argument("--localizer", choices=["linear", "gp", "nll", "gmm", "bgmm"],
+    ap.add_argument("--localizer",
+                    choices=["linear", "logistic", "gp", "nll", "gmm", "bgmm",
+                             "linear_all", "linear_fi", "logistic_fi",
+                             "logistic_pl", "linear_pl", "var"],
                     default="linear",
-                    help="per-token corruption localizer: 'linear' (BayesLin hinge), "
+                    help="per-token corruption localizer: 'linear' (BayesLin hinge on "
+                         "replace negatives), "
+                         "'logistic' (the same full-dim head under a logistic loss — "
+                         "the latent-split probe, deployed), "
                          "'gp' (post-hoc SVGP energy+variance auditor), 'nll' "
                          "(training-free denoiser surprise at --t-nll), 'gmm' "
-                         "(one-class Gaussian-mixture density on frozen features), or "
-                         "'bgmm' (Bayesian DP infinite-mixture density; infers K)")
-    ap.add_argument("--corrupt-scheme", choices=["replace", "falseinfo"],
+                         "(one-class Gaussian-mixture density on frozen features), "
+                         "'bgmm' (Bayesian DP infinite-mixture density; infers K), "
+                         "'linear_all' (hinge on the replace+shuffle+falseinfo+both "
+                         "mix, the LinE_all row), 'linear_fi' (hinge on false-"
+                         "information negatives, the LinE_fi row), 'logistic_fi' "
+                         "(logistic head on false-information negatives drawn at the "
+                         "EVALUATION rate, the LOG_fi row), 'logistic_pl' / "
+                         "'linear_pl' (the same two objectives on model-guided "
+                         "PLAUSIBLE negatives, the LOG_pl row: the only detector that "
+                         "localizes the plausible swap, so the only one whose repair "
+                         "failure on it is informative), or 'var' (training-free "
+                         "Laplace predictive variance on clean features, the Var row)")
+    ap.add_argument("--plaus-fit-seqs", type=int, default=128,
+                    help="[logistic_pl/linear_pl] # fit windows used to build the "
+                         "model-guided plausible training negatives (each swapped word "
+                         "costs --plausible-n-cands forward passes, so this is capped)")
+    ap.add_argument("--var-ridge", type=float, default=0.1,
+                    help="[var] Laplace prior precision, Sigma_w=(Phi+ridge*tr(Phi)/d*I)^-1")
+    # --- logistic localizer knobs (mirror ood_bayes_linear.py --head logistic) ---
+    ap.add_argument("--logistic-c", type=float, default=1.0,
+                    help="[logistic] inverse L2 regularisation strength")
+    ap.add_argument("--logistic-max-iter", type=int, default=2000)
+    ap.add_argument("--logistic-max-fit", type=int, default=60000,
+                    help="[logistic] cap on per-class training tokens (subsampled)")
+    ap.add_argument("--corrupt-scheme",
+                    choices=["replace", "shuffle", "falseinfo", "plausible"],
                     default="replace",
                     help="corruption applied to the calibration + demo passages: "
                          "'replace' (random-char substitution, the default) or "
+                         "'shuffle' (within-window permutation, which preserves the "
+                         "token multiset and corrupts the order alone), "
                          "'falseinfo' (lexically-valid same-length word swap — the hard "
                          "semantic axis the char-NLL localizer misses; pairs with "
-                         "--localizer bgmm/gmm)")
+                         "--localizer bgmm/gmm), or 'plausible' (the model-guided "
+                         "min-NLL word swap: the replacement is the same-length real "
+                         "word the model itself scores as most fluent, so it is "
+                         "adversarial to a likelihood readout)")
+    ap.add_argument("--plausible-n-cands", type=int, default=48,
+                    help="[plausible] candidate words scored per swap slot")
+    ap.add_argument("--plausible-t-nll", type=float, default=3.0,
+                    help="[plausible] path-time for the min-NLL swap search")
+    ap.add_argument("--plausible-cal-seqs", type=int, default=128,
+                    help="[plausible] cap on CORRUPTED calibration windows. The "
+                         "threshold is a quantile over the full clean calibration "
+                         "batch and is unaffected; this caps only the corrupt-side "
+                         "stats, whose swap search is the expensive part.")
     ap.add_argument("--t-nll", type=float, default=3.0,
                     help="[nll] path-time for the denoiser-NLL localizer (low/context "
                          "regime, ~3); see scripts/ood_denoiser_nll.py")
@@ -819,15 +1002,24 @@ def main() -> int:
     # 'falseinfo' swaps whole words for a DIFFERENT real same-length word (the hard
     # semantic axis); its vocab is built ONCE from the fit windows.
     by_len = None
-    if args.corrupt_scheme == "falseinfo":
+    if args.corrupt_scheme in ("falseinfo", "plausible"):
         fit_txt = " ".join(_decode(row) for row in fit_tok)
         by_len = build_vocab_by_len(fit_txt)
-        print(f"[heal] false-info vocab: lengths {min(by_len)}-{max(by_len)} "
+        print(f"[heal] word-swap vocab: lengths {min(by_len)}-{max(by_len)} "
               f"(e.g. len-6: {by_len.get(6, [])[:5]})")
 
     def _corrupt(tok, rate, seed):
         if args.corrupt_scheme == "falseinfo":
             return corrupt_false_info(tok, rate, by_len, seed=seed)
+        if args.corrupt_scheme == "shuffle":
+            return partially_shuffle_token_ids(tok, shuffle_rate=rate, seed=seed)
+        if args.corrupt_scheme == "plausible":
+            # deferred: ood_plausible_swap imports this module
+            from scripts.ood_plausible_swap import plausible_swap
+            ct, _ = plausible_swap(model, tok, rate, by_len,
+                                   t_nll=args.plausible_t_nll, K=K, device=device,
+                                   n_cands=args.plausible_n_cands, seed=seed)
+            return ct
         return corrupt_token_ids(tok, vocab_size=K, corrupt_rate=rate, seed=seed)
 
     # ---- 1. localizer ----
@@ -840,6 +1032,12 @@ def main() -> int:
         print(f"  [nll] training-free denoiser-surprise localizer @ t_nll={args.t_nll} "
               f"(no head, no fit set)")
         score, d = make_nll_localizer(model, args.t_nll, device)
+    elif args.localizer == "logistic":
+        score, d = train_logistic_localizer(
+            model, fit_tok, t_eval, device, train_rate=args.train_rate,
+            seed=args.seed, C=args.logistic_c, max_iter=args.logistic_max_iter,
+            max_fit=args.logistic_max_fit,
+        )
     elif args.localizer == "gmm":
         score, d = make_gmm_localizer(
             model, fit_tok, t_eval, device, n_components=args.gmm_n_components,
@@ -853,6 +1051,31 @@ def main() -> int:
             covariance_type=args.bgmm_covariance_type, pca_dim=args.bgmm_pca_dim,
             reg_covar=args.bgmm_reg_covar, max_iter=args.bgmm_max_iter,
             weight_conc_prior=args.bgmm_weight_conc_prior, seed=args.seed,
+        )
+    elif args.localizer in ("linear_all", "linear_fi", "logistic_fi",
+                            "logistic_pl", "linear_pl"):
+        # LOG_fi is defined by the detector tables as the head whose negatives are
+        # drawn at the rate it is evaluated at, so it takes --corrupt-rate where the
+        # two LinE arms keep the bench's own --train-rate.
+        _schemes = ({"linear_all": ["replace", "shuffle", "falseinfo", "both"],
+                     "logistic_pl": ["plausible"], "linear_pl": ["plausible"]}
+                    .get(args.localizer, ["falseinfo"]))
+        _kind = ("logistic" if args.localizer in ("logistic_fi", "logistic_pl")
+                 else "hinge")
+        # the two supervised-at-the-evaluation-rate heads (LOG_fi, LOG_pl) take
+        # --corrupt-rate; the hinge arms keep this bench's --train-rate
+        _rate = (args.corrupt_rate
+                 if args.localizer in ("logistic_fi", "logistic_pl")
+                 else args.train_rate)
+        score, d = build_scheme_localizer(
+            model, fit_tok, t_eval, device, schemes=_schemes, train_rate=_rate,
+            kind=_kind, seed=args.seed, K=K, margin=args.margin,
+            steps=args.head_steps, lr=args.lr, t_nll=args.plausible_t_nll,
+            n_cands=args.plausible_n_cands, plausible_seqs=args.plaus_fit_seqs,
+        )
+    elif args.localizer == "var":
+        score, d = build_variance_localizer(
+            model, fit_tok, t_eval, device, ridge=args.var_ridge,
         )
     elif args.localizer == "gp":
         var_weights = [float(x) for x in args.gp_var_weights.split(",") if x.strip()]
@@ -892,11 +1115,18 @@ def main() -> int:
     # damage-averse: a false-positive edit BREAKS a clean token (clean >> corrupt), so
     # over-recall (high FPR) yields net-negative healing. Max-F1 over-weights recall
     # and picks the damaging operating point; F0.5 favours precision -> best net.
-    cal_corr = _corrupt(cal_tok.clone(), args.corrupt_rate, args.seed + 1)
+    cal_stat_clean = (cal_tok[: args.plausible_cal_seqs]
+                      if args.corrupt_scheme == "plausible" else cal_tok)
+    if cal_stat_clean.shape[0] != cal_tok.shape[0]:
+        print(f"[heal] plausible: corrupting {cal_stat_clean.shape[0]}/"
+              f"{cal_tok.shape[0]} calibration windows for the operating-point stats "
+              f"(the threshold still uses all {cal_tok.shape[0]})")
+    cal_corr = _corrupt(cal_stat_clean.clone(), args.corrupt_rate, args.seed + 1)
     fprs = [float(x) for x in args.target_fprs.split(",") if x.strip()]
     thr_by_fpr = {}
     for fpr in fprs:
-        thr, cal_stats = calibrate_threshold(score, cal_tok, cal_corr, target_fpr=fpr)
+        thr, cal_stats = calibrate_threshold(score, cal_tok, cal_corr, target_fpr=fpr,
+                                             stat_clean_tok=cal_stat_clean)
         thr_by_fpr[fpr] = (thr, cal_stats)
 
     sel_fpr = max(fprs, key=lambda f: fbeta(thr_by_fpr[f][1]))  # GT-free (cal set only)
@@ -913,6 +1143,7 @@ def main() -> int:
 
     sweep = []
     example = None
+    seed0_by_fpr = {}  # fpr -> (dc, mask, healed) at corruption seed 0
     sel_artifacts = []  # per-seed (dc, mask, healed) at the selected operating point
     for fpr in fprs:
         thr, cal_stats = thr_by_fpr[fpr]
@@ -926,6 +1157,7 @@ def main() -> int:
             per_seed.append(m)
             if s == 0:
                 first_artifacts = (dc, mask, healed)
+                seed0_by_fpr[fpr] = (dc, mask, healed)
             if fpr == sel_fpr:
                 sel_artifacts.append((dc, mask, healed))
         agg = aggregate(per_seed)
@@ -982,6 +1214,9 @@ def main() -> int:
         "localizer": args.localizer,
         "gp_mode": (args.gp_mode if args.localizer == "gp" else None),
         "t_nll": (args.t_nll if args.localizer == "nll" else None),
+        "logistic": ({"C": args.logistic_c, "max_iter": args.logistic_max_iter,
+                      "max_fit": args.logistic_max_fit, "pca_dim": 0}
+                     if args.localizer == "logistic" else None),
         "gmm": ({"n_components": args.gmm_n_components,
                  "covariance_type": args.gmm_covariance_type,
                  "pca_dim": args.gmm_pca_dim, "reg_covar": args.gmm_reg_covar}
@@ -993,6 +1228,27 @@ def main() -> int:
                   "max_iter": args.bgmm_max_iter,
                   "weight_concentration_prior": args.bgmm_weight_conc_prior}
                  if args.localizer == "bgmm" else None),
+        "scheme_head": ({"schemes": ("replace,shuffle,falseinfo,both"
+                                     if args.localizer == "linear_all"
+                                     else "plausible"
+                                     if args.localizer in ("logistic_pl", "linear_pl")
+                                     else "falseinfo"),
+                         "kind": ("logistic" if args.localizer in ("logistic_fi",
+                                                                    "logistic_pl")
+                                  else "hinge"),
+                         "negative_rate": (args.corrupt_rate
+                                           if args.localizer in ("logistic_fi",
+                                                                 "logistic_pl")
+                                           else args.train_rate),
+                         "plaus_fit_seqs": (args.plaus_fit_seqs
+                                            if args.localizer in ("logistic_pl",
+                                                                  "linear_pl") else None),
+                         "by_len_source": "fit windows", "pca_dim": 0}
+                        if args.localizer in ("linear_all", "linear_fi", "logistic_fi",
+                                              "logistic_pl", "linear_pl")
+                        else None),
+        "var": ({"ridge": args.var_ridge, "t_var": t_eval, "pca_dim": 0}
+                if args.localizer == "var" else None),
         "corrupt_scheme": args.corrupt_scheme,
         "uq": (args.uq if args.uq != "none" else None), "uq_report": uq,
         "t_eval": t_eval, "d_model": d, "nfe": args.nfe, "n_seeds": args.n_seeds,
@@ -1008,8 +1264,23 @@ def main() -> int:
                 "true_corrupt": [bool(x) for x in (dc0.cpu()[b] != clean[b]).tolist()],
                 "flagged": [bool(x) for x in mask0.cpu()[b].tolist()],
             }
-            for b in range(min(4, demo_clean.shape[0]))
+            for b in range(min(args.n_examples, demo_clean.shape[0]))
         ],
+        # Seed-0 artifacts at EVERY swept fpr. `examples` above stays the
+        # selected-fpr dump the published arms carry; this key lets a rerun be
+        # checked against them while also exposing the reported 2% point.
+        "examples_by_fpr": {
+            f"{fpr}": [
+                {
+                    "clean": _decode(clean[b]), "corrupted": _decode(_dc.cpu()[b]),
+                    "healed": _decode(_hl.cpu()[b]),
+                    "true_corrupt": [bool(x) for x in (_dc.cpu()[b] != clean[b]).tolist()],
+                    "flagged": [bool(x) for x in _mk.cpu()[b].tolist()],
+                }
+                for b in range(min(args.n_examples, demo_clean.shape[0]))
+            ]
+            for fpr, (_dc, _mk, _hl) in seed0_by_fpr.items()
+        },
     }
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)

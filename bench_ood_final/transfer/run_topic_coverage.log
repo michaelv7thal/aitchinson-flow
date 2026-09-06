@@ -1,0 +1,134 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[text8] train       90,000,000 chars  15,301,749 words  239,974 types
+[text8] validation   5,000,000 chars    848,226 words   45,371 types
+[text8] test         5,000,000 chars    855,233 words   47,725 types
+
+[the drug and its brands]  (train counts)
+   semaglutide              0
+   ozempic                  0
+   wegovy                   0
+   rybelsus                 0
+
+[the same drug class]  (train counts)
+   liraglutide              0
+   exenatide                1
+   byetta                   1
+   victoza                  0
+   dulaglutide              0
+   lixisenatide             0
+   albiglutide              0
+   tirzepatide              0
+   incretin                 0
+   glp                      2
+   agonist                 10
+   agonists                23
+
+[underlying biology]  (train counts)
+   glucagon                19
+   insulin                347
+   peptide                 57
+   peptides                15
+   hormone                153
+   hormones               160
+   pancreas                46
+   pancreatic              28
+   islet                   35
+   islets                  72
+   receptor               176
+   receptors              169
+   glucose                367
+   metabolism             163
+   metabolic              106
+   endocrine               77
+   subcutaneous             5
+
+[the conditions it treats]  (train counts)
+   diabetes               149
+   diabetic                37
+   obesity                 41
+   obese                   24
+   overweight              28
+   hypoglycemia           150
+   hyperglycaemia           0
+   hyperglycemia            8
+
+[pharmacology and trials]  (train counts)
+   pharmacokinetics         7
+   placebo                 43
+   clinical               372
+   trials                 364
+   dose                   189
+   dosage                  49
+   nausea                  70
+   efficacy                86
+   approval               431
+   nordisk                 11
+
+[the molecular target]  (train / validation / test)
+   glucagon like                 0    0    0
+   glp one                       0    0    0
+   glucagon like peptide         0    0    0
+
+[the manufacturer]  (train / validation / test)
+   novo nordisk                  5    0    0
+
+[the disease]  (train / validation / test)
+   type two diabetes             8    1    0
+
+[vocabulary vs text8 train]
+   article     1,583 types    110 unseen (6.9%)  tokens unseen 4.75%
+   text8 test  1,955 types     46 unseen (2.4%)  tokens unseen 0.97%
+
+[article's top 40 content words: text8 train count]
+   zero               article  151   train  233,930
+   semaglutide        article  112   train        0  UNSEEN
+   diabetes           article   36   train      149
+   weight             article   35   train    1,050
+   drug               article   30   train    1,113
+   glp                article   26   train        2
+   treatment          article   23   train    1,384
+   generic            article   23   train      308
+   novo               article   22   train       37
+   nordisk            article   22   train       11
+   obesity            article   20   train       41
+   wegovy             article   20   train        0  UNSEEN
+   type               article   18   train    3,150
+   cardiovascular     article   18   train       43
+   ozempic            article   17   train        0  UNSEEN
+   risk               article   17   train      918
+   like               article   17   train    8,881
+   approved           article   17   train      570
+   loss               article   16   train    1,299
+   fda                article   16   train      186
+   people             article   16   train   13,299
+   trials             article   16   train      364
+   trial              article   16   train    1,044
+   united             article   15   train   12,963
+   brand              article   14   train      488
+   states             article   14   train   13,410
+   adults             article   14   train      343
+   administration     article   13   train    1,331
+   name               article   12   train    9,524
+   associated         article   12   train    2,145
+   effects            article   12   train    2,000
+   use                article   12   train   12,697
+   including          article   12   train    8,693
+   participants       article   12   train      263
+   management         article   11   train    1,263
+   canada             article   11   train    3,106
+   european           article   11   train    5,258
+   blood              article   11   train    1,804
+   versions           article   11   train    1,391
+   drugs              article   11   train      834
+
+[context] glp (2 in train)
+   ...hamilton green guyana democratic party or gdp asgar ally guyana labor party or glp leader na guyanese organization for liberty and democracy party or gold anth...
+   ...ylamide is a neurotoxin and needs to be handled using good laboratory practices glp to avoid poisoning the second part electrophoresis refers to the electromoti...
+
+[context] exenatide (1 in train)
+   ...he united states approved a drug for the management of type two diabetes byetta exenatide a synthetic version of a protein derived from the gila monster s saliv...
+
+[context] byetta (1 in train)
+   ...on of the united states approved a drug for the management of type two diabetes byetta exenatide a synthetic version of a protein derived from the gila monster...
+
+Wrote bench_ood_final/transfer/text8_topic_coverage.json

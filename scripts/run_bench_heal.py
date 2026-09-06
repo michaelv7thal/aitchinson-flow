@@ -1,7 +1,8 @@
 """Reproducible HEALING (inpainting) benchmark across localizer methods.
 
-Runs the same heal_dirichlet inpainting pipeline with three localizers
-(NLL / BLR-linear / BGMM) on two corruption schemes (replace / falseinfo), all at
+Runs the same heal_dirichlet inpainting pipeline with the detector roster of
+tab:ood-prf (NLL / LinE / LinE_all / LinE_fi / LOG_fi / Var / BGMM) on all four
+corruption schemes (replace / shuffle / falseinfo / plausible), all at
 pinned settings, so fix_rate / damage_rate / net_per_corrupt / loc_precision /
 loc_recall are directly comparable. GPT2-SE is excluded (external scorer, no
 inpainting path). Records provenance to bench_heal/manifest.json, then consolidates
@@ -38,8 +39,24 @@ _LOCALIZERS = {  # label -> extra heal_dirichlet args
     "blr": ["--localizer", "linear"],  # linear = BLR hinge energy head (t_eval~4.5)
     "bgmm": ["--localizer", "bgmm", "--t-eval", "7.5", "--bgmm-covariance-type",
              "full", "--bgmm-pca-dim", "64", "--bgmm-max-iter", "1000"],
+    # The rest of the detector roster (tab:ood-prf), so repair can be read on the same
+    # localizers detection is. Path times mirror the OOD bench arm of the same name:
+    # LinE_fi at 4.5, LinE_all and Var at 7.5. LOG_fi takes its negatives at the
+    # evaluation rate (heal_dirichlet reads --corrupt-rate for that arm alone), while
+    # the two LinE arms keep this bench's --train-rate.
+    "blr_adv": ["--localizer", "linear_all", "--t-eval", "7.5"],
+    "blr_fi": ["--localizer", "linear_fi", "--t-eval", "4.5"],
+    "logreg_fi": ["--localizer", "logistic_fi", "--t-eval", "4.5"],
+    "var": ["--localizer", "var", "--t-eval", "7.5", "--var-ridge", "0.1"],
+    # LOG_pl: the logistic head on MODEL-GUIDED plausible negatives. It is the only
+    # detector that localizes the plausible swap (tab:ood-plausible), so it is the only
+    # localizer whose failure to repair one is evidence about repair rather than about
+    # detection. Its negatives cost --plausible-n-cands forward passes per swapped
+    # word, which is why the fit windows are capped.
+    "logreg_pl": ["--localizer", "logistic_pl", "--t-eval", "4.5",
+                  "--plaus-fit-seqs", "128"],
 }
-_SCHEMES = ["replace", "falseinfo"]
+_SCHEMES = ["replace", "shuffle", "falseinfo", "plausible"]
 
 # Real-text (insulin article) arms. Previously these were run by hand and only READ
 # back by the aggregator, which is how they drifted out of sync with the text8 arms
@@ -97,6 +114,13 @@ def main() -> int:
                     default="heal_poc_insulin/insulin_article_extract.json")
     ap.add_argument("--insulin-out-dir", default="heal_poc_insulin")
     ap.add_argument("--insulin-n-demo", type=int, default=32)
+    ap.add_argument("--only", default="",
+                    help="comma list of arm names to consider (e.g. "
+                         "'var_replace,var_falseinfo'); every other arm keeps its "
+                         "record from the existing manifest verbatim and is never "
+                         "re-run. Use this to add arms without disturbing arms that "
+                         "are already published, whose code fingerprint an edit "
+                         "elsewhere in heal_dirichlet.py would otherwise invalidate.")
     ap.add_argument("--resume", action="store_true",
                     help="skip arms already recorded 'done' in the manifest WITH an "
                          "identical cmd (so an interrupted overnight run picks up where "
@@ -158,14 +182,23 @@ def main() -> int:
     code_fp = code_fingerprint()
     prev = {}
     mp = out / "manifest.json"
-    if args.resume and mp.exists():
+    only = {s.strip() for s in args.only.split(",") if s.strip()}
+    if (args.resume or only) and mp.exists():
         try:
             for a in json.loads(mp.read_text()).get("arms", []):
                 prev[a.get("name")] = a
         except (OSError, ValueError):
             prev = {}
-    to_run, skipped, stale = [], [], []
+    to_run, skipped, stale, carried = [], [], [], []
     for arm in arms:
+        if only and arm["name"] not in only:
+            # Not selected: keep whatever the manifest already records for it, and do
+            # not touch the artifact. An arm with no prior record stays 'pending'.
+            p = prev.get(arm["name"])
+            if p:
+                arm.update(p)
+                carried.append(arm["name"])
+            continue
         arm["code_fp"] = code_fp
         p = prev.get(arm["name"])
         if (args.resume and p and p.get("status") == "done"
@@ -177,6 +210,9 @@ def main() -> int:
             if p and p.get("status") == "done":
                 stale.append(arm["name"])
             to_run.append(arm)
+    if carried:
+        print(f"### [only] carrying {len(carried)} unselected arm(s) over untouched: "
+              f"{', '.join(carried)}")
     if skipped:
         print(f"### [resume] skipping {len(skipped)} completed arm(s): "
               f"{', '.join(skipped)}")
@@ -256,8 +292,9 @@ def _aggregate(out: Path, record: dict):
     L.append(f"- **config**: split={c['split']} n_demo={c['n_demo']} "
              f"n_seeds={c['n_seeds']} corrupt_rate={c['corrupt_rate']} nfe={c['nfe']} "
              f"target_fprs={c['target_fprs']}")
-    L.append("- localizers: nll (denoiser surprise t=3) · blr (linear hinge t≈4.5) · "
-             "bgmm (DP density t=7.5). GPT2-SE excluded (no inpainting).\n")
+    L.append("- localizers: " + " · ".join(
+        f"{k} (`{' '.join(v)}`)" for k, v in _LOCALIZERS.items())
+        + ". GPT2-SE and GPT2-NLL excluded (external scorers, no inpainting path).\n")
 
     L.append("Operating point = **least-damaging** (max net/corrupt over the FPR sweep). "
              "`loc_*` are the *localization* metrics — how well the detector finds the "

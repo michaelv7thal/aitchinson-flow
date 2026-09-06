@@ -69,6 +69,9 @@ DETECTORS = [
     ("LinE", "blr/bayes_linear_sweep.json", "energy", ORANGE),
     (r"$\mathrm{LinE}_{\mathrm{all}}$", "blr_adv/bayes_linear_adv_sweep.json", "energy", AQUA),
     (r"$\mathrm{LinE}_{\mathrm{fi}}$", "blr_fi/bayes_linear_fi_sweep.json", "energy", YELLOW),
+    # the training-free variance head of the same section: its own sweep json (a
+    # superset of blr/'s keys, adding word pooling + PRF for Var); drawn dashed
+    ("Var", "blr/bayes_linear_var_sweep.json", "uncertainty", INK2),
     ("BGMM", "bgmm/bgmm_perpos_sweep.json", "gmm", MAGENTA),
     ("GPT-2 SE", "gpt2_se/gpt2_spilled_energy_sweep.json", "se", GREEN),
     ("GPT-2 NLL", "gpt2_nll/gpt2_nll_sweep.json", "se", VIOLET),

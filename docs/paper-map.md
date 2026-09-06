@@ -24,6 +24,8 @@ D = detection, H = repair, X = appendix/config, P/E = provenance anchors.
 | `fig:recovery-curve` | same `recovery_fine` trees | `scripts/paper_figs/fig_recovery_curve.py` | — | — |
 | `tab:latent`, `fig:latent-seq`, `fig:latent-token` | `bench_ood_final/latent_split_all/`, `latent_split_plausible/` (see `bench_ood_final/manifest_addenda.json`) | `scripts/plot_latent_split.py`, `paper_figs/fig_latent_split.py` | converge | G126–G149 |
 | `tab:ablation2x2` | `runs/{compu_mse_det,compu_mse_thick,dsmx_clr_det,dsmx_clr_dir}/` — **KL columns from `eval.json`, Δ from `recovery.json`** (separate sampler draws; do not cross-read) | `scripts/run_matched_recovery.sh`, `run_dsm_rescaled.sh` | dev-scale | N1–N14 |
+| `tab:anneal-history` (app:anneal) | `runs/sflm_bench_a100_20g_L256_d1280L14_full/anneal_history.json` (per-epoch train/val loss of the four legs, parsed from the `_driver/train_DirichletFM*.log` tqdm bars) | `scripts/anneal_summary.py` | 10-epoch / best-val / converge marked | A1–A46 (+A47–A55 prose) |
+| `tab:ckpt-compare` (app:anneal) | `bench_ood_final/_compare/checkpoint_comparison.json` (reads `bench_ood`+`bench_heal` = epoch_best vs `bench_ood_final`+`bench_heal_final` = converge; human-readable `docs/anneal_and_checkpoint_comparison.md`) | `scripts/anneal_summary.py` | best-val ep15 vs converge ep23 | A56–A93 |
 | `tab:hilbert-null` | adds `runs/compu_hilbert_{det,thick}/recovery.json`; procedure: `RUNBOOK_COMPOSITIONAL_EQM_TEST.md` (**do not run its §6**) | as above | dev-scale | N15–N31 |
 | `fig:energy-landscape` | `runs/compu_mse_det/{native_radius,recovery_native_path*}.json` | `paper_figs/fig_energy_landscape.py`, producer `scripts/recovery_native_path.py` | `compu_mse_det` | N65–N72 |
 | `fig:ood-heatmap`, `-30` | `bench_ood_final/nll/heatmap_examples.json` | `paper_figs/fig_ood_heatmap.py`, producer `scripts/dump_heatmap_examples.py` | converge | D319ff |
@@ -46,7 +48,7 @@ repository and have no dependency here.
 | md5 | path | carries |
 |---|---|---|
 | `9946dce94cb2051de0e288e4caa3ffbd` | `runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM_converge/epoch_final.pt` | **the paper's model**: full-corpus generation row, tab:recovery "full" column, every detector, every repair result, all latent readouts. A genuine annealed final (the last training leg ran with no early stop). |
-| `f1d809e8a42d7c3c0a44550c119f9cbe` | `…_d1280L14_full/DirichletFM/epoch_best.pt` | the superseded `bench_ood/`+`bench_heal/` trees only (best-val checkpoint of the interrupted leg) |
+| `f1d809e8a42d7c3c0a44550c119f9cbe` | `…_d1280L14_full/DirichletFM/epoch_best.pt` | the superseded `bench_ood/`+`bench_heal/` trees (best-val checkpoint, epoch 15 of 23), which now back only the best-validation rows of `tab:ckpt-compare` via `bench_ood_final/_compare/checkpoint_comparison.json` |
 
 `epoch_final.pt` does **not** mean "last epoch" in this repository: with
 `--early-stop-patience` set, the trainer restores the best-validation
@@ -85,3 +87,4 @@ Identify checkpoints by md5 against the manifests, never by filename.
 - **`ScoreDSM_CLR` artifacts** carry NaN throughout their energy/curvature
   blocks by construction (score models have no energy readout); the published
   columns are finite.
+| `app:recovery` (prose, eqs) | `scripts/recovery_check.py` (per-arm perturbation branches, lines ~352-470) + the samplers `models/{dirichlet_fm,sfm,fisher_fm,dfm,fm_clr,sflm,eqm,eqm_ae}.py`; rho-bar from `runs/sflm_bench_a100_20g_L256/<ARM>/recovery.json rows[alpha=1.0].sigma_perturb` | `scripts/recovery_check.py` | per-arm `epoch_final.pt` | G226-G228 |

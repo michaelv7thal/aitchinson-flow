@@ -99,6 +99,10 @@ unset WANDB_PROJECT WANDB_ENTITY WANDB_NAME WANDB_RUN_GROUP
 export WANDB_MODE=disabled WANDB_DISABLED=true WANDB_SILENT=true
 
 MODE="${1:-run}"
+# CELLS runs several cells back-to-back through the whole pipeline (stages 1-3
+# per cell; the control in stage 4 is shared and its outputs are reused). CELL
+# stays supported for a single cell.
+CELLS="${CELLS:-}"
 CELL="${CELL:-band_L256_ep10_d10k}"
 N="${N:-256}"
 STEPS="${STEPS:-400}"
@@ -114,6 +118,7 @@ if [ "$MODE" = "smoke" ]; then
   echo "### SMOKE MODE: 1 epoch on 500 windows, n=$N, $STEPS steps. Numbers are junk."
 fi
 
+if [ -n "$CELLS" ]; then CELL="${CELLS%% *}"; fi
 RUN_DIR="runs/$CELL"
 skipped () { case ",$SKIP," in *",$1,"*) return 0;; *) return 1;; esac; }
 have ()    { [ -s "$1" ]; }
@@ -235,7 +240,14 @@ print("=" * 78)
 PYEOF
 }
 
-if [ "$MODE" = "summary" ]; then summary; exit 0; fi
+if [ "$MODE" = "summary" ]; then
+  if [ -n "$CELLS" ]; then
+    for c in $CELLS; do CELL="$c"; RUN_DIR="runs/$c"; echo; echo "########## $c"; summary; done
+  else
+    summary
+  fi
+  exit 0
+fi
 
 # ---------------------------------------------------------------------------
 echo "### stage 1/4  train + generation eval: $CELL"
@@ -326,3 +338,22 @@ summary
 echo
 echo "Done. Re-print this summary any time with:  ./drive_band_L256.sh summary"
 echo "Everything landed in $RUN_DIR (and the control's own directory)."
+
+# Chain: if CELLS listed more than the one we just finished, run the next one.
+# Re-exec rather than loop so each cell gets a clean process (the CUDA allocator
+# state from a 30-epoch train does not carry into the next cell's sampler).
+if [ -n "$CELLS" ]; then
+  rest=""; seen=0
+  for c in $CELLS; do
+    if [ "$seen" = "1" ]; then rest="$rest $c"; fi
+    if [ "$c" = "$CELL" ]; then seen=1; fi
+  done
+  rest="$(echo "$rest" | sed 's/^ *//')"
+  if [ -n "$rest" ]; then
+    next="${rest%% *}"
+    echo
+    echo "### CHAIN $(date +%H:%M:%S) — next cell: $next   (remaining: $rest)"
+    CELLS="$rest" CELL="$next" exec "$0"
+  fi
+  echo "### CHAIN COMPLETE — all cells done."
+fi
