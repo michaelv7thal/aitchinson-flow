@@ -49,7 +49,8 @@ strict RFC-8259 parsers reject them.
 The model of record is
 `runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM_converge/epoch_final.pt`
 (md5 `9946dce94cb2051de0e288e4caa3ffbd`; verify with
-`md5sum` against `bench_ood_final/manifest.json`).
+`md5sum` against `bench_ood_final/manifest.json`). Checkpoints are gitignored
+— download them from the archive linked under "Checkpoint durability" below.
 
 **Copy the argv from the manifests** (`bench_ood_final/manifest.json`,
 `bench_heal_final/manifest.json`, per arm), do not trust script defaults from
@@ -107,11 +108,18 @@ runbook describes). Dev-scale cells: `scripts/run_sweep.py` +
 | GPT-2 baseline | HF `gpt2` at run time | no `revision=` pinned (upstream is stable) |
 | `data/`, `data_cache/` | GPT-2/HaluEval caches and DNA windows for retired or unreported tracks | regenerable except the HaluEval cache (see `scripts/legacy/`); backs nothing in the paper |
 
-## Checkpoint durability (unresolved, author decision pending)
+## Checkpoint durability
 
 The T2-enabling checkpoint set is ~10 GiB (2.07 GiB pinned pair + 12 arm
 finals + dev-scale finals) out of ~18 GiB kept in `runs/`. All of it is
-excluded from git by `.gitignore` and exists only on the author's machine
-(one physical disk). Until an external deposit with checksums exists, treat
-every T2 path above as available-locally-only; the T1 path does not depend on
-any checkpoint.
+excluded from git by `.gitignore`, so it does not come with a clone.
+
+**External deposit — a full copy of `runs/`, model weights included:**
+<https://drive.proton.me/urls/SPNV9C2FFR#XcPbuzM6mgKH>
+
+Unpack it over `runs/` at the repository root and every T2 path above
+resolves. Verify the model of record after download against the md5 recorded
+in `bench_ood_final/manifest.json` (`9946dce94cb2051de0e288e4caa3ffbd` for
+`.../DirichletFM_converge/epoch_final.pt`); the checkpoints named under
+"Permanently T1" are absent from the archive as well. The T1 path does not
+depend on any checkpoint.
