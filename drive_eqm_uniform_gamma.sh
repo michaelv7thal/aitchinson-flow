@@ -5,7 +5,7 @@
 #
 # WHY. The published arms train with γ = √u (gamma_power=0.5), chosen when the
 # failure was still read as "too little supervision near the data end". The
-# failure analysis (paper sec:negative / app:training) implies the opposite:
+# failure analysis (paper sec:eqm-results / app:training) implies the opposite:
 # on the deterministic-CLR path the target is determined by its own input
 # above γ≈0.03, so upweighting γ≈1 concentrates training on the trivial
 # regime. Prediction: uniform γ changes nothing at benchmark scale, as it

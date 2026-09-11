@@ -15,10 +15,12 @@ python3 check_claims.py claims.tsv          # <1 s, CPU, no venv needed
 ## The matrix
 
 Claim-row prefixes: G = generation/recovery/latent, N = negative result,
-D = detection, H = repair, X = appendix/config, P/E = provenance anchors.
+D = detection, H = repair, X = appendix/config, P/E = provenance anchors,
+M = matched benchmark budget.
 
 | Paper label | Artifact(s) | Producing script | Checkpoint | Rows |
 |---|---|---|---|---|
+| `tab:setup` (Model selection column) | `runs/sflm_bench_a100_20g_L256/bench_budget.json` (d_model, layers/heads, epochs, windows, characters, batch, seed, and the shared n=256 / 200 steps, read out of each arm's checkpoint `cfg` and `eval_all.json`; `train_meta.json` carries none of it) | `scripts/bench_budget.py` | all nine benchmark arms | M1–M15 |
 | `tab:gen` | `runs/sflm_bench_a100_20g_L256/<ARM>/{eval_all,recovery}.json`; lower block adds `<...>/DirichletFM_ep30_d30k` and `runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM_converge` | `scripts/eval_generation.py`, `scripts/recovery_check.py` | per-arm `epoch_final.pt` | G1–G55 |
 | `tab:recovery` | `<budget>/recovery_fine/alpha_*.json` | `scripts/recovery_check.py` | 10 ep / 30 ep / converge | G56–G125 |
 | `fig:recovery-curve` | same `recovery_fine` trees | `scripts/paper_figs/fig_recovery_curve.py` | — | — |
@@ -70,6 +72,13 @@ Identify checkpoints by md5 against the manifests, never by filename.
   same directories and `runs/band_report.json` hold **stale values that
   contradict the paper** (a sampler run that never applied the retargeted
   step size). Never read those two as readouts.
+- **`bench.log:11` misnames the SFLM arm's budget.** The header reads
+  `=== TRAIN SFLMEBM [a100_20g_L256] (10 ep, d_model=768/8L, B=8, n_train_windows=10000) ===`,
+  and `SFLM/PROVENANCE.md` names that same auto-train as the origin of the surviving
+  `epoch_10.pt`. Read literally it would put the Hyperspherical flow row off the matched
+  budget. The checkpoint's own `cfg` says 1024 / 10 layers / 16 heads and `_driver` carries
+  two matching `TRAIN SFLM ... d_model=1024/10L/16H` headers. Resolve an arm's budget by
+  its checkpoint `cfg`, never by that header (rows M13–M15).
 - **Value decoys.** `runs/sflm_bench_a100_20g_L256/generation_eval_sflm_sfm.json`
   (superseded parallel SFLM/SFM readout), `runs/_archive`'s
   `…_d1280L14/DirichletFM_ep30_d30k` (same arm name and same KL_uni digit as

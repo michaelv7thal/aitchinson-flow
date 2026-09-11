@@ -1,4 +1,4 @@
-"""fig:ood-heatmap — per-character denoiser NLL on one test window (paper fig).
+"""fig:ood-heatmap — per-character NLL on one test window (paper fig).
 
 Reads BENCH_OOD/nll/heatmap_examples.json (written by scripts/dump_heatmap_examples.py)
 and renders one three-panel figure per corruption rate: clean / replace / false
@@ -129,7 +129,7 @@ def _figure(examples, rate_tag, rate_label, norm, thr):
     sm = plt.cm.ScalarMappable(norm=norm, cmap=CMAP)
     cb = fig.colorbar(sm, cax=cax, orientation="horizontal",
                       ticks=[0, 2, 5, 10])
-    cb.set_label("per-character denoiser NLL\n(shared square-root scale)",
+    cb.set_label("per-character NLL\n(shared square-root scale)",
                  fontsize=7.5, color=INK2, labelpad=2)
     cb.ax.tick_params(labelsize=7, color=BASELINE, labelcolor=INK2)
     cb.outline.set_edgecolor(BASELINE)
