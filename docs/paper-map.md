@@ -3,8 +3,13 @@
 The paper is *Flow Matching on the Simplex for Character-Level Text* (the
 `capstone-paper` repository). This map is the human-readable form of the
 executable matrix `claims.tsv` (repo root), which `check_claims.py` re-reads
-against the artifacts named here: **943 rows, 937 machine-checked passes, 6
-honest weak rows, 0 failures** (2026-08-20).
+against the artifacts named here: **1597 rows, 1591 machine-checked passes, 6
+honest weak rows, 0 failures** (2026-09-11).
+
+Paper locations are given as `file:label` (for example
+`chapters/results.tex:tab:gen`), not as line numbers: labels survive editing,
+line numbers do not. A row whose number the paper does not print carries the
+label of the passage it backs and says so in its `notes`.
 
 Check any number yourself:
 
@@ -31,16 +36,25 @@ M = matched benchmark budget.
 | `tab:hilbert-null` | adds `runs/compu_hilbert_{det,thick}/recovery.json`; procedure: `RUNBOOK_COMPOSITIONAL_EQM_TEST.md` (**do not run its §6**) | as above | dev-scale | N15–N31 |
 | `fig:energy-landscape` | `runs/compu_mse_det/{native_radius,recovery_native_path*}.json` | `paper_figs/fig_energy_landscape.py`, producer `scripts/recovery_native_path.py` | `compu_mse_det` | N65–N72 |
 | `fig:ood-heatmap`, `-30` | `bench_ood_final/nll/heatmap_examples.json` | `paper_figs/fig_ood_heatmap.py`, producer `scripts/dump_heatmap_examples.py` | converge | D319ff |
-| `tab:ood-word`, `tab:ood-falseinfo`, `tab:ood-prf` | `bench_ood_final/{nll,blr,blr_adv,blr_fi,bgmm,gpt2_se,gpt2_nll}/*_sweep.json` (manifest arms) | the six `scripts/ood_*.py` in `manifest.json` | converge | D1–D290, D372ff |
-| `fig:ood-word-auroc`, `fig:ood-falseinfo` | same sweeps | `paper_figs/fig_ood_word_auroc.py`, `fig_ood_falseinfo.py` | — | — |
+| `tab:ood-word`, `tab:ood-prf`, `tab:ood-seq` (app:ood-supp) | `bench_ood_final/{nll,blr,blr_adv,blr_fi,bgmm,gpt2_se,gpt2_nll}/*_sweep.json` (manifest arms) | the six `scripts/ood_*.py` in `manifest.json` | converge | D1–D290, D372ff |
+| `fig:ood-word-auroc`, `fig:ood-seq` | same sweeps | `paper_figs/fig_ood_word_auroc.py`, `fig_ood_seq.py` | — | — |
 | `tab:ood-plausible` | `bench_ood_final/plausible/plausible_swap.json` (+ `plausible_freqmatched/` control, t_eval caveat in the addenda) | `scripts/ood_plausible_swap.py` | converge | D95ff |
 | `tab:ood-transfer` | `bench_ood_final/transfer/semaglutide_transfer_gpt2.json` | `scripts/eval_detector_transfer.py` | converge | D291–D302 |
-| `tab:heal-synth`, `fig:heal-compare` | `bench_heal_final/{nll,blr,bgmm}_{replace,falseinfo}.json` — pointer `sweep[target_fpr=0.02]`, **never the `selected_fpr` field** (that records the deployable operating point, not the reported one) | `scripts/heal_dirichlet.py`; figure `paper_figs/fig_heal_compare.py` | converge | H1–H34 |
-| `tab:heal-insulin` | `heal_poc_insulin_final/*.json`; input text: `heal_poc_insulin/insulin_article_extract.json` | `scripts/heal_protein_poc.py` | converge | H35–H53 |
+| `tab:heal-synth`, `tab:heal-word`, `tab:heal-fpr` | `bench_heal_final/{nll,blr,bgmm}_{replace,falseinfo}.json` — pointer `sweep[target_fpr=0.02]`, **never the `selected_fpr` field** (that records the deployable operating point, not the reported one) | `scripts/heal_dirichlet.py` | converge | H1–H34, D360ff (word), D166ff (fpr) |
+| *(no paper label)* — insulin healing track | `heal_poc_insulin_final/*.json`; input text: `heal_poc_insulin/insulin_article_extract.json` | `scripts/heal_protein_poc.py` | converge | H35–H53 |
 | `fig:latent-ladder`, `tab:latent-ladder`, `tab:latent-plausible` | `bench_ood_final/latent_ladder{,_plausible}/rate_*/latent_split.json` | `scripts/plot_latent_split.py`; figure `paper_figs/fig_latent_ladder.py` | converge | X28–X207 |
 | `tab:config` | `train_meta.json` files, both manifests, `src/aitchinson_flow/config.py`, `batch_probe.json`, `runs/vae_a100_20g_L256/config.json` (sole source of the VAE row), `bench_ood_final/tsweep/t_selection.json` (the read-out-time selection) | — | — | X212–X233, P6–P10 |
 | corpus constants (Σp², ‖μ₁‖, entropy, word counts) | `runs/text8_unigram_stats.json` | `scripts/dump_text8_unigram_stats.py` | — | E1–E5, H54 |
 | `fig:image-text` | none (synthetic schematic) | `paper_figs/fig_image_text.py` | — | — |
+| `tab:eqm-band-bench`, `fig:band-probe` | `runs/band_L256_ep10_d10k{,_g012_gs030,_g005_gs99,_g0,_s43}/eval.json` and `…/config.json` (**never `band_*/eval.json` for a recovery number**) | `scripts/band_geometry.py`, `paper_figs/fig_band_probe.py` | per-run `epoch_final.pt` | B1–B44, B75–B79 |
+| `tab:eqm-band-recovery` | `runs/band_L256_ep10_d10k/recovery_bandmap_a{03,05,06,07,08,10}.json` | `scripts/recovery_check.py` | band run | B45–B58 |
+| `tab:ood-seq` (app:ood-supp) | the seven `bench_ood_final/*/*_sweep.json` detector arms | the `scripts/ood_*.py` in `manifest.json` | converge | D43–D527 |
+| `tab:ood-bpe` (app:ood-supp) | `bench_ood_final/gpt2_nll/{gpt2_nll_sweep,bpe_token_counts}.json` | `scripts/ood_gpt2_spilled_energy.py` (the `gpt2_nll` arm of `manifest.json`), counts from `scripts/dump_bpe_counts.py` | converge | D389–D415 |
+| `tab:ood-varhead` (app:ood-supp) | `bench_ood_final/blr/bayes_linear_sweep.json` | `scripts/ood_bayes_linear.py` | converge | D416–D420 |
+| `tab:ood-threshold` (app:ood-threshold) | `bench_ood_final/logreg_fi_r15/bayes_linear_logreg_fi_r15_sweep.json` | `scripts/ood_bayes_linear.py` (logistic head, see `logreg_fi_r15.log`) | converge | D566–D569 |
+| `tab:ood-swap-surprise` | `bench_ood_final/plausible/word_level_surprise.json` | `scripts/word_level_surprise.py` | converge | D148–D565 |
+| `tab:transfer-topic`, `tab:transfer-entity` | `runs/text8_unigram_stats.json` (text8 coverage of the topic and of the drug) | `scripts/dump_text8_unigram_stats.py` | — | H54 |
+| `app:recovery` (prose, eqs) | `scripts/recovery_check.py` (per-arm perturbation branches, lines ~352-470) + the samplers `models/{dirichlet_fm,sfm,fisher_fm,dfm,fm_clr,sflm,eqm,eqm_ae}.py`; rho-bar from `runs/sflm_bench_a100_20g_L256/<ARM>_gp1p0/recovery.json rows[alpha=1.0].sigma_perturb` | `scripts/recovery_check.py` | per-arm `epoch_final.pt` | G226–G228 |
 
 `fig:backbone` and `fig:data-pipeline` are hand-drawn TikZ in the paper
 repository and have no dependency here.
@@ -63,15 +77,18 @@ Identify checkpoints by md5 against the manifests, never by filename.
   *Discrete* Flow Matching; the paper's "DFM" acronym expands to *Dirichlet*
   and lives in `DirichletFM/`. The paper's selected generator is Dirichlet FM.
 - **Arm-name → paper-row map for `tab:gen`** (counterintuitive):
-  `EqM_OneHot` = "EqM, deterministic clr" · `EqM` = "EqM, Dirichlet-thickened"
-  · `EqMAE` = "EqM, VAE latent" · `SFM` = "Statistical FM (Cheng)" ·
+  `EqM_OneHot_gp1p0` = "EqM, deterministic clr" · `EqM_gp1p0` =
+  "EqM, Dirichlet-thickened" · `EqMAE_gp1p0` = "EqM, VAE latent" ·
+  `SFM` = "Statistical FM (Cheng)" ·
   `FisherFM` = "Fisher FM (Davis, the **smoothed** target)" · `SFLM` =
   "Hyperspherical flow" · `DFM` = "Discrete FM".
-- **`runs/band_{g05,strict}/eval_fixed.json`** are the only files holding the
-  published 0.92 / 0.91 (results.tex:344). The sibling `eval.json` in the
-  same directories and `runs/band_report.json` hold **stale values that
-  contradict the paper** (a sampler run that never applied the retargeted
-  step size). Never read those two as readouts.
+- **`runs/band_{g05,strict}/`** backs nothing the paper prints any more: the
+  0.92 / 0.91 pair those `eval_fixed.json` files hold left `results.tex`, and
+  no `claims.tsv` row reads the directory. The published band numbers are the
+  `runs/band_L256_ep10_d10k*` trees (`tab:eqm-band-bench`). The sibling
+  `eval.json` files and `runs/band_report.json` additionally hold **stale
+  values that contradict the paper** (a sampler run that never applied the
+  retargeted step size). Never read any of them as readouts.
 - **`bench.log:11` misnames the SFLM arm's budget.** The header reads
   `=== TRAIN SFLMEBM [a100_20g_L256] (10 ep, d_model=768/8L, B=8, n_train_windows=10000) ===`,
   and `SFLM/PROVENANCE.md` names that same auto-train as the origin of the surviving
@@ -96,4 +113,3 @@ Identify checkpoints by md5 against the manifests, never by filename.
 - **`ScoreDSM_CLR` artifacts** carry NaN throughout their energy/curvature
   blocks by construction (score models have no energy readout); the published
   columns are finite.
-| `app:recovery` (prose, eqs) | `scripts/recovery_check.py` (per-arm perturbation branches, lines ~352-470) + the samplers `models/{dirichlet_fm,sfm,fisher_fm,dfm,fm_clr,sflm,eqm,eqm_ae}.py`; rho-bar from `runs/sflm_bench_a100_20g_L256/<ARM>/recovery.json rows[alpha=1.0].sigma_perturb` | `scripts/recovery_check.py` | per-arm `epoch_final.pt` | G226-G228 |
