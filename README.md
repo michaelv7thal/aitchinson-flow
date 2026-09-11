@@ -5,7 +5,7 @@ for Character-Level Text: Generation, Healing, and the Limits of the
 Equilibrium Route* (the sibling `capstone-paper` repository). Character-level
 **text8** (K=27). Nine budget-matched generative arms, a frozen-backbone
 detector suite, a localize-then-inpaint repair loop, and the Equilibrium
-Matching negative result.
+Matching results.
 
 **Start here → [`REPRODUCE.md`](REPRODUCE.md)** (what you can check at which
 cost) and **[`docs/paper-map.md`](docs/paper-map.md)** (every table and figure
@@ -19,15 +19,17 @@ python3 check_claims.py claims.tsv     # stdlib only, <1 s
 
 `claims.tsv` maps every number the paper prints to a tracked artifact and a
 JSON pointer; the checker re-reads each one. Expected:
-`939 pass, 6 weak, 0 fail` — the 6 weak rows name markdown sources honestly.
+`1591 pass, 6 weak, 0 fail` of 1597 rows — the 6 weak rows name markdown
+sources honestly. Paper locations in the matrix are `file:label`
+(`chapters/results.tex:tab:gen`), not line numbers.
 
 ## The three objectives, as the paper concludes them
 
 | # | Objective | Verdict | Evidence |
 |---|---|---|---|
-| 1 | Unconditional generation | **Dirichlet Flow Matching works**: the one arm of nine that moves past unigram statistics; retrained on the full corpus it generates mostly word-like English at KL_bi 0.130 (`tab:gen`). **Equilibrium Matching fails structurally** — no variant generates, and no budget, loss, geometry, sampler, or conditioning we varied repairs it (the paper's negative result). | `runs/sflm_bench_a100_20g_L256/*/eval_all.json`; negative result: `runs/compu_*`, `runs/dsmx_*` |
-| 2 | Conditional recovery | **Transport recovery works**: the selected model recovers +0.282 token accuracy beyond the perturbed input at α=0.5 (`tab:recovery`). **EqM recovery is a no-op** (Δ between −0.009 and +0.005): generation and recovery are one failure, not two. | `runs/.../recovery_fine/`; `runs/sflm_bench_a100_20g_L256/EqM*/recovery.json` |
-| 3 | Detection + repair | **Works, on the frozen Dirichlet FM backbone.** The training-free denoiser NLL is the strongest localizer (word AUROC 0.981 replace / 0.967 shuffle vs GPT-2 ≤ 0.75); false information is a sequence-triage signal (the supervised head leads slightly, 0.812 vs 0.807); repair recovers geometry (+0.432 net on replace) and never fixes fluent falsehoods; the transfer verifier holds 0.882 vs GPT-2's 0.847 on an article provably absent from training. The EqM energy contributed nothing: the free OOD score was never there to read. | **`bench_ood_final/`**, **`bench_heal_final/`**, `heal_poc_insulin_final/` (manifests pin the checkpoint by md5) |
+| 1 | Unconditional generation | **Dirichlet Flow Matching works**: the one arm of nine that moves past unigram statistics; retrained on the full corpus it generates mostly word-like English at KL_bi 0.130 (`tab:gen`). **Equilibrium Matching fails structurally** — no variant generates, and no budget, loss, geometry, or sampler we varied repairs it, the one exception being a narrow band near the noise source that did not reproduce across seeds. | `runs/sflm_bench_a100_20g_L256/*/eval_all.json`; EqM ablations: `runs/compu_*`, `runs/dsmx_*` |
+| 2 | Conditional recovery | **Transport recovery works**: the selected model recovers +0.282 token accuracy beyond the perturbed input at α=0.5 (`tab:recovery`). **EqM recovery never works** (Δ between −0.158 and +0.003 over the six-point ladder): past the trained radius the descent degrades its input rather than leaving it alone, so generation and recovery are one failure, not two. | `runs/.../recovery_fine/`; `runs/sflm_bench_a100_20g_L256/{EqM_OneHot,EqM,EqMAE}_gp1p0/{recovery,recovery_a08}.json` |
+| 3 | Detection + repair | **Works, on the frozen Dirichlet FM backbone.** The training-free NLL score is the strongest localizer (word AUROC 0.981 replace / 0.967 shuffle vs GPT-2 ≤ 0.75); false information is a sequence-triage signal (the supervised head leads slightly, 0.812 vs 0.807); repair recovers geometry (+0.432 net on replace) and never fixes fluent falsehoods; the transfer detector holds 0.882 vs GPT-2's 0.847 on an article provably absent from training. The EqM energy contributed nothing: EqM detection was planned and cancelled, so the free OOD score was never there to read. | **`bench_ood_final/`**, **`bench_heal_final/`** (manifests pin the checkpoint by md5) |
 
 The evidence trees of record are `bench_ood_final/` and `bench_heal_final/`
 (checkpoint `DirichletFM_converge/epoch_final.pt`, md5 `9946dce9…`). The
@@ -35,14 +37,27 @@ unsuffixed `bench_ood/` and `bench_heal/` are the superseded epoch_best
 generation, kept for the record — their banner says how to tell the eras
 apart at a glance.
 
+Two more directory names mislead in the same way:
+
+- **The EqM arms of `tab:gen` are the `_gp1p0` directories**,
+  `runs/sflm_bench_a100_20g_L256/{EqM_OneHot,EqM,EqMAE}_gp1p0/`, trained with
+  uniform γ (`gamma_power=1.0`). The unsuffixed `EqM_OneHot/`, `EqM/` and
+  `EqMAE/` are the **superseded γ=√u runs**; the paper stands on none of them
+  and prints none of their values. Only the dev-scale `app:budget` sweeps
+  still use √u, and the paper says so where it cites them.
+- **The insulin repair track is out of the paper** (2026-09-07). Its runs stay
+  in `heal_poc_insulin_final/` and `heal_poc_insulin/` for the record and back
+  nothing published. The article-level track the paper does report is the
+  semaglutide **transfer** track in `bench_ood_final/transfer/`.
+
 ## Paper chapter → artifacts
 
 | Paper chapter | Backed by |
 |---|---|
-| §4.2 Generation, recovery, latent space | `runs/sflm_bench_a100_20g_L256/`, `runs/sflm_bench_a100_20g_L256_d1280L14_full/`, `bench_ood_final/latent_split_*` |
-| §4.3 The negative result | `runs/compu_*`, `runs/dsmx_*`, `runs/band_*`, `runs/comp_*` + `RUNBOOK_COMPOSITIONAL_EQM_TEST.md` |
-| §4.4 OOD detection | `bench_ood_final/` (9 manifest arms + `manifest_addenda.json` extras incl. `transfer/`, `tsweep/`) |
-| §4.5 Repair | `bench_heal_final/`, `heal_poc_insulin_final/` (+ the input article in `heal_poc_insulin/`) |
+| §4.1 Text Generation (incl. recovery, latent space) | `runs/sflm_bench_a100_20g_L256/`, `runs/sflm_bench_a100_20g_L256_d1280L14_full/`, `bench_ood_final/latent_split_*` |
+| §4.2 Equilibrium Matching | `runs/compu_*`, `runs/dsmx_*`, `runs/band_*`, `runs/comp_*` + `RUNBOOK_COMPOSITIONAL_EQM_TEST.md` |
+| §4.3 Out-of-Distribution Detection | `bench_ood_final/` (9 manifest arms + `manifest_addenda.json` extras incl. `transfer/` = the semaglutide holdout, `tsweep/`) |
+| §4.4 Text Sequence Repair | `bench_heal_final/` (the insulin track in `heal_poc_insulin*/` left the paper and backs nothing) |
 | Appendix theory & budget | `runs/compu_mse_det/` probes, the `runs/{baseline_5ep,ep25_default,data_*,bb_*}` ladder, `runs/tc_*`, `runs/text8_unigram_stats.json` |
 | Appendix config (`tab:config`) | `train_meta.json` files, both manifests, `src/aitchinson_flow/config.py`, `runs/vae_a100_20g_L256/config.json` |
 
@@ -54,9 +69,9 @@ apart at a glance.
 | [docs/paper-map.md](docs/paper-map.md) | claim → artifact map, naming traps, value decoys |
 | [CLAUDE.md](CLAUDE.md) | architecture + load-bearing implementation notes (read before editing EqM) |
 | [bench_ood_final/RESULTS.md](bench_ood_final/RESULTS.md) | the detector benchmark writeup that matches the paper cell for cell |
-| [NOTE_EQUILIBRIUM_FAILURE_CLASS.md](NOTE_EQUILIBRIUM_FAILURE_CLASS.md) | the negative result's theory (Part A and B.3 are current; see its banner) |
-| [EQUILIBRIUM_SETTING.md](EQUILIBRIUM_SETTING.md) | the equilibrium lineage (Hopfield/Boltzmann/DEQ) behind the negative result |
-| [docs/bayes_linear_ood.md](docs/bayes_linear_ood.md) | the Bayesian-linear head, derived more fully than in the paper (see its banner for the two-pass correction) |
+| [NOTE_EQUILIBRIUM_FAILURE_CLASS.md](NOTE_EQUILIBRIUM_FAILURE_CLASS.md) | the theory behind the EqM failure (Part A and B.3 are current; see its banner) |
+| [EQUILIBRIUM_SETTING.md](EQUILIBRIUM_SETTING.md) | the equilibrium lineage (Hopfield/Boltzmann/DEQ) behind the EqM route |
+| [docs/bayes_linear_ood.md](docs/bayes_linear_ood.md) | the linear energy head the paper calls LinE, derived more fully than there (see its banner for the two-pass correction) |
 | [FISHER_FM_PLAN.md](FISHER_FM_PLAN.md) | the ninth arm's plan, discharged as written; the repo's authoritative Cheng-vs-Davis distinction |
 | [SAMPLER_FINDINGS.md](SAMPLER_FINDINGS.md) | the sampler diagnosis behind the appendix's numbers |
 | [RUNBOOK_COMPOSITIONAL_EQM_TEST.md](RUNBOOK_COMPOSITIONAL_EQM_TEST.md) | reproduction path for `tab:hilbert-null` — **do not run its §6** |
