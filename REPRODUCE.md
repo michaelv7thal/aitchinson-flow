@@ -137,7 +137,7 @@ finals + dev-scale finals) out of ~18 GiB kept in `runs/`. All of it is
 excluded from git by `.gitignore`, so it does not come with a clone.
 
 **External deposit — a full copy of `runs/`, model weights included:**
-<https://drive.proton.me/urls/SPNV9C2FFR#XcPbuzM6mgKH>
+<https://drive.proton.me/urls/CY01F6B2QM#vNZ4RCvfgjVW>
 
 Unpack it over `runs/` at the repository root and every T2 path above
 resolves. Verify the model of record after download against the md5 recorded
