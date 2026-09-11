@@ -1,14 +1,5 @@
 {
   "permissions": {
-    "allow": [
-      "Bash(grep -n \"def audit\" /workspace/src/aitchinson_flow/models/*.py)",
-      "Bash(python -m pytest tests/test_two_stage_auditor.py::TestStage2PathBExtensions -v)",
-      "Bash(python -m pytest tests/test_qa_datamodule.py -v)",
-      "Bash(python -m pytest tests/test_qa_datamodule.py tests/test_byte_vocab.py tests/test_two_stage_auditor.py -v)",
-      "Bash(python -m pytest tests/test_byte_vocab.py tests/test_qa_datamodule.py tests/test_two_stage_auditor.py -v)",
-      "Bash(python -c \"from scripts import phase1_train_bytes, phase2_train_qa, phase2_eval_hallucination; print\\('drivers import OK'\\)\")",
-      "Bash(python3)",
-      "Bash(python -m pytest tests/test_llm_topk_datamodule.py -x -q)"
-    ]
+    "defaultMode": "auto"
   }
 }

@@ -1,0 +1,39 @@
+{
+  "ckpt": "runs/dphase5_hilbert_dirichlet/epoch_final.pt",
+  "model_name": "EqM",
+  "epoch": 5,
+  "global_step": 785,
+  "n_samples": 256,
+  "sample_steps": 200,
+  "sample_kwargs": {},
+  "unigram_kl": 0.6413777470588684,
+  "bigram_kl": 5.805572032928467,
+  "trigram_kl": 13.478933334350586,
+  "H_gen": 3.2949366569519043,
+  "H_gt": 2.8483986854553223,
+  "H_ratio": 1.1567680724530323,
+  "grad_at_gen": 10.013949394226074,
+  "grad_at_gt": 24.97747802734375,
+  "samples": [
+    "nweaholwasnjyfhbdvyulyrjdgcuprlazeofwmyk",
+    "wrlohljwmhwhoezfzbhluyreiykxjmnnujcs tsp",
+    "jzngyszadngkkff xgmujbjourirpbonpewwuuoc",
+    "lzwdfzafufjvqjhmcwuqjbluzslbxywqoqcupudl",
+    "bfhdecaobeczwudwgszgozimbldrnqllzkoxsryq",
+    "rbjtqktimvgwvmsqfmcktttvdveinyjdruowygks",
+    "oi rnokdrlevrablbl t cnlkifuweenzuuatywj",
+    "rrzbqwxkfjkkbjuijaootgmuhkctcegptgbrymhy"
+  ],
+  "run_name": "dphase5_hilbert_dirichlet",
+  "overrides": {
+    "training.model_name": "EqM",
+    "training.epochs": 5,
+    "text8_dataset.max_train_windows": 10000,
+    "loss.mode": "hilbert_soft",
+    "loss.hilbert_alpha": 1.0,
+    "loss.hilbert_alpha_start": 1.0,
+    "transformation.dirichlet_sampling": true,
+    "transformation.dirichlet_alpha_peak": 10.0,
+    "eqm.gamma_power": 1.0
+  }
+}

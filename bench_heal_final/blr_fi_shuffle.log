@@ -1,0 +1,32 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[heal] ckpt=runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM_converge/epoch_final.pt
+[heal] K=27 L=256 t_max=8.0 t_eval=4.5 device=cuda
+[heal] disjoint splits: fit=512 cal=512 demo=64  n_seeds=3
+=== build per-token localizer (linear_fi) ===
+  [hinge] train mix falseinfo @ rate 0.3: [('falseinfo', 29024)]  (scheme, #corrupt tokens)
+  [hinge] step    0  E_valid=-0.003  E_corrupt=+0.096  gap=+0.098
+  [hinge] step  200  E_valid=+0.489  E_corrupt=+1.499  gap=+1.011
+  [hinge] step  400  E_valid=+0.489  E_corrupt=+1.517  gap=+1.027
+  [hinge] step  599  E_valid=+0.502  E_corrupt=+1.360  gap=+0.857
+  [hinge] fit on 233120+29024 tok @ t=4.5
+=== heal sweep (mean over 3 corruption seeds) ===
+  fpr     thr  loc_P  loc_R  loc_F1    fix    dmg    net/corrupt   delta_ws
+ 0.02   2.186  0.310  0.312   0.311  0.101  0.092   -0.483±0.019    -0.0656  <- selected
+ 0.05   1.713  0.256  0.523   0.344  0.114  0.204   -1.187±0.043    -0.1609
+ 0.10   1.336  0.217  0.689   0.330  0.096  0.351   -2.142±0.035    -0.2904
+
+--- example[0] @ selected fpr=0.02 (chosen by cal-set F0.5) ---
+  clean : 'yed back using a compatible pc karaoke player display the lyrics karaoke style while playing the song although the midi karaoke format precludes the use of background vocals and harmonies the incredibly small size of the file in comparison to other digital'
+  corr  : 'yed baak usinr a iorgatiblp  r kaoaokg playem display the lyeics ktraokr styee wrzle playing thensong ilthouoh rhe midi kaeaoke forcct plecludea thu use of backgrognd vocafs and harmonies the incredlbly small sime oe the file in chmpacisos pa other ditital'
+  truec :       ^      ^   ^ ^^     ^ ^^   ^   ^      ^               ^     ^    ^    ^   ^^              ^     ^     ^  ^          ^        ^^   ^      ^   ^               ^       ^                          ^            ^   ^              ^   ^   ^ ^^         ^    
+  flag  :     ** *         *  *   *** ** *  * **                    *** *  * ** **       **                               *   *** **** **    ***        **  **                   *              * *              ***            **              *      *  **              
+  healed: 'yed play usinr a formations of baolook playem display the bovies it book styee bizle playing thensong ilthouoh ree mook of book for of plecludes the use of backgrognd vocafs and harmonies the incredl of small sime of the file in compacises of other ditital'
+
+=== HEADLINE @ selected fpr=0.02 (mean±std over 3 seeds) ===
+  localize    = P 0.310 / R 0.312 / F1 0.311   (per-token detection of the corrupt positions)
+  fix_rate    = 0.101   (corrupt token -> correct)
+  damage_rate = 0.092   (clean token -> broken)
+  net/corrupt = -0.483 ± 0.019   (net tokens recovered per corrupt token; >0 ⇒ net benefit)
+  delta_ws    = -0.0656 ± 0.0020   (whole-seq; diluted, capped near corrupt_rate — diagnostic only)
+
+Wrote bench_heal_final/blr_fi_shuffle.json

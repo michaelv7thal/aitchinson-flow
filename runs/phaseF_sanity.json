@@ -1,0 +1,50 @@
+{
+  "ckpt": "runs/aud_gpt2_ctx/epoch_final.pt",
+  "n": 300,
+  "n_train": 240,
+  "ctx_mode": "product_concat",
+  "1_train_vs_val": {
+    "train": {
+      "Seq_EqM_Egrad\u00b2": 0.9999305605888367,
+      "Seq_SE": 0.9994965195655823,
+      "Tok_EqM_Upos": 0.994493305683136,
+      "Tok_SE": 0.9674097299575806
+    },
+    "val": {
+      "Seq_EqM_Egrad\u00b2": 0.9958333373069763,
+      "Seq_SE": 0.9986110925674438,
+      "Tok_EqM_Upos": 0.9903435111045837,
+      "Tok_SE": 0.9677296280860901
+    }
+  },
+  "2_trivial_baselines_val": {
+    "seq": {
+      "topk_entropy_seq": 0.9711111187934875,
+      "topk_peak_gap_seq": 0.13055555522441864,
+      "h_norm_seq": 0.3605555593967438
+    },
+    "tok": {
+      "topk_entropy_tok": 0.7055490016937256,
+      "topk_peak_gap_tok": 0.40627479553222656,
+      "h_norm_tok": 0.4260033369064331,
+      "SE_tok": 0.9677296280860901
+    },
+    "linear_probe_h": {
+      "train_auroc": 0.9971608519554138,
+      "test_auroc": 0.988227128982544,
+      "n_train_pos": 3850,
+      "n_test_pos": 950
+    }
+  },
+  "3_uncorrupted_pos_val": {
+    "EqM_U_pos": 0.9666232466697693,
+    "SE_pos": 0.6562009453773499,
+    "n_uncorrupt": 2890
+  },
+  "4_cross_seed_val": {
+    "Seq_EqM_Egrad\u00b2": 0.9994444251060486,
+    "Seq_SE": 1.0,
+    "Tok_EqM_Upos": 0.9920848608016968,
+    "Tok_SE": 0.9638108611106873
+  }
+}

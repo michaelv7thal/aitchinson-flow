@@ -1,381 +1,69 @@
 from __future__ import annotations
 
-import math
 import torch
 
 from dataclasses import dataclass, field
-from typing import ClassVar
 
 
 @dataclass
-class DatasetConfig:
-    dataset: str = "text8"  # "dna", "text8", "wiki"
-    K: int = 27  # Vocabulary size (4=DNA, 27=text8, 64=wiki top-k)
-    L: int = 30  # Sequence length
-
-
-@dataclass
-class TransformerConfig:
-    d_model: int = 1048  # Dimension of the model
-    nhead: int = 8  # Number of attention heads
-    num_layers: int = 8  # Number of layers
-    d_latent: int = 1048  # Dimension of the latent space
-    dropout: float = 0.0  # Dropout rate
-    time_conditioned: bool = False  # Whether to condition on time
-    pretrained_backbone: str | None = None  # e.g. "gpt2", "gpt2-medium", "gpt2-large"
-
-    def __post_init__(self) -> None:
-        if self.d_model % self.nhead != 0:
-            raise ValueError(
-                f"TransformerConfig.d_model ({self.d_model}) must be divisible by "
-                f"nhead ({self.nhead})"
-            )
-
-
-@dataclass
-class GPConfig:
-    num_inducing: int = 500  # Number of inducing points
-    lambda_kl: float = 2.0  # KL regularization parameter
-    lambda_contrastive: float = 0.1  # Stage 2 random-negative energy hinge weight
-    lambda_var: float = 2.0
-    """Anchor weight on valid GP mean in the composed ``BayesianAuditor`` loss.
-
-    Keeps ``E[valid]`` near zero so the contrastive hinge does not pull the
-    whole energy surface upward. The historical name is retained for
-    checkpoint compatibility; see also ``lambda_anchor`` for the Stage 2
-    analogue.
-    """
-    lambda_anchor: float = 0.2
-    """Stage 2 anchor weight on ``E[valid]^2`` (defaults to off).
-
-    Mirrors ``lambda_var`` in the composed auditor. Enable when relaxing the
-    contrastive hinge (C2 fix removes the ``.detach()``) causes valid energy
-    to drift.
-    """
-    lambda_vol: float = 0.5
-    """Weight on the volume-penalty training term at the valid data endpoint.
-
-    When > 0, adds ``−lambda_vol * vol_valid.mean()`` to the per-token
-    auditor loss, encouraging valid sequences to occupy high-volume simplex
-    regions (well-spread distributions). Defaults to 0 (off) for backward
-    compatibility; the velocity-field volume term in ``_velocity`` is
-    unaffected by this setting.
-    """
-    margin_E: float = 1.0  # Hinge margin for L_energy score
-    margin_V: float = 1.0
-    """Hinge margin for variance separation.
-
-    Used only by ``per_token_bayesian_auditor`` in the single-stage codepath;
-    has no effect in the two-stage pipeline (Stage 2 has no variance hinge).
-    """
-    init_log_noise_var: float = math.log(0.1)
-    """Initial value for the GP's ``log_noise_var`` parameter (log-space).
-
-    Defaults to ``log(0.1)`` → noise variance of ``softplus(log(0.1)) ≈ 0.1``.
-    Increase (e.g. ``log(1.0)``) for noisier data or when the NLL saturates
-    early in training.
-    """
-    min_log_noise_var: float = math.log(0.01)
-    """Lower clamp applied to ``log_noise_var`` before ``softplus``.
-
-    Prevents the learned aleatoric noise from underflowing to zero, which
-    would make the NLL numerically unstable.  Defaults to ``log(1e-6)``
-    so the minimum representable noise variance is ≈ 1e-6.
-    """
-
-    score_answer_tokens_only: bool = False
-    """If True, restrict Stage 2 token-level NLL and contrastive loss to
-    answer-span positions (requires ``batch["answer_mask"]``).
-
-    Used by the Q+A hallucination auditor (Path B): question tokens are
-    identical across correct/incorrect pairs and would dilute the
-    contrastive signal. Defaults to ``False`` so existing text8/Path A
-    batches (which lack ``answer_mask``) behave unchanged.
-    """
-
-    def __post_init__(self) -> None:
-        if self.num_inducing < 1:
-            raise ValueError(f"GPConfig.num_inducing must be >= 1, got {self.num_inducing}")
-        if self.margin_E <= 0.0:
-            raise ValueError(
-                f"GPConfig.margin_E must be > 0 (a non-positive margin makes the "
-                f"contrastive hinge vacuous), got {self.margin_E}"
-            )
-        if self.margin_V <= 0.0:
-            raise ValueError(
-                f"GPConfig.margin_V must be > 0 (a non-positive margin makes the "
-                f"variance hinge vacuous), got {self.margin_V}"
-            )
-        for name in (
-            "lambda_kl",
-            "lambda_contrastive",
-            "lambda_var",
-            "lambda_anchor",
-            "lambda_vol",
-        ):
-            v = getattr(self, name)
-            if v < 0.0:
-                raise ValueError(
-                    f"GPConfig.{name} must be >= 0 (negative values invert the "
-                    f"loss direction), got {v}"
-                )
-
-
-@dataclass
-class TrainingConfig:
-    model_name: str = "flow_matching"
-    """Registered model key (see ``aitchinson_flow.models.factory``). Known values:
-
-    - ``"flow_matching"``: time-conditioned CFM-style auditor (velocity head).
-    - ``"equilibrium"``: standalone Equilibrium Matching auditor (velocity head).
-    - ``"bayesian_generator"``: joint flow + GP generator (no contrastive terms).
-    - ``"bayesian_auditor"``: joint flow + GP + contrastive (single-stage).
-    - ``"bayesian_auditor_stage1"``: **Stage 1** of the two-stage auditor —
-      EqM + Hilbert backbone training. Requires ``velocity_loss`` set to a
-      Hilbert-family loss (``soft_hilbert``/``hard_hilbert``/``clr_mse``/
-      ``ilr_mse``). Batches only need ``log_x``.
-    - ``"bayesian_auditor_stage2"``: **Stage 2** of the two-stage auditor —
-      mandatory-frozen backbone + contrastive GP head. Batches need
-      ``log_x`` and ``log_x_invalid``.
-    - ``"per_token_bayesian_auditor"``, ``"frozen_backbone_auditor"``: see
-      their respective modules.
-
-    Two-stage workflow:
-        1. Train ``bayesian_auditor_stage1`` on valid sequences (EqM + Hilbert).
-        2. Independently train ``bayesian_auditor_stage2`` with valid/invalid
-           contrastive pairs (optionally starting from a random backbone if
-           no Stage 1 checkpoint is used — representation freezing is still
-           enforced, matching the ablation setting documented in the plan).
-        3. Fuse checkpoints for inference via
-           ``aitchinson_flow.models.load_auditor_from_stage_checkpoints`` or
-           ``compose_auditor_from_stages``; the resulting ``BayesianAuditor``
-           supports the full inference API (``forward``/``_velocity``,
-           ``ood_score``, ``per_token_uq``, ``audit``).
-    """
-    B: int = 84  # Batch size
-    epochs: int = 15  # Number of epochs
-    lr: float = 5e-4  # Learning rate
+class TrainingConfigs:
+    lr: float = 3e-4
     device: torch.device = field(
-        default_factory=lambda: torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        default_factory=lambda: torch.device(
+            "cuda" if torch.cuda.is_available() else "cpu"
+        )
     )
-    seed: int = 0
-    grad_clip_norm: float | None = None  # if set, clip after backward
-    log_every: int = 50
-    eval_every: int = 5  # epochs between validation
-    checkpoint_every: int = 5
-    checkpoint_dir: str = "checkpoints"
-    num_workers: int = 8
-    weight_decay: float = 0.0
-    # Step once per epoch in ``runner.fit`` (see ``build_scheduler``).
-    lr_scheduler: str | None = "cosine"
-    """One of: None, ``constant``, ``cosine``, ``cosine_restarts``, ``onecycle``, ``linear``,
-    ``polynomial``, ``exponential``, ``multistep``."""
+    lr_sheduler: str | None = "cosine"
+    """One of: None, ``constant``, ``cosine``."""
+
+    epochs: int = 5
 
     scheduler_warmup_epochs: int = 0
-    """Linear warmup before the main schedule (paired with ``cosine``)."""
-
-    scheduler_warmup_start_factor: float = 0.01
-    """Initial LR multiplier during warmup (``LinearLR`` ``start_factor``; must be in (0, 1])."""
-
     cosine_eta_min: float = 0.0
     cosine_t_max_epochs: int | None = None
-    """Cosine half-period in epoch steps; default: ``epochs - warmup`` or ``epochs``."""
+    scheduler_warmup_start_factor: float = 0.01
+    seed: int = 42
+    model_name: str = "EqM"
+    checkpoint_dir: str = "checkpoints"
+    checkpoint_every: int = 5
+    log_every: int = 5
+    grad_clip_norm: float | None = 1.0
+    eval_every: int = 5
+    sample_eval_every: int | None = 1  # epochs between unigram-KL probes; None disables
+    sample_eval_n: int = 64  # sequences per probe
+    sample_eval_steps: int = 100  # NAG-GD steps per probe
+    eval_bpd: bool = (
+        False  # BPD requires full sampling per batch; disable for fast training evals
+    )
+    eval_bpd_max_steps: int = 200  # max NAG steps when eval_bpd is True
+    # Early stopping on the val loss (runbook §1). None = off (fixed-epoch loop,
+    # the historical default). When set, fit() tracks the best val loss across
+    # val evals (gated by eval_every) and stops after `early_stop_patience`
+    # consecutive evals with no improvement > early_stop_min_delta, restoring the
+    # best checkpoint as epoch_final.pt. Requires eval_every to actually trigger
+    # val eval (i.e. a val loader + eval_every <= epochs).
+    early_stop_patience: int | None = None
+    early_stop_min_delta: float = 0.0
+    # Hard per-run wall-clock cap in hours (runbook §1 = 36 h). None = off.
+    max_wall_clock_hours: float | None = None
+    L: int = 40
+    K: int = 27
+    B: int = 64
+    source: str = "raw_text"  # raw_text and or topk
 
-    cosine_restart_t0_epochs: int = 10
-    cosine_restart_t_mult: int = 1
-
-    onecycle_pct_start: float = 0.3
-    onecycle_div_factor: float = 25.0
-    onecycle_final_div_factor: float = 1e4
-    onecycle_three_phase: bool = False
-    onecycle_cycle_momentum: bool = False
-    """Set False for AdamW (no SGD-style momentum cycling)."""
-
-    linear_end_factor: float = 0.0
-    """``LinearLR`` ending multiplier (in [0, 1])."""
-
-    polynomial_power: float = 1.0
-
-    exponential_gamma: float = 0.95
-
-    multistep_milestones: tuple[int, ...] = ()
-    multistep_gamma: float = 0.1
-
-    velocity_loss: str = "ilr_mse"
-    soft_hilbert_alpha: float = 1.0
-
-    lambda_mask: float = 0.0
-    """Weight for the Stage 1 masked-reconstruction auxiliary loss.
-
-    When ``> 0`` ``BayesianAuditorStage1`` adds an MLM-style masking
-    objective on clean ``log_x`` via a separate ``MaskReconHead`` that
-    shares the backbone with the EqM velocity head. The default ``0.0``
-    keeps training behavior identical to the pre-masking Stage 1.
-    """
-
-    mask_rate: float = 0.15
-    """Fraction of sequence positions zeroed out when computing the Stage 1
-    masked-reconstruction loss. Only read when ``lambda_mask > 0``.
-    """
-
-    stage1_answer_tokens_only: bool = False
-    """If True, Stage 1 EqM/Hilbert loss is restricted to ``answer_mask`` tokens.
-
-    Intended for QA training on concatenated ``[Q][A]`` where question tokens
-    are context and gradients should focus on answer spans.
-    """
-
-    use_contextual_backbone: bool = False
-    """Enable question-conditioned answer encoding when question tensors are present.
-
-    When enabled, Stage 1/2 models run answer tokens through a dedicated answer
-    backbone and fuse question/context representations via cross-attention.
-    If ``batch["log_x_question"]`` is missing, models fall back to answer-only
-    behavior for backward compatibility.
-    """
-
-    context_gate_init: float = -4.0
-    """Initial value for the contextual residual gate logit.
-
-    Stage 1/2 contextual backbones mix cross-attention output as:
-    ``h_answer + sigmoid(context_gate) * h_cross``. Setting this to ``-4``
-    starts near answer-only behavior (sigmoid ≈ 0.018) and stabilizes early
-    optimization.
-    """
-
-    use_tqdm: bool = True
-    """Show tqdm progress bars for training/validation loops."""
-
-    # --- Weights & Biases ---
-    wandb_enabled: bool = False
-    """Enable Weights & Biases experiment tracking."""
-    wandb_mode: str = "online"
-    """W&B mode: ``online`` / ``offline`` / ``disabled``."""
-    wandb_project: str = "aitchinson-flow"
-    wandb_entity: str | None = None
-    wandb_group: str | None = None
-    wandb_run_name: str | None = "new-plots"
-    wandb_job_type: str | None = None
-    wandb_notes: str | None = None
-    wandb_tags: list[str] = field(default_factory=list)
-    wandb_log_model: bool = False
-    """If True, upload model artifacts/checkpoints."""
-    wandb_watch_model: bool = False
-    """If True, call ``wandb.watch`` for gradient/parameter stats."""
-    wandb_watch_log: str = "gradients"
-    """Watch mode passed to ``wandb.watch`` (``gradients``/``parameters``/``all``)."""
-    wandb_watch_log_freq: int = 100
-    wandb_log_steps: bool = False
-    """If True, emit ``step/train/*`` W&B metrics every ``log_every`` updates."""
+    def __post_init__(self) -> None:
+        if not isinstance(self.lr, float):
+            raise ValueError(
+                f"Learning rate must be a float, received: {self.lr}, type: {type(self.lr)}"
+            )
 
 
 @dataclass
-class EquilibriumFlowConfig:
-    """Equilibrium Matching (EqM): time-independent velocity field on the simplex path."""
-
-    # Interpolation endpoint: scale uses 1 / (1 - eqm_interp); keep < 1.0.
-    eqm_interp: float = 0.99
-    # Cap on the c_t schedule (legacy EqM).
-    eqm_start: float = 0.2
-    # Decay strategy for c(gamma) in EqM target u_tgt = c(gamma) * (log_x0 - log_x1).
-    # The target velocity points from data toward noise; inference integrators
-    # subtract v (x ← x - v(x) * dt) to flow noise → data.
-    # - "legacy": min(eqm_start, scale * (1-gamma)) * 4 (original behavior)
-    # - "linear": 1 - gamma
-    # - "truncated": 1 when gamma <= a, else (1-gamma)/(1-a)
-    # - "piecewise": b - ((b-1)/a)*gamma when gamma <= a, else (1-gamma)/(1-a)
-    eqm_decay_strategy: str = "linear"
-    # 'a' breakpoint for truncated/piecewise schedules; must satisfy 0 < a < 1 for piecewise,
-    # and 0 <= a < 1 for truncated.
-    eqm_decay_a: float = 0.2
-    # 'b' intercept for piecewise schedule (typically >= 1).
-    eqm_decay_b: float = 2.0
-    # Optional gradient multiplier (any schedule): c(gamma) <- c(gamma) / eqm_gradient_lambda
-    # (set to 1.0 for no scaling).
-    eqm_gradient_lambda: float = 1.0
-    # Sampling / fixed-point generation from uniform noise in log-space.
-    generate_steps: int = 250
-    generate_stepsize: float = 0.004
-    generate_init_noise: float = 0.01
-
-
-@dataclass
-class BayesianGeneratorConfig:
-    """Hyperparameters specific to GP + flow-matching energy model."""
-
-    corrupt_source_prob: float = 0.0
-    corrupt_mode: str = "faulty"  # "missing" | "faulty"
-    use_gp_variance_weighting: bool = False
-    ode_steps: int = 50
-    ode_init_noise: float = 0.01
-    volume_penalty_alpha: float = 10.0  # passed to geometry.volume_penalty if you thread it
-
-
-@dataclass
-class HFDatasetConfig:
-    """Hugging Face Hub / local script loading (raw splits only — no transforms)."""
-
+class Text8DataConfig:
+    K: int = TrainingConfigs.K  # vocabulary size
+    L: int = TrainingConfigs.L  # sequence length
+    batch_size: int = TrainingConfigs.B
     enabled: bool = False
-    path: str = "afmck/text8"  # Hub repo id or local path
-    name: str | None = None  # subset / config name for load_dataset
-    revision: str | None = None  # reproducible Hub snapshot
-    split_train: str = "train"
-    split_val: str | None = "validation"  # None → no val split loaded
-    split_test: str | None = "test"  # None → no test split loaded
-
-    streaming: bool = False
-    trust_remote_code: bool = False
-    max_samples_train: int | None = None
-    max_samples_val: int | None = None
-    max_samples_test: int | None = None
-    shuffle_seed: int = 0
-    shuffle_buffer_size: int = 10_000  # streaming shuffle
-    num_proc: int | None = None  # for later dataset.map
-
-    row_input_key: str = "input_ids"
-    pad_token_id: int = 0
-    log_simplex_eps: float = 1e-8
-    label_smoothing: float = 0.01
-    """Explicit label smoothing strength α used by the discrete→simplex transform.
-
-    When ``α > 0`` the one-hot row is replaced by ``(1 - α) · one_hot + α / K``
-    (a true label smoothing mix with the uniform distribution on the K-vocab).
-    The smoothed row sums to 1 exactly, lives in the open simplex interior, and
-    the additive ``log_simplex_eps`` is **not** applied on top — label
-    smoothing alone moves probabilities off the simplex boundary in a
-    geometrically meaningful way (matching the design described in the
-    two-stage auditor plan).
-
-    Set to ``0.0`` (default) to keep the legacy ``one_hot + log_simplex_eps``
-    path. Both paths produce ILR or CLR coordinates depending on
-    ``transform_mode``.
-    """
-
-    transform_mode: str = "ilr"
-    """Discrete→continuous transform applied per token.
-
-    * ``"ilr"`` (default): isometric log-ratio, output shape ``(L, K-1)``.
-      Removes the sum-to-zero constraint so distances and kernels are
-      Euclidean. This is the geometrically correct chart for the open
-      simplex and is what the two-stage auditor was designed for.
-    * ``"clr"``: centered log-ratio, output shape ``(L, K)``. Constrained
-      (rows sum to zero) — used for the **without-ILR** ablation in the
-      benchmarks (Plan point 5: effect of proper simplex geometry on the
-      GP kernel distances).
-    """
-
-
-@dataclass
-class Text8DatasetConfig:
-    """Char-level text8 corpus: download, chunk, corrupt.
-
-    Uses the dataset's native ``train``, ``validation``, and ``test`` splits from
-    ``afmck/text8`` (or the fallback ``afm-intelligence/text8``) and applies
-    corruption independently per split.
-    """
-
-    enabled: bool = False
-    cache_dir: str | None = None
     train_corrupt_rate: float = 0.15
     eval_corrupt_rate: float = 0.15
     train_order_mix_rate: float = 0.0
@@ -384,21 +72,39 @@ class Text8DatasetConfig:
     max_train_windows: int | None = 10_000
     max_eval_windows: int | None = 5_000
     corruption_seed: int = 1234
+    # Lazy CLR-feature computation. Eager mode (default) precomputes the full
+    # (N, L, K) float32 CLR tensor in CharWindowDataset.__init__ — ~9.7 GB at
+    # the full ~90M-char split. With lazy_features=True the dataset stores only
+    # the integer token-id windows and computes CLR features per-window in
+    # __getitem__, so memory scales with batch not corpus. Outputs are identical
+    # to eager mode. Auto-enabled when max_train_windows is None or very large
+    # (see CharWindowDataset). Default False keeps the eager path byte-identical.
+    lazy_features: bool = False
+    # Phase S — alphabet collapse to K=2 (vowel/consonant). When set to
+    # "binary" the windows are post-processed by
+    # data/text8_binary.py::char_id_to_binary_class. The user is responsible
+    # for also setting K=2 (training.K and text8_dataset.K).
+    alphabet: str = "full"  # "full" | "binary"
 
+    # Variable-L training for AE/EqMAE. When True, the training set yields
+    # samples with L ~ U(L_min, L_max) per sample (collate pads + emits
+    # pad_mask). Validation stays at fixed L (= cfg.text8_dataset.L) so
+    # eval metrics are comparable across cells. The model's positional
+    # embedding tables must be sized to L_max.
+    variable_length: bool = False
+    L_min: int = 40
+    L_max: int = 128
 
-@dataclass
-class RawTextDatasetConfig:
-    """Unified source selector for raw text datasets.
-
-    ``provider`` controls how ``source_ref`` is interpreted:
-    - ``"huggingface"``: ``source_ref`` is a HF dataset id (or local load script path).
-    - ``"manual"``: ``source_ref`` is a relative/absolute local dataset path.
-    """
+    # K=4 DNA path. When set, build_training_datamodule routes to DNADataModule,
+    # which loads this pre-tokenized {A,C,G,T} windows .pt (see
+    # scripts/prep_dna_windows.py) instead of the HF text8 download. The rest of
+    # the simplex pipeline is shared, so a run with windows_path set + K=4
+    # isolates vocab size against the K=27 text8 baseline.
+    windows_path: str | None = None
 
     provider: str = "huggingface"
     source_ref: str = "afmck/text8"
     dataset_name: str | None = None
-    revision: str | None = None
     split_train: str = "train"
     split_val: str | None = "validation"
     split_test: str | None = "test"
@@ -406,665 +112,730 @@ class RawTextDatasetConfig:
     cache_dir: str | None = None
     trust_remote_code: bool = False
     streaming: bool = False
-
-    _VALID_PROVIDERS: ClassVar[tuple[str, ...]] = ("huggingface", "manual")
-
-    def __post_init__(self) -> None:
-        if self.provider not in self._VALID_PROVIDERS:
-            raise ValueError(
-                f"RawTextDatasetConfig.provider={self.provider!r} must be one of "
-                f"{self._VALID_PROVIDERS}"
-            )
-        if not self.source_ref:
-            raise ValueError("RawTextDatasetConfig.source_ref must be a non-empty string")
-        if not self.text_column:
-            raise ValueError("RawTextDatasetConfig.text_column must be non-empty")
+    # pinned to the afmck/text8 dataset commit the paper's runs actually read
+    # (previously None; the exact revision existed only in the local HF cache)
+    revision: str | None = "58c74e966ccc66eab2de6b52fad5b14ddb259fa4"
 
 
 @dataclass
-class TeacherConfig:
-    enabled: bool = False
-    model_id: str = "gpt2"
-    revision: str | None = None
-    trust_remote_code: bool = False
-    dtype: str = "float32"  # or "bfloat16", "float16"
-    device: str = "auto"  # "auto" | "cpu" | "cuda"
-    max_length: int | None = None  # default: cfg.dataset.L
-    # Output: store teacher distribution in same K as student (top-k slice or full vocab project)
-    output_key: str = "log_x_teacher"  # column name after map
-    top_k: int | None = None  # if set, take top-k logits per position → student K
-    cache_on_disk: bool = True  # dataset.map cache_file_name
+class TransformationConfig:
+    label_smoothing: float = 1e-4
+    # Dirichlet-sampled data encoding (Stark-FM-style smoothing of the per-token
+    # one-hot). When ``True``, batch["x"] is replaced in CorruptingCollate with
+    # a fresh draw from Dir(α_base + α_peak·e_token) → CLR each step. The
+    # deterministic ``token_ids_to_features`` is still used for label_smoothing-
+    # only paths (e.g. EqM.bpd reconstruction). Default False reproduces the
+    # original deterministic-CLR pipeline.
+    dirichlet_sampling: bool = False
+    # Concentration on the target class. Larger ⇒ sharper peak at e_token,
+    # closer to the deterministic limit. Calibrated via Phase 2 of
+    # scripts/check_dirichlet_data.py: at α_base=0.1 the smallest α_peak
+    # giving stable ≥99.5% argmax recovery across seeds is 10.
+    dirichlet_alpha_peak: float = 10.0
+    # Concentration on each off-target class. Smaller ⇒ heavier-tailed off-
+    # target spread (more aggressive smoothing); too small and the simplex
+    # samples become bimodal/unstable.
+    dirichlet_alpha_base: float = 0.1
+    # Stochastic-interpolant noise on the FM path (Albergo, Boffi,
+    # Vanden-Eijnden 2023, arXiv:2303.08797). When >0, replaces the
+    # deterministic linear interpolant with
+    #     x_γ = (1-γ)·x_0 + γ·x_1 + σ(γ)·z,   z ~ N(0, I)|_{V_d},
+    # and adds the σ'(γ)·z term to the FM target. σ(γ) = σ_max·sin(πγ)
+    # vanishes at γ=0 and γ=1 (so endpoint marginals are preserved) and
+    # peaks at γ=0.5 — creating a per-(x_γ,γ) variance floor in the path
+    # interior without requiring Dirichlet thickening of x_1.
+    sigma_interpolant_max: float = 0.0
+    sigma_interpolant_schedule: str = "sin"
 
 
 @dataclass
-class QADatasetConfig:
-    """Generic HuggingFace Q+A datamodule config (Path B).
+class TransformerConfig:
+    d_model: int = 1024  # Dimension of the model
+    nhead: int = 8  # Number of attention heads
+    num_layers: int = 8  # Number of layers
+    # Activation (gradient) checkpointing on the encoder layers. Trades ~30%
+    # compute for a large drop in activation memory — the memory-fallback
+    # lever for the second-order / multi-forward arms (EqM, SFLMEBM_FM,
+    # SFLMEBM's hinge) at L=256 on the 20 GB MIG. use_reentrant=False so it
+    # composes with create_graph=True. Numerically identical to off.
+    grad_checkpointing: bool = False
+    d_latent: int = 1024  # Dimension of the latent space
+    dropout: float = 0.0  # Dropout rate
 
-    Answers and questions are byte-encoded (UTF-8, K=256) and concatenated
-    as ``[STX] question [ETX] answer [EOT]`` padded to ``cfg.dataset.L``.
-    """
 
-    hf_path: str = "mandarjoshi/trivia_qa"
-    name: str | None = "rc.nocontext"
-    revision: str | None = None
-    split_train: str = "train"
-    split_val: str | None = "validation"
-    split_test: str | None = None
-
-    question_col: str = "question"
-    answer_col: str = "answer.value"
-    """Dotted path to the ground-truth answer field. For TriviaQA use
-    ``"answer.value"`` or ``"answer.aliases"`` (first alias)."""
-
-    aliases_col: str | None = "answer.aliases"
-    """Optional dotted path to a list of acceptable alias answers, used
-    for label matching when scoring LLM-generated outputs. ``None``
-    disables alias matching (fall back to exact value match)."""
-
-    max_train_samples: int | None = 10_000
-    max_val_samples: int | None = 2_000
-    max_test_samples: int | None = 2_000
-
-    context_col: str | None = None
-    """Optional dotted path to contextual passages (e.g. ``context.contexts``)."""
-
-    context_joiner: str = "\n\n"
-    """Join string used when ``context_col`` resolves to multiple passages."""
-
-    include_context_in_question: bool = False
-    """If True, append context passages to the question conditioning stream."""
-
-    final_decision_col: str | None = None
-    """Optional dotted path to class labels such as ``yes/no/maybe``."""
-
-    maybe_policy: str = "separate_split"
-    """Handling for rows where final decision is ``maybe``.
-
-    Supported values:
-    - ``"drop_maybe"``: remove maybe rows.
-    - ``"treat_maybe_incorrect"``: map maybe to binary label 1.
-    - ``"treat_maybe_correct"``: map maybe to binary label 0.
-    - ``"separate_split"``: keep maybe rows with ``final_decision`` metadata
-      for uncertainty analysis, but do not force them into binary supervision.
-    """
-
-    emit_question_context: bool = False
-    """If True, emit ``log_x_question`` and ``question_mask`` in batches."""
-
-    max_question_bytes: int = 96
-    max_context_bytes: int = 384
-    max_answer_bytes: int = 28
-    shuffle_seed: int = 0
-    log_simplex_eps: float = 1e-8
-
-    trust_remote_code: bool = True
-
-    _VALID_MAYBE_POLICIES: ClassVar[tuple[str, ...]] = (
-        "drop_maybe",
-        "treat_maybe_incorrect",
-        "treat_maybe_correct",
-        "separate_split",
+@dataclass
+class EqM:
+    decay_strategy: str = "linear"
+    decay_a: float = 0.2
+    decay_b: float = 1.0
+    gradient_lambda: float = 1.0
+    lambda_vol: float = 1e-3  # unused (volume penalty not wired into _eqm_loss)
+    lambda_mse: float = 5e-3  # unused
+    alpha: float = 1.0  # unused
+    # Aux CE on the implied x1 reconstructed from grad_g (anchors per-token attractors).
+    # x1 ≈ x_γ − λ·grad_g for linear decay; CE(decode(x1_pred), token_ids).
+    lambda_ce: float = 0.5
+    ce_min_gamma: float = 0.5  # only apply CE where gamma >= this (signal regime)
+    # Optional n-gram likelihood terms on the same implied-x1 reconstruction.
+    # Active only at gamma >= ce_min_gamma. Set to 0 to disable. See Phase 5
+    # in TRAINING_PLAN.md.
+    lambda_bigram: float = 0.0
+    lambda_trigram: float = 0.0
+    # Optional γ time-conditioning passed to the transformer backbone.
+    # "off"     — backbone takes only x_γ (default, original behaviour).
+    # "add"     — sinusoidal γ embedding added to per-token hidden state.
+    # "concat"  — γ embedding concatenated to hidden, projected back to d_model.
+    # When time-conditioned, sample_gamma sets the fixed γ used at sample time.
+    # γ=1 is degenerate because c(γ=1)·(x0-x1)=0 ⇒ velocity ≈ 0 ⇒ flat
+    # energy field at sample time. γ=0.5 sits in the signal regime (matches
+    # ce_min_gamma).
+    time_conditioning: str = "off"
+    sample_gamma: float = 0.5
+    # γ importance sampling: gamma = U(0,1)**gamma_power.
+    # gamma_power=1.0 → uniform; <1 pushes mass toward γ≈1 (more signal),
+    # >1 toward γ≈0 (noise). 0.5 (mean γ≈0.67, mass in the signal regime) is
+    # the value the May-2026 sessions tuned as an anti-mode-collapse fix
+    # (SESSION_SUMMARY.md fix #4). The finished paper qualifies that story:
+    # the unigram collapse is a property of the regression optimum and no
+    # gamma reshaping (or aux CE) prevents it (appendix, Training-time
+    # collapse); the published EqM arms nevertheless trained with 0.5, so it
+    # stays the default. Originally documented in SESSION_SUMMARY.md
+    # fix #4 / CLAUDE.md. NB: commit 2e15b3f silently flipped this (and
+    # sample_gamma) to 1.5 — the *noise* regime, the inverse of the fix —
+    # which was restored here. Don't re-flip without re-reading SESSION_SUMMARY.
+    gamma_power: float = 0.5
+    # Restrict γ to a sub-interval: gamma = gamma_lo + (gamma_hi-gamma_lo)·U^gamma_power.
+    # Defaults span the whole path, so this is inert unless set. Used by the
+    # "band" experiment, which trains only where the interpolant is partly
+    # informative (the one region whose regression target is not determined by
+    # its own input); see sweeps/band_gamma.yaml.
+    gamma_lo: float = 0.0
+    gamma_hi: float = 1.0
+    # Equilibrium location for decay_strategy="band": c(γ)=max(0, 1-γ/gamma_star),
+    # so the regression target vanishes at γ=gamma_star instead of at γ=1. This
+    # puts the fixed point at the interpolant's clarity point rather than at the
+    # one-hot vertex. Inert under the other decay strategies.
+    gamma_star: float = 0.05
+    # x0 source noise scale (used at both train and inference for distribution match).
+    source_sigma: float = 0.1
+    # NAG-GD sampling hyperparameters (Algorithm 2)
+    sample_eta: float = 0.1  # step size η
+    sample_mu: float = 0.9  # NAG look-ahead factor μ
+    sample_g_min: float = 0.01  # gradient-norm stopping threshold
+    sample_max_steps: int = (
+        200  # hard cap on iterations (no benefit beyond ~150 once clipped)
     )
-
-    def __post_init__(self) -> None:
-        if self.maybe_policy not in self._VALID_MAYBE_POLICIES:
-            raise ValueError(
-                f"QADatasetConfig.maybe_policy={self.maybe_policy!r} must be one of "
-                f"{self._VALID_MAYBE_POLICIES}"
-            )
-
-
-@dataclass
-class AnswerGeneratorConfig:
-    """LLM answer-generator settings for Path B eval.
-
-    Instantiates a HuggingFace causal LM at eval time, asks it to answer
-    val/test questions, and labels the decoded output against the
-    ground-truth aliases. The auditor then scores ``[Q][A_llm]`` pairs.
-    """
-
-    lm_key: str = "hf_causal"
-    """Registry key (see ``aitchinson_flow.llms.registry``)."""
-
-    model_id: str = "gpt2"
-    revision: str | None = None
-    trust_remote_code: bool = False
-    dtype: str = "float32"
-    device: str = "auto"
-
-    temperature: float = 0.7
-    top_p: float = 0.9
-    max_new_tokens: int = 24
-    generation_seed: int = 0
-
-    prompt_template: str = "Q: {q}\nA:"
-    """Format string for the prompt fed to the LLM. ``{q}`` is substituted."""
-
-    cache_dir: str | None = None
-    """If set, cache pre-generated val/test answers under this directory."""
-
-
-@dataclass
-class LLMEmbeddingDatasetConfig:
-    """Path B datasource: raw text -> LLM token embeddings -> learned projection -> ILR.
-
-    Each raw text window is tokenized by the pretrained LLM's tokenizer; the
-    LLM's **frozen input embedding matrix** is then indexed to produce per-token
-    embeddings of shape ``(L, d_embed)``. The embeddings are handed to a small
-    learned ``Linear(d_embed, K) + log_softmax`` head on the auditor model
-    (``TokenEmbeddingToSimplex``), whose output is projected through ILR/CLR to
-    yield ``(L, K-1)`` simplex coordinates. The embedding lookup lives on the
-    datamodule (LLM stays off the model checkpoint); the projection weights
-    live on the auditor and are trained in Stage 1, then frozen for Stage 2.
-
-    ``K = cfg.dataset.K`` is the **simplex output dimension of the learned
-    projection** — it has no relationship to LLM vocabulary size. Same
-    ``token_id`` always maps to the same simplex point, so identical text
-    produces identical features (deterministic, unlike top-K sampling).
-
-    Invalid (OOD) sequences are produced by applying Path A's char-level
-    corruption (via :func:`aitchinson_flow.data.corruption.corrupt_token_ids`)
-    to the same raw text window *before* tokenization, so the projection sees
-    the LLM's reaction to corrupted text rather than a feature-space
-    perturbation.
-    """
-
-    lm_key: str = "hf_causal"
-    """LLM registry key used to build the pretrained LM."""
-
-    raw_text_backend: str = "text8"
-    """Raw-text source: ``"text8"`` or ``"hf"`` (same semantics as
-    ``TrainingDataConfig.raw_dataset``)."""
-
-    char_window_length: int = 256
-    """Characters per raw-text window before tokenization. Picked large enough
-    that the LLM tokenizer produces at least ``cfg.dataset.L`` tokens after
-    truncation; excess tokens are truncated."""
-
-    n_batches_per_epoch: int = 200
-    """Number of minibatches per training epoch (iterable datamodule)."""
-
-    corrupt_rate: float | None = None
-    """Char-level corruption rate for invalid batches. ``None`` falls back to
-    ``cfg.text8_dataset.train_corrupt_rate``."""
-
-    generation_seed: int = 0
-    """Seed for the per-batch corruption RNG."""
-
-    llm_embed_dim: int | None = None
-    """LLM input-embedding dimension (d_embed). Populated by the datamodule at
-    build time from the selected LLM (e.g. 768 for GPT-2, 896 for Qwen2.5-0.5B).
-    The auditor reads this at ``__init__`` to size the learned
-    ``TokenEmbeddingToSimplex`` projection — leave ``None`` and the datamodule
-    will fill it in via :func:`~aitchinson_flow.training.data_sources.build_training_datamodule`."""
-
-    _VALID_BACKENDS: ClassVar[tuple[str, ...]] = ("text8", "hf")
-
-    def __post_init__(self) -> None:
-        if self.raw_text_backend not in self._VALID_BACKENDS:
-            raise ValueError(
-                f"LLMEmbeddingDatasetConfig.raw_text_backend={self.raw_text_backend!r} must "
-                f"be one of {self._VALID_BACKENDS}"
-            )
-        if self.char_window_length < 1:
-            raise ValueError(
-                f"LLMEmbeddingDatasetConfig.char_window_length must be >= 1, got "
-                f"{self.char_window_length}"
-            )
-        if self.n_batches_per_epoch < 1:
-            raise ValueError(
-                f"LLMEmbeddingDatasetConfig.n_batches_per_epoch must be >= 1, got "
-                f"{self.n_batches_per_epoch}"
-            )
-        if self.corrupt_rate is not None and not 0.0 <= self.corrupt_rate <= 1.0:
-            raise ValueError(
-                f"LLMEmbeddingDatasetConfig.corrupt_rate must be in [0, 1], got {self.corrupt_rate}"
-            )
-        if self.llm_embed_dim is not None and self.llm_embed_dim < 1:
-            raise ValueError(
-                f"LLMEmbeddingDatasetConfig.llm_embed_dim must be >= 1 when set, got "
-                f"{self.llm_embed_dim}"
-            )
-
-
-@dataclass
-class LLMTopKProbsConfig:
-    """Component 2 datasource: raw text → LLM top-K softmax probabilities → ILR.
-
-    Each raw text window is tokenized by the LLM's tokenizer; the frozen LLM's
-    forward pass extracts per-token softmax probabilities over the full
-    vocabulary, then the top-K entries are selected and re-normalized to form a
-    K-dimensional probability simplex. ILR projection yields (L, K-1) Aitchison
-    coordinates for the flow-matching backbone.
-
-    ``K = cfg.dataset.K`` controls how many top-K vocabulary slots are retained.
-    Valid text produces exponential-decay-like top-K distributions (one token
-    dominates); corrupted text produces flatter distributions — this geometric
-    difference is what the Stage 1 + Stage 2 pipeline learns to detect.
-    """
-
-    lm_key: str = "hf_causal"
-    """LLM registry key used to build the pretrained LM."""
-
-    renormalize: bool = True
-    """Re-normalize the top-K probabilities to sum to 1 after truncation."""
-
-    raw_text_backend: str = "text8"
-    """Raw-text source for valid sequences; currently only ``"text8"`` is supported."""
-
-    char_window_length: int = 128
-    """Characters per raw-text window before LLM tokenization. Should be large
-    enough that the tokenizer produces at least ``cfg.dataset.L`` LLM tokens
-    after truncation (roughly ``L * avg_chars_per_token``; for GPT-2 with L=30
-    the default of 128 gives ~32 tokens with a small safety margin)."""
-
-    corrupt_rate: float | None = None
-    """Char-level corruption rate for the invalid (OOD) batches. ``None`` falls
-    back to ``cfg.text8_dataset.train_corrupt_rate``."""
-
-    generation_seed: int = 0
-    """Base seed for the per-batch corruption RNG."""
-
-    _VALID_BACKENDS: ClassVar[tuple[str, ...]] = ("text8",)
-
-    def __post_init__(self) -> None:
-        if self.raw_text_backend not in self._VALID_BACKENDS:
-            raise ValueError(
-                f"LLMTopKProbsConfig.raw_text_backend={self.raw_text_backend!r} must "
-                f"be one of {self._VALID_BACKENDS}"
-            )
-        if self.char_window_length < 1:
-            raise ValueError(
-                f"LLMTopKProbsConfig.char_window_length must be >= 1, got {self.char_window_length}"
-            )
-        if self.corrupt_rate is not None and not 0.0 <= self.corrupt_rate <= 1.0:
-            raise ValueError(
-                f"LLMTopKProbsConfig.corrupt_rate must be in [0, 1], got {self.corrupt_rate}"
-            )
-
-
-@dataclass
-class DNADatasetConfig:
-    """Nucleotide sequence dataset for Component 1 structural UQ benchmark.
-
-    Sequences are single-letter ACGT (K=4) or ACGTN (K=5) encoded, chunked into
-    windows of ``cfg.dataset.L`` bases. Invalid sequences are generated by point
-    mutation, frameshift insertion, or random shuffle.
-    """
-
-    enabled: bool = False
-    hf_path: str | None = None
-    """HuggingFace dataset path (e.g. 'InstaDeepAI/nucleotide_transformer_downstream_tasks').
-    If ``None`` (default), synthetic sequences are generated from the ``gc_content`` parameter."""
-    hf_name: str | None = None
-    split_train: str = "train"
-    split_val: str | None = "test"
-    text_column: str = "sequence"
-    trust_remote_code: bool = False
-    use_n_base: bool = False
-    """Include the ambiguous N base (K=5). When False (default) vocab is ACGT (K=4)."""
-    max_train_windows: int | None = 50_000
-    max_eval_windows: int | None = 10_000
-    train_corrupt_rate: float = 0.5
-    eval_corrupt_rate: float = 0.5
-    gc_content: float = 0.5
-    """GC content probability for synthetic sequence generation (AT content = 1 - gc_content)."""
-    corruption_seed: int = 1234
-    synthetic_seed: int = 42
-    """RNG seed for synthetic sequence generation."""
-
-
-@dataclass
-class MedicalDatasetConfig:
-    """Clinical text dataset for Component 1+2 structural + contextual UQ benchmark.
-
-    Clinical notes are lowercased and restricted to a 47-char clinical ASCII set (K=47),
-    chunked into windows of ``cfg.dataset.L`` characters. Invalid sequences are generated
-    by drug-name misspelling, unit corruption, and random character substitution.
-    """
-
-    enabled: bool = False
-    hf_path: str | None = None
-    """HuggingFace dataset path (e.g. 'BI-Misc/med_notes_test').
-    If ``None`` (default), synthetic clinical notes are generated from templates."""
-    hf_name: str | None = None
-    split_train: str = "train"
-    split_val: str | None = "test"
-    text_column: str = "text"
-    trust_remote_code: bool = False
-    max_train_windows: int | None = 10_000
-    max_eval_windows: int | None = 2_000
-    train_corrupt_rate: float = 0.5
-    eval_corrupt_rate: float = 0.5
-    corruption_seed: int = 2345
-    synthetic_seed: int = 99
-    """RNG seed for synthetic clinical note generation."""
-
-
-@dataclass
-class HealingConfig:
-    """Phase 4 OOD healing strategy configuration.
-
-    Three strategies (see :mod:`aitchinson_flow.healing`):
-
-    * ``"targeted_resample"`` — mask per-token positions with energy > threshold,
-      project via EqM or resample via LLM; iterate up to ``max_iter`` times.
-    * ``"simplex_project"`` — run EqM on flagged sequences, project back to the
-      nearest vocabulary token via ILR inverse + argmax.
-    * ``"beam_rerank"`` — score beam candidates by
-      ``log_p − lambda_energy · mean_energy``; return the highest-scoring one.
-    * ``"eqm"`` — legacy whole-sequence EqM integration (equivalent to the
-      ``HealingPipeline`` in :mod:`benchmarks.healing`).
-    """
-
-    strategy: str = "targeted_resample"
-    """Healing strategy: one of ``targeted_resample``, ``simplex_project``,
-    ``beam_rerank``, ``eqm``."""
-
-    threshold: float = 1.0
-    """Per-token (``targeted_resample``) or sequence-level (others) energy
-    threshold for flagging sequences / positions as OOD."""
-
-    max_iter: int = 5
-    """Maximum healing iterations (``targeted_resample`` only)."""
-
-    lambda_energy: float = 1.0
-    """Energy penalty weight λ for beam reranking:
-    ``score = log_p − λ · mean_energy``."""
-
-    n_beams: int = 5
-    """Number of beam candidates to generate before reranking."""
-
-    heal_steps: int | None = None
-    """EqM integration steps per healing pass (``None`` → healer model default)."""
-
-    heal_dt: float | None = None
-    """EqM step size (``None`` → healer model default)."""
-
-    re_encode: bool = True
-    """If ``True`` (default), re-encode snapped token IDs back to ILR after
-    simplex projection so the output geometry matches training."""
-
-    eps: float = 1e-8
-    """Additive smoothing epsilon used when re-encoding token IDs to ILR."""
-
-    label_smoothing: float = 0.0
-    """Label-smoothing coefficient for re-encoding (mirrors
-    ``cfg.hf_dataset.label_smoothing`` — set consistently)."""
-
-    transform_mode: str = "ilr"
-    """``"ilr"`` or ``"clr"`` for re-encoding token IDs (must match training)."""
-
-    _VALID_STRATEGIES: ClassVar[tuple[str, ...]] = (
-        "targeted_resample",
-        "simplex_project",
-        "beam_rerank",
-        "eqm",
-    )
-
-    def __post_init__(self) -> None:
-        if self.strategy not in self._VALID_STRATEGIES:
-            raise ValueError(
-                f"HealingConfig.strategy={self.strategy!r} must be one of {self._VALID_STRATEGIES}"
-            )
-        if self.threshold <= 0.0:
-            raise ValueError(f"HealingConfig.threshold must be > 0, got {self.threshold}")
-        if self.max_iter < 1:
-            raise ValueError(f"HealingConfig.max_iter must be >= 1, got {self.max_iter}")
-        if self.lambda_energy < 0.0:
-            raise ValueError(
-                f"HealingConfig.lambda_energy must be >= 0 (negative values reward "
-                f"anomalous sequences), got {self.lambda_energy}"
-            )
-        if self.n_beams < 1:
-            raise ValueError(f"HealingConfig.n_beams must be >= 1, got {self.n_beams}")
-        if self.heal_steps is not None and self.heal_steps < 1:
-            raise ValueError(
-                f"HealingConfig.heal_steps must be >= 1 when set, got {self.heal_steps}"
-            )
-        if self.transform_mode not in ("ilr", "clr"):
-            raise ValueError(
-                f"HealingConfig.transform_mode must be 'ilr' or 'clr', got {self.transform_mode!r}"
-            )
-
-
-@dataclass
-class TrainingDataConfig:
-    """Training-time data source selection and generation controls.
-
-    This is intentionally separate from ``benchmark.data_source`` because
-    training objectives may want different input pipelines than benchmark
-    sweeps.
-
-    Supported sources (dispatched by
-    ``aitchinson_flow.training.data_sources.build_training_datamodule``):
-
-    * ``source="raw_text"`` — Path A: load a raw corpus (``text8`` or the
-      HF-hub datamodule) and feed it through the standard discrete→ILR
-      transform.
-    * ``source="llm_topk"`` — Path B: tokenize raw text with a pretrained LLM
-      tokenizer, look up the frozen input embeddings, and project them into
-      the simplex with a learned ``Linear + log_softmax + ILR`` head
-      (``TokenEmbeddingToSimplex``) trained jointly with the auditor. See
-      :class:`LLMEmbeddingDatasetConfig`.
-    * ``source="llm_generated"`` — ask a registered causal LM to *generate*
-      batches on the fly. Generation is seeded per-batch via
-      ``generation_seed``; ``use_text8_prompts`` optionally seeds every
-      generation from a text8 prompt window.
-    * ``source="qa_pairs"`` — Path C: byte-level Q+A (trivia) auditor using
-      cross-question-swap negatives and an LLM answer generator.
-    * ``source="llm_topk_probs"`` — Component 2: tokenize raw text, run frozen
-      LLM forward pass, extract top-K softmax probabilities per position,
-      re-normalize, then apply ILR. Captures contextual semantic uncertainty.
-      See :class:`LLMTopKProbsConfig`.
-    """
-
-    source: str = "raw_text"
-    """One of: ``"raw_text"``, ``"llm_topk"``, ``"llm_generated"``, ``"qa_pairs"``,
-    ``"llm_topk_probs"``."""
-
-    raw_dataset: str = "text8"
-    """Raw-data backend when ``source='raw_text'``.
-
-    Supported: ``"text8"``, ``"hf"``.
-    """
-
-    lm_key: str = "hf_causal"
-    """LLM registry key used when ``source='llm_generated'``."""
-
-    n_batches: int = 200
-    """Number of generated batches per epoch-like pass for iterable teacher data."""
-
-    use_text8_prompts: bool = False
-    text8_prompt_length: int = 32
-    generation_seed: int = 0
-    generation_temperature: float = 1.0
-    generation_top_p: float = 1.0
-
-    llm_feature_mode: str = "token_ids"
-    """Feature path for ``source='llm_generated'``.
-
-    - ``"token_ids"``: generated ids -> discrete smoothing -> ILR/CLR.
-    - ``"token_probs"``: LM token distributions -> simplex projection -> ILR/CLR.
-    """
-
-    qa_skip_llm_eval: bool = False
-    """If True and ``source='qa_pairs'``, skip instantiating the answer-generator
-    LLM and fall back to cross-question-swap placeholders for eval negatives.
-    Useful for smoke tests that exercise the plumbing without a real LLM."""
-
-    _VALID_SOURCES: ClassVar[tuple[str, ...]] = (
-        "raw_text",
-        "llm_topk",
-        "llm_generated",
-        "qa_pairs",
-        "llm_topk_probs",
-        "dna",
-        "medical",
-    )
-    _VALID_RAW_DATASETS: ClassVar[tuple[str, ...]] = ("text8", "hf")
-    _VALID_LLM_FEATURE_MODES: ClassVar[tuple[str, ...]] = ("token_ids", "token_probs")
-
-    def __post_init__(self) -> None:
-        if self.source not in self._VALID_SOURCES:
-            raise ValueError(
-                f"TrainingDataConfig.source={self.source!r} must be one of {self._VALID_SOURCES}; "
-                f"use 'llm_topk_probs' for Component 2, 'dna' for DNA sequences, "
-                f"'medical' for clinical text"
-            )
-        if self.raw_dataset not in self._VALID_RAW_DATASETS:
-            raise ValueError(
-                f"TrainingDataConfig.raw_dataset={self.raw_dataset!r} must be one of "
-                f"{self._VALID_RAW_DATASETS}"
-            )
-        if self.llm_feature_mode not in self._VALID_LLM_FEATURE_MODES:
-            raise ValueError(
-                f"TrainingDataConfig.llm_feature_mode={self.llm_feature_mode!r} must be one of "
-                f"{self._VALID_LLM_FEATURE_MODES}"
-            )
-        if self.n_batches < 1:
-            raise ValueError(f"TrainingDataConfig.n_batches must be >= 1, got {self.n_batches}")
-        if self.text8_prompt_length < 1:
-            raise ValueError(
-                f"TrainingDataConfig.text8_prompt_length must be >= 1, got "
-                f"{self.text8_prompt_length}"
-            )
-        if self.generation_temperature <= 0.0:
-            raise ValueError(
-                f"TrainingDataConfig.generation_temperature must be > 0 (temperature=0 "
-                f"is not sampling — use a greedy mode instead), got "
-                f"{self.generation_temperature}"
-            )
-        if not 0.0 < self.generation_top_p <= 1.0:
-            raise ValueError(
-                f"TrainingDataConfig.generation_top_p must be in (0, 1], got "
-                f"{self.generation_top_p}"
-            )
-
-
-@dataclass
-class BenchmarkConfig:
-    """Benchmark runner settings for model/task/scale sweeps."""
-
-    task_name: str = "text_audit"
-    lm_key: str = "hf_causal"
-
-    # Which datamodule to use: "lm_teacher" (GPT-2 synthetic) or "text8" (char-level).
-    data_source: str = "text8"
-
-    # How much synthetic data to generate per benchmark run.
-    n_batches: int = 50
-
-    # Scale sweep over transformer backbone.
-    # Each entry should include: d_model, num_layers, nhead.
-    scale_grid: list[dict[str, int]] = field(
-        default_factory=lambda: [
-            {"d_model": 128, "num_layers": 4, "nhead": 8},
-            {"d_model": 256, "num_layers": 6, "nhead": 8},
-            {"d_model": 512, "num_layers": 8, "nhead": 8},
-        ]
-    )
-
-    results_dir: str = "results/benchmark"
-
-    # --- text8-conditioned generation ---
-    use_text8_prompts: bool = True
-    """If True, seed GPT-2 generation from text8 chunks instead of BOS-only."""
-    text8_prompt_length: int = 32
-    """Number of GPT-2 tokens per text8 prompt prefix."""
-
-    # --- invalid sample corruption ---
-    corrupt_rate: float = 0.15
-    """Fraction of positions replaced with random vocab ids for invalid samples."""
-    order_mix_rate: float = 0.15
-    """Fraction of positions partially shuffled for invalid samples."""
-    order_mix_prob: float = 0.5
-    """Probability of applying partial order mixing for a batch."""
-    corruption_seed: int = 42
-
-    # --- spilled energy baseline ---
-    compute_spilled_energy: bool = True
-    """Compute training-free spilled-energy anomaly scores alongside auditor metrics."""
-    spilled_hard_neg_top_k: int = 5
-    """Top-k for optional hard-negative ablation (not used in default random corruption)."""
-    use_tqdm: bool = True
-    """Show tqdm progress bars for benchmark scale sweeps."""
-
-    # --- training inside the benchmark sweep ---
-    train_before_eval: bool = True
-    """If True, train each scale's model via ``fit`` before running the audit task."""
-    train_epochs: int | None = 20
-    """Override ``training.epochs`` during the benchmark sweep; None keeps the global value."""
-
-    # --- plotting ---
-    save_plots: bool = True
-    """If True, save per-scale ROC, score-histogram, loss-curve, and per-sequence PNGs."""
-
-    # --- corrupt_rate sweep (Experiment 3) ---
-    corrupt_rate_sweep: list[float] | None = None
-    """If set, TextAuditTask loops over these rates and emits per-rate AUROC metrics."""
-
-    # --- self-healing (Experiment 4) ---
-    healer_ckpt: str | None = None
-    """Path to a trained EquilibriumAuditor checkpoint used by HealingAuditTask."""
-    healing_var_threshold: float = 0.5
-    """Variance threshold above which a sequence is flagged for healing."""
-    healing_steps: int = 20
-    """Number of Euler integration steps used during healing."""
-
-
-@dataclass
-class PerTokenAuditorConfig:
-    """Per-token Bayesian auditor (GP at each position)."""
-
-    use_context: bool = False
-    """If True, use ProductSparseGP with teacher hidden states; batch must include ctx_1 / ctx_1_invalid."""
-
+    # Per-position L2 clip on ∇E during sampling. Kills the cold-start gradient
+    # spike (||∇E||_pos ≈ 4.6 → 9.7 at step 1) that NAG amplifies into a basin
+    # overshoot. None disables clipping. See SAMPLER_FINDINGS.md.
+    sample_grad_clip: float | None = 1.0
+    # Return the lowest-‖∇E‖ iterate seen, not the trajectory's endpoint. NAG
+    # overshoots the basin around step 60 and drifts away; the trajectory
+    # minimum is the right thing to return.
+    sample_return_best: bool = True
+    # Sampler selection: "nag" (NAG-GD on the conservative gradient — the
+    # original behaviour) or "euler" (FM-style Euler integrator over γ on the
+    # raw velocity f, see RESULTS.md §1). Training is unaffected; only
+    # inference changes.
+    sampler: str = "nag"
+    # Number of Euler steps when sampler="euler". Maps from runner.py's
+    # max_steps so the existing eval probe wiring works untouched.
+    euler_nfe: int = 64
+    # Ablation: if True, the Euler sampler uses ∇⟨x,f⟩ (the conservative
+    # gradient) at each step instead of raw f. Lets the writeup separate
+    # "FM-style sampler" from "raw-f vs grad-of-energy".
+    euler_use_grad: bool = False
+    # Optional override of source_sigma at sample time. None ⇒ use source_sigma.
+    # The OOD-at-γ≈0 mismatch hypothesis says reducing this may help the Euler
+    # sampler that starts at γ=0 (where training sees x_γ ≈ x0 = σ-noise).
+    sample_sigma_init: float | None = None
+    # Langevin diffusion coefficient α for the SDE sampler (sampler="sde").
+    # Per-step noise scale is sqrt(2·α·h) where h = 1/nfe. α = 0 reduces to
+    # deterministic Euler; small α (~0.05–0.2) adds mixing without
+    # destroying the trajectory; α > 0.5 is essentially Brownian motion.
+    sde_alpha: float = 0.0
+    # Joint-head bigram NLL weight (W2). 0 disables. Distinct from the
+    # factorised lambda_bigram above (which Phase 5 showed is a re-weighted
+    # unigram CE — kept here only for reproducibility of that negative).
+    lambda_bigram_joint: float = 0.0
+    # Auditor hinge loss (Phase F — TRAINING_PROTOCOL.md §6).
+    # Active when ``lambda_E_hinge > 0`` AND the batch carries an
+    # ``x_invalid`` paired-input tensor. Trains the field so that
+    # per-sequence grad-norm² ``Σ‖∇⟨x,f(x;γ_aud)⟩‖²`` is *small* on clean
+    # inputs and *at least margin_energy²* on invalid inputs. This
+    # repurposes the EqM energy as a binary clean/invalid discriminator;
+    # FM regression on the clean samples is still computed, so the field
+    # is anchored on the data manifold.
+    lambda_E_hinge: float = 0.0
+    margin_energy: float = 2.0
+    # γ at which the auditor's energy proxy is evaluated. γ=1 is the
+    # data-manifold endpoint where FM training drives grad_g → 0 on
+    # clean inputs. Use γ=1.0 for time-conditioned auditors; for
+    # untimed it's ignored (the backbone has no γ input).
+    auditor_gamma: float = 1.0
+    # Context conditioning mode for the auditor backbone.
+    # "off"             — backbone sees only the K-dim simplex (default).
+    # "hidden_only"     — backbone sees only the LM's last-hidden state
+    #                     (the simplex is dropped). Auditor decides
+    #                     purely from the LM's representation.
+    # "product_concat"  — concat the K-dim simplex with a learned
+    #                     projection of the LM hidden state, then
+    #                     project to d_model. Both signals are visible.
+    # Activates when the batch carries ``h_clean`` / ``h_invalid``.
+    context_features: str = "off"
+    # LM hidden-state dim. GPT-2 small=768, GPT-2 medium=1024,
+    # Qwen2.5-1.5B=1536. Set to match the cache producer.
     ctx_hidden: int = 768
-    """Last-hidden size from the teacher (e.g. GPT-2 = 768). Projected to d_latent via ctx_proj."""
+    # Width of the learned projection applied to ``h_LLM`` before it is
+    # concatenated to the simplex input in "product_concat" mode. None
+    # defaults to d_model // 2.
+    ctx_proj_dim: int | None = None
+    # Aux loss family on the implied-x1 reconstruction.
+    # "softmax"   — log_softmax + NLL (the default, used everywhere prior).
+    # "sparsemax" — Martins & Astudillo (2016) sparsemax loss; the implied-x1
+    #               distribution is computed via sparsemax instead of softmax,
+    #               producing sparse posteriors over tokens. Combined with the
+    #               existing bigram_joint head this is a discrete-side
+    #               symmetry-break alternative to Dirichlet x_1 thickening.
+    aux_kind: str = "softmax"
+
+
+@dataclass(frozen=True)
+class LoaderSettings:
+    batch_size: int = TrainingConfigs.B
+    num_workers: int = 8
+    device_type: torch.device = field(
+        default_factory=lambda: torch.device(
+            "cuda" if torch.cuda.is_available() else "cpu"
+        )
+    )
+
+
+@dataclass
+class LossConfig:
+    mode: str = "mse"  # "hilbert" | "hilbert_soft" | "mse"
+    hilbert_alpha: float = 5.0  # target alpha for "hilbert_soft"
+    hilbert_alpha_start: float = 5.0  # initial alpha; anneals up to hilbert_alpha
+    hilbert_alpha_anneal_epochs: int | None = (
+        None  # epochs to reach hilbert_alpha; None = all training epochs
+    )
+
+
+@dataclass
+class DFMConfig:
+    kappa_schedule: str = "quadratic"  # "linear" | "quadratic"
+    dropout: float = 0.1
+    sample_nfe: int = 128  # default Euler steps at eval time
+
+
+@dataclass
+class DirichletFMConfig:
+    """Dirichlet Flow Matching (Stark et al. 2024, arXiv:2402.05841).
+
+    Conditional probability path on the K-1 simplex:
+        p_{t|1}(x | x_1) = Dir(x; β(t, x_1))   with β_i = α(t) if i=x_1 else 1
+    α is parameterized directly as t ∈ [1, t_max]. The path goes from
+    Dir(1,...,1) (uniform on the simplex, t=1) to a Dirichlet concentrated
+    at the vertex e_{x_1} as t grows. The denoiser predicts p(x_1 | x_t, t)
+    under cross-entropy. Sampling integrates the marginal vector field
+    derived in Theorem 3.1 of the paper.
+    """
+
+    t_max: float = 8.0  # paper default for moderate K; α_max in the paper
+    dropout: float = 0.1
+    sample_nfe: int = 100  # Euler steps for sampling (Stark uses 100)
+    # If True, add small Gaussian noise to the input each step for stability
+    # (the paper's stochastic variant). Off by default — pure ODE.
+    sample_stochastic: bool = False
+    # Auditor extension: condition the denoiser on a per-position context vector
+    # (the LM's last hidden state h_LLM). "off" disables; "product_concat" mirrors
+    # EqM's mode and concats h_proj(h_LLM) onto x before the input projection.
+    context_features: str = "off"  # "off" | "hidden_only" | "product_concat"
+    ctx_hidden: int = 768  # raw context dim (GPT-2 small = 768)
+    ctx_proj_dim: int = 64  # projection size before concat
+    # EBM-eval-time t (where the closed-form mixture-of-Dirichlets log p_t is
+    # evaluated for UQ). Closer to t_max ⇒ peakier prior; closer to 1 ⇒ uniform.
+    energy_t: float = 4.0
+    # Architecture B (dual-head joint training): when ``joint_halluc=True`` the
+    # encoder grows a second head that emits a scalar hallucination logit per
+    # position; the training step combines slot-CE on clean rows with BCE on
+    # all rows. Encoder learns features useful for both objectives.
+    joint_halluc: bool = False
+    lambda_slot: float = 1.0
+    lambda_halluc: float = 1.0
+    # Per-row pos:neg imbalance in HaluEval-QA answer-mask positions is ~6:1
+    # (hallucinated answers are systematically longer than clean ones). Use a
+    # pos_weight in BCE to compensate; auto-computed in the runner if <= 0.
+    halluc_pos_weight: float = 0.0
+    # Encoder architecture. ``"transformer"`` is the default cross-positional
+    # attention model. ``"mlp"`` is a weight-shared per-position MLP — same
+    # input/output API but with NO cross-positional information flow. The MLP
+    # backbone is cascade-clean by construction (tok(non-ans) AUROC ≈ 0.50)
+    # and is the principled choice when locality matters more than
+    # row-level discrimination via cross-position cues.
+    backbone_kind: str = "transformer"  # "transformer" | "mlp"
+    # Slot-CE training data filter. When True (default) the slot head sees
+    # only clean rows — the original "one-class density on clean" recipe.
+    # When False, slot CE is trained on **all** rows without inspecting the
+    # halluc label, accepting label-noise contamination from halluc rows.
+    # This is the strictly self-supervised / unsupervised variant.
+    train_clean_only: bool = True
+    # Architecture A (post-hoc SVGP head): when ``svgp_head=True`` the
+    # auditor exposes a sparse variational GP over encoder features
+    # (gpytorch ApproximateGP + RBF + Bernoulli likelihood). It is **not**
+    # jointly trained with the encoder — main optimizer ignores its
+    # parameters; it is fitted post-hoc via ``model.fit_svgp(loader)`` and
+    # queried via ``model.svgp_score_at_lm(batch)`` for per-position mean +
+    # variance. Same gpytorch recipe used by ``scripts/phaseF_uq.train_svgp``.
+    svgp_head: bool = False
+    svgp_n_inducing: int = 128
+    svgp_n_iters: int = 200
+    svgp_lr: float = 0.01
+
+
+@dataclass
+class LogitKLFlowConfig:
+    """Logit-KL Flow Matching (arXiv:2411.16821).
+
+    Linear interpolation in logit space ``l_t = (1−t)·l_0 + t·l_1`` with
+    ``l_0 ~ source_sigma·N(0, I)`` and ``l_1 = gamma_l · one_hot(token_id)``.
+    The denoiser regresses *clean logits* ``v̂(l_t, t) ≈ E[l_1 | l_t]`` under
+    MSE. Sampling is hybrid: deterministic-ODE for ``t < sampler_split_t``,
+    stochastic re-noising for ``t ≥ sampler_split_t``.
+    """
+
+    gamma_l: float = 8.0  # clean-logit magnitude (one-hot · γ_l)
+    source_sigma: float = 0.1  # σ for the Gaussian noise source l_0
+    sampler_split_t: float = 0.28  # det → stochastic switch threshold
+    sampler_nfe: int = 64  # default Euler steps at eval time
+    sampler_noise_scale: float = 0.5  # multiplier on σ_t = sqrt(1−t²)
+
+
+@dataclass
+class AuditorConfig:
+    """Phase F (TRAINING_PROTOCOL.md §6) — EqM auditor on cached LM features.
+
+    When ``enabled = True`` the runner builds a :class:`WikiAuditorDataModule`
+    instead of the text8 module; the EqM model's ``lambda_E_hinge`` should
+    also be > 0 so the paired-input branch in ``training_step`` fires. The
+    cache itself is produced one-time by ``scripts/cache_wiki.py``.
+    """
+
+    enabled: bool = False
+    cache_path: str = "data/wiki_cache_gpt2.pt"
+    batch_size: int = 8
+    train_frac: float = 0.8
+
+
+@dataclass
+class HalluevalDFMAuditorConfig:
+    """DirichletFM auditor on cached HaluEval-QA top-K + h_LLM features.
+
+    Pairs two caches produced for Phase K / Phase Q:
+      * `topk_cache_path`   — `(topk_logp, topk_idx, E_logit, E_marg, ΔE)` per
+        position; K=32, L=160 (from `scripts/cache_hallueval_topk.py`).
+      * `hidden_cache_path` — `(full_ids, hidden_states, answer_mask, label,
+        pair_id)` (from `scripts/cache_hallueval.py`); 20000 rows of which
+        the first 4000 align with the topk cache.
+
+    The auditor trains its denoiser only on **clean** rows (label=False). At
+    eval time the closed-form mixture-of-Dirichlets EBM `−log p_t(x_LM | h)`
+    is evaluated at the LM's actual top-K simplex distribution; AUROC vs the
+    per-pair label is the headline number.
+    """
+
+    enabled: bool = False
+    topk_cache_path: str = "data/hallueval_topk_gpt2.pt"
+    hidden_cache_path: str = "data/hallueval_cache_gpt2.pt"
+    batch_size: int = 16
+    # Pair-level train/val split (prevents leakage across the clean/halluc
+    # halves of the same prompt).
+    train_frac: float = 0.8
+    # Subset cap on rows used (a) for fast smoke runs and (b) when the topk
+    # cache is smaller than the hidden cache (default 4000-row topk subset).
+    max_rows: int = 4000
+
+
+@dataclass
+class EmbeddingConfig:
+    """Latent-EqM (`EqMLatent` model). Replaces the deterministic CLR-on-simplex
+    representation with a learnable ``nn.Embedding(K, d_embed)`` + tied output
+    decoder. The flow runs in plain ``R^{d_embed}`` (no V_d projection); the
+    model jointly trains embeddings to be flow-friendly *and* linearly
+    separable for the CE auxiliary.
+
+    Phase 0-3 of the simplex pipeline (Dirichlet-sampled CLR data + Hilbert vs
+    Aitchison) demonstrated that the simplex *representation* — not the metric
+    on it — is the bottleneck (RESULTS_DIRICHLET.md). This config feeds the
+    pivot to learned embeddings.
+    """
+
+    enabled: bool = False
+    d_embed: int = 32
+    init_std_factor: float = 1.0  # final init std = init_std_factor / sqrt(d)
+    # If > 0, freeze the embedding rows for the first N optimizer steps so the
+    # flow field finds a sensible starting energy landscape before the
+    # embedding rows start moving. Phase 2-3 calibration knob.
+    freeze_steps: int = 0
+    # Optional separate learning rate multiplier for the embedding rows.
+    # ``None`` ⇒ same lr as the rest of the model (no param-group split).
+    embed_lr_mult: float | None = None
+    # Untied vs tied output decoder. Tied (default) shares ``embed.weight`` with
+    # the readout linear layer; untied trains a separate ``nn.Linear(d, K)``.
+    tie_decoder: bool = True
+    # Pre-computed fixed embedding source. When set, EqMLatent loads the
+    # ``embeddings`` tensor from this ``torch.save``-d file (produced by
+    # ``scripts/learn_ppmi_svd_embeddings.py``) and **freezes** the embedding
+    # layer (``requires_grad_(False)``). This eliminates the moving-target
+    # failure mode of jointly training embeddings — x_1 = embed(token) is
+    # constant throughout training, so the flow regression has a fixed
+    # target field.
+    fixed_path: str | None = None
+
+
+@dataclass
+class AutoencoderConfig:
+    """TextAutoencoder — contextual denoising AE used as the latent space for
+    ``EqMAE``. Architecture: token+pos embedding → N-layer Transformer encoder
+    → Linear(d_latent), then Linear(d_latent) → token+pos embedding → N-layer
+    Transformer encoder → Linear(K) head.
+
+    The denoising_sigma noise on z during training is what makes the latent
+    space FM-friendly: the decoder learns to be robust to small perturbations
+    of z, so the EqM sampler doesn't need to land exactly on the data
+    manifold for the decode to be valid text. ``latent_l2`` keeps ‖z‖ bounded
+    so the EqM source noise can match the data scale without re-tuning.
+    """
+
+    d_model: int = 256
+    d_latent: int = 64
+    nhead: int = 4
+    num_layers: int = 2
+    dropout: float = 0.0
+    # Denoising noise on the encoded z before decoding. Two regimes:
+    #   "fixed"            — σ = denoising_sigma (absolute, per-dim)
+    #   "relative_uniform" — σ = U(0, denoising_sigma) * std(z),  per-batch
+    # The relative-uniform schedule is the default because (a) it scales
+    # with whatever z scale the AE settles into (so the noise/signal ratio
+    # is comparable across AE sizes) and (b) sweeping σ from 0 to max in
+    # one training trains the decoder to be robust across the *full
+    # spectrum* of residuals the downstream EqM sampler might leave behind
+    # — not just one specific noise magnitude.
+    denoising_schedule: str = "relative_uniform"
+    denoising_sigma: float = 0.5
+    latent_l2: float = 1e-3
+    # Best-practice defaults: GELU FFN activation (modern transformer norm)
+    # and tied I/O embeddings (decoder head shares weight with encoder
+    # token_embed). Tying forces the encoder representation to be linearly
+    # separable for the decoder and saves K*d_model params on the head.
+    activation: str = "gelu"
+    tie_embeddings: bool = True
+    # AE | VAE flavour. "ae" is the deterministic encoder used so far;
+    # "vae" replaces to_latent with parallel μ and logσ heads, samples
+    # z = μ + σ·ε via reparameterisation, and adds a KL(q(z|x) || N(0,I))
+    # term to the loss with weight ``vae_beta``. Sampling z each step
+    # also gives EqMVAE training the "thickened-x1" property the
+    # compositional simplex EqM gets from Dirichlet thickening, but in
+    # latent space.
+    mode: str = "ae"
+    vae_beta: float = 0.1
+    vae_beta_warmup_epochs: int = 1
+
+
+@dataclass
+class EqMAEConfig:
+    """EqMAE — EqM in a frozen pretrained-AE latent space. Pairs with
+    ``AutoencoderConfig`` for the AE architecture (must match the pretrained
+    checkpoint's arch) and ``EqM`` for the flow hyperparameters."""
+
+    ae_ckpt_path: str = ""
+
+
+@dataclass
+class BayesianAuditorConfig:
+    """BayesianAuditorAE — GP-energy EBM with contrastive hinge.
+
+    Implements the supervisor-suggested design: GP posterior mean as a scalar
+    energy E(x), with conservative-gradient velocity v = -∇E, FM regression
+    loss plus a contrastive hinge against perturbation-based negatives
+    produced by ``CorruptingCollate`` (set ``text8_dataset.train_corrupt_rate``
+    > 0 to enable; default 0.15).
+    """
+
+    ae_ckpt_path: str = ""
+    num_inducing: int = 64
+    lambda_hinge: float = 1.0      # weight on E(clean)² + relu(margin - E(invalid))
+    margin_energy: float = 2.0
+    lambda_kl: float = 0.01        # weight on the variational KL / B
+    # (variance hinge omitted in the AE-latent variant — the GP posterior over a
+    # pooled deep feature is not well-calibrated as an OOD signal without further
+    # work; left for a follow-up.)
+    # ── product-kernel (wiki/GPT-2) extension ─────────────────────────────
+    # Used by ``PerTokenBayesianAuditorWiki`` (cfg.training.model_name).
+    # The context dim ``ctx_hidden`` matches the LM's last-hidden-state dim
+    # (768 for GPT-2 small); ``ctx_proj_dim`` is the projected per-position
+    # context dim consumed by the product kernel's second factor.
+    ctx_hidden: int = 768
+    ctx_proj_dim: int = 64
+    # Cache path used by the wiki/GPT-2 datamodule. Produced by
+    # ``scripts/cache_wiki.py`` with --lm gpt2 --K 64.
+    wiki_cache_path: str = "data/wiki_cache_gpt2.pt"
+
+
+@dataclass
+class DSMConfig:
+    """Denoising-score-matching family (ScoreDSM, EqMDSM).
+
+    Both models train a noise-conditional score on a frozen AE latent. They
+    share this config block. The model_name selects which parameterisation
+    of the score is used (direct vector field vs. ∇⟨x, f⟩ — i.e. the
+    energy-gradient form that recovers EqM's conservative-field structure).
+
+    Conditioning. Both models pass ``log(σ)`` through the backbone's
+    existing γ-conditioning path (`eqm.time_conditioning` must be "add" or
+    "concat"). This means the backbone is unchanged; the σ-embedding is
+    just the sinusoidal embedding of the log-noise-level.
+    """
+
+    # σ schedule for training-time noise sampling.
+    # Default range covers ~99% of the embedding-norm dynamic range you
+    # observe on text8 AE latents (z_norm ~6–10).
+    sigma_min: float = 0.05
+    sigma_max: float = 5.0
+    sigma_distribution: str = "log_uniform"  # "log_uniform" | "uniform"
+
+    # ε-prediction loss weighting λ(σ). "constant" = 1 (matches
+    # variance-preserving DDPM); "snr+1" = σ²+1 (Karras 2022 weighting).
+    loss_weighting: str = "constant"
+
+    # Aux CE on the implied-x1 reconstruction, same role as in EqM.
+    # ``ce_min_logsig`` masks the CE to small-σ samples (where the
+    # implied-x1 is reliable). Translation of EqM's ce_min_gamma but
+    # measured in log-σ rather than γ.
+    lambda_ce: float = 0.5
+    ce_min_logsig: float = 0.0  # only CE on σ <= exp(0) = 1.0 by default
+
+    # Annealed Langevin sampler.
+    n_sigma: int = 16  # σ ladder size (geometric between σ_max and σ_min)
+    steps_per_sigma: int = 8  # K Langevin steps at each σ
+    sampler_eps: float = 1e-5  # base step size; α_i = eps · (σ_i/σ_min)²
+    sample_use_predictor_corrector: bool = False
+
+    # AE pretrained checkpoint path (mirrors EqMAEConfig — same AE in
+    # all three cells of the sweep).
+    ae_ckpt_path: str = ""
+
+
+@dataclass
+class SFLMEbmConfig:
+    """SFLMEBM — time-free hyperspherical flow model read as an EBM.
+
+    Tokens get a learned codebook embedding projected onto S^{d-1}. A
+    time-free denoiser is trained with CE on SLERP-noised latents
+    (S-FLM, arXiv:2605.11125); the implicit energy is the EqM-style
+    log-sum-exp readout ``E(z) = -tau * logsumexp_v <h(z), e_v>/tau``
+    (arXiv:2510.02300). The SFLM_EBM_FINDINGS.md probe showed the
+    energy basin is correct (recover≈1.0) under pure CE; the
+    importance schedule + contrastive hinge below are the EqM
+    anti-collapse knobs, kept as one-flag ablations.
+
+    The model ignores ``batch["x"]`` (CLR features) and does the
+    embedding lookup from ``batch["token_ids"]`` internally, mirroring
+    ``EqMLatent``. Uses ``cfg.transformer`` for backbone width/depth.
+    """
+
+    d_embed: int = 64
+    tau: float = 0.1  # codebook-softmax / energy temperature
+    # SLERP noise schedule. "uniform": alpha~U(lo,hi); "trunc": U(0.5,hi);
+    # "import": hi*U(0,1)**0.5 (EqM gamma-power, mass toward the signal end).
+    alpha_sched: str = "import"
+    alpha_lo: float = 0.0
+    alpha_hi: float = 0.95
+    # CE only applied where alpha >= this (signal regime; EqM ce_min_gamma).
+    ce_min_alpha: float = 0.3
+    # Contrastive energy hinge: relu(margin + E_clean - E_neg) with
+    # negatives = {token_ids_invalid embeddings, centroid seq, uniform
+    # sphere}. 0 disables (pure-CE ablation). Needs corruption enabled
+    # (text8_dataset.train_corrupt_rate > 0) for the invalid negatives.
+    lambda_hinge: float = 1.0
+    hinge_margin: float = 0.5
+    # Riemannian-GD sampler (adaptive step in geodesic arc length).
+    sample_steps: int = 200
+    sample_target_step: float = 0.1
+    # ----- Option 2 (conservative-gradient FM target on the sphere) -----
+    # When > 0, the model additionally regresses the Riemannian gradient of
+    # its own energy onto the geodesic FM target ``c(α)·log_map(z_α, z1)``
+    # (Chen & Lipman 2023). This makes the same energy density-faithful
+    # *and* generatively traversable — the existing energy-GD ``sample()``
+    # then transports noise→data instead of failing to (see
+    # SFLM_EBM_FINDINGS.md option 2). Requires second-order autograd
+    # (create_graph=True) — heavier than CE-only. Recommend running with
+    # lambda_hinge=0 in this regime to test whether FM supervision alone
+    # gives both generation and OOD; the hinge can be re-enabled later
+    # as an ablation. 0 disables → exactly current SFLMEBM behaviour.
+    lambda_fm: float = 0.0
+    # Path-decay c(α). "linear": c(α) = 1−α (matches EqM default).
+    fm_c_decay: str = "linear"
+
+
+@dataclass
+class SFLMConfig:
+    """Proper S-FLM Stage-1 generator (arXiv:2605.11125 in spirit, on
+    text8). Time-conditioned hyperspherical denoiser trained with plain CE
+    on SLERP-noised latents; sampled by Euler-over-γ on the sphere via
+    x1-prediction + geodesic step. Pairs with a Stage-2 SVGP head
+    (post-hoc, mirrors DirichletFMSvgp) for OOD — see
+    ``SFLM_EBM_FINDINGS.md``.
+    """
+
+    d_embed: int = 128
+    tau: float = 0.1
+    alpha_sched: str = "import"   # γ ~ alpha_hi · U(0,1)**0.5
+    alpha_lo: float = 0.0
+    alpha_hi: float = 0.95
+    # γ conditioning: "add" injects sinusoidal-γ via an extra projection;
+    # "concat" concatenates it onto the per-token hidden state and projects
+    # back. Both are standard; "add" is cheaper.
+    time_conditioning: str = "add"
+    # Eval-time γ used when the bench / recovery_check calls
+    # ``decode_to_logprobs(z)`` without a γ argument (signal-regime
+    # equivalent of DFM's t≈1 evaluation).
+    eval_gamma: float = 0.95
+    # Sampler: exp-map Euler integration of the S-FLM marginal velocity
+    # (paper Eq. 15). Number of integration steps:
+    sample_nfe: int = 64
+
+
+@dataclass
+class SFMConfig:
+    """Statistical Flow Matching (Cheng et al. 2024, arXiv:2405.16441).
+
+    Categorical flow matching on the statistical (Fisher–Rao) manifold. The
+    simplex is mapped to the positive orthant of S^{K-1} by π: μ ↦ √μ (inverse
+    μ = x²), under which the Fisher metric becomes the round sphere metric. The
+    conditional path is the constant-speed great-circle geodesic from a
+    uniform-simplex source (t=0, same prior as DirichletFM, mapped through π) to
+    the data vertex e_c (t=1); a transformer velocity field v(x_t, t) in the
+    tangent space is regressed against the geodesic velocity with an MSE
+    flow-matching loss. Sampling integrates ẋ = v on the sphere and reads tokens
+    from μ = x². The exact CNF likelihood / peer-comparable BPC (paper Eqs.
+    12–14) is a separate post-hoc readout, not part of training.
+    """
+
+    sample_nfe: int = 100   # exp-map Euler steps for the sampling ODE
+    t_eps: float = 1e-3     # keep geodesic time in [0, 1-t_eps] (stable target)
+
+
+@dataclass
+class FisherFMConfig:
+    """Fisher-Flow (Davis et al. 2024, arXiv:2405.14664).
+
+    A budget-matched implementation of Fisher-Flow, an independent construction
+    which shares the Fisher-Rao √μ-sphere geometry with SFM (Cheng et al. 2024)
+    without being a variant of it. Its own recipe: uniform-simplex source, a
+    target smoothed into the simplex interior, great-circle geodesic paths, and
+    a **Riemannian minibatch optimal-transport coupling** between source and
+    target samples (paper §3.4). See ``models/fisher_fm.py`` for the pinned
+    recipe and the two documented ambiguities, both of which are amounts the
+    paper leaves free (smoothing ε; exact-vs-Sinkhorn OT).
+    """
+
+    sample_nfe: int = 100        # exp-map Euler steps for the sampling ODE
+    t_eps: float = 1e-3          # keep geodesic time in [0, 1-t_eps]
+    use_ot: bool = True          # Riemannian minibatch-OT coupling (paper §3.4)
+    ot_reg: float = 0.0          # >0 ⇒ entropic Sinkhorn; 0 ⇒ exact assignment
+    ot_iters: int = 50           # Sinkhorn iterations (only when ot_reg > 0)
+    # σ: Δ → Δ̊, the paper's interior-smoothing map. Amount unfixed there, so we
+    # use the repo-wide ε of TransformationConfig.label_smoothing; 0 ⇒ raw vertex.
+    label_smoothing: float = 1e-4
+
+
+@dataclass
+class WandbConfig:
+    """Optional Weights & Biases logging. Off by default; enable with --wandb."""
+
+    enabled: bool = True
+    project: str = "eqm-text8"
+    entity: str | None = None
+    run_name: str | None = None  # auto-derived in main.py if None
+    group: str | None = None  # set by run_sweep.py to "sweep:<spec_stem>"
+    tags: tuple[str, ...] = ()
+    mode: str = "online"  # online | offline | disabled
+    log_artifacts: bool = True  # upload epoch_final.pt
+    log_samples: bool = True  # decoded text Table at each probe
+    sample_count: int = 8
+    step_log_every: int = 1  # throttle per-step wandb.log() calls
+
+
+@dataclass
+class DFMSvgpConfig:
+    """DirichletFMSvgp: Dirichlet Flow Matching + post-hoc SVGP head for OOD.
+
+    Stage 1 is identical to DirichletFlowMatching; this config controls
+    only the SVGP head and its training set construction.
+    """
+
+    pooling: str = "mean"               # "mean" | "max" | "attention"
+    d_embed: int = 256                  # SVGP input dim (pooled projection)
+    n_inducing: int = 128               # SVGP inducing-point count
+    kernel: str = "matern52"            # "matern52" | "rbf" | "matern32"
+                                         # Matern-5/2 is default: C² samples,
+                                         # heavier tails than RBF → better-graded
+                                         # OOD variance, and consistent with
+                                         # this repo's _SparseGP (which also
+                                         # uses Matern-5/2). RBF (C∞ samples,
+                                         # Gaussian tails) saturates variance
+                                         # too quickly far from inducing pts
+                                         # for OOD discrimination.
+    t_eval: float = 4.5                 # Dirichlet path time at which to extract
+                                         # features (mid-path; signal+noise balanced)
+    n_pos: int = 4000                   # number of positive features for SVGP fit
+    neg_strategy: str = "scrambled"     # "scrambled" | "random_simplex" | "mixed"
+    neg_per_pos_ratio: float = 1.0      # how many negatives per positive
+    n_iters: int = 200                  # SVGP optimisation iters
+    lr: float = 0.01                    # SVGP optimiser LR
+    train_pooler_with_dfm: bool = False # if True, pooler gradients flow through
+                                         # Stage 1 (cheap regularisation); False
+                                         # keeps Stage 1 identical to vanilla DFM.
+    # ----- joint contrastive-hinge training (alternative to post-hoc fit) ---
+    lambda_hinge: float = 0.0           # contrastive energy hinge weight;
+                                         # 0 = original two-stage (post-hoc SVGP fit only)
+                                         # >0 = trains SVGP jointly during Stage 1
+                                         # using batch["token_ids_invalid"] from
+                                         # CorruptingCollate.
+    margin_energy: float = 2.0          # hinge margin: E_invalid should exceed this
+    train_svgp_jointly: bool = False    # set True alongside lambda_hinge>0 to
+                                         # unfreeze the SVGP params during Stage 1
+                                         # (pooler also unfrozen — hinge gradient
+                                         # has to reach the encoder)
+    hinge_t_eval: float | None = None   # path-time t at which to compute the
+                                         # hinge during training (None → use t_eval)
 
 
 @dataclass
 class Config:
-    dataset: DatasetConfig = field(default_factory=DatasetConfig)
-    hf_dataset: HFDatasetConfig = field(default_factory=HFDatasetConfig)
-    text8_dataset: Text8DatasetConfig = field(default_factory=Text8DatasetConfig)
-    raw_text_dataset: RawTextDatasetConfig = field(default_factory=RawTextDatasetConfig)
+    training: TrainingConfigs = field(default_factory=TrainingConfigs)
+    text8_dataset: Text8DataConfig = field(default_factory=Text8DataConfig)
+    transformation: TransformationConfig = field(default_factory=TransformationConfig)
     transformer: TransformerConfig = field(default_factory=TransformerConfig)
-    gp: GPConfig = field(default_factory=GPConfig)
-    training: TrainingConfig = field(default_factory=TrainingConfig)
-    bayesian_generator: BayesianGeneratorConfig = field(default_factory=BayesianGeneratorConfig)
-    teacher: TeacherConfig = field(default_factory=TeacherConfig)
-    training_data: TrainingDataConfig = field(default_factory=TrainingDataConfig)
-    llm_embedding_dataset: LLMEmbeddingDatasetConfig = field(
-        default_factory=LLMEmbeddingDatasetConfig
+    eqm: EqM = field(default_factory=EqM)
+    dfm: DFMConfig = field(default_factory=DFMConfig)
+    dirichlet_fm: DirichletFMConfig = field(default_factory=DirichletFMConfig)
+    dfm_svgp: DFMSvgpConfig = field(default_factory=DFMSvgpConfig)
+    logitkl: LogitKLFlowConfig = field(default_factory=LogitKLFlowConfig)
+    loader_settings: LoaderSettings = field(default_factory=LoaderSettings)
+    loss: LossConfig = field(default_factory=LossConfig)
+    auditor: AuditorConfig = field(default_factory=AuditorConfig)
+    hallueval_dfm_auditor: HalluevalDFMAuditorConfig = field(
+        default_factory=HalluevalDFMAuditorConfig
     )
-    llm_topk_probs: LLMTopKProbsConfig = field(default_factory=LLMTopKProbsConfig)
-    dna_dataset: DNADatasetConfig = field(default_factory=DNADatasetConfig)
-    medical_dataset: MedicalDatasetConfig = field(default_factory=MedicalDatasetConfig)
-    qa_dataset: QADatasetConfig = field(default_factory=QADatasetConfig)
-    answer_generator: AnswerGeneratorConfig = field(default_factory=AnswerGeneratorConfig)
-    benchmark: BenchmarkConfig = field(default_factory=BenchmarkConfig)
-    per_token_auditor: PerTokenAuditorConfig = field(default_factory=PerTokenAuditorConfig)
-    equilibrium: EquilibriumFlowConfig = field(default_factory=EquilibriumFlowConfig)
-    healing: HealingConfig = field(default_factory=HealingConfig)
-
-    def __post_init__(self) -> None:
-        # Backward-compatible aliases: if the new unified selector stays at defaults,
-        # inherit legacy HF knobs for raw_dataset="hf".
-        if (
-            self.raw_text_dataset.source_ref == "afmck/text8"
-            and self.raw_text_dataset.provider == "huggingface"
-            and self.training_data.raw_dataset == "hf"
-            and self.hf_dataset.path
-        ):
-            self.raw_text_dataset.source_ref = self.hf_dataset.path
-            self.raw_text_dataset.dataset_name = self.hf_dataset.name
-            self.raw_text_dataset.revision = self.hf_dataset.revision
-            self.raw_text_dataset.split_train = self.hf_dataset.split_train
-            self.raw_text_dataset.split_val = self.hf_dataset.split_val
-            self.raw_text_dataset.split_test = self.hf_dataset.split_test
-            self.raw_text_dataset.streaming = self.hf_dataset.streaming
-            self.raw_text_dataset.trust_remote_code = self.hf_dataset.trust_remote_code
-            if self.hf_dataset.path.startswith(("/", "./", "../")):
-                self.raw_text_dataset.provider = "manual"
+    embedding: EmbeddingConfig = field(default_factory=EmbeddingConfig)
+    autoencoder: AutoencoderConfig = field(default_factory=AutoencoderConfig)
+    eqm_ae: EqMAEConfig = field(default_factory=EqMAEConfig)
+    dsm: DSMConfig = field(default_factory=DSMConfig)
+    bayes_auditor: BayesianAuditorConfig = field(default_factory=BayesianAuditorConfig)
+    sflm_ebm: SFLMEbmConfig = field(default_factory=SFLMEbmConfig)
+    sflm: SFLMConfig = field(default_factory=SFLMConfig)
+    sfm: SFMConfig = field(default_factory=SFMConfig)
+    fisher_fm: FisherFMConfig = field(default_factory=FisherFMConfig)
+    wandb: WandbConfig = field(default_factory=WandbConfig)

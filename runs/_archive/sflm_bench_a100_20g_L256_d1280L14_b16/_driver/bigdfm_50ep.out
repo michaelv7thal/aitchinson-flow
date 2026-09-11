@@ -1,0 +1,7 @@
+### BIGDFM-50EP START 2026-06-11_21:53:00 — waiting for OOD-DET-RERUN COMPLETE
+### [2026-06-12_13:41:01] OOD re-run done
+### [2026-06-12_13:41:01] (info) capacity d1280/14L 30ep KL_bi=0.2633330225944519  vs d1024 baseline=0.208
+### [2026-06-12_13:41:01] training DirichletFM_ep50_d50k @ a100_20g_L256_d1280L14_b16 (d1280/14L, 50ep × 50k, batch 16) — unconditional
+### [2026-06-15_14:20:06] train exit=0  meta={"arm":"DirichletFM_ep50_d50k","seed":42,"scale":"a100_20g_L256_d1280L14_b16","status":"done","stage":0,"batch":16,"L":256,"grad_checkpointing":false,"length_fallback":null,"max_train_windows":50000,"lazy_features":false}
+### [2026-06-15_14:20:06] generation eval
+### BIGDFM-50EP COMPLETE 2026-06-15_21:34:08 — eval re-run after session interruption

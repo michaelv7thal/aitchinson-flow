@@ -1,0 +1,47 @@
+# Phase S — K=2 binary collapse (training + eval).
+# CAPSTONE_EXPERIMENTS.md §5. Maps text8 to {vowel, consonant+space}.
+# Decision criteria: |Δ KL_bi(EqM, DFM)| ≤ 0.05 → EQUAL → multimodality is the bound.
+
+- name: eqm_K2_data50k_ep5
+  overrides:
+    training.model_name: EqM
+    training.K: 2
+    training.B: 64
+    training.epochs: 5
+    text8_dataset.K: 2
+    text8_dataset.alphabet: binary
+    text8_dataset.batch_size: 64
+    text8_dataset.max_train_windows: 50000
+
+- name: dfm_K2_data50k_ep5
+  overrides:
+    training.model_name: DFM
+    training.K: 2
+    training.B: 64
+    training.epochs: 5
+    text8_dataset.K: 2
+    text8_dataset.alphabet: binary
+    text8_dataset.batch_size: 64
+    text8_dataset.max_train_windows: 50000
+
+- name: fmclr_K2_data50k_ep5
+  overrides:
+    training.model_name: FMonCLR
+    training.K: 2
+    training.B: 64
+    training.epochs: 5
+    text8_dataset.K: 2
+    text8_dataset.alphabet: binary
+    text8_dataset.batch_size: 64
+    text8_dataset.max_train_windows: 50000
+
+- name: lkflow_K2_data50k_ep5
+  overrides:
+    training.model_name: LogitKLFlow
+    training.K: 2
+    training.B: 64
+    training.epochs: 5
+    text8_dataset.K: 2
+    text8_dataset.alphabet: binary
+    text8_dataset.batch_size: 64
+    text8_dataset.max_train_windows: 50000

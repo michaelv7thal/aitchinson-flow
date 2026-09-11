@@ -1,0 +1,39 @@
+{
+  "ckpt": "runs/lkflow_data50k_ep5/epoch_final.pt",
+  "model_name": "LogitKLFlow",
+  "epoch": 5,
+  "global_step": 3910,
+  "n_samples": 256,
+  "sample_steps": 64,
+  "unigram_kl": 0.0467156358063221,
+  "bigram_kl": 1.4324860572814941,
+  "trigram_kl": 4.978456497192383,
+  "H_gen": 2.6465141773223877,
+  "H_gt": 2.8546600341796875,
+  "H_ratio": 0.9270855883484871,
+  "grad_at_gen": NaN,
+  "grad_at_gt": NaN,
+  "samples": [
+    "ni fowfscniseh errpe i e frhrt t taaceet",
+    "i pe e gnewt ue a eisos eryrri rnsni hor",
+    "eeaenuaa  enfseooiroidmin rsrar eoaatare",
+    "eocuir ictltnaaeoshodn ahu faotdsetc tnk",
+    "e o ieaa osplre sos tenr yoneetae oieatn",
+    "mime gedhgeie nfasa rnasr cr nscatt tea ",
+    " eonorere   dsl ssreieda bel thfrhrcoses",
+    " lielrseirn leerrsr onet  pn di fe areoe"
+  ],
+  "run_name": "lkflow_data50k_ep5",
+  "overrides": {
+    "training.model_name": "LogitKLFlow",
+    "training.epochs": 5,
+    "text8_dataset.max_train_windows": 50000,
+    "transformer.d_model": 1024,
+    "transformer.num_layers": 8,
+    "logitkl.gamma_l": 8.0,
+    "logitkl.source_sigma": 0.1,
+    "logitkl.sampler_split_t": 0.28,
+    "logitkl.sampler_nfe": 64,
+    "logitkl.sampler_noise_scale": 0.5
+  }
+}

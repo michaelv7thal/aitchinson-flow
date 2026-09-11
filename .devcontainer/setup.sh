@@ -23,17 +23,29 @@ if [ -d /workspace/.venv ]; then
 fi
 uv venv /workspace/.venv
 
-echo "==> Syncing project dependencies with dev tools"
+echo "==> Syncing project dependencies"
 cd /workspace
-uv sync --group dev
+if [ -f pyproject.toml ]; then
+	# Use the `dev` dependency-group only if pyproject actually defines one;
+	# it currently does not (ruff etc. are in the main deps), and
+	# `uv sync --group dev` errors out with "Group `dev` is not defined".
+	if grep -q '^\[dependency-groups\]' pyproject.toml && \
+	   uv sync --group dev; then
+		:
+	else
+		uv sync
+	fi
 
-echo "==> Verifying GPU (informational — failure is non-fatal)"
-uv run python - <<'EOF'
+	echo "==> Verifying GPU (informational — failure is non-fatal)"
+	uv run python - <<'EOF'
 import torch
 print(f"PyTorch  : {torch.__version__}")
 print(f"CUDA     : {torch.version.cuda}")
 print(f"GPU      : {torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'not available'}")
 EOF
+else
+	echo "  No pyproject.toml found — skipping uv sync (run 'uv sync --group dev' once the project is initialised)"
+fi
 
 echo "==> Setting up SSH"
 
@@ -112,5 +124,13 @@ fi
 
 setup_ssh_agent
 setup_ssh_config
+
+# ── Neovim-inside-the-container setup ─────────────────────────────────────────
+# Layered on separately (see .devcontainer/nvim-setup.sh). Non-fatal: nvim
+# tooling problems must not fail the whole container create under `set -e`.
+if [ -f /workspace/.devcontainer/nvim-setup.sh ]; then
+	echo "==> Running Neovim setup"
+	bash /workspace/.devcontainer/nvim-setup.sh || echo "  ⚠️  nvim setup had issues (non-fatal) — see output above."
+fi
 
 echo "==> Setup complete."

@@ -1,0 +1,44 @@
+{
+  "compu_mse_det": {
+    "KL_uni": 0.03129816800355911,
+    "KL_bi": 1.657183289527893,
+    "H_gen": 2.723660469055176,
+    "sample0": "d sdsts heso xsh hueisdfre eal eeetndct ",
+    "radius_out": 12.290785789489746,
+    "p_max": 0.9998950958251953,
+    "gamma_star": 0.05,
+    "gamma_lo": 0.0,
+    "gamma_hi": 1.0,
+    "decay": "linear",
+    "lambda_ce": 0.5,
+    "grad_clip": 1.0
+  },
+  "ctrl_noce": {
+    "KL_uni": 0.02620946243405342,
+    "KL_bi": 1.697999358177185,
+    "H_gen": 2.7263190746307373,
+    "sample0": "r s sts heso xnht ueishhre eal eeetndct ",
+    "radius_out": 12.243826866149902,
+    "p_max": 0.9998918771743774,
+    "gamma_star": 0.05,
+    "gamma_lo": 0.0,
+    "gamma_hi": 1.0,
+    "decay": "linear",
+    "lambda_ce": 0.0,
+    "grad_clip": 1.0
+  },
+  "band_g05": {
+    "KL_uni": 0.660334587097168,
+    "KL_bi": 5.989943504333496,
+    "H_gen": 3.2950825691223145,
+    "sample0": "dowdfjspjesqjxksvxuevsqfre qaf edbtndctb",
+    "radius_out": 0.505107045173645,
+    "p_max": 0.04506156966090202,
+    "gamma_star": 0.05,
+    "gamma_lo": 0.0,
+    "gamma_hi": 0.05,
+    "decay": "band",
+    "lambda_ce": 0.0,
+    "grad_clip": 0.05
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "rows": [
+    {
+      "mode": "unconditional",
+      "alpha": null,
+      "KL_uni": 0.00410836236551404,
+      "KL_bi": 0.12527957558631897,
+      "KL_tri": 1.6150224208831787,
+      "H_gen": 2.8273909091949463,
+      "samples": [
+        " aldudeder fovornerphes us cehit linedd ",
+        "edac aling thach th rotze io highilar fo",
+        "ny hanes anduthroln layseraimonort uncug",
+        "sucalore wes tod lingiccarthag thimely s"
+      ]
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.1,
+      "sigma_perturb": 0.1,
+      "KL_bi": 0.19928675889968872,
+      "token_acc": 0.916796863079071,
+      "token_acc_perturbed": 0.903515636920929,
+      "delta": 0.01328122615814209,
+      "gt_sample0": "e the capital of one government after an",
+      "perturbed_sample0": "e the capital of one governmenteafter nn",
+      "rc_sample0": "e the capital of one governmenteafter on"
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.3,
+      "sigma_perturb": 0.3,
+      "KL_bi": 0.3483181893825531,
+      "token_acc": 0.74853515625,
+      "token_acc_perturbed": 0.714160144329071,
+      "delta": 0.034375011920928955,
+      "gt_sample0": "e the capital of one government after an",
+      "perturbed_sample0": "e the iapipzl bf one govgyfjent ffter an",
+      "rc_sample0": "e the iapipal of one govg fjent ffter an"
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.5,
+      "sigma_perturb": 0.5,
+      "KL_bi": 0.576062023639679,
+      "token_acc": 0.5615234375,
+      "token_acc_perturbed": 0.5210937261581421,
+      "delta": 0.04042971134185791,
+      "gt_sample0": "e the capital of one government after an",
+      "perturbed_sample0": "e zhe clpiuilqmfiobxa yvulcuent kfeerown",
+      "rc_sample0": "e the clpiuil  fion a avulcuent ofeerown"
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.7,
+      "sigma_perturb": 0.7,
+      "KL_bi": 1.2791873216629028,
+      "token_acc": 0.3707031309604645,
+      "token_acc_perturbed": 0.3275390565395355,
+      "delta": 0.043164074420928955,
+      "gt_sample0": "e the capital of one government after an",
+      "perturbed_sample0": "uttueljakilpyuen inbozzvvpnzkqx hsterfqn",
+      "rc_sample0": "uttuel akil   en in o    en  ee hster  n"
+    },
+    {
+      "mode": "recovery",
+      "alpha": 1.0,
+      "sigma_perturb": 1.0,
+      "KL_bi": 26.689409255981445,
+      "token_acc": 0.17167969048023224,
+      "token_acc_perturbed": 0.03632812574505806,
+      "delta": 0.13535156473517418,
+      "gt_sample0": "e the capital of one government after an",
+      "perturbed_sample0": "uscsowlsgoteakorargbpennbatqlxxsvvco cov",
+      "rc_sample0": "                                        "
+    }
+  ]
+}

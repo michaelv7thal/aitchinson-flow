@@ -1,0 +1,32 @@
+{
+  "ckpt": "runs/dfm_data50k_ep5/epoch_final.pt",
+  "model_name": "DFM",
+  "epoch": 5,
+  "global_step": 3910,
+  "n_samples": 256,
+  "sample_steps": 200,
+  "unigram_kl": 0.007334490306675434,
+  "bigram_kl": 0.14773163199424744,
+  "trigram_kl": 1.402405023574829,
+  "H_gen": 2.7848167419433594,
+  "H_gt": 2.8546600341796875,
+  "H_ratio": 0.9755335866968137,
+  "grad_at_gen": NaN,
+  "grad_at_gt": NaN,
+  "samples": [
+    "rstiss on anitomrce ase enoli co eoduace",
+    "nt two thowereh mste ene tevele amerolor",
+    " erains fe nvems pnadeverns m eal th was",
+    " torengap be thelaclad lip o teceve de f",
+    "re careniosida os hion triviss gine ahi ",
+    "niatnwu whus roewlacelerdas as stond cnt",
+    " ine al cane tere ovtiin in anng of tige",
+    "nsraforln an mlte it shes puridne pocetr"
+  ],
+  "run_name": "dfm_data50k_ep5",
+  "overrides": {
+    "training.model_name": "DFM",
+    "training.epochs": 5,
+    "text8_dataset.max_train_windows": 50000
+  }
+}

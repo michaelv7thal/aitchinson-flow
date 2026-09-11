@@ -1,0 +1,29 @@
+{
+  "model_name": "DFM",
+  "model_class": "DFM",
+  "L": 40,
+  "epoch": 10,
+  "n_samples": 256,
+  "sample_steps": 200,
+  "split": "test",
+  "KL_uni": 0.004503669682890177,
+  "KL_bi": 0.11588291823863983,
+  "KL_tri": 1.5312855243682861,
+  "H_gen": 2.823042392730713,
+  "H_gt": 2.8483986854553223,
+  "H_ratio": 0.9910980534943773,
+  "per_pos_entropy": 2.7784805297851562,
+  "bpc": 3.3917555809020996,
+  "generation_metric_valid": true,
+  "collapsed": false,
+  "samples": [
+    "s es mimtalny vis erro on alysofrasewit ",
+    "alndecoagrmparmargists ingdiths oneteres",
+    " trocy andial enungis ay to laychemand i",
+    "m ialfiitse tionmecs puateclis stssporal",
+    "ighemlent rathored forelinsiarates wruss",
+    "prome ad roust fi ureact alese iss al pp",
+    "ndor s he toe zeriartaguk fomo thos xas ",
+    "alshindadge outas fropo wors dt cawro ly"
+  ]
+}

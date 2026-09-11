@@ -1,0 +1,30 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[heal] ckpt=runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM/epoch_best.pt
+[heal] K=27 L=256 t_max=8.0 t_eval=4.5 device=cuda
+[heal] disjoint splits: fit=256 cal=256 demo=64  n_seeds=3
+=== build per-token localizer (linear) ===
+  [head] step    0  E_valid=-0.005  E_corrupt=-0.104  gap=-0.099
+  [head] step  200  E_valid=+0.374  E_corrupt=+2.866  gap=+2.492
+  [head] step  400  E_valid=+0.364  E_corrupt=+2.925  gap=+2.561
+  [head] step  599  E_valid=+0.380  E_corrupt=+2.971  gap=+2.592
+=== heal sweep (mean over 3 corruption seeds) ===
+  fpr     thr  loc_P  loc_R  loc_F1    fix    dmg    net/corrupt   delta_ws
+ 0.02   1.898  0.666  0.691   0.679  0.461  0.046   +0.202±0.013    +0.0304  <- selected
+ 0.05   1.307  0.521  0.816   0.636  0.477  0.093   -0.045±0.011    -0.0068
+ 0.10   0.935  0.409  0.883   0.559  0.437  0.150   -0.406±0.012    -0.0612
+
+--- example[0] @ selected fpr=0.02 (chosen by cal-set F0.5) ---
+  clean : 'l clinton during a fundraising event in washington dc october one nine nine six monica samille lewinsky born july two three one nine seven three is an american woman who was thrust into the public limelight after having a sexual affair with u s president b'
+  corr  : 'l clin on durdng q trndraiaisv evjnt kn washgngton dc octobem one zije fine lix cpnica samille lzwinskh bornjjuby two threh one nincysev n thren iszan amrrican womsn who wqs thrust into the public lomelight aften haking a sexual asfaix wiahul s presidcnt b'
+  truec :       ^      ^   ^ ^^     ^ ^^   ^   ^      ^               ^     ^ ^  ^    ^   ^^              ^     ^     ^  ^          ^        ^^   ^      ^   ^     ^         ^       ^                          ^            ^   ^              ^   ^   ^ ^^         ^    
+  flag  :              *   *  **    *  *   *   *     ** *     *             * *            *              *    **     *             *        **   *          *     *         *       *                                                           *      * *          *    
+  healed: 'l clin on during a thedrainish event on washington de octobem one nine fine lix canica samille lowinson born juby two three one nine seven thren is an american woman who was thrust into the public lomelight aften haking a sexual as aix with l s president b'
+
+=== HEADLINE @ selected fpr=0.02 (mean±std over 3 seeds) ===
+  localize    = P 0.666 / R 0.691 / F1 0.679   (per-token detection of the corrupt positions)
+  fix_rate    = 0.461   (corrupt token -> correct)
+  damage_rate = 0.046   (clean token -> broken)
+  net/corrupt = +0.202 ± 0.013   (net tokens recovered per corrupt token; >0 ⇒ net benefit)
+  delta_ws    = +0.0304 ± 0.0027   (whole-seq; diluted, capped near corrupt_rate — diagnostic only)
+
+Wrote bench_heal/blr_replace.json

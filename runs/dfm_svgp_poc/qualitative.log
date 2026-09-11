@@ -1,0 +1,62 @@
+
+================================================================================
+[1/3] Ground-truth training-corpus samples (val split)
+================================================================================
+  GT [ 0]  'e the capital of one government after an'
+  GT [ 1]  'other one of such governments was establ'
+  GT [ 2]  'ished in one eight six four as a second '
+  GT [ 3]  'mexican empire the short lived monarchy '
+  GT [ 4]  'led by maximilian of habsburg left its m'
+  GT [ 5]  'ark on the reconstruction of chapultepec'
+  GT [ 6]  ' castle and other urban planning a three'
+  GT [ 7]  ' decade long dictatorship under porfirio'
+  GT [ 8]  ' diaz left a french style influence upon'
+  GT [ 9]  ' mexico city the angel of independence w'
+
+================================================================================
+[2/3] Unconditional model samples
+================================================================================
+  GEN[ 0]  'bltreatk uofmtho s s luth eran couhecwii'
+  GEN[ 1]  ' sengcaro ec jngc meaciin ct imh sere ab'
+  GEN[ 2]  'igaiar an d cond hed ilvhalddtrules  uo '
+  GEN[ 3]  'e os thecpish tingfcbedifio ljhiter lnag'
+  GEN[ 4]  'reedaat it vtedchecton rich io xinanlith'
+  GEN[ 5]  ' andooncseai asadis is read cae op y yia'
+  GEN[ 6]  'ndearuaddbtea an on lbtitt py cheltersst'
+  GEN[ 7]  'e denchutwol apceplctuxhintol ia in inai'
+  GEN[ 8]  'fgs anepal wuter in stee audeled n chotu'
+  GEN[ 9]  's mepeanl vem speihl flone fuitcg finugl'
+
+================================================================================
+[3/3] OOD diagnostic — SVGP posterior at t_eval=4.50
+================================================================================
+  idx       std      mean    prob  text
+  ---       ---       ---     ---  ----
+  V[ 0]    0.4325   -0.0001   0.500  'e the capital of one government after an'
+  V[ 1]    0.4325   -0.0001   0.500  'other one of such governments was establ'
+  V[ 2]    0.4325   -0.0001   0.500  'ished in one eight six four as a second '
+  V[ 3]    0.4325   -0.0001   0.500  'mexican empire the short lived monarchy '
+  V[ 4]    0.4325   -0.0001   0.500  'led by maximilian of habsburg left its m'
+  V[ 5]    0.4325   -0.0001   0.500  'ark on the reconstruction of chapultepec'
+  V[ 6]    0.4325   -0.0001   0.500  ' castle and other urban planning a three'
+  V[ 7]    0.4325   -0.0001   0.500  ' decade long dictatorship under porfirio'
+  V[ 8]    0.4325   -0.0001   0.500  ' diaz left a french style influence upon'
+  V[ 9]    0.4325   -0.0001   0.500  ' mexico city the angel of independence w'
+
+  I[ 0]    0.4325   -0.0001   0.500  'aaveeetota frte npgch em onnt anoel ri f'
+  I[ 1]    0.4325   -0.0001   0.500  'nohwn rh  sslaecob enge vaforttoums sete'
+  I[ 2]    0.4325   -0.0001   0.500  'oei sdu ais g  eisco  xis eafnntr noehdh'
+  I[ 3]    0.4325   -0.0001   0.500  'eohr eihal httsiv rmcorx e  ynecmpadimen'
+  I[ 4]    0.4325   -0.0001   0.500  'smulgb yafmo tiiminfxadah e i le ltb bsr'
+  I[ 5]    0.4325   -0.0001   0.500  'ttaehuec otrsplpoc   firk hnucnontroecea'
+  I[ 6]    0.4325   -0.0001   0.500  'naul an rh cesegtapbanrlat eoin de h nrt'
+  I[ 7]    0.4325   -0.0001   0.500  'coididt noorcino egee fpshiadarrrpludt  '
+  I[ 8]    0.4325   -0.0001   0.500  'uiaca lele ohnnfcetz   fnsrepdy eutl ifn'
+  I[ 9]    0.4325   -0.0001   0.500  'ii te gmeewiened cnaohfdyxpce  entnl oc '
+
+  summary  valid:    mean(std)=0.4325  mean(prob)=0.500
+  summary  invalid:  mean(std)=0.4325  mean(prob)=0.500
+  summary  Δmean(std) = +0.0000  (positive ⇒ invalid more uncertain, as expected)
+  summary  Δmean(prob)= +0.000  (positive ⇒ valid scored higher as in-dist, as expected)
+
+Wrote runs/dfm_svgp_poc/svgp_qualitative.json

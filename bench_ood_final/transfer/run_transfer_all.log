@@ -1,0 +1,88 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+[transfer-all] fit=512 text8_eval=128 semaglutide_ood_eval=128 device=cuda
+
+=== LOG_fi: logistic head @ t4.5, falseinfo negatives @ eval rate ===
+  [logistic] fit on 74285 tok (pos=60000 neg=14285) @ t=4.5
+      text8_indist token=0.8778 word=0.9115 seq=0.8773
+   semaglutide_ood token=0.8272 word=0.8820 seq=0.7756
+
+=== NLL: denoiser NLL @ t3.0, fit-free ===
+      text8_indist token=0.8298 word=0.9043 seq=0.9070
+   semaglutide_ood token=0.7813 word=0.8696 seq=0.8164
+
+=== LinE: hinge head @ t4.5, replace negatives ===
+  [negatives] [('replace', 65361)]
+  [hinge] step    0  E_valid=+0.035  E_corrupt=+0.176  gap=+0.141
+  [hinge] step  200  E_valid=+0.413  E_corrupt=+2.763  gap=+2.350
+  [hinge] step  400  E_valid=+0.410  E_corrupt=+2.763  gap=+2.353
+  [hinge] step  599  E_valid=+0.394  E_corrupt=+2.738  gap=+2.344
+  [hinge] fit on 196783+65361 tok @ t=4.5
+      text8_indist token=0.6075 word=0.8331 seq=0.7429
+   semaglutide_ood token=0.5817 word=0.8068 seq=0.7250
+
+=== LinE_all: hinge head @ t7.5, replace+shuffle+falseinfo+both negatives ===
+  [negatives] [('replace', 65361), ('shuffle', 60029), ('falseinfo', 48050), ('both', 94350)]
+  [hinge] step    0  E_valid=+0.057  E_corrupt=+0.119  gap=+0.062
+  [hinge] step  200  E_valid=+0.473  E_corrupt=+1.686  gap=+1.214
+  [hinge] step  400  E_valid=+0.480  E_corrupt=+1.746  gap=+1.267
+  [hinge] step  599  E_valid=+0.485  E_corrupt=+1.758  gap=+1.273
+  [hinge] fit on 387570+267790 tok @ t=7.5
+      text8_indist token=0.7781 word=0.8826 seq=0.7841
+   semaglutide_ood token=0.7306 word=0.8600 seq=0.7855
+
+=== LinE_fi: hinge head @ t4.5, falseinfo negatives ===
+  [negatives] [('falseinfo', 48196)]
+  [hinge] step    0  E_valid=-0.040  E_corrupt=-0.051  gap=-0.011
+  [hinge] step  200  E_valid=+0.446  E_corrupt=+2.541  gap=+2.095
+  [hinge] step  400  E_valid=+0.439  E_corrupt=+2.555  gap=+2.116
+  [hinge] step  599  E_valid=+0.448  E_corrupt=+2.345  gap=+1.897
+  [hinge] fit on 213948+48196 tok @ t=4.5
+      text8_indist token=0.8495 word=0.8907 seq=0.8632
+   semaglutide_ood token=0.8007 word=0.8611 seq=0.7799
+
+=== Var: Laplace predictive variance @ t7.5, ridge 0.1 ===
+      text8_indist token=0.7759 word=0.7637 seq=0.7578
+   semaglutide_ood token=0.7466 word=0.7273 seq=0.6948
+
+=== BGMM: BayesianGaussianMixture @ t7.5, PCA-64, 20 comps, full cov ===
+  [bgmm] t_eval=7.5 d=1280 feat_dim=64 max_K=20 n_effective=17 cov=full converged=True lb=-5305854.736
+      text8_indist token=0.7755 word=0.7881 seq=0.7681
+   semaglutide_ood token=0.7489 word=0.7696 seq=0.6802
+Loading weights:   0%|          | 0/148 [00:00<?, ?it/s]Loading weights: 100%|██████████| 148/148 [00:00<00:00, 7293.93it/s]
+
+=== GPT-2 SE: gpt2 spilled, native BPE tokens ===
+      text8_indist token=0.5918 word=0.7379 seq=0.9323
+   semaglutide_ood token=0.6073 word=0.7460 seq=0.9003
+
+=== GPT-2 NLL: gpt2 nll, native BPE tokens ===
+      text8_indist token=0.7095 word=0.8372 seq=0.9444
+   semaglutide_ood token=0.7158 word=0.8473 seq=0.9000
+
+Detector   |     text8 (held-out)     | semaglutide_ood (transfer)
+           |   token    word     seq |   token    word     seq
+--------------------------------------------------------------------------
+LOG_fi     |   0.878   0.912   0.877 |   0.827   0.882   0.776
+NLL        |   0.830   0.904   0.907 |   0.781   0.870   0.816
+LinE       |   0.608   0.833   0.743 |   0.582   0.807   0.725
+LinE_all   |   0.778   0.883   0.784 |   0.731   0.860   0.786
+LinE_fi    |   0.849   0.891   0.863 |   0.801   0.861   0.780
+Var        |   0.776   0.764   0.758 |   0.747   0.727   0.695
+BGMM       |   0.775   0.788   0.768 |   0.749   0.770   0.680
+GPT-2 SE   |   0.592   0.738   0.932 |   0.607   0.746   0.900
+GPT-2 NLL  |   0.709   0.837   0.944 |   0.716   0.847   0.900
+
+Wrote bench_ood_final/transfer/semaglutide_transfer_all.json
+[check] ok      text8_indist LOG_fi     token_auroc     published=0.877759 rerun=0.877759 d=0.00e+00
+[check] ok      text8_indist LOG_fi     word_auroc_max  published=0.911545 rerun=0.911545 d=0.00e+00
+[check] ok      text8_indist LOG_fi     seq_auroc       published=0.877258 rerun=0.877258 d=0.00e+00
+[check] ok      text8_indist GPT-2 NLL  token_auroc     published=0.709498 rerun=0.709498 d=0.00e+00
+[check] ok      text8_indist GPT-2 NLL  word_auroc_max  published=0.837247 rerun=0.837247 d=0.00e+00
+[check] ok      text8_indist GPT-2 NLL  seq_auroc       published=0.944397 rerun=0.944397 d=0.00e+00
+[check] ok   semaglutide_ood LOG_fi     token_auroc     published=0.827162 rerun=0.827162 d=0.00e+00
+[check] ok   semaglutide_ood LOG_fi     word_auroc_max  published=0.881971 rerun=0.881971 d=0.00e+00
+[check] ok   semaglutide_ood LOG_fi     seq_auroc       published=0.775574 rerun=0.775574 d=0.00e+00
+[check] ok   semaglutide_ood GPT-2 NLL  token_auroc     published=0.715770 rerun=0.715770 d=0.00e+00
+[check] ok   semaglutide_ood GPT-2 NLL  word_auroc_max  published=0.847317 rerun=0.847317 d=0.00e+00
+[check] ok   semaglutide_ood GPT-2 NLL  seq_auroc       published=0.900024 rerun=0.900024 d=0.00e+00
+[check] PASS: published arms reproduce exactly

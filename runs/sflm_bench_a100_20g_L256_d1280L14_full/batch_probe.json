@@ -1,0 +1,54 @@
+{
+  "scale": "a100_20g_L256_d1280L14_full",
+  "arm": "DirichletFM",
+  "results": [
+    {
+      "batch": 16,
+      "ok": true,
+      "s_per_it": 1.6611,
+      "windows_per_s": 9.63,
+      "peak_gb": 8.35,
+      "last_loss": 3.3011
+    },
+    {
+      "batch": 24,
+      "ok": true,
+      "s_per_it": 2.4438,
+      "windows_per_s": 9.82,
+      "peak_gb": 10.93,
+      "last_loss": 3.2989
+    },
+    {
+      "batch": 32,
+      "ok": true,
+      "s_per_it": 3.2233,
+      "windows_per_s": 9.93,
+      "peak_gb": 13.52,
+      "last_loss": 3.3019
+    },
+    {
+      "batch": 40,
+      "ok": true,
+      "s_per_it": 4.029,
+      "windows_per_s": 9.93,
+      "peak_gb": 16.11,
+      "last_loss": 3.298
+    },
+    {
+      "batch": 48,
+      "ok": true,
+      "s_per_it": 4.8135,
+      "windows_per_s": 9.97,
+      "peak_gb": 18.7,
+      "last_loss": 3.3039
+    }
+  ],
+  "best": {
+    "batch": 48,
+    "ok": true,
+    "s_per_it": 4.8135,
+    "windows_per_s": 9.97,
+    "peak_gb": 18.7,
+    "last_loss": 3.3039
+  }
+}

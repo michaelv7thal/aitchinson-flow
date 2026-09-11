@@ -1,0 +1,50 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+ckpt            runs/compu_mse_det/epoch_final.pt
+model           EqM
+dirichlet_samp  False
+gamma_power     1.0
+source_sigma    0.1
+data radius/pos 12.2723   (max radius the training path reaches)
+
+Native-path recovery:  x_init = (1-g)*x0 + g*x1,  g = 1-alpha
+  alpha  gamma   r_init    r_out  acc_pt  acc_rc    lp_pt    lp_rc
+    0.1   0.90    11.05    12.33  1.0000  1.0000   -0.000   -0.000
+    0.3   0.70     8.59    12.33  1.0000  1.0000   -0.004   -0.000
+    0.5   0.50     6.14    12.33  1.0000  1.0000   -0.049   -0.000
+    0.7   0.30     3.70    12.34  1.0000  1.0000   -0.478   -0.000
+    0.8   0.20     2.49    12.33  1.0000  1.0000   -1.144   -0.000
+    0.9   0.10     1.31    12.33  1.0000  1.0000   -2.138   -0.000
+   0.95   0.05     0.78    12.34  0.9999  0.9994   -2.706   -0.007
+   0.98   0.02     0.56    12.28  0.6980  0.7156   -3.062   -3.489
+    1.0   0.00     0.52    12.26  0.0385  0.0819   -3.300  -11.453
+
+sample[0] at each alpha (gt / pre-descent / post-descent):
+  a=0.1   gt='e the capital of one government after an'
+           pt='e the capital of one government after an'
+           rc='e the capital of one government after an'
+  a=0.3   gt='e the capital of one government after an'
+           pt='e the capital of one government after an'
+           rc='e the capital of one government after an'
+  a=0.5   gt='e the capital of one government after an'
+           pt='e the capital of one government after an'
+           rc='e the capital of one government after an'
+  a=0.7   gt='e the capital of one government after an'
+           pt='e the capital of one government after an'
+           rc='e the capital of one government after an'
+  a=0.8   gt='e the capital of one government after an'
+           pt='e the capital of one government after an'
+           rc='e the capital of one government after an'
+  a=0.9   gt='e the capital of one government after an'
+           pt='e the capital of one government after an'
+           rc='e the capital of one government after an'
+  a=0.95  gt='e the capital of one government after an'
+           pt='e the capital of one government after an'
+           rc='e the capital of one government after an'
+  a=0.98  gt='e the capital of one government after an'
+           pt='b the capitvg xmdcna gotsrnmeni afuer pn'
+           rc='h che mahita  amsc a  otsrnteni afper tn'
+  a=1.0   gt='e the capital of one government after an'
+           pt='xzrgihfckmenlacbyuxvssecbdqecp ekwsiozmj'
+           rc='s roihpc eenh a eeiissec pre r eaennoien'
+
+wrote runs/compu_mse_det/native_radius.json

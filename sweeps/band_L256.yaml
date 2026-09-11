@@ -1,0 +1,656 @@
+# Band-γ EqM at the PUBLICATION length (L=256) — is the band cell competitive at
+# benchmark scale, and does its energy carry an OOD score?
+#
+# Why this sweep exists
+# ---------------------
+# At development scale (L=40) training only inside the band γ ∈ [0.005, 0.03]
+# turned the equilibrium arm from "nothing above the letter frequencies" into a
+# real bigram model, and at 5× data it also repairs perturbed text once the input
+# is rescaled into the band (paper: tab:eqm-band, tab:eqm-band-recovery):
+#
+#   cell                              KL_uni  KL_bi  KL_tri   Δ@.50 (rescaled input)
+#   whole path  U[0,1]   5ep/10k      0.031   1.657  6.713    +0.048
+#   band        U[.005,.03] 5ep/10k   0.078   0.906  3.990    +0.000
+#   band        U[.005,.03] 25ep/10k  0.014   0.347  2.423    +0.158
+#   band        U[.005,.03] 5ep/50k   0.018   0.287  1.781    +0.161
+#   Discrete FM control  5ep/50k      0.007   0.148  1.402      —
+#
+# Everything above is L=40. The open question is whether any of it survives at
+# L=256, where the paper's benchmark lives (tab:gen: EqM deterministic-CLR is
+# 0.018 / 1.582 / 5.042 with Δ@.50 = −0.094; Dirichlet FM is 0.009 / 0.959 /
+# 4.088 with Δ@.50 = +0.090; Discrete FM is 1.466 and flagged collapsed).
+#
+# Geometry: the a100_20g_L256 tier of scripts/train_for_sflm_bench.py, d1024 /
+# 10 layers / 16 heads / B=8 / 2,000 eval windows, so the divergences are
+# measured exactly as tab:gen measures them. Optimizer follows the bench too
+# (lr 3e-4, 1 warmup epoch, cosine over the run) rather than the dev sweeps'
+# no-warmup default, since the comparison target is tab:gen.
+#
+# Two deliberate deviations from the published EqM_OneHot arm, both inherited
+# from the dev band cells that produced the result above:
+#   * eqm.gradient_lambda 1.0, not the bench arm's 3.0. Under decay_strategy
+#     "band" the target is c(γ)=max(0,1−γ/γ*)/λ, so λ rescales the field, and
+#     the sampler step below (eta 0.005) was calibrated at λ=1.0.
+#   * eqm.gamma_power 1.0 (uniform inside the band), not the bench arm's 0.5.
+#
+# Sampler: eqm.sample_eta 0.005 with sample_grad_clip 1.0 and 400 steps is the
+# eval_fixed protocol of scripts/band_eval_fixed.py. Scaling the STEP is the
+# fix; scaling the CLIP by γ* (what sweeps/band_gamma.yaml did) pins the
+# clipped gradient at the clip forever, so sample_return_best hands back the
+# initial noise — that is why runs/band_g05/eval.json and runs/band_strict/
+# eval.json are wrong and eval_fixed.json is right. Run this sweep with
+# --steps 400 so run_sweep's own eval.json is already the fixed protocol.
+#
+# Usage (drive_band_L256.sh does all of this plus recovery and OOD):
+#   uv run python scripts/run_sweep.py --sweep sweeps/band_L256.yaml \
+#       --only band_L256_smoke --n 32 --steps 400          # ~10 min, wiring check
+#   uv run python scripts/run_sweep.py --sweep sweeps/band_L256.yaml \
+#       --only band_L256_ep10_d10k --n 256 --steps 400     # ~4 h train + eval
+#   uv run python scripts/run_sweep.py --sweep sweeps/band_L256.yaml \
+#       --only band_L256_ep5_d50k --n 256 --steps 400      # ~10 h train + eval
+#
+# W&B is off in every cell. WandbConfig.enabled defaults to True (its docstring
+# says otherwise) and run_sweep.py only rewrites cfg.wandb when you pass --wandb,
+# so a cell that says nothing about it tries to log in. wandb.enabled: false
+# short-circuits before the lazy `import wandb`, so nothing is imported or
+# initialised. The one way to re-enable it by accident is WANDB_PROJECT in the
+# environment, which build_wandb_logger ORs into the gate; drive_band_L256.sh
+# unsets it.
+#
+# Wall clock is measured from the laptop RTX PRO 1000 (8 GB): ~1.18 s/step at
+# B=8, L=256, d1024/10L without gradient checkpointing, peak ~5.3 GB. ep10_d10k
+# is 12,500 steps, ep5_d50k is 31,250. If the GPU is shared, add
+# `transformer.grad_checkpointing: true` (≈30% slower, much less memory).
+
+# ─── Wiring check: 1 epoch, 500 windows. Numbers are meaningless. ───────────
+- name: band_L256_smoke
+  overrides:
+    training.model_name: EqM
+    wandb.enabled: false
+    wandb.mode: disabled
+    wandb.log_artifacts: false
+    wandb.log_samples: false
+    training.epochs: 1
+    training.seed: 42
+    training.L: 256
+    training.B: 8
+    training.lr: 0.0003
+    training.scheduler_warmup_epochs: 0
+    training.cosine_t_max_epochs: 1
+    transformer.d_model: 1024
+    transformer.num_layers: 10
+    transformer.nhead: 16
+    loader_settings.batch_size: 8
+    text8_dataset.L: 256
+    text8_dataset.batch_size: 8
+    text8_dataset.max_train_windows: 500
+    text8_dataset.max_eval_windows: 500
+    loss.mode: mse
+    loss.hilbert_alpha: 1.0
+    loss.hilbert_alpha_start: 1.0
+    transformation.dirichlet_sampling: false
+    eqm.gradient_lambda: 1.0
+    eqm.gamma_power: 1.0
+    eqm.sample_gamma: 1.5
+    eqm.lambda_ce: 0.0
+    eqm.gamma_lo: 0.005
+    eqm.gamma_hi: 0.03
+    eqm.decay_strategy: band
+    eqm.gamma_star: 0.03
+    eqm.sample_eta: 0.005
+    eqm.sample_grad_clip: 1.0
+    eqm.sample_max_steps: 400
+
+# ─── The matched benchmark budget: 10 epochs × 10,000 windows, as tab:gen. ──
+# In characters this is 25.6M character-updates, which is already 2.6× the dev
+# 5ep/50k cell (10M), so the band may not need the extra data at this length.
+- name: band_L256_ep10_d10k
+  overrides:
+    training.model_name: EqM
+    wandb.enabled: false
+    wandb.mode: disabled
+    wandb.log_artifacts: false
+    wandb.log_samples: false
+    training.epochs: 10
+    training.seed: 42
+    # The n=64 probe batch OOM'd a 8 GB card at L=256 (one batch, second-order
+    # autograd, on top of model+Adam). Diagnostic only - tab:gen comes from the
+    # post-training eval at --n/--steps - so shrink it rather than pay for
+    # grad_checkpointing, which training (peak ~5.3 GB) does not need.
+    training.sample_eval_n: 16
+    # Validation is what actually OOM'd this cell twice, at epoch 5 both times:
+    # eval_every=5 means the val pass FIRST fires at epoch 5, and evaluate()
+    # calls eval_step() with no torch.no_grad(), so EqM's second-order
+    # conservative-gradient graph is built on top of the live params+grads+Adam
+    # footprint -> 7.29 GiB of a 7.57 GiB card. 11 > epochs, so it never fires.
+    # Cost: no val_loss in history. Nothing here uses it (early stopping is off,
+    # and the driver's three questions read generation/recovery/OOD only).
+    training.eval_every: 11
+    training.L: 256
+    training.B: 8
+    training.lr: 0.0003
+    training.scheduler_warmup_epochs: 1
+    training.cosine_t_max_epochs: 10
+    transformer.d_model: 1024
+    transformer.num_layers: 10
+    transformer.nhead: 16
+    loader_settings.batch_size: 8
+    text8_dataset.L: 256
+    text8_dataset.batch_size: 8
+    text8_dataset.max_train_windows: 10000
+    text8_dataset.max_eval_windows: 2000
+    loss.mode: mse
+    loss.hilbert_alpha: 1.0
+    loss.hilbert_alpha_start: 1.0
+    transformation.dirichlet_sampling: false
+    eqm.gradient_lambda: 1.0
+    eqm.gamma_power: 1.0
+    eqm.sample_gamma: 1.5
+    eqm.lambda_ce: 0.0
+    eqm.gamma_lo: 0.005
+    eqm.gamma_hi: 0.03
+    eqm.decay_strategy: band
+    eqm.gamma_star: 0.03
+    eqm.sample_eta: 0.005
+    eqm.sample_grad_clip: 1.0
+    eqm.sample_max_steps: 400
+
+# ─── 5× the data at 5 epochs: the L=256 twin of runs/band_strict_d50k. ──────
+- name: band_L256_ep5_d50k
+  overrides:
+    training.model_name: EqM
+    wandb.enabled: false
+    wandb.mode: disabled
+    wandb.log_artifacts: false
+    wandb.log_samples: false
+    training.epochs: 5
+    training.seed: 42
+    # The n=64 probe batch OOM'd a 8 GB card at L=256 (one batch, second-order
+    # autograd, on top of model+Adam). Diagnostic only - tab:gen comes from the
+    # post-training eval at --n/--steps - so shrink it rather than pay for
+    # grad_checkpointing, which training (peak ~5.3 GB) does not need.
+    training.sample_eval_n: 16
+    # Validation is what actually OOM'd this cell twice, at epoch 5 both times:
+    # eval_every=5 means the val pass FIRST fires at epoch 5, and evaluate()
+    # calls eval_step() with no torch.no_grad(), so EqM's second-order
+    # conservative-gradient graph is built on top of the live params+grads+Adam
+    # footprint -> 7.29 GiB of a 7.57 GiB card. 11 > epochs, so it never fires.
+    # Cost: no val_loss in history. Nothing here uses it (early stopping is off,
+    # and the driver's three questions read generation/recovery/OOD only).
+    training.eval_every: 11
+    training.L: 256
+    training.B: 8
+    training.lr: 0.0003
+    training.scheduler_warmup_epochs: 1
+    training.cosine_t_max_epochs: 5
+    transformer.d_model: 1024
+    transformer.num_layers: 10
+    transformer.nhead: 16
+    loader_settings.batch_size: 8
+    text8_dataset.L: 256
+    text8_dataset.batch_size: 8
+    text8_dataset.max_train_windows: 50000
+    text8_dataset.max_eval_windows: 2000
+    loss.mode: mse
+    loss.hilbert_alpha: 1.0
+    loss.hilbert_alpha_start: 1.0
+    transformation.dirichlet_sampling: false
+    eqm.gradient_lambda: 1.0
+    eqm.gamma_power: 1.0
+    eqm.sample_gamma: 1.5
+    eqm.lambda_ce: 0.0
+    eqm.gamma_lo: 0.005
+    eqm.gamma_hi: 0.03
+    eqm.decay_strategy: band
+    eqm.gamma_star: 0.03
+    eqm.sample_eta: 0.005
+    eqm.sample_grad_clip: 1.0
+    eqm.sample_max_steps: 400
+
+# ─── Cloud/cluster scale: the full-corpus contender. ────────────────────────
+# Same band recipe as band_L256_ep10_d10k, scaled to the backbone and data of
+# the model it is meant to beat: the full-text8 Dirichlet FM at
+# runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM_converge (d1280/14L,
+# L=256, whole afmck/text8 split, ~28 epochs across resumed legs).
+#   KL_bi to beat: 0.959 (matched-budget DirFM) and the full-corpus arm above.
+#   This band arm reached KL_bi 0.265 at d1024/10L on 10k windows / 10 epochs.
+#
+# Differences from the laptop cell, and why:
+#   d1280/14L        match the target's capacity (~275M params, not ~127M)
+#   max_train_windows: null   full ~90M-char split (~351.5k windows/epoch);
+#                             lazy_features keeps memory ~batch, not ~corpus
+#   epochs 30 + cosine_t_max 30
+#   B 8              EqM's conservative gradient is SECOND-ORDER, so it cannot
+#                    take the target's batch 16 -- that headroom exists only
+#                    because Dirichlet FM is first-order (see the _b16 scale).
+#   grad_checkpointing: true  d1280/14L at B8 with create_graph=True is the one
+#                    case where it earns its ~30% wall clock; the 8 GB laptop
+#                    run did NOT need it (training peaked ~5.0 GB) and run_sweep
+#                    has no memory-fallback ladder to catch an OOM here.
+#   eval_every 31    validation never fires. It is what OOM'd the laptop twice
+#                    (EqM.eval_step builds the second-order graph with no
+#                    no_grad); at d1280/14L it would be heavier still.
+- name: band_L256_ep30_full_d1280L14
+  overrides:
+    training.model_name: EqM
+    wandb.enabled: false
+    wandb.mode: disabled
+    wandb.log_artifacts: false
+    wandb.log_samples: false
+    training.epochs: 30
+    training.seed: 42
+    training.sample_eval_n: 16
+    training.eval_every: 31
+    training.L: 256
+    training.B: 8
+    training.lr: 0.0003
+    training.scheduler_warmup_epochs: 1
+    training.cosine_t_max_epochs: 30
+    transformer.d_model: 1280
+    transformer.num_layers: 14
+    transformer.nhead: 16
+    transformer.grad_checkpointing: true
+    loader_settings.batch_size: 8
+    text8_dataset.L: 256
+    text8_dataset.batch_size: 8
+    text8_dataset.max_train_windows: null
+    text8_dataset.max_eval_windows: 2000
+    text8_dataset.lazy_features: true
+    loss.mode: mse
+    loss.hilbert_alpha: 1.0
+    loss.hilbert_alpha_start: 1.0
+    transformation.dirichlet_sampling: false
+    eqm.gradient_lambda: 1.0
+    eqm.gamma_power: 1.0
+    eqm.sample_gamma: 1.5
+    eqm.lambda_ce: 0.0
+    eqm.gamma_lo: 0.0
+    eqm.gamma_hi: 0.03573
+    eqm.decay_strategy: band
+    eqm.gamma_star: 0.03573
+    eqm.sample_eta: 0.005
+    eqm.sample_grad_clip: 1.191
+    eqm.sample_max_steps: 400
+
+
+# ─── gamma_lo = 0: band = [0, gamma*]. ─────────────────────────────────────
+# Identical to band_L256_ep10_d10k in every other respect, so the pair is a
+# clean A/B on the one question: does including the zero-information sliver
+# help or hurt?  Arguments on both sides, neither settled:
+#   FOR  the sampler initialises at exactly gamma=0, so with gamma_lo>0 the
+#        field's behaviour at the init -- where symmetry breaking happens -- is
+#        extrapolation. A flow that has never seen its own source has undefined
+#        behaviour at t=0.
+#   AGAINST  c(0)=1 is the MAXIMUM target weight while gamma=0 carries ZERO
+#        information about x1 (decode acc 3.7% = chance). [0, 0.005) is 16.7%
+#        of the band by width but 42.1% of the squared-target mass.
+# Reference: the gamma_lo=0.005 twin scored KL_bi 0.265, Delta@0.5 +0.122.
+- name: band_L256_ep10_d10k_g0
+  overrides:
+    training.model_name: EqM
+    wandb.enabled: false
+    wandb.mode: disabled
+    wandb.log_artifacts: false
+    wandb.log_samples: false
+    training.epochs: 10
+    training.seed: 42
+    training.sample_eval_n: 16
+    training.eval_every: 11
+    training.L: 256
+    training.B: 8
+    training.lr: 0.0003
+    training.scheduler_warmup_epochs: 1
+    training.cosine_t_max_epochs: 10
+    transformer.d_model: 1024
+    transformer.num_layers: 10
+    transformer.nhead: 16
+    loader_settings.batch_size: 8
+    text8_dataset.L: 256
+    text8_dataset.batch_size: 8
+    text8_dataset.max_train_windows: 10000
+    text8_dataset.max_eval_windows: 2000
+    loss.mode: mse
+    loss.hilbert_alpha: 1.0
+    loss.hilbert_alpha_start: 1.0
+    transformation.dirichlet_sampling: false
+    eqm.gradient_lambda: 1.0
+    eqm.gamma_power: 1.0
+    eqm.sample_gamma: 1.5
+    eqm.lambda_ce: 0.0
+    eqm.gamma_lo: 0.0
+    eqm.gamma_hi: 0.03573
+    eqm.decay_strategy: band
+    eqm.gamma_star: 0.03573
+    eqm.sample_eta: 0.005
+    eqm.sample_grad_clip: 1.191
+    eqm.sample_max_steps: 400
+
+
+# ─── Budget-matched head-to-head with DirichletFM_ep30_d30k. ───────────────
+# That arm is scale a100_20g_L256 = d1024/10L/16H, B=8, L=256, 30k windows,
+# 30 epochs -- the SAME backbone this cell uses, so epochs+windows are the only
+# things that had to change. It is the number to beat:
+#     DirichletFM_ep30_d30k   KL_uni 0.008  KL_bi 0.208  KL_tri 1.250
+#                             Delta@0.3 +0.105  @0.5 +0.193  @0.7 +0.190
+# The band arm reached KL_bi 0.265 / Delta@0.5 +0.122 at 1/9 of this budget
+# (10 epochs x 10k windows), which is what makes the matched run worth its
+# wall clock. ~3750 steps/epoch at B=8, so ~112k steps total.
+- name: band_L256_ep30_d30k_g0
+  overrides:
+    training.model_name: EqM
+    wandb.enabled: false
+    wandb.mode: disabled
+    wandb.log_artifacts: false
+    wandb.log_samples: false
+    training.epochs: 30
+    training.seed: 42
+    training.sample_eval_n: 16
+    training.eval_every: 31
+    training.L: 256
+    training.B: 8
+    training.lr: 0.0003
+    training.scheduler_warmup_epochs: 1
+    training.cosine_t_max_epochs: 30
+    transformer.d_model: 1024
+    transformer.num_layers: 10
+    transformer.nhead: 16
+    loader_settings.batch_size: 8
+    text8_dataset.L: 256
+    text8_dataset.batch_size: 8
+    text8_dataset.max_train_windows: 30000
+    text8_dataset.max_eval_windows: 2000
+    loss.mode: mse
+    loss.hilbert_alpha: 1.0
+    loss.hilbert_alpha_start: 1.0
+    transformation.dirichlet_sampling: false
+    eqm.gradient_lambda: 1.0
+    eqm.gamma_power: 1.0
+    eqm.sample_gamma: 1.5
+    eqm.lambda_ce: 0.0
+    eqm.gamma_lo: 0.0
+    eqm.gamma_hi: 0.03573
+    eqm.decay_strategy: band
+    eqm.gamma_star: 0.03573
+    eqm.sample_eta: 0.005
+    eqm.sample_grad_clip: 1.191
+    eqm.sample_max_steps: 400
+
+
+# ─── 2x2 separation, arm A: isolates gamma_lo. ─────────────────────────────
+# gamma_lo 0.005 -> 0, gamma* held at the ORIGINAL 0.03. Differs from the
+# published band_L256_ep10_d10k in exactly one field, so a delta against its
+# KL_bi 0.265 is attributable to gamma_lo alone.
+# Stage 1 only (SKIP=recovery,ood,control) -- the generation number is what
+# separates the two levers; the ladder costs 8h and answers a different question.
+- name: band_L256_ep10_d10k_g0_gs030
+  overrides:
+    training.model_name: EqM
+    wandb.enabled: false
+    wandb.mode: disabled
+    wandb.log_artifacts: false
+    wandb.log_samples: false
+    training.epochs: 10
+    training.seed: 42
+    training.sample_eval_n: 16
+    training.eval_every: 11
+    training.L: 256
+    training.B: 8
+    training.lr: 0.0003
+    training.scheduler_warmup_epochs: 1
+    training.cosine_t_max_epochs: 10
+    transformer.d_model: 1024
+    transformer.num_layers: 10
+    transformer.nhead: 16
+    loader_settings.batch_size: 8
+    text8_dataset.L: 256
+    text8_dataset.batch_size: 8
+    text8_dataset.max_train_windows: 10000
+    text8_dataset.max_eval_windows: 2000
+    loss.mode: mse
+    loss.hilbert_alpha: 1.0
+    loss.hilbert_alpha_start: 1.0
+    transformation.dirichlet_sampling: false
+    eqm.gradient_lambda: 1.0
+    eqm.gamma_power: 1.0
+    eqm.sample_gamma: 1.5
+    eqm.lambda_ce: 0.0
+    eqm.gamma_lo: 0.0
+    eqm.gamma_hi: 0.03
+    eqm.decay_strategy: band
+    eqm.gamma_star: 0.03
+    eqm.sample_eta: 0.005
+    eqm.sample_grad_clip: 1.0
+    eqm.sample_max_steps: 400
+
+
+# ─── 2x2 separation, arm B: isolates gamma*. ───────────────────────────────
+# gamma* (and gamma_hi, pinned) 0.03 -> 0.03573, the exact 99% decodability
+# point; gamma_lo held at the ORIGINAL 0.005. sample_grad_clip scaled with
+# gamma* as eqm.py requires (1.0 * 0.03573/0.03). Differs from the published
+# cell only in the gamma* package.
+- name: band_L256_ep10_d10k_g005_gs99
+  overrides:
+    training.model_name: EqM
+    wandb.enabled: false
+    wandb.mode: disabled
+    wandb.log_artifacts: false
+    wandb.log_samples: false
+    training.epochs: 10
+    training.seed: 42
+    training.sample_eval_n: 16
+    training.eval_every: 11
+    training.L: 256
+    training.B: 8
+    training.lr: 0.0003
+    training.scheduler_warmup_epochs: 1
+    training.cosine_t_max_epochs: 10
+    transformer.d_model: 1024
+    transformer.num_layers: 10
+    transformer.nhead: 16
+    loader_settings.batch_size: 8
+    text8_dataset.L: 256
+    text8_dataset.batch_size: 8
+    text8_dataset.max_train_windows: 10000
+    text8_dataset.max_eval_windows: 2000
+    loss.mode: mse
+    loss.hilbert_alpha: 1.0
+    loss.hilbert_alpha_start: 1.0
+    transformation.dirichlet_sampling: false
+    eqm.gradient_lambda: 1.0
+    eqm.gamma_power: 1.0
+    eqm.sample_gamma: 1.5
+    eqm.lambda_ce: 0.0
+    eqm.gamma_lo: 0.005
+    eqm.gamma_hi: 0.03573
+    eqm.decay_strategy: band
+    eqm.gamma_star: 0.03573
+    eqm.sample_eta: 0.005
+    eqm.sample_grad_clip: 1.191
+    eqm.sample_max_steps: 400
+
+# ═══ gamma_lo LADDER (spine: gamma* = gamma_hi = 0.03, clip 1.0) ════════════
+# Question: does raising gamma_lo buy a cleaner/earlier learning transition, and
+# where does it start costing generation because the SAMPLER can no longer reach
+# the band from pure noise?
+#
+# Two analytic requirements collide at K=27 (docs/band_geometry_theory.md 6.5):
+#   Requirement N (signal): the c^2-weighted training mass must not be dominated
+#     by states whose Bayes posterior is uninformative. W = irreducible share.
+#   Requirement S (support): the sampler starts at x0, i.e. gamma=0. If
+#     gamma_lo > 0 that init is OUTSIDE the trained band, by kappa = t_lo/sqrt(K-1)
+#     noise radii. Their feasible sets do not intersect below K ~ 1024, so which
+#     one binds is an EMPIRICAL question. This ladder measures it.
+#
+#   gamma_lo    t_lo   kappa   rho(t_lo)     W      cell
+#    0.00000   0.000   0.000      0.000   89.2%   ..._g0_gs030      (arm A, queued)
+#    0.00500   0.628   0.123      0.017   81.6%   band_L256_ep10_d10k (published)
+#    0.01208   1.530   0.300      0.170   61.4%   ..._g012_gs030    (new)
+#    0.01900   2.422   0.475      0.513   35.1%   ..._g019_gs030    (new)
+#
+# gamma* is PINNED at 0.03 across the ladder so the sampler config is byte-identical
+# (eta 0.005 / clip 1.0 / 400 steps) and only gamma_lo moves. The c-ramp does get
+# shorter as gamma_lo rises, which shrinks the target norm ~2.3x at gamma_lo=0.019 --
+# but Adam's g/sqrt(v) update is invariant to a global loss scaling, so this is not
+# a confound on the optimiser. It IS one on the sampler, which sees a proportionally
+# weaker field; that is part of what Requirement S is about.
+#
+# Read TWO things per cell, and the pair is the actual experiment:
+#   * generation (stage 1) starts at x0            -> tests Requirement S
+#   * recovery  (stage 2) starts at gamma*clr(ids) -> BYPASSES S entirely
+# so run stage 2 at ALPHAS="0.3 0.5": alpha=0.3 lands at gamma=0.0260 (inside the
+# band for every rung) and alpha=0.5 at gamma=0.0157 (inside for gamma_lo <= 0.0157,
+# OUTSIDE for the top rung). The alpha=0.3 vs alpha=0.5 gap on the top rung is a
+# within-checkpoint support test that costs nothing extra.
+#
+# Predicted signatures:
+#   recovery up, generation down  -> SNR real, S binding. Turning point = empirical kappa.
+#   both up                       -> S not binding at kappa=0.475; push gamma_lo further.
+#   both down                     -> the SNR reading of the epoch-7 transition is wrong.
+# Also log the transition EPOCH from history.jsonl: 6.4 predicts it moves earlier
+# monotonically in gamma_lo. Seed is 42 throughout; a non-monotone ladder is a
+# seed-variance suspect before it is a theory result.
+
+# ─── ladder rung kappa=0.30 (W 61.4%) ──────────────────────────────────────
+- name: band_L256_ep10_d10k_g012_gs030
+  overrides:
+    training.model_name: EqM
+    wandb.enabled: false
+    wandb.mode: disabled
+    wandb.log_artifacts: false
+    wandb.log_samples: false
+    training.epochs: 10
+    training.seed: 42
+    training.sample_eval_n: 16
+    training.eval_every: 11
+    training.L: 256
+    training.B: 8
+    training.lr: 0.0003
+    training.scheduler_warmup_epochs: 1
+    training.cosine_t_max_epochs: 10
+    transformer.d_model: 1024
+    transformer.num_layers: 10
+    transformer.nhead: 16
+    loader_settings.batch_size: 8
+    text8_dataset.L: 256
+    text8_dataset.batch_size: 8
+    text8_dataset.max_train_windows: 10000
+    text8_dataset.max_eval_windows: 2000
+    loss.mode: mse
+    loss.hilbert_alpha: 1.0
+    loss.hilbert_alpha_start: 1.0
+    transformation.dirichlet_sampling: false
+    eqm.gradient_lambda: 1.0
+    eqm.gamma_power: 1.0
+    eqm.sample_gamma: 1.5
+    eqm.lambda_ce: 0.0
+    eqm.gamma_lo: 0.01208
+    eqm.gamma_hi: 0.03
+    eqm.decay_strategy: band
+    eqm.gamma_star: 0.03
+    eqm.sample_eta: 0.005
+    eqm.sample_grad_clip: 1.0
+    eqm.sample_max_steps: 400
+
+# ─── ladder rung kappa=0.475 (W 35.1%) — the Requirement-N point ────────────
+# This is the rung the theory actually asks for: the smallest gamma_lo whose
+# irreducible share is under the 30-35% tolerance. It is also the LARGEST
+# violation of Requirement S in the ladder -- the sampler init sits ~0.48 noise
+# radii outside anything the field was trained on. If generation survives here,
+# Requirement S is not binding at K=27 and the whole conflict is moot.
+- name: band_L256_ep10_d10k_g019_gs030
+  overrides:
+    training.model_name: EqM
+    wandb.enabled: false
+    wandb.mode: disabled
+    wandb.log_artifacts: false
+    wandb.log_samples: false
+    training.epochs: 10
+    training.seed: 42
+    training.sample_eval_n: 16
+    training.eval_every: 11
+    training.L: 256
+    training.B: 8
+    training.lr: 0.0003
+    training.scheduler_warmup_epochs: 1
+    training.cosine_t_max_epochs: 10
+    transformer.d_model: 1024
+    transformer.num_layers: 10
+    transformer.nhead: 16
+    loader_settings.batch_size: 8
+    text8_dataset.L: 256
+    text8_dataset.batch_size: 8
+    text8_dataset.max_train_windows: 10000
+    text8_dataset.max_eval_windows: 2000
+    loss.mode: mse
+    loss.hilbert_alpha: 1.0
+    loss.hilbert_alpha_start: 1.0
+    transformation.dirichlet_sampling: false
+    eqm.gradient_lambda: 1.0
+    eqm.gamma_power: 1.0
+    eqm.sample_gamma: 1.5
+    eqm.lambda_ce: 0.0
+    eqm.gamma_lo: 0.019
+    eqm.gamma_hi: 0.03
+    eqm.decay_strategy: band
+    eqm.gamma_star: 0.03
+    eqm.sample_eta: 0.005
+    eqm.sample_grad_clip: 1.0
+    eqm.sample_max_steps: 400
+
+# ═══ SEED REPLICATE of the published cell ═══════════════════════════════════
+# Byte-identical to band_L256_ep10_d10k except training.seed 42 -> 43.
+#
+# Why this outranks another ladder rung (2026-08-29). The published cell is the
+# ONLY configuration that has ever shown the epoch-7 transition (probe bigram KL
+# 1.507 -> 0.522, final KL_bi 0.265). Three perturbations of it now fail:
+#   gamma*  0.030 -> 0.03573, gamma_lo .005   -> KL_bi 1.453  (arm B)
+#   gamma*  0.030 -> 0.03573, gamma_lo 0      -> KL_bi 1.512  (g0)
+#   gamma_lo .005 -> 0.01208, gamma* 0.030    -> no transition (ladder rung 1)
+# Every config draws its own gamma stream, so these are effectively independent
+# trajectories: one of four transitioned. Before any of it is interpreted, the
+# 0.265 has to be shown to be a property of the CONFIG and not of the run.
+#
+#   reproduces ~0.265  -> the island is real and narrow; the rungs' failures are
+#                         the result, and docs/band_geometry_theory.md 6.4 stands.
+#   lands   ~1.45      -> the transition was noise. docs/band_eqm.md 8 and the
+#                         SNR reading of 6.4 need retracting, and the band arm's
+#                         headline number goes with them.
+- name: band_L256_ep10_d10k_s43
+  overrides:
+    training.model_name: EqM
+    wandb.enabled: false
+    wandb.mode: disabled
+    wandb.log_artifacts: false
+    wandb.log_samples: false
+    training.epochs: 10
+    training.seed: 43
+    training.sample_eval_n: 16
+    training.eval_every: 11
+    training.L: 256
+    training.B: 8
+    training.lr: 0.0003
+    training.scheduler_warmup_epochs: 1
+    training.cosine_t_max_epochs: 10
+    transformer.d_model: 1024
+    transformer.num_layers: 10
+    transformer.nhead: 16
+    loader_settings.batch_size: 8
+    text8_dataset.L: 256
+    text8_dataset.batch_size: 8
+    text8_dataset.max_train_windows: 10000
+    text8_dataset.max_eval_windows: 2000
+    loss.mode: mse
+    loss.hilbert_alpha: 1.0
+    loss.hilbert_alpha_start: 1.0
+    transformation.dirichlet_sampling: false
+    eqm.gradient_lambda: 1.0
+    eqm.gamma_power: 1.0
+    eqm.sample_gamma: 1.5
+    eqm.lambda_ce: 0.0
+    eqm.gamma_lo: 0.005
+    eqm.gamma_hi: 0.03
+    eqm.decay_strategy: band
+    eqm.gamma_star: 0.03
+    eqm.sample_eta: 0.005
+    eqm.sample_grad_clip: 1.0
+    eqm.sample_max_steps: 400

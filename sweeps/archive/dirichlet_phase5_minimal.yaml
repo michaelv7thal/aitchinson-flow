@@ -1,0 +1,28 @@
+# Minimal Phase 5 — Hilbert vs Aitchison ablation, 1 seed each.
+# Use after Phase 3 confirms the Dirichlet hypothesis. The full 3-seed version
+# is in dirichlet_capstone.yaml but is too long for an 8 GB laptop GPU
+# (≈14 min/cell × 6 cells ≈ 1 h 25 min just for Phase 5). Run the headline
+# pair first; rerun with more seeds if the gap is small.
+
+- name: dphase5_min_mse_dir
+  overrides:
+    training.model_name: EqM
+    training.epochs: 5
+    training.seed: 42
+    text8_dataset.max_train_windows: 10000
+    loss.mode: mse
+    transformation.dirichlet_sampling: true
+    transformation.dirichlet_alpha_peak: 10.0
+
+- name: dphase5_min_hilbert_dir
+  overrides:
+    training.model_name: EqM
+    training.epochs: 5
+    training.seed: 42
+    text8_dataset.max_train_windows: 10000
+    loss.mode: hilbert_soft
+    loss.hilbert_alpha: 1.0
+    loss.hilbert_alpha_start: 1.0
+    transformation.dirichlet_sampling: true
+    transformation.dirichlet_alpha_peak: 10.0
+    eqm.gamma_power: 1.0

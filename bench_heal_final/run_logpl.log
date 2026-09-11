@@ -1,0 +1,6 @@
+### [only] carrying 31 unselected arm(s) over untouched: nll_replace, nll_shuffle, nll_falseinfo, nll_plausible, blr_replace, blr_shuffle, blr_falseinfo, blr_plausible, bgmm_replace, bgmm_shuffle, bgmm_falseinfo, bgmm_plausible, blr_adv_replace, blr_adv_shuffle, blr_adv_falseinfo, blr_adv_plausible, blr_fi_replace, blr_fi_shuffle, blr_fi_falseinfo, blr_fi_plausible, logreg_fi_replace, logreg_fi_shuffle, logreg_fi_falseinfo, logreg_fi_plausible, var_replace, var_shuffle, var_falseinfo, var_plausible, insulin_nll, insulin_gmm, insulin_bgmm
+### [2026-09-05T16:31:53+00:00] START logreg_pl_falseinfo
+### [2026-09-05T17:51:59+00:00] OK    logreg_pl_falseinfo (4805.7s, rc=0)
+### [2026-09-05T17:51:59+00:00] START logreg_pl_plausible
+### [2026-09-05T21:22:07+00:00] OK    logreg_pl_plausible (12608.6s, rc=0)
+Wrote bench_heal_final/RESULTS.md

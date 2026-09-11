@@ -1,0 +1,32 @@
+[sampler override] {'sampler': 'sde', 'sde_alpha': 0.1}
+=== Unconditional generation ===
+  KL_uni=0.0795  KL_bi=1.1288  KL_tri=4.7238  H_gen=2.5468
+  sample[0]: ' nt ettth llwh an  enneae eran  o heltii'
+  sample[1]: ' os hcaro es onnc neaanie  t ifh nene ib'
+
+=== Recovery from perturbation ===
+  embed_norm_mean=12.2723  σ_source=0.1000
+    α  σ_perturb    KL_bi  tok_acc  sample[0]: gt / pt / rc
+ 0.05      0.614   0.1098   1.0000  gt='e the capital of one government after an'
+                                  pt='e the capital of one government after an'  (pt_acc=1.000)
+                                  rc='e the capital of one government after an'
+ 0.10      1.227   0.1098   1.0000  gt='e the capital of one government after an'
+                                  pt='e the capital of one government after an'  (pt_acc=1.000)
+                                  rc='e the capital of one government after an'
+ 0.20      2.454   0.1158   0.9970  gt='e the capital of one government after an'
+                                  pt='e the capital of one government after an'  (pt_acc=0.996)
+                                  rc='e the capital of one government after an'
+ 0.30      3.682   0.3498   0.9079  gt='e the capital of one government after an'
+                                  pt='e the cajitpu of one govbrxment afqer an'  (pt_acc=0.897)
+                                  rc='e the calitpu of one govbrxment afqer an'
+ 0.40      4.909   1.2532   0.7146  gt='e the capital of one government after an'
+                                  pt='e thewfacilalcofgpne goverxment zxter an'  (pt_acc=0.697)
+                                  rc='e thewfacilalcofgpne guverxment zxter an'
+ 0.50      6.136   2.3675   0.5384  gt='e the capital of one government after an'
+                                  pt='k thezclphral of zni goyrrnmeltr ster an'  (pt_acc=0.528)
+                                  rc='k thezclphral of znirgoyrrnmeltr hter an'
+ 1.00     12.272   4.8058   0.2016  gt='e the capital of one government after an'
+                                  pt='x rhihfckmtal cbyuxvsgecbdqecnteafteozmj'  (pt_acc=0.201)
+                                  rc='x rhihfckmtal cnyuxvsgecbdqecnteafterfmj'
+
+Wrote runs/eqm_sparsemax_bigram/recovery_sde.json

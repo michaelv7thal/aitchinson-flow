@@ -1,0 +1,87 @@
+# Band-γ EqM — train only where the interpolant is partly informative.
+#
+# Why this sweep exists
+# --------------------
+# On the deterministic-CLR path the regression target x_γ - x_1 = (1-γ)(x_0-x_1)
+# is a deterministic function of its own input wherever the interpolant's argmax
+# is already the true character, which measurement puts at γ ≈ 0.03 (95% of
+# positions) and γ = 0.05 (99.99%). Above that the optimal field has the closed
+# form x - v(argmax x): per position, no neighbour, nothing to learn. Below
+# γ ≈ 0.005 the input carries nothing and the optimum is the constant unigram
+# tilt, also closed-form. Only γ ∈ [0.005, 0.03] asks the model to infer x_1
+# from a partly informative input, which is the one regime where E[x_1|x_γ]
+# depends on the neighbouring positions. Under the published uniform draw that
+# band gets 2.5% of samples.
+#
+# Two changes, both new config knobs (defaults inert, published runs unaffected):
+#   eqm.gamma_lo / gamma_hi    draw γ uniformly inside the band
+#   eqm.decay_strategy: band   c(γ) = max(0, 1 - γ/γ*), so the target vanishes
+#                              at the clarity point γ* and the descent has a
+#                              fixed point there instead of at the vertex
+#
+# Sampler note: "band" normalises c(0)=1 so training-loss scale matches the
+# published cells. The field therefore overstates the displacement to the
+# equilibrium by 1/γ*, and eqm.sample_grad_clip is scaled by γ* to compensate:
+# the NAG step is η·clip while clipped, so clip=γ* reproduces the published
+# descent exactly, 20× smaller. Everything else matches runs/compu_mse_det
+# (KL_uni 0.031, KL_bi 1.657 — tab:ablation2x2 fixed-interpolant/det-CLR).
+#
+# The auxiliary CE anchor is off in all three cells (eqm.lambda_ce: 0.0), so
+# ctrl_noce is the control that separates "dropped the anchor" from "moved γ".
+#
+# Dev scale: L=40, d_model=1024, 8 layers, B=64, 5 epochs, 10k windows, seed 42.
+
+# ─── Control: published cell minus the CE anchor ───────────────────────────
+- name: ctrl_noce
+  overrides:
+    training.model_name: EqM
+    training.epochs: 5
+    training.seed: 42
+    text8_dataset.max_train_windows: 10000
+    loss.mode: mse
+    loss.hilbert_alpha: 1.0
+    loss.hilbert_alpha_start: 1.0
+    transformation.dirichlet_sampling: false
+    eqm.gamma_power: 1.0
+    eqm.sample_gamma: 1.5
+    eqm.lambda_ce: 0.0
+
+# ─── Band, covering the sampler's start: γ ~ U[0, 0.05], equilibrium at 0.05 ─
+- name: band_g05
+  overrides:
+    training.model_name: EqM
+    training.epochs: 5
+    training.seed: 42
+    text8_dataset.max_train_windows: 10000
+    loss.mode: mse
+    loss.hilbert_alpha: 1.0
+    loss.hilbert_alpha_start: 1.0
+    transformation.dirichlet_sampling: false
+    eqm.gamma_power: 1.0
+    eqm.sample_gamma: 1.5
+    eqm.lambda_ce: 0.0
+    eqm.gamma_lo: 0.0
+    eqm.gamma_hi: 0.05
+    eqm.decay_strategy: band
+    eqm.gamma_star: 0.05
+    eqm.sample_grad_clip: 0.05
+
+# ─── Band, strict: γ ~ U[0.005, 0.03], equilibrium at the top of the strip ──
+- name: band_strict
+  overrides:
+    training.model_name: EqM
+    training.epochs: 5
+    training.seed: 42
+    text8_dataset.max_train_windows: 10000
+    loss.mode: mse
+    loss.hilbert_alpha: 1.0
+    loss.hilbert_alpha_start: 1.0
+    transformation.dirichlet_sampling: false
+    eqm.gamma_power: 1.0
+    eqm.sample_gamma: 1.5
+    eqm.lambda_ce: 0.0
+    eqm.gamma_lo: 0.005
+    eqm.gamma_hi: 0.03
+    eqm.decay_strategy: band
+    eqm.gamma_star: 0.03
+    eqm.sample_grad_clip: 0.03

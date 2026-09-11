@@ -1,0 +1,48 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+[plausible] split=test fit=512 eval=64 rate=0.15 t_eval=7.5 t_nll=3.0 n_cands=48
+=== fit BGMM density detector (clean, one-class) ===
+  [bgmm] t_eval=7.5 d=1280 feat_dim=64 max_K=20 n_effective=17 cov=full converged=True lb=-5754592.250
+=== train BLR hinge-energy detector ===
+  [head] step    0  E_valid=+0.003  E_corrupt=+0.114  gap=+0.111
+  [head] step  200  E_valid=+0.453  E_corrupt=+2.771  gap=+2.318
+  [head] step  400  E_valid=+0.387  E_corrupt=+2.610  gap=+2.223
+  [head] step  599  E_valid=+0.422  E_corrupt=+2.737  gap=+2.315
+=== load GPT-2 external-LM detectors (gpt2) ===
+Loading weights:   0%|          | 0/148 [00:00<?, ?it/s]Loading weights: 100%|██████████| 148/148 [00:00<00:00, 12112.80it/s]
+=== build corruptions (random vs model-plausible, same slots) ===
+[plausible] random changed 1665 toks; plausible changed 1752 toks (392 words)
+=== train logistic head on RANDOM false-info negatives ===
+  [logistic] fit on 74511 tok (pos=60000 neg=14511) @ t=4.5
+=== build PLAUSIBLE training negatives (model-guided; subset) ===
+=== train logistic head on PLAUSIBLE negatives ===
+  [logistic] fit on 63481 tok (pos=60000 neg=3481) @ t=4.5
+[plausible] denoiser NLL at swapped chars — random=0.564 plausible=0.006 (clean baseline=0.130)
+
+      detector corruption  seq_AUROC  token_AUROC  tokP@5  tokR@5  tokF1@5
+           NLL     random      0.725        0.741   0.327   0.220    0.263
+           NLL  plausible      0.448        0.264   0.005   0.002    0.003
+           BLR     random      0.651        0.602   0.252   0.160    0.196
+           BLR  plausible      0.455        0.492   0.020   0.008    0.011
+   Logistic_fi     random      0.737        0.783   0.323   0.282    0.301
+   Logistic_fi  plausible      0.342        0.473   0.014   0.005    0.007
+Logistic_plaus     random      0.384        0.471   0.038   0.015    0.022
+Logistic_plaus  plausible      0.808        0.904   0.468   0.630    0.537
+          BGMM     random      0.682        0.693   0.201   0.119    0.149
+          BGMM  plausible      0.426        0.458   0.027   0.012    0.017
+       GPT2_SE     random      0.860        0.558   0.224   0.113    0.150
+       GPT2_SE  plausible      0.700        0.514   0.106   0.050    0.068
+      GPT2_NLL     random      0.896        0.559   0.273   0.193    0.226
+      GPT2_NLL  plausible      0.728        0.507   0.160   0.091    0.116
+
+--- example 0 ---
+  clean    : 'l clinton during a fundraising event in washington dc october one nine nine six monica samille lewinsky born july two th'
+  random   : 'l clinton during a fundraising event in washington dc october ost nine nine six monica samille lewinsky born july two th'
+  plausible: 'l clinton during a fundraising event in washington dc october the nine nine six monica samille lewinsky born july two th'
+
+--- example 1 ---
+  clean    : 'ill clinton their affair started while lewinsky was working as an intern at the white house in the mid one nine nine zer'
+  random   : 'ill clinton their affair eugenio while lewinsky was working as an intern at the white house in the mid one nine nine zer'
+  plausible: 'ill clinton their system however while lewinsky was working to an intern at the white house in one mid one nine nine zer'
+
+Wrote bench_ood/plausible/plausible_swap.json

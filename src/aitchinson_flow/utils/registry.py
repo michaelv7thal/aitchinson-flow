@@ -1,14 +1,8 @@
-"""Tiny generic string-keyed registry for builder callables.
-
-Used to back the model factory, the LLM registry, and the benchmark task
-registry with a single implementation. Keeping one copy avoids drift in the
-error messages and duplicate-key behavior across layers of the stack.
-"""
-
 from __future__ import annotations
 
 from collections.abc import Callable
 from typing import Generic, TypeVar
+
 
 T = TypeVar("T")
 
@@ -52,12 +46,9 @@ class Registry(Generic[T]):
             return self._builders[name]
         except KeyError as e:
             raise KeyError(
-                f"Unknown {self._label} {name!r}. Registered: {sorted(self._builders)}"
+                f"Unknown {self._label} {name!r}. Registered: {sorted(self.builders)}"
             ) from e
 
     def keys(self) -> tuple[str, ...]:
         """Return all registered keys in sorted order."""
         return tuple(sorted(self._builders))
-
-
-__all__ = ["Registry"]

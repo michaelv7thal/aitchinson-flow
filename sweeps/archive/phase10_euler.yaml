@@ -1,0 +1,32 @@
+# Phase 10 — head-to-head retraining at the data_50k_ep5 platform.
+#
+# Three independent trainings (EqM, DFM, FMonCLR), all at parity compute
+# (50k windows × 5 epochs × default backbone). Provides:
+#   - EqM baseline (W1 will post-hoc swap its sampler to test Euler-γ)
+#   - DFM baseline (the existing 0.148 KL_bi target)
+#   - FMonCLR (W4 — the third continuous baseline)
+#
+# Names suffixed _v2 to avoid colliding with the existing eval.json files in
+# runs/{data_50k_ep5,dfm_data50k_ep5}/ (the previous session's runs lost
+# their .pt files but kept eval.json — run_sweep.py would skip a name match).
+
+- name: eqm_data50k_ep5_v2
+  overrides:
+    training.model_name: EqM
+    training.epochs: 5
+    text8_dataset.max_train_windows: 50000
+
+- name: dfm_data50k_ep5_v2
+  overrides:
+    training.model_name: DFM
+    training.epochs: 5
+    text8_dataset.max_train_windows: 50000
+
+- name: fmclr_data50k_ep5_v2
+  overrides:
+    training.model_name: FMonCLR
+    training.epochs: 5
+    text8_dataset.max_train_windows: 50000
+    eqm.time_conditioning: add
+    eqm.sampler: euler
+    eqm.euler_nfe: 128

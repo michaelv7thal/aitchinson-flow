@@ -1,0 +1,20 @@
+### [2026-08-10T19:14:13+00:00] START nll -> bench_ood_final/nll/denoiser_nll_sweep.json
+### [2026-08-10T19:29:13+00:00] OK    nll (899.7s, rc=0)
+### [2026-08-10T19:29:13+00:00] START blr -> bench_ood_final/blr/bayes_linear_sweep.json
+### [2026-08-10T19:45:38+00:00] OK    blr (984.8s, rc=0)
+### [2026-08-10T19:45:38+00:00] START blr_adv -> bench_ood_final/blr_adv/bayes_linear_adv_sweep.json
+### [2026-08-10T20:02:47+00:00] OK    blr_adv (1029.6s, rc=0)
+### [2026-08-10T20:02:47+00:00] START blr_fi -> bench_ood_final/blr_fi/bayes_linear_fi_sweep.json
+### [2026-08-10T20:18:54+00:00] OK    blr_fi (966.5s, rc=0)
+### [2026-08-10T20:18:54+00:00] START bgmm -> bench_ood_final/bgmm/bgmm_perpos_sweep.json
+### [2026-08-10T20:31:05+00:00] OK    bgmm (731.0s, rc=0)
+### [2026-08-10T20:31:05+00:00] START gpt2_se -> bench_ood_final/gpt2_se/gpt2_spilled_energy_sweep.json
+### [2026-08-10T20:33:37+00:00] OK    gpt2_se (152.3s, rc=0)
+### [2026-08-10T20:33:37+00:00] START gpt2_nll -> bench_ood_final/gpt2_nll/gpt2_nll_sweep.json
+### [2026-08-10T20:36:08+00:00] OK    gpt2_nll (151.0s, rc=0)
+### [2026-08-10T20:36:08+00:00] START latent_split -> bench_ood_final/latent_split/latent_split.json
+### [2026-08-10T20:39:02+00:00] OK    latent_split (173.3s, rc=0)
+### [2026-08-10T20:39:02+00:00] START plausible -> bench_ood_final/plausible/plausible_swap.json
+### [2026-08-10T21:32:46+00:00] OK    plausible (3224.3s, rc=0)
+
+###### bench_ood: 9/9 (re)run arms OK -> bench_ood_final/manifest.json

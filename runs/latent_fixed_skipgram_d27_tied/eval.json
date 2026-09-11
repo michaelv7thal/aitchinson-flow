@@ -1,0 +1,40 @@
+{
+  "ckpt": "runs/latent_fixed_skipgram_d27_tied/epoch_final.pt",
+  "model_name": "EqMLatent",
+  "epoch": 5,
+  "global_step": 785,
+  "n_samples": 256,
+  "sample_steps": 200,
+  "sample_kwargs": {},
+  "unigram_kl": 0.11636260151863098,
+  "bigram_kl": 0.9723933339118958,
+  "trigram_kl": 3.081724166870117,
+  "H_gen": 2.4174106121063232,
+  "H_gt": 2.8483986854553223,
+  "H_ratio": 0.8486910994764398,
+  "grad_at_gen": 3.996128559112549,
+  "grad_at_gt": 3.8598060607910156,
+  "samples": [
+    "en o ei os tather s arelhmal ony nt erth",
+    "nd ererothriind id inen ton trttoatons a",
+    "otees tprie s lis s o me e ore te  ne o ",
+    " o irinethane e mtants ivis eathed ihth ",
+    " e di inerc sthns inet adto  ale nes in ",
+    "rif ine  ne f is a as hiin ien in oer a ",
+    "erhe ee ttriohe oi hs  onen os  is e e h",
+    "ee i fsheth ides tonn i sh tand hhe n an"
+  ],
+  "run_name": "latent_fixed_skipgram_d27_tied",
+  "overrides": {
+    "training.model_name": "EqMLatent",
+    "training.epochs": 5,
+    "text8_dataset.max_train_windows": 10000,
+    "embedding.enabled": true,
+    "embedding.d_embed": 27,
+    "embedding.fixed_path": "data/skipgram_d27.pt",
+    "embedding.tie_decoder": true,
+    "eqm.sample_return_best": false,
+    "eqm.ce_min_gamma": 0.0,
+    "eqm.lambda_ce": 1.0
+  }
+}

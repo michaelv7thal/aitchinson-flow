@@ -1,0 +1,54 @@
+# Same recipe as eqm_sparsemax_bigram (deterministic CLR + sparsemax aux CE +
+# bigram_joint), now ALSO with Albergo et al. 2023 stochastic interpolant
+# noise on x_γ. Tests whether path-side regularisation (σ(γ)·sin(πγ)) on top
+# of the discrete-side aux losses changes the NAG over-commit pathology and
+# the modest SDE recovery.
+#
+# σ(γ) = σ_max · sin(π·γ) — vanishes at γ=0 and γ=1, peaks at γ=0.5. σ_max=0.5
+# is roughly the magnitude of u_tgt at γ=0.5 for source_sigma=0.1 and
+# label_smoothing=1e-4 (the CLR features peak at ~9.2, x_γ at γ=0.5 ≈ 4.6).
+
+- name: eqm_sparsemax_bigram_stochinterp
+  overrides:
+    training.model_name: EqM
+    training.epochs: 5
+    training.seed: 42
+    training.lr: 0.0003
+    training.scheduler_warmup_epochs: 0
+    training.B: 64
+    training.L: 40
+    training.K: 27
+    training.sample_eval_n: 32
+    training.sample_eval_every: 5
+    text8_dataset.batch_size: 64
+    text8_dataset.L: 40
+    text8_dataset.K: 27
+    text8_dataset.max_train_windows: 10000
+    text8_dataset.variable_length: false
+    transformation.label_smoothing: 0.0001
+    transformation.dirichlet_sampling: false
+    transformation.sigma_interpolant_max: 0.5      # NEW — turn on stoch. interp.
+    transformation.sigma_interpolant_schedule: sin
+    transformer.d_model: 1024
+    transformer.num_layers: 8
+    transformer.nhead: 8
+    transformer.d_latent: 64
+    eqm.time_conditioning: "off"
+    eqm.context_features: "off"
+    eqm.source_sigma: 0.1
+    eqm.gamma_power: 1.5
+    eqm.gradient_lambda: 1.0
+    eqm.lambda_ce: 0.5
+    eqm.aux_kind: "sparsemax"
+    eqm.ce_min_gamma: 0.5
+    eqm.lambda_bigram: 0.0
+    eqm.lambda_bigram_joint: 0.5
+    eqm.lambda_trigram: 0.0
+    eqm.sample_eta: 0.1
+    eqm.sample_mu: 0.9
+    eqm.sample_max_steps: 100
+    eqm.sample_grad_clip: 1.0
+    eqm.sample_return_best: true
+    eqm.sampler: nag
+    loss.mode: mse
+    wandb.enabled: false

@@ -1,0 +1,30 @@
+{
+  "ckpt": "runs/eqm_data50k_ep5_v2/epoch_final.pt",
+  "model_name": "EqM",
+  "epoch": 5,
+  "global_step": 3910,
+  "n_samples": 256,
+  "sample_steps": 200,
+  "unigram_kl": 0.07998047769069672,
+  "bigram_kl": 1.6822755336761475,
+  "trigram_kl": 5.981500148773193,
+  "H_gen": 2.6603565216064453,
+  "H_gt": 2.8546600341796875,
+  "H_ratio": 0.9319346226006638,
+  "grad_at_gen": 3.7031190395355225,
+  "grad_at_gt": 0.10298943519592285,
+  "samples": [
+    "h    lih nont mtonnt sn ehda cmre  crarn",
+    "h  gerte dein ynbneehhnhnhbfhrmrtda tsno",
+    "ne realmlbant y  liihhan hvaeomrnfg tsan",
+    "ia iwaee rann ynons ehoeahiml mr   co nt",
+    "ii eiroe o nony aaaghhe cho  fmrtaofbsnn",
+    "ic getl  nann ha isihhmrehneetmrso rt n ",
+    "ha ioaei o ntnwaoinrhynt h aldmri acosnr",
+    "na ee i czano yzgne ihe ehoilimr  tfas o"
+  ],
+  "overrides": {
+    "eqm.sampler": "euler",
+    "eqm.euler_nfe": 200
+  }
+}

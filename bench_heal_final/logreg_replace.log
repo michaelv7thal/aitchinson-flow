@@ -1,0 +1,27 @@
+[heal] ckpt=runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM_converge/epoch_final.pt
+[heal] K=27 L=256 t_max=8.0 t_eval=4.5 device=cuda
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[heal] disjoint splits: fit=512 cal=512 demo=64  n_seeds=3
+=== build per-token localizer (logistic) ===
+  [logistic] full-dim probe fit on 99305 tok (d=1280, C=1.0); score = LR decision function
+=== heal sweep (mean over 3 corruption seeds) ===
+  fpr     thr  loc_P  loc_R  loc_F1    fix    dmg    net/corrupt   delta_ws
+ 0.02  -1.482  0.456  0.873   0.599  0.440  0.141   -0.356±0.009    -0.0537  <- selected
+ 0.05  -2.573  0.338  0.947   0.498  0.312  0.270   -1.208±0.011    -0.1820
+ 0.10  -3.529  0.263  0.977   0.414  0.217  0.421   -2.153±0.031    -0.3246
+
+--- example[0] @ selected fpr=0.02 (chosen by cal-set F0.5) ---
+  clean : 'yed back using a compatible pc karaoke player display the lyrics karaoke style while playing the song although the midi karaoke format precludes the use of background vocals and harmonies the incredibly small size of the file in comparison to other digital'
+  corr  : 'yed ba k usind a qotratibla sv kajaokk playeg display the lymics kzrjokf styme wcole playing thezsong hlthoujh bhe midi kahaoke forcyt p ecluden thz use rf backgrosnd vocaqs and harmonies the incredobly small sine ok the file in csmpaxisoa ul other dicital'
+  truec :       ^      ^   ^ ^^     ^ ^^   ^   ^      ^               ^     ^ ^  ^    ^   ^^              ^     ^     ^  ^          ^        ^^   ^      ^   ^     ^         ^       ^                          ^            ^   ^              ^   ^   ^ ^^         ^    
+  flag  : *   * **     *   ***    * * ** * *****      *             **     **** **   *   ** *             **    **    *  *    *** * ****     *** ******* *   *     *      *  *   *   *                          **    *          *     *        *   * *** **         *    
+  healed: 'zed back using a op ratible of backaoe player display the comics of bone stame whose playing the hong although the make backame former bae based the use of background locals and harmonies the incredibly small sine of the file in compatible of other digital'
+
+=== HEADLINE @ selected fpr=0.02 (mean±std over 3 seeds) ===
+  localize    = P 0.456 / R 0.873 / F1 0.599   (per-token detection of the corrupt positions)
+  fix_rate    = 0.440   (corrupt token -> correct)
+  damage_rate = 0.141   (clean token -> broken)
+  net/corrupt = -0.356 ± 0.009   (net tokens recovered per corrupt token; >0 ⇒ net benefit)
+  delta_ws    = -0.0537 ± 0.0023   (whole-seq; diluted, capped near corrupt_rate — diagnostic only)
+
+Wrote bench_heal_final/logreg_replace.json

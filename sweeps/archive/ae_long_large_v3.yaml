@@ -1,0 +1,185 @@
+# v3: per-sample variable-length training on top of v2's hyperparams.
+#
+# Diagnosis (v2 didn't complete yet, but v1 showed the failure):
+#   * AE itself trains fine (tok_acc=1.0 in 2-3 epochs at any size).
+#   * EqMAE flow_loss converges but unconditional KL_uni stays flat for
+#     d_latent ≥ 256.
+#   * Per the discussion in NOTE_WHY_UNCONDITIONAL_FAILS.md, the latent
+#     space at high d_latent is too sparsely populated by the ~10k unique
+#     training sequences. Variable L during training multiplies the
+#     effective number of distinct (token, context) views the encoder
+#     sees, and forces position-relative rather than position-absolute
+#     patterns.
+#
+# Same v2 hyperparams (lr=1e-4, warmup=2, 50k windows, 20 epochs), but
+# with per-sample L ~ U(40, 128) — collate pads to max-L-in-batch and
+# emits pad_mask, transformer attention masks padding, FM loss masks the
+# MSE to valid positions only. Sampling at inference time stays fixed-L.
+
+- name: ae_d1024_l8_z128_v3
+  ae:
+    d_model: 1024
+    num_layers: 8
+    nhead: 8
+    d_latent: 128
+    denoising_schedule: relative_uniform
+    denoising_sigma: 0.5
+    latent_l2: 1.0e-3
+    mode: ae
+  ae_train:
+    L: 128  # pos_emb size = L_max
+    epochs: 5
+    windows: 10000
+    batch_size: 64
+    lr: 3.0e-4
+    variable_length: true
+    L_min: 40
+    L_max: 128
+  eqm_train:
+    L: 128
+    epochs: 5
+    windows: 50000
+    batch_size: 64
+    lr: 1.0e-4
+    scheduler_warmup_epochs: 2
+    variable_length: true
+    L_min: 40
+    L_max: 128
+  eqm_ae_seed: 42
+
+- name: vae_d1024_l8_z128_v3
+  ae:
+    d_model: 1024
+    num_layers: 8
+    nhead: 8
+    d_latent: 128
+    denoising_schedule: relative_uniform
+    denoising_sigma: 0.5
+    latent_l2: 1.0e-3
+    mode: vae
+    vae_beta: 0.1
+    vae_beta_warmup_epochs: 2
+  ae_train:
+    L: 128
+    epochs: 5
+    windows: 10000
+    batch_size: 64
+    lr: 3.0e-4
+    variable_length: true
+    L_min: 40
+    L_max: 128
+  eqm_train:
+    L: 128
+    epochs: 5
+    windows: 50000
+    batch_size: 64
+    lr: 1.0e-4
+    scheduler_warmup_epochs: 2
+    variable_length: true
+    L_min: 40
+    L_max: 128
+  eqm_ae_seed: 42
+
+- name: ae_d1024_l8_z256_v3
+  ae:
+    d_model: 1024
+    num_layers: 8
+    nhead: 8
+    d_latent: 256
+    denoising_schedule: relative_uniform
+    denoising_sigma: 0.5
+    latent_l2: 1.0e-3
+    mode: ae
+  ae_train:
+    L: 128
+    epochs: 5
+    windows: 10000
+    batch_size: 64
+    lr: 3.0e-4
+    variable_length: true
+    L_min: 40
+    L_max: 128
+  eqm_train:
+    L: 128
+    epochs: 5
+    windows: 50000
+    batch_size: 64
+    lr: 1.0e-4
+    scheduler_warmup_epochs: 2
+    variable_length: true
+    L_min: 40
+    L_max: 128
+  eqm_ae_seed: 42
+
+# Re-run of z128_v3 EqM with the new ‖grad_g‖/‖u_tgt‖ ratio diagnostic
+# (r<.33, r<.66, r<1 in eqm_ae.py:_eqm_loss). AE is shared via symlink to
+# ae_d1024_l8_z128_v3/ae/ so we don't retrain it. Used to test the
+# echo-trap hypothesis: if r<.33 ≈ 0 while r<1 ≈ 1, the field is flat
+# in the noisy regime and only the AE-decoder is doing the work.
+- name: ae_d1024_l8_z128_v3_diag
+  ae:
+    d_model: 1024
+    num_layers: 8
+    nhead: 8
+    d_latent: 128
+    denoising_schedule: relative_uniform
+    denoising_sigma: 0.5
+    latent_l2: 1.0e-3
+    mode: ae
+  ae_train:
+    L: 128
+    epochs: 5
+    windows: 10000
+    batch_size: 64
+    lr: 3.0e-4
+    variable_length: true
+    L_min: 40
+    L_max: 128
+  eqm_train:
+    L: 128
+    epochs: 5
+    windows: 50000
+    batch_size: 64
+    lr: 1.0e-4
+    scheduler_warmup_epochs: 2
+    variable_length: true
+    L_min: 40
+    L_max: 128
+  eqm_ae_seed: 42
+
+# Same as z128_v3_diag but with the non-factorised bigram joint head
+# (Linear(2·d_latent → K²) on adjacent implied-x1 vectors). Tests whether
+# explicit digraph supervision pulls bigram_kl out of the unigram-IID
+# baseline and tightens the conservative-gradient basins via h_enc.
+- name: ae_d1024_l8_z128_v3_bj
+  ae:
+    d_model: 1024
+    num_layers: 8
+    nhead: 8
+    d_latent: 128
+    denoising_schedule: relative_uniform
+    denoising_sigma: 0.5
+    latent_l2: 1.0e-3
+    mode: ae
+  ae_train:
+    L: 128
+    epochs: 5
+    windows: 10000
+    batch_size: 64
+    lr: 3.0e-4
+    variable_length: true
+    L_min: 40
+    L_max: 128
+  eqm_train:
+    L: 128
+    epochs: 5
+    windows: 50000
+    batch_size: 64
+    lr: 1.0e-4
+    scheduler_warmup_epochs: 2
+    variable_length: true
+    L_min: 40
+    L_max: 128
+  eqm_ae_seed: 42
+  eqm:
+    lambda_bigram_joint: 0.1

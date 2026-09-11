@@ -1,0 +1,72 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+[plausible] split=test fit=512 eval=64 rate=0.15 t_eval=7.5 t_nll=3.0 n_cands=48
+=== fit BGMM density detector (clean, one-class) ===
+  [bgmm] t_eval=7.5 d=1280 feat_dim=64 max_K=20 n_effective=17 cov=full converged=True lb=-5471405.372
+=== train BLR hinge-energy detector ===
+  [head] step    0  E_valid=+0.039  E_corrupt=+0.235  gap=+0.197
+  [head] step  200  E_valid=+0.445  E_corrupt=+2.782  gap=+2.338
+  [head] step  400  E_valid=+0.386  E_corrupt=+2.629  gap=+2.244
+  [head] step  599  E_valid=+0.452  E_corrupt=+2.854  gap=+2.402
+=== load GPT-2 external-LM detectors (gpt2) ===
+Loading weights:   0%|          | 0/148 [00:00<?, ?it/s]Loading weights: 100%|██████████| 148/148 [00:00<00:00, 15081.19it/s]
+=== build corruptions (random vs model-plausible, same slots) ===
+[plausible] random changed 1665 toks; plausible changed 1774 toks (392 words)
+=== train logistic head on RANDOM false-info negatives ===
+  [logistic] fit on 74511 tok (pos=60000 neg=14511) @ t=4.5
+=== build PLAUSIBLE training negatives (model-guided; subset) ===
+=== train logistic head on PLAUSIBLE negatives ===
+  [logistic] fit on 63489 tok (pos=60000 neg=3489) @ t=4.5
+=== train UNIFIED 'logistic' head on replace+shuffle+falseinfo+plausible ===
+  [logistic] fit on 115063 tok (pos=60000 neg=55063) @ t=4.5
+=== train UNIFIED 'quad' head on replace+shuffle+falseinfo+plausible ===
+  [quad] step    0 loss=1.4373 acc=0.497
+  [quad] step  400 loss=0.5201 acc=0.775
+  [quad] step  800 loss=0.4947 acc=0.793
+  [quad] step 1200 loss=0.4567 acc=0.807
+  [quad] step 1600 loss=0.4320 acc=0.826
+  [quad] step 1999 loss=0.4051 acc=0.838
+  [quad] fit on 115063 tok (pos=60000 neg=55063) @ t=4.5
+=== train UNIFIED 'mlp' head on replace+shuffle+falseinfo+plausible ===
+  [mlp] step    0 loss=0.6901 acc=0.544
+  [mlp] step  400 loss=0.1965 acc=0.917
+  [mlp] step  800 loss=0.0970 acc=0.961
+  [mlp] step 1200 loss=0.0459 acc=0.984
+  [mlp] step 1600 loss=0.0267 acc=0.993
+  [mlp] step 1999 loss=0.0288 acc=0.990
+  [mlp] fit on 115063 tok (pos=60000 neg=55063) @ t=4.5
+[plausible] denoiser NLL at swapped chars — random=0.535 plausible=0.003 (clean baseline=0.124)
+
+      detector corruption  seq_AUROC  token_AUROC  tokP@5  tokR@5  tokF1@5
+           NLL     random      0.724        0.728   0.326   0.221    0.263
+           NLL  plausible      0.478        0.264   0.000   0.000    0.000
+           BLR     random      0.620        0.624   0.251   0.158    0.194
+           BLR  plausible      0.479        0.570   0.043   0.017    0.025
+   Logistic_fi     random      0.758        0.795   0.343   0.316    0.329
+   Logistic_fi  plausible      0.409        0.480   0.010   0.004    0.006
+Logistic_plaus     random      0.403        0.478   0.064   0.029    0.040
+Logistic_plaus  plausible      0.792        0.898   0.460   0.611    0.525
+          BGMM     random      0.694        0.722   0.222   0.141    0.172
+          BGMM  plausible      0.430        0.464   0.037   0.016    0.023
+       GPT2_SE     random      0.860        0.558   0.224   0.113    0.150
+       GPT2_SE  plausible      0.698        0.527   0.132   0.060    0.082
+      GPT2_NLL     random      0.896        0.559   0.273   0.193    0.226
+      GPT2_NLL  plausible      0.724        0.509   0.165   0.092    0.119
+    ALL_linear     random      0.713        0.743   0.344   0.247    0.288
+    ALL_linear  plausible      0.635        0.604   0.072   0.036    0.048
+      ALL_quad     random      0.769        0.735   0.350   0.244    0.288
+      ALL_quad  plausible      0.679        0.662   0.296   0.181    0.225
+       ALL_mlp     random      0.683        0.717   0.331   0.229    0.271
+       ALL_mlp  plausible      0.689        0.720   0.156   0.078    0.104
+
+--- example 0 ---
+  clean    : 'l clinton during a fundraising event in washington dc october one nine nine six monica samille lewinsky born july two th'
+  random   : 'l clinton during a fundraising event in washington dc october ost nine nine six monica samille lewinsky born july two th'
+  plausible: 'l clinton during a fundraising event in washington dc october two nine nine six monica samille lewinsky born july two th'
+
+--- example 1 ---
+  clean    : 'ill clinton their affair started while lewinsky was working as an intern at the white house in the mid one nine nine zer'
+  random   : 'ill clinton their affair eugenio while lewinsky was working as an intern at the white house in the mid one nine nine zer'
+  plausible: 'ill clinton their united between while lewinsky was working to an intern at the white house in one mid one nine nine zer'
+
+Wrote bench_ood_final/plausible/plausible_swap.json

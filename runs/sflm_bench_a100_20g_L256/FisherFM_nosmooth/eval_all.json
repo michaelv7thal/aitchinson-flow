@@ -1,0 +1,29 @@
+{
+  "model_name": "FisherFM",
+  "model_class": "FisherFM",
+  "L": 256,
+  "epoch": 10,
+  "n_samples": 256,
+  "sample_steps": 200,
+  "split": "test",
+  "KL_uni": 0.003875141963362694,
+  "KL_bi": 1.5780432224273682,
+  "KL_tri": 5.325741291046143,
+  "H_gen": 2.831571340560913,
+  "H_gt": 2.8561434745788574,
+  "H_ratio": 0.9913967438132402,
+  "per_pos_entropy": 2.7832083702087402,
+  "bpc": null,
+  "generation_metric_valid": false,
+  "collapsed": true,
+  "samples": [
+    "tai wl   i a ipasilwew orts o ta n tynilwt angrcce dae u lotltprsaisopi   olrne v teaao zihha eiboteeatnua yeid r eu odhdglsfhiaceos sle yta rpn  tn shqoioya  ay r nrewnnpr   nt  amhrafwhfleavnenoionlah oaeecn l admrisn ltn s eciseifkiitl hehoctotieweodef ",
+    "ae te vtnoc hvyeer eohslfeansdpnf  mnl  ogun apesrokhloederyliasw ontnflc c l beeeloife reexe eeavi dfer eis tta sehakeairrhtr teh g hgtu   nettbeaer h e hinoeu  shtate hcormnle aeeiese thjpmouehh so   nesgtfinsee tr oneuagrdaoe dnng naanaoertiko nyde  inr",
+    "warp tserai  ulhdefeesmdlecapsoe      ohvesooaniteuevxt d  fs  hk  ewha sefentaese nit  les iui taoaror eypoemudesdavtnarin sh tdh  tastscu  r n la hhodoeetroaswhwniroek ttgst amea yaie tcotmkih oeot eshhr rstnhtti e ydl snoydvnhi sie ir os euftrea osnf  k",
+    "is rmosmahmr  h w lo  wohcsoao  o ai ot erpluhrheopfnraie u sdhee u xc rmsa oioemeald tknoc aseaem yisegiespoariotoremrtclr opmobepn cli hmsynrcoinryna ce e en gmoml onnr t ghtliaefe aapnv swata anlvt  nrbvi  avt u aina t igab ekepseohogbrnesifenphosi  nsr",
+    "rt tspewbrca ilafnecut wnhnklm am n tervo empg al aan  nt   sexnvo ylnsep toceaes are tlt eeeft  uase vuotinr hh  neyatt yvcli dhergrtvdosimlgmt ceo epsptfwehgnm ee seo ltreshe ded a eayieeuntthdehln itn easamns farct ohceutetk hp tate u sl fossllwec nafeg",
+    "sriariosreole cleo il rsr  ch owht oras t me yeatlitn  tres  at vbebl  i itiaarsts uviieemhatm mcnbe ai e setodseaoi aotaoeirir rhidifritsu aganeiuopospwsmi cesoxes hhirgu  sehd i c qoroo  en  tentrtstenpllee cs eee iesoane ifrd qwodtuxilnpsenrsoitaenefmsg",
+    "feeetats atsrunnselu aooln  o  blthnbl au fidgmctddsreod  maadeeipavsitrd oe  stswhdfarlf nibt ctoo esntea wrel telhma  ndu ese yreii ypoe r eeogashhfnraq aerrahffennml easrt rn s mr ifatrunebatatplcfp otiitelytcee etapa eser ahiiia  oeen n aor wohimlwrtfi",
+    " r evhhifrin  doeaomhpsiehppeereharnt p euu  saeshatenob fobdafhsltof ist t s aigtha ihidheeny  erato or dr eui feuwntno o nreenemb radeshlrnhheeperir zlaoeaineerema yai e at wpeyeasloli eebteea  lrw fofe  eat  e yna geheiniga n efaieoe  iic  eor mweet mhs"
+  ]
+}

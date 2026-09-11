@@ -1,0 +1,33 @@
+{
+  "ckpt": "runs/capstone/checkpoints/fmclr_data50k_ep5_v2/epoch_final.pt",
+  "model_name": "FMonCLR",
+  "epoch": 5,
+  "global_step": 3910,
+  "n_samples": 256,
+  "sample_steps": 128,
+  "sample_kwargs": {
+    "method": "sde",
+    "alpha": 0.0
+  },
+  "unigram_kl": 0.15229199826717377,
+  "bigram_kl": 1.4783309698104858,
+  "trigram_kl": 6.292002201080322,
+  "H_gen": 2.6984550952911377,
+  "H_gt": 2.8546600341796875,
+  "H_ratio": 0.9452807209901487,
+  "grad_at_gen": NaN,
+  "grad_at_gt": NaN,
+  "samples": [
+    "nga  yetn stelitn st ntse ln otn nsnhwn ",
+    "tdi igsttnaeabs ibrtntzil ionbtrrl nttiz",
+    "ssnosa  sstcadisncnthasts nesarect rhscr",
+    "estotae et etlirnodtnaete neosttsntlhaul",
+    "ssnolaitarseaisita tattiz neionrdnstht o",
+    "myo tar oiief  ru aaoszii senaiec tintga",
+    "psaoeaitnc e er zlstoasih ur andhnsnzoaz",
+    "ss moa crna uis bl tliraz llrbsrr  retnz"
+  ],
+  "run_name": "fmclr_sde_a0p00",
+  "eval_only": true,
+  "overrides": {}
+}

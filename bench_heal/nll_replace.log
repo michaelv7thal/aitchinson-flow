@@ -1,0 +1,27 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[heal] ckpt=runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM/epoch_best.pt
+[heal] K=27 L=256 t_max=8.0 t_eval=4.5 device=cuda
+[heal] disjoint splits: fit=256 cal=256 demo=64  n_seeds=3
+=== build per-token localizer (nll) ===
+  [nll] training-free denoiser-surprise localizer @ t_nll=3.0 (no head, no fit set)
+=== heal sweep (mean over 3 corruption seeds) ===
+  fpr     thr  loc_P  loc_R  loc_F1    fix    dmg    net/corrupt   delta_ws
+ 0.02   1.478  0.825  0.757   0.790  0.575  0.028   +0.420±0.001    +0.0633  <- selected
+ 0.05   0.708  0.655  0.875   0.749  0.591  0.078   +0.154±0.011    +0.0233
+ 0.10   0.305  0.501  0.947   0.655  0.537  0.151   -0.315±0.035    -0.0475
+
+--- example[0] @ selected fpr=0.02 (chosen by cal-set F0.5) ---
+  clean : 'l clinton during a fundraising event in washington dc october one nine nine six monica samille lewinsky born july two three one nine seven three is an american woman who was thrust into the public limelight after having a sexual affair with u s president b'
+  corr  : 'l clin on durdng q trndraiaisv evjnt kn washgngton dc octobem one zije fine lix cpnica samille lzwinskh bornjjuby two threh one nincysev n thren iszan amrrican womsn who wqs thrust into the public lomelight aften haking a sexual asfaix wiahul s presidcnt b'
+  truec :       ^      ^   ^ ^^     ^ ^^   ^   ^      ^               ^     ^ ^  ^    ^   ^^              ^     ^     ^  ^          ^        ^^   ^      ^   ^     ^         ^       ^                          ^            ^   ^              ^   ^   ^ ^^         ^    
+  flag  :              *   *        *  *   *   *      *      *        *     * *  *    *    *              **   *      *             *        **   *      *   *     *         *       *     *                   *             *                   *      *            *    
+  healed: 'l clin on during a trndrainish event on washington oc october one nine nine six canica samille livins h born juby two three one nine seven three is an american woman who was thrist into the public romelight after haking a sexual as aix withul s president b'
+
+=== HEADLINE @ selected fpr=0.02 (mean±std over 3 seeds) ===
+  localize    = P 0.825 / R 0.757 / F1 0.790   (per-token detection of the corrupt positions)
+  fix_rate    = 0.575   (corrupt token -> correct)
+  damage_rate = 0.028   (clean token -> broken)
+  net/corrupt = +0.420 ± 0.001   (net tokens recovered per corrupt token; >0 ⇒ net benefit)
+  delta_ws    = +0.0633 ± 0.0015   (whole-seq; diluted, capped near corrupt_rate — diagnostic only)
+
+Wrote bench_heal/nll_replace.json

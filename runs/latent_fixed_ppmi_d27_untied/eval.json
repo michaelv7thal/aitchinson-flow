@@ -1,0 +1,40 @@
+{
+  "ckpt": "runs/latent_fixed_ppmi_d27_untied/epoch_final.pt",
+  "model_name": "EqMLatent",
+  "epoch": 5,
+  "global_step": 785,
+  "n_samples": 256,
+  "sample_steps": 200,
+  "sample_kwargs": {},
+  "unigram_kl": 0.12314300239086151,
+  "bigram_kl": 1.5943787097930908,
+  "trigram_kl": 6.205976486206055,
+  "H_gen": 2.5780506134033203,
+  "H_gt": 2.8483986854553223,
+  "H_ratio": 0.9050876994739288,
+  "grad_at_gen": 5.101569652557373,
+  "grad_at_gt": 3.7693088054656982,
+  "samples": [
+    "et siaa t tualntue uloneudia ernou aarat",
+    " soahaotsi wa oncoeyive lsepenteil it  i",
+    "eae nhhlaltdea   riien ileha dteai piroa",
+    "au o adnlaefllas tterti ssoreeaa iltp al",
+    "e suoens rls envhzac  vtaouteeor tl io i",
+    "nte aeelleaa res s tol eyaoitcepe aaenti",
+    "fl eeee al nnattilriyatitd ei roeert tca",
+    "ocroct eeiteaiit ainttnr ia  rss aaapl a"
+  ],
+  "run_name": "latent_fixed_ppmi_d27_untied",
+  "overrides": {
+    "training.model_name": "EqMLatent",
+    "training.epochs": 5,
+    "text8_dataset.max_train_windows": 10000,
+    "embedding.enabled": true,
+    "embedding.d_embed": 27,
+    "embedding.fixed_path": "data/ppmi_svd_d27.pt",
+    "embedding.tie_decoder": false,
+    "eqm.sample_return_best": false,
+    "eqm.ce_min_gamma": 0.0,
+    "eqm.lambda_ce": 1.0
+  }
+}

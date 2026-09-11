@@ -1,0 +1,84 @@
+# AE-scaling sweep — does a bigger / wider / higher-dim-latent autoencoder
+# give the EqM flow a better latent manifold to land on?
+#
+# Each cell defines an AE config; the runner trains the AE, then trains an
+# EqMAE flow model in that latent space (backbone matches the comp_ baselines
+# at d_model=1024, num_layers=8 so the AE-vs-simplex comparison isn't
+# confounded by flow capacity), then runs the recovery diagnostic.
+#
+# Memory budget on the 20 GiB MIG slice (peak per cell):
+#   AE training       — 1-7 GiB depending on cell size
+#   EqMAE training    — 6-12 GiB (frozen AE + trainable backbone + opt state)
+#   recovery_check    — ~6 GiB
+# Run sequentially.
+#
+# All cells use the relative-uniform denoising schedule:
+#   σ_per_batch = U(0, denoising_sigma) * std(z_batch)
+# so the decoder is robust across the *full* clean→noisy spectrum the EqM
+# sampler may produce, and the noise/signal ratio is comparable across
+# AE sizes (z scale differs cell-by-cell). Source σ for the FM x0 is
+# autoscaled per cell by the runner from the trained AE's latent std.
+
+- name: ae_d256_l2_z64
+  ae:
+    d_model: 256
+    num_layers: 2
+    nhead: 4
+    d_latent: 64
+    denoising_schedule: relative_uniform
+    denoising_sigma: 0.5
+    latent_l2: 1.0e-3
+  ae_train:
+    epochs: 5
+    windows: 10000
+    batch_size: 64
+    lr: 3.0e-4
+  eqm_ae_seed: 42
+
+- name: ae_d512_l4_z128
+  ae:
+    d_model: 512
+    num_layers: 4
+    nhead: 8
+    d_latent: 128
+    denoising_schedule: relative_uniform
+    denoising_sigma: 0.5
+    latent_l2: 1.0e-3
+  ae_train:
+    epochs: 5
+    windows: 10000
+    batch_size: 64
+    lr: 3.0e-4
+  eqm_ae_seed: 42
+
+- name: ae_d1024_l6_z256
+  ae:
+    d_model: 1024
+    num_layers: 6
+    nhead: 8
+    d_latent: 256
+    denoising_schedule: relative_uniform
+    denoising_sigma: 0.5
+    latent_l2: 1.0e-3
+  ae_train:
+    epochs: 5
+    windows: 10000
+    batch_size: 64
+    lr: 3.0e-4
+  eqm_ae_seed: 42
+
+- name: ae_d1024_l8_z512
+  ae:
+    d_model: 1024
+    num_layers: 8
+    nhead: 8
+    d_latent: 512
+    denoising_schedule: relative_uniform
+    denoising_sigma: 0.5
+    latent_l2: 1.0e-3
+  ae_train:
+    epochs: 5
+    windows: 10000
+    batch_size: 64
+    lr: 3.0e-4
+  eqm_ae_seed: 42

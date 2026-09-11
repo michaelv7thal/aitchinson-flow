@@ -1,0 +1,36 @@
+{
+  "rows": [
+    {
+      "mode": "recovery",
+      "alpha": 0.1,
+      "sigma_perturb": 0.8575154304504395,
+      "KL_bi_slots": 10.835258483886719,
+      "slot_acc": 0.6083333492279053,
+      "slot_acc_perturbed": 0.6080729365348816
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.3,
+      "sigma_perturb": 2.572546291351318,
+      "KL_bi_slots": 14.652345657348633,
+      "slot_acc": 0.21328124403953552,
+      "slot_acc_perturbed": 0.21328124403953552
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.5,
+      "sigma_perturb": 4.287577152252197,
+      "KL_bi_slots": 14.459342956542969,
+      "slot_acc": 0.10729166865348816,
+      "slot_acc_perturbed": 0.10729166865348816
+    },
+    {
+      "mode": "recovery",
+      "alpha": 1.0,
+      "sigma_perturb": 8.575154304504395,
+      "KL_bi_slots": 14.397979736328125,
+      "slot_acc": 0.04401041567325592,
+      "slot_acc_perturbed": 0.04401041567325592
+    }
+  ]
+}

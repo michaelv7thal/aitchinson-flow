@@ -1,0 +1,92 @@
+[W1] NFE sweep over Euler sampler
+ckpt=eqm_data50k_ep5_v2/epoch_final.pt  epoch=5  step=3910  KL_uni=0.0890  KL_bi=1.7722  KL_tri=6.1421  H_ratio=0.925  |∇E|gen/gt=3.876/0.103
+samples:
+  'fa reryt e nt anoiiohhrn hbitnmrnf fuasr'
+  'ia hea  eo nt w  nit he thnerumrtroesanr'
+  'ia faonl lnn tyurnei haeeh a imre o tssr'
+  'he enra  nane y ainthlir hon emrt tftsat'
+  'hr nerteiraneaw lneehlihnh i  stnu fdsrc'
+  'aa oerte  ent ynai  hscr hsslpmr ev os o'
+  'ho neaot  aneiyfoitihwehehtsgemreat ot o'
+  'he mlroa  ant i aentahi chnneumrti cns f'
+wrote runs/eqm_data50k_ep5_v2/eval_euler_nfe32.json
+ckpt=eqm_data50k_ep5_v2/epoch_final.pt  epoch=5  step=3910  KL_uni=0.0882  KL_bi=1.7627  KL_tri=6.1560  H_ratio=0.926  |∇E|gen/gt=3.786/0.103
+samples:
+  'h  eetfi vnro yncni hlenth agnmcoaengsra'
+  'to eelm  lanewwnai ahst nhieg mrnwu tsan'
+  'ea aebtr roneey iitnhhe ehoieumrtagcaont'
+  'ho inryn nratny ane htanehni teraoant n '
+  'ta io n  benrwyn ini  nrnh ie mrt nftovi'
+  'is  arae e nniynai ohhnr haae mrte  bsno'
+  'aa gartn b no rnunnthhl ehoelomttec ona '
+  'ie ee re  nnt yndia hhoi hdetemrndofossg'
+wrote runs/eqm_data50k_ep5_v2/eval_euler_nfe64.json
+ckpt=eqm_data50k_ep5_v2/epoch_final.pt  epoch=5  step=3910  KL_uni=0.0877  KL_bi=1.6914  KL_tri=6.1122  H_ratio=0.932  |∇E|gen/gt=3.738/0.103
+samples:
+  'he tert  d nenweaiyyhhahnhtartmrtrn nsas'
+  'ro ga oticent yzoiii hn  h aenmt noensns'
+  'ho no  z inno ilnnir tarnhoaewmri  odoal'
+  'hn naaye ognecy oi  hhnenhws  srnof glse'
+  'in goa d iana ynoiie hcnnhise mrn  csiar'
+  'ho gtll  nnra ytnilthhn ahbie nrtiecta e'
+  'ha ierieaunne y ciatehn thoa umm  snttaa'
+  'he iablmluannaytaniehhn  hti dmotcecoose'
+wrote runs/eqm_data50k_ep5_v2/eval_euler_nfe128.json
+ckpt=eqm_data50k_ep5_v2/epoch_final.pt  epoch=5  step=3910  KL_uni=0.0800  KL_bi=1.6823  KL_tri=5.9815  H_ratio=0.932  |∇E|gen/gt=3.703/0.103
+samples:
+  'h    lih nont mtonnt sn ehda cmre  crarn'
+  'h  gerte dein ynbneehhnhnhbfhrmrtda tsno'
+  'ne realmlbant y  liihhan hvaeomrnfg tsan'
+  'ia iwaee rann ynons ehoeahiml mr   co nt'
+  'ii eiroe o nony aaaghhe cho  fmrtaofbsnn'
+  'ic getl  nann ha isihhmrehneetmrso rt n '
+  'ha ioaei o ntnwaoinrhynt h aldmri acosnr'
+  'na ee i czano yzgne ihe ehoilimr  tfas o'
+wrote runs/eqm_data50k_ep5_v2/eval_euler_nfe200.json
+[W1] sigma_init sweep at NFE=128
+ckpt=eqm_data50k_ep5_v2/epoch_final.pt  epoch=5  step=3910  KL_uni=0.2291  KL_bi=2.6247  KL_tri=7.6774  H_ratio=0.839  |∇E|gen/gt=3.876/0.103
+samples:
+  'ie eir e oantny onithhenchose mr  o tsan'
+  'io eaaye nhno ynoiithhahnhailemrt o na t'
+  'i   e ym n ne y oiiihtornhaarpmrt  ftann'
+  'hg eeai  t ne y oiiehhe nhnss mrt   tnnn'
+  'ho etate ohne itaiinhhe  hdil mrn ofoont'
+  'hi eorte nane y  iithhe eh slemrta  nsn '
+  'ie ea  e i ne y oinihhnr haeetmref fooao'
+  'h  eaaye een  y ennihhnrehoil mrt o asnn'
+wrote runs/eqm_data50k_ep5_v2/eval_euler_sigma0.05.json
+ckpt=eqm_data50k_ep5_v2/epoch_final.pt  epoch=5  step=3910  KL_uni=0.0841  KL_bi=1.7512  KL_tri=6.0569  H_ratio=0.929  |∇E|gen/gt=3.722/0.103
+samples:
+  'to netoenu nnwy oiisgttrthlie mt  ofna n'
+  'hd meoye n n  yaaiis hcaehtieemrti cns t'
+  'e  cgiet nino a enaahnennhstl ntc m oaar'
+  'ia eauolrtiao ya ei hhnsehoacn rt ocoant'
+  'ho  onte tenetw oeeaehnrchaaltmgidea stl'
+  'he iaate  an ni  niihhc  hosefmgtd cta o'
+  'nc eabte  ine y omighheb hneermr aocdenn'
+  'to netroiuine ialryu her hoir mtg o oino'
+wrote runs/eqm_data50k_ep5_v2/eval_euler_sigma0.1.json
+ckpt=eqm_data50k_ep5_v2/epoch_final.pt  epoch=5  step=3910  KL_uni=0.0565  KL_bi=1.3845  KL_tri=6.4679  H_ratio=1.045  |∇E|gen/gt=3.530/0.103
+samples:
+  'fo vfausoubntcnnucgi gngdhosb cc raceava'
+  'euanhla wuynmgo timolalmehac wfrapoxritr'
+  'ht mrrmehhur manag oobaa hcamtsrtncfoea '
+  ' oaogeyiavonesgctli puakc  eg lla tbtaap'
+  'pc  lgkm uaalmwttsntagbl asvne mddiluoia'
+  'ho n wll gtcgcpea aoadtschcacnt oatypgan'
+  'ogtganufvstn u qoaltbhp ezu etcrsw laosa'
+  ' v rbtondghndtcobpig wcsmh bv irrcs asbs'
+wrote runs/eqm_data50k_ep5_v2/eval_euler_sigma0.3.json
+[W1] conservative-grad ablation (Euler integrator, ∇⟨x,f⟩ instead of raw f)
+ckpt=eqm_data50k_ep5_v2/epoch_final.pt  epoch=5  step=3910  KL_uni=0.0343  KL_bi=1.3913  KL_tri=5.7632  H_ratio=0.993  |∇E|gen/gt=4.595/0.103
+samples:
+  'h  eidlzcwcn  oiasir eenui llfprnmeeir  '
+  'iafntly  ehnnnenoeiogwornhkt dnriln tt r'
+  'taeeaul  e oilytonsolaorsa cg  r onesrtn'
+  'laerarlt xantcgzbn satte hmeleir nofas r'
+  'hi otiyawn ta r uiirttef hoahwew te dota'
+  'lcbedrle vane wntrie  beehp  oetnrunusnt'
+  'haneetkm teiluiloirihhafyhlvinoogwo to t'
+  'lgnsanyretrtoapnbnhiihu  htilp rad  aoar'
+wrote runs/eqm_data50k_ep5_v2/eval_euler_usegrad.json
+[W1] DONE

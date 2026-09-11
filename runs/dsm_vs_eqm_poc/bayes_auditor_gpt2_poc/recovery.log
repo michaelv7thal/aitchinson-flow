@@ -1,0 +1,9 @@
+=== Recovery from perturbation (product-GP, slot-level) ===
+  K=64  L=64  n_val=60  feature_norm=8.5752
+  α   σ_perturb    KL_bi    slot_acc  slot_acc_perturbed
+   0.10      0.858  10.8353   0.6083    0.6081
+   0.30      2.573  14.6523   0.2133    0.2133
+   0.50      4.288  14.4593   0.1073    0.1073
+   1.00      8.575  14.3980   0.0440    0.0440
+
+Wrote runs/dsm_vs_eqm_poc/bayes_auditor_gpt2_poc/recovery.json

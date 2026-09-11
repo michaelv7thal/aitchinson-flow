@@ -1,0 +1,29 @@
+{
+  "model_name": "EqMAE",
+  "model_class": "EqMAE",
+  "L": 256,
+  "epoch": 10,
+  "n_samples": 256,
+  "sample_steps": 200,
+  "split": "test",
+  "KL_uni": 0.059738244861364365,
+  "KL_bi": 2.6118528842926025,
+  "KL_tri": 5.957208156585693,
+  "H_gen": 2.58105731010437,
+  "H_gt": 2.8561434745788574,
+  "H_ratio": 0.9036861534012925,
+  "per_pos_entropy": 2.4563610553741455,
+  "bpc": null,
+  "generation_metric_valid": false,
+  "collapsed": false,
+  "samples": [
+    "amiyhkee mni n    reien e kbe r  ea ttrum p dt as rais  n aike ts tntreie  tap ria          oewttemt tnmieea    e  nxuieie m tos noteiaenhas odacguem  csa s m sca  bvtnii  yenni ibam    a i    yef   n ii   eldg nitq  heseoea mma  eroieoetmnsta  tn   n ecat",
+    "sir triie ni foeeaeay  nesnp ne eiar h t oehithtainmo eaiao  e itaiscastnasim s e l ttns moastate iarnl r loieheuettae hp  mai risoaie r  hbidooiar tft b racnilietedicdi    rofornc ktgae e  nn ng estnedtttc he  nane etrosies lae  eaotrhsrea oiea  nrooi h e",
+    "ta e  it trr  not heacn s  ot r r e     rvtppy u am ann ohdr emw  e al hut  eg aise etr r seah    rletsniheg  i mgihhos   mtbnmnilemvtvae ahmmreemmngt tnason oisah v k aeee rsnoaoreaie sielie ae bl  diln tbstcratitresek ateg gwsa nmdl hern  g onenhr  r hhn",
+    "hlteanf mshsayev   mrorerh ho r i au  le  anetnfieca tvtneatter  nlatsvir noeoae   reeve th re  ioe gmarm  tsu a m ne tnbcre t us dhoisaioa  srh i t e e   s  som th t r  g  yri ahctmbetm te fsae cik bnt e s  a  i ethoafll eens sea teim  c  eboro   ncmae ek",
+    "  haeho n  fermuaere  i  g hensl  nrim  hernr hedsenn n  richiyeon oaenm sn iatritmtvsnumiu ri   irtaa nsn leatir  nce c  istc  nhhtpfdonmne hsiegrs tvb v nd s agsfritr otaod oahie a ear miem tte  asscr eee dcouod fa  nea  ep pua awpi h itieae  emir   oano",
+    "a utaartnidot okehuesaa  le  netqctiy  seee ini s  ehpntet aeri   o  den ci eeaenos  tn  wemo frreetsu ne i ueacinteos   snteldiri ttaecnser oawai    iie  arlavrtn   o ritinsna acoah o aartg zscnceft a elsoepn aaemegmoeiae   d ehgilnad  osephirhshs tc  noe",
+    "nicse   o estltnt  ayene  osunc i eo iee haear  nm trn tmit  spheeos v  m otfi  nos ei aep eneo e isr  rsne rvs  iserlt trlnmi glg nt  gttrvacrw t  ne oi et  hthaatfa ei oript  tc   at  tm i e  iethaacae d smtevnetmpetioimeesieo oor n   mawse e e   o kai  ",
+    "  ea e oisr o  a   e tnae r gu esttiisase a yl tpa fsa a idcoe ds osi ehoe vstt oa itrmtwsi sei tohue  nrtf  le acievcihrglehobdns stvauvpki hto y n a cs vhefe enrmtfaenui m ren ctsknss t   i oonhrkuha hran ctsrgi m et e eersg rn eiof  toeue ueetae f ed  t"
+  ]
+}

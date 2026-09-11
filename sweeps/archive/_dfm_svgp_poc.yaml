@@ -1,0 +1,47 @@
+# DirichletFMSvgp POC. Stage 1 is the standard Stark et al. 2024 DFM
+# training; Stage 2 is the post-hoc SVGP fit (call scripts/fit_dfm_svgp.py
+# on epoch_final.pt afterwards).
+#
+# Flash attention is enabled automatically — DFM is CE-on-denoiser, no
+# second-order autograd needed.
+
+- name: dfm_svgp_poc
+  overrides:
+    training.model_name: DirichletFMSvgp
+    training.epochs: 20
+    training.seed: 42
+    training.lr: 0.0003
+    training.scheduler_warmup_epochs: 1
+    training.cosine_t_max_epochs: 20
+    training.B: 64
+    training.L: 40
+    training.K: 27
+    training.sample_eval_n: 32
+    training.sample_eval_every: 5
+    text8_dataset.batch_size: 64
+    text8_dataset.L: 40
+    text8_dataset.K: 27
+    text8_dataset.max_train_windows: 10000
+    text8_dataset.variable_length: false
+    transformation.label_smoothing: 0.0001
+    transformation.dirichlet_sampling: false
+    transformer.d_model: 1024
+    transformer.num_layers: 8
+    transformer.nhead: 8
+    transformer.d_latent: 64
+    dirichlet_fm.t_max: 8.0
+    dirichlet_fm.dropout: 0.1
+    dirichlet_fm.sample_nfe: 100
+    # SVGP / OOD config
+    dfm_svgp.pooling: "mean"
+    dfm_svgp.d_embed: 256
+    dfm_svgp.n_inducing: 128
+    dfm_svgp.kernel: "matern52"
+    dfm_svgp.t_eval: 4.5
+    dfm_svgp.n_pos: 4000
+    dfm_svgp.neg_strategy: "scrambled"
+    dfm_svgp.neg_per_pos_ratio: 1.0
+    dfm_svgp.n_iters: 200
+    dfm_svgp.lr: 0.01
+    dfm_svgp.train_pooler_with_dfm: false
+    wandb.enabled: false

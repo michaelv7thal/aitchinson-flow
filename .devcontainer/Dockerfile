@@ -32,9 +32,9 @@ RUN mkdir -p /opt/vscodium && \
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 # ── Environment & Python Setup ──────────────────────────────────────────────
-# Pin interpreter: PyTorch wheels target specific ABIs (cp311–cp313); uv would
-# otherwise pick the newest CPython allowed by requires-python (e.g. 3.14).
-ENV UV_PYTHON=3.11
+# Pin interpreter: PyTorch wheels target specific ABIs; must match
+# requires-python (>=3.13) and .python-version.
+ENV UV_PYTHON=3.13
 ENV UV_PROJECT_ENVIRONMENT=/opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 ENV TORCH_ATTENTION_BACKEND=math
@@ -44,20 +44,11 @@ ENV TOKENIZERS_PARALLELISM=false
 WORKDIR /tmp/build
 COPY pyproject.toml uv.lock ./
 
-# Repo commits cu130 (local Blackwell). For this CUDA 12.4 image: patch indices,
-# regenerate uv.lock in-tree (does not change the host’s committed lockfile),
-# then frozen sync matches the patched pyproject.
-RUN grep -q 'pytorch-cu130\|whl/cu130' pyproject.toml || \
-        { echo "ERROR: Expected cu130 index marker not found in pyproject.toml — nothing to patch."; exit 1; } && \
-    sed -i 's|pytorch-cu130|pytorch-cu124|g; s|whl/cu130|whl/cu124|g' pyproject.toml && \
-    uv lock && \
-    echo "==> Patched pyproject.toml to cu124 and wrote image-local uv.lock" && \
-    grep -E 'pytorch-cu|whl/cu' pyproject.toml || true
-
-# FIX #3: Lockfile above matches patched pyproject; --frozen skips a second solve.
-# Create the venv in /opt/venv so it's persistent and separate from /home/renku.
+# Sync against the committed lockfile exactly (pyproject declares no custom
+# torch index and no dependency groups; an earlier cu130-patch block here
+# guarded on a marker that never existed and aborted every build).
 RUN uv venv /opt/venv && \
-    uv sync --frozen --group dev --no-install-project
+    uv sync --frozen --no-install-project
 
 # Clean up the temporary build directory
 RUN rm -rf /tmp/build

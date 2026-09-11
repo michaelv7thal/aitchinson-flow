@@ -1,0 +1,134 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[ref-lm] loading HuggingFace 'gpt2' for spilled-energy reference …
+`torch_dtype` is deprecated! Use `dtype` instead!
+Loading weights:   0%|          | 0/148 [00:00<?, ?it/s]Loading weights: 100%|██████████| 148/148 [00:00<00:00, 5026.90it/s]
+[ref-lm] gpt2 clean per-char NLL mean = 1.6468
+[skip] DFM_SVGP: no checkpoint and auto-train failed/disabled
+[skip] SFLM_SVGP: no checkpoint and auto-train failed/disabled
+
+==============================================================================================================
+(0) GENERATION  —  reconstruction NLL (per-arm).  ⚠ bpc≈0 for arms whose bpd() reads the input through .encode()→.decode_to_logprobs() (SFLM/EqM/EqM_OneHot/EqMLatent) — that path is essentially identity; the calibrated reference for text8 char-NLL is the gpt2_baseline row below.  E_clean is each EBM's own energy head.
+    (text8: BPB ≡ BPC since each token is one ASCII byte)
+==============================================================================================================
+model              PPL       BPB       BPC     E_clean
+gpt2_baseline       nan       nan       nan           —
+SFLMEBM          1.345     0.428     0.428    -118.131
+SFLMEBM_FM       1.166     0.222     0.222     -74.190
+EqM              1.000     0.000     0.000   -3437.859
+EqM_OneHot       1.000     0.000     0.000    -882.803
+EqMLatent        1.004     0.005     0.005    -105.277
+SFLM             1.022     0.031     0.031           —
+DirichletFM      1.286     0.363     0.363           —
+DFM              8.125     3.022     3.022           —
+
+====================================================================================
+(1a) SEQ-LEVEL spilled-energy AUROC under reference LM (gpt2) — clean vs subst_*; 0.5=chance, 1=perfect.  This is THE external OOD baseline; the per-arm sections below (model.energy, SVGP) should be compared against this row.
+====================================================================================
+model          s0.1   s0.2   s0.3   s0.4   s0.5   s0.6   s0.7   s0.8   s0.9   s1.0
+gpt2_baseline  0.969  1.000  1.000  1.000  1.000  1.000  1.000  1.000  1.000  1.000
+
+====================================================================================
+(1b) SEQ-LEVEL spilled-energy AUROC under reference LM (gpt2) — clean vs shuffle_*
+====================================================================================
+model         sh0.1  sh0.2  sh0.3  sh0.4  sh0.5  sh0.6  sh0.7  sh0.8  sh0.9  sh1.0
+gpt2_baseline  0.869  0.980  1.000  1.000  1.000  1.000  1.000  1.000  1.000  1.000
+
+=====================
+(1c) SEQ-LEVEL spilled-energy AUROC under reference LM (gpt2) — clean vs rand uniform
+=====================
+model           rnd
+gpt2_baseline  1.000
+
+====================================================================================
+(1d) SEQ-LEVEL ENERGY AUROC RAW (EBMs; subst_*).  Rows <0.5 ⇒ the energy head learned an inverted sign convention — see (1d') for the sign-agnostic version.
+====================================================================================
+model          s0.1   s0.2   s0.3   s0.4   s0.5   s0.6   s0.7   s0.8   s0.9   s1.0
+SFLMEBM       0.713  0.853  0.939  0.975  0.992  0.997  0.998  1.000  1.000  1.000
+SFLMEBM_FM    0.377  0.267  0.174  0.108  0.066  0.045  0.024  0.013  0.006  0.002
+EqM           0.542  0.558  0.600  0.636  0.681  0.690  0.729  0.746  0.775  0.798
+EqM_OneHot    0.635  0.744  0.822  0.878  0.918  0.935  0.930  0.895  0.834  0.736
+EqMLatent     0.543  0.616  0.650  0.706  0.736  0.805  0.828  0.860  0.906  0.936
+
+====================================================================================
+(1d') SEQ-LEVEL ENERGY AUROC SIGN-AGNOSTIC = max(raw, 1−raw); this is the discriminative power independent of sign convention.
+====================================================================================
+model          s0.1   s0.2   s0.3   s0.4   s0.5   s0.6   s0.7   s0.8   s0.9   s1.0
+SFLMEBM       0.713  0.853  0.939  0.975  0.992  0.997  0.998  1.000  1.000  1.000
+SFLMEBM_FM    0.623  0.733  0.826  0.892  0.934  0.955  0.976  0.987  0.994  0.998
+EqM           0.542  0.558  0.600  0.636  0.681  0.690  0.729  0.746  0.775  0.798
+EqM_OneHot    0.635  0.744  0.822  0.878  0.918  0.935  0.930  0.895  0.834  0.736
+EqMLatent     0.543  0.616  0.650  0.706  0.736  0.805  0.828  0.860  0.906  0.936
+
+====================================================================================
+(1e) SEQ-LEVEL ENERGY AUROC RAW (EBMs; shuffle_*)
+====================================================================================
+model         sh0.1  sh0.2  sh0.3  sh0.4  sh0.5  sh0.6  sh0.7  sh0.8  sh0.9  sh1.0
+SFLMEBM       0.495  0.494  0.504  0.499  0.496  0.492  0.497  0.503  0.490  0.495
+SFLMEBM_FM    0.501  0.499  0.496  0.512  0.499  0.500  0.500  0.496  0.492  0.492
+EqM           0.506  0.498  0.506  0.504  0.495  0.504  0.496  0.503  0.501  0.505
+EqM_OneHot    0.502  0.504  0.509  0.510  0.516  0.530  0.509  0.516  0.520  0.520
+EqMLatent     0.493  0.486  0.481  0.483  0.511  0.501  0.502  0.495  0.486  0.507
+
+====================================================================================
+(1e') SEQ-LEVEL ENERGY AUROC SIGN-AGNOSTIC (shuffle_*)
+====================================================================================
+model         sh0.1  sh0.2  sh0.3  sh0.4  sh0.5  sh0.6  sh0.7  sh0.8  sh0.9  sh1.0
+SFLMEBM       0.505  0.506  0.504  0.501  0.504  0.508  0.503  0.503  0.510  0.505
+SFLMEBM_FM    0.501  0.501  0.504  0.512  0.501  0.500  0.500  0.504  0.508  0.508
+EqM           0.506  0.502  0.506  0.504  0.505  0.504  0.504  0.503  0.501  0.505
+EqM_OneHot    0.502  0.504  0.509  0.510  0.516  0.530  0.509  0.516  0.520  0.520
+EqMLatent     0.507  0.514  0.519  0.517  0.511  0.501  0.502  0.505  0.514  0.507
+
+=====================
+(1f) SEQ-LEVEL ENERGY AUROC RAW (EBMs; rand)
+=====================
+model           rnd
+SFLMEBM       1.000
+SFLMEBM_FM    0.004
+EqM           0.793
+EqM_OneHot    0.769
+EqMLatent     0.927
+
+=====================
+(1f') SEQ-LEVEL ENERGY AUROC SIGN-AGNOSTIC (rand)
+=====================
+model           rnd
+SFLMEBM       1.000
+SFLMEBM_FM    0.996
+EqM           0.793
+EqM_OneHot    0.769
+EqMLatent     0.927
+
+====================================================================================
+(2a) PER-POSITION spilled-energy AUROC under reference LM (gpt2) — changed vs unchanged positions, subst_*.  Subst at rate 1.0 has no clean positions ⇒ entry absent.
+====================================================================================
+model          s0.1   s0.2   s0.3   s0.4   s0.5   s0.6   s0.7   s0.8   s0.9   s1.0
+gpt2_baseline  0.859  0.783  0.738  0.694  0.655  0.624  0.592  0.571  0.542    nan
+
+====================================================================================
+(2b) PER-POSITION spilled-energy AUROC under reference LM (gpt2) — shuffle_*
+====================================================================================
+model         sh0.1  sh0.2  sh0.3  sh0.4  sh0.5  sh0.6  sh0.7  sh0.8  sh0.9  sh1.0
+gpt2_baseline  0.858  0.763  0.707  0.656  0.613  0.594  0.552  0.550  0.523  0.528
+
+====================================================================================
+(2c) PER-POSITION ‖∇E‖ AUROC (EBMs; subst_*)
+====================================================================================
+model          s0.1   s0.2   s0.3   s0.4   s0.5   s0.6   s0.7   s0.8   s0.9   s1.0
+SFLMEBM       0.583  0.576  0.571  0.565  0.555  0.548  0.543  0.535  0.543    nan
+SFLMEBM_FM    0.731  0.725  0.716  0.701  0.693  0.682  0.664  0.656  0.644    nan
+EqM           0.383  0.391  0.388  0.392  0.386  0.382  0.377  0.375  0.371    nan
+EqM_OneHot    0.668  0.670  0.682  0.681  0.678  0.671  0.659  0.656  0.649    nan
+EqMLatent     0.754  0.756  0.755  0.754  0.756  0.756  0.755  0.757  0.758    nan
+
+====================================================================================
+(2d) PER-POSITION ‖∇E‖ AUROC (EBMs; shuffle_*)
+====================================================================================
+model         sh0.1  sh0.2  sh0.3  sh0.4  sh0.5  sh0.6  sh0.7  sh0.8  sh0.9  sh1.0
+SFLMEBM       0.500  0.518  0.509  0.518  0.505  0.506  0.509  0.522  0.530  0.534
+SFLMEBM_FM    0.519  0.514  0.514  0.532  0.521  0.527  0.516  0.540  0.556  0.612
+EqM           0.512  0.500  0.502  0.500  0.510  0.504  0.508  0.496  0.502  0.518
+EqM_OneHot    0.497  0.498  0.504  0.515  0.513  0.503  0.509  0.516  0.537  0.553
+EqMLatent     0.522  0.520  0.516  0.534  0.521  0.534  0.527  0.553  0.573  0.640
+
+Wrote runs/sflm_bench_a100_20g_gridsweep_v2/bench.json

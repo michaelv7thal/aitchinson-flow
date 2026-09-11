@@ -1,0 +1,63 @@
+{
+  "rows": [
+    {
+      "mode": "unconditional",
+      "alpha": null,
+      "KL_uni": 0.06079937517642975,
+      "KL_bi": 1.9174902439117432,
+      "KL_tri": 8.380327224731445,
+      "H_gen": 3.022543430328369,
+      "samples": [
+        "y  tevaifdiiplrnuen rokgkhthoys chtr gll",
+        "edakte hdgrnosehdmfozet nmannec elaw brt",
+        "elntw n cel c zea op ghrnetsrlleoatxsc m",
+        "thst wdwpn hitjrw k nijn ssi lrndkddvbt "
+      ]
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.05,
+      "sigma_perturb": 0.1737277388572693,
+      "KL_bi": 0.1463809460401535,
+      "token_acc": 0.9955078363418579,
+      "gt_sample0": "e the capital of one government after an",
+      "rc_sample0": "e the capital of one government after an"
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.1,
+      "sigma_perturb": 0.3474554777145386,
+      "KL_bi": 0.13111132383346558,
+      "token_acc": 0.9969726800918579,
+      "gt_sample0": "e the capital of one government after an",
+      "rc_sample0": "e the capital of one government after an"
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.2,
+      "sigma_perturb": 0.6949109554290772,
+      "KL_bi": 0.12313024699687958,
+      "token_acc": 0.991894543170929,
+      "gt_sample0": "e the capital of one government after an",
+      "rc_sample0": "e the capital of one government after an"
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.5,
+      "sigma_perturb": 1.7372773885726929,
+      "KL_bi": 1.7118008136749268,
+      "token_acc": 0.531933605670929,
+      "gt_sample0": "e the capital of one government after an",
+      "rc_sample0": "eithu oagibaliof one gpaetyiamtfaftor an"
+    },
+    {
+      "mode": "recovery",
+      "alpha": 1.0,
+      "sigma_perturb": 3.4745547771453857,
+      "KL_bi": 3.1197144985198975,
+      "token_acc": 0.21523436903953552,
+      "gt_sample0": "e the capital of one government after an",
+      "rc_sample0": "zlna fcdeimsfkoftfngljowirndmeuprnpir ah"
+    }
+  ]
+}

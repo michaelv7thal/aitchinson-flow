@@ -1,0 +1,136 @@
+
+=== detection + latent: bench_ood -> bench_ood_final
+    bgmm/bgmm_perpos_sweep.json                           7037 fields,  4531 moved, max|d|=14157.0000
+        .rows[18].prf_token.prf.0.1.tp: 18296.0000 -> 32453.0000  (+14157.0000)
+        .rows[18].prf_token.prf.0.1.fn: 42161.0000 -> 28004.0000  (-14157.0000)
+        .rows[26].prf_token.prf.0.1.tp: 10803.0000 -> 22321.0000  (+11518.0000)
+    blr/bayes_linear_sweep.json                           6978 fields,  4508 moved, max|d|=2747.0000
+        .rows[22].prf_token.prf.0.1.fp: 19845.0000 -> 22592.0000  (+2747.0000)
+        .rows[6].prf_token.prf.0.1.fp: 17616.0000 -> 20353.0000  (+2737.0000)
+        .rows[18].prf_token.prf.0.1.tp: 51182.0000 -> 53688.0000  (+2506.0000)
+    blr_adv/bayes_linear_adv_sweep.json                   6978 fields,  4691 moved, max|d|=3252.0000
+        .rows[18].prf_token.prf.0.1.tp: 46206.0000 -> 49458.0000  (+3252.0000)
+        .rows[18].prf_token.prf.0.1.fn: 14251.0000 -> 10999.0000  (-3252.0000)
+        .rows[18].prf_token.prf.0.05.tp: 40493.0000 -> 43329.0000  (+2836.0000)
+    blr_fi/bayes_linear_fi_sweep.json                     6978 fields,  4715 moved, max|d|=11100.0000
+        .rows[27].prf_token.prf.0.01.tp: 51045.0000 -> 39945.0000  (-11100.0000)
+        .rows[27].prf_token.prf.0.01.fn: 12158.0000 -> 23258.0000  (+11100.0000)
+        .rows[26].prf_token.prf.0.01.tp: 41089.0000 -> 34073.0000  (-7016.0000)
+    gpt2_nll/gpt2_nll_sweep.json                          9175 fields, IDENTICAL
+    gpt2_se/gpt2_spilled_energy_sweep.json                9175 fields, IDENTICAL
+    latent_ladder/rate_0.05/latent_split.json               26 fields,    18 moved, max|d|=0.1078
+        .per_token.shuffle.energy_axis_auroc: 0.8115 -> 0.9193  (+0.1078)
+        .per_sequence.shuffle.pca_pc12_probe_auroc: 0.5345 -> 0.6036  (+0.0691)
+        .per_sequence.replace.pca_pc12_probe_auroc: 0.5430 -> 0.5950  (+0.0520)
+    latent_ladder/rate_0.1/latent_split.json                26 fields,    18 moved, max|d|=0.1194
+        .per_sequence.shuffle.pca_pc12_probe_auroc: 0.5700 -> 0.6895  (+0.1194)
+        .per_sequence.replace.pca_pc12_probe_auroc: 0.5861 -> 0.6957  (+0.1096)
+        .per_token.shuffle.energy_axis_auroc: 0.8338 -> 0.9276  (+0.0938)
+    latent_ladder/rate_0.15/latent_split.json               26 fields,    16 moved, max|d|=0.1692
+        .per_sequence.shuffle.pca_pc12_probe_auroc: 0.6046 -> 0.7738  (+0.1692)
+        .per_sequence.replace.pca_pc12_probe_auroc: 0.6395 -> 0.7853  (+0.1458)
+        .per_token.shuffle.energy_axis_auroc: 0.8506 -> 0.9387  (+0.0881)
+    latent_ladder/rate_0.2/latent_split.json                26 fields,    15 moved, max|d|=0.1996
+        .per_sequence.shuffle.pca_pc12_probe_auroc: 0.6439 -> 0.8435  (+0.1996)
+        .per_sequence.replace.pca_pc12_probe_auroc: 0.6875 -> 0.8508  (+0.1634)
+        .per_token.shuffle.energy_axis_auroc: 0.8730 -> 0.9511  (+0.0781)
+    latent_ladder/rate_0.25/latent_split.json               26 fields,    14 moved, max|d|=0.2123
+        .per_sequence.shuffle.pca_pc12_probe_auroc: 0.6723 -> 0.8846  (+0.2123)
+        .per_sequence.replace.pca_pc12_probe_auroc: 0.7377 -> 0.9013  (+0.1636)
+        .per_token.shuffle.energy_axis_auroc: 0.8821 -> 0.9583  (+0.0763)
+    latent_ladder/rate_0.3/latent_split.json                26 fields,    13 moved, max|d|=0.2064
+        .per_sequence.shuffle.pca_pc12_probe_auroc: 0.7159 -> 0.9223  (+0.2064)
+        .per_sequence.replace.pca_pc12_probe_auroc: 0.7912 -> 0.9384  (+0.1472)
+        .per_token.shuffle.energy_axis_auroc: 0.8951 -> 0.9630  (+0.0679)
+    latent_ladder/rate_0.5/latent_split.json                26 fields,    12 moved, max|d|=0.1200
+        .per_sequence.shuffle.pca_pc12_probe_auroc: 0.8693 -> 0.9893  (+0.1200)
+        .per_token.shuffle.energy_axis_auroc: 0.9257 -> 0.9799  (+0.0542)
+        .per_sequence.replace.pca_pc12_probe_auroc: 0.9567 -> 0.9954  (+0.0387)
+    latent_ladder/rate_0.7/latent_split.json                26 fields,    12 moved, max|d|=0.0605
+        .per_sequence.shuffle.pca_pc12_probe_auroc: 0.9375 -> 0.9981  (+0.0605)
+        .per_sequence.falseinfo.pca_pc12_probe_auroc: 0.6361 -> 0.6853  (+0.0492)
+        .per_token.shuffle.energy_axis_auroc: 0.9427 -> 0.9862  (+0.0435)
+    latent_ladder/rate_1.0/latent_split.json                26 fields,    11 moved, max|d|=0.0595
+        .per_sequence.falseinfo.pca_pc12_probe_auroc: 0.6601 -> 0.7196  (+0.0595)
+        .per_token.shuffle.energy_axis_auroc: 0.9463 -> 0.9857  (+0.0393)
+        .per_token.falseinfo.pca_pc12_probe_auroc: 0.5226 -> 0.5557  (+0.0332)
+    latent_ladder_plausible/rate_0.15/latent_split.json     13 fields,     6 moved, max|d|=0.0400
+        .per_sequence.plausible.lda_axis_auroc: 0.8173 -> 0.7773  (-0.0400)
+        .per_token.plausible.energy_axis_auroc: 0.9065 -> 0.8751  (-0.0314)
+        .per_token.plausible.pca_pc12_probe_auroc: 0.6094 -> 0.5933  (-0.0160)
+    latent_null/rate_0.05/latent_split.json                 41 fields,    30 moved, max|d|=0.1078
+        .per_token.shuffle.energy_axis_auroc: 0.8115 -> 0.9193  (+0.1078)
+        .per_sequence.shuffle.pca_pc12_probe_auroc: 0.5345 -> 0.6036  (+0.0691)
+        .per_sequence.replace.pca_pc12_probe_auroc: 0.5430 -> 0.5950  (+0.0520)
+    latent_null/rate_0.3/latent_split.json                  41 fields,    25 moved, max|d|=0.2064
+        .per_sequence.shuffle.pca_pc12_probe_auroc: 0.7159 -> 0.9223  (+0.2064)
+        .per_sequence.replace.pca_pc12_probe_auroc: 0.7912 -> 0.9384  (+0.1472)
+        .per_token.shuffle.energy_axis_auroc: 0.8951 -> 0.9630  (+0.0679)
+    latent_split/latent_split.json                          14 fields,     6 moved, max|d|=0.2064
+        .per_sequence.shuffle.pca_pc12_probe_auroc: 0.7159 -> 0.9223  (+0.2064)
+        .per_sequence.replace.pca_pc12_probe_auroc: 0.7912 -> 0.9384  (+0.1472)
+        .per_sequence.falseinfo.lda_axis_auroc: 0.8758 -> 0.9159  (+0.0401)
+    latent_split_all/latent_split.json                      26 fields,    13 moved, max|d|=0.2064
+        .per_sequence.shuffle.pca_pc12_probe_auroc: 0.7159 -> 0.9223  (+0.2064)
+        .per_sequence.replace.pca_pc12_probe_auroc: 0.7912 -> 0.9384  (+0.1472)
+        .per_token.shuffle.energy_axis_auroc: 0.8951 -> 0.9630  (+0.0679)
+    latent_split_plausible/latent_split.json                13 fields,     6 moved, max|d|=0.0225
+        .per_token.plausible.pca_pc12_probe_auroc: 0.6108 -> 0.5883  (-0.0225)
+        .per_token.plausible.energy_axis_auroc: 0.9294 -> 0.9130  (-0.0164)
+        .per_sequence.plausible.pca_pc12_probe_auroc: 0.6206 -> 0.6053  (-0.0154)
+    nll/denoiser_nll_sweep.json                           6977 fields,  4310 moved, max|d|=11819.0000
+        .rows[7].prf_token.prf.0.05.fp: 14126.0000 -> 25945.0000  (+11819.0000)
+        .rows[18].prf_token.prf.0.05.tp: 41083.0000 -> 52676.0000  (+11593.0000)
+        .rows[18].prf_token.prf.0.05.fn: 19374.0000 -> 7781.0000  (-11593.0000)
+    plausible/plausible_swap.json                         1290 fields,   895 moved, max|d|=168.0000
+        .rows[6].prf_token.prf.0.1.fp: 1238.0000 -> 1406.0000  (+168.0000)
+        .rows[4].prf_token.prf.0.1.fp: 1824.0000 -> 1949.0000  (+125.0000)
+        .rows[7].prf_token.prf.0.1.fp: 2100.0000 -> 2202.0000  (+102.0000)
+    plausible_freqmatched/plausible_swap.json               34 fields,    27 moved, max|d|=5.0000
+        .bgmm_n_effective: 13.0000 -> 18.0000  (+5.0000)
+        .rows[10].token_auroc: 0.7748 -> 0.5582  (-0.2166)
+        .rows[11].token_auroc: 0.6474 -> 0.5249  (-0.1225)
+    transfer/insulin_transfer_gpt2.json                     21 fields,     8 moved, max|d|=0.0325
+        .results.insulin_ood.seq_auroc: 0.8007 -> 0.8333  (+0.0325)
+        .results.insulin_ood.word_auroc_max: 0.8477 -> 0.8771  (+0.0294)
+        .results.text8_indist.seq_auroc: 0.8531 -> 0.8773  (+0.0242)
+
+=== healing: bench_heal -> bench_heal_final
+    bgmm_falseinfo.json                                     76 fields,    48 moved, max|d|=151.0000
+        .sweep[1].n_damaged_total: 843.0000 -> 994.0000  (+151.0000)
+        .sweep[0].n_damaged_total: 335.0000 -> 406.0000  (+71.0000)
+        .sweep[2].n_fixed_total: 81.0000 -> 92.0000  (+11.0000)
+    bgmm_replace.json                                       76 fields,    48 moved, max|d|=1580.0000
+        .sweep[2].n_damaged_total: 3584.0000 -> 5164.0000  (+1580.0000)
+        .sweep[1].n_damaged_total: 1672.0000 -> 2410.0000  (+738.0000)
+        .sweep[0].n_fixed_total: 1791.0000 -> 2497.0000  (+706.0000)
+    blr_falseinfo.json                                      71 fields,    48 moved, max|d|=114.0000
+        .sweep[1].n_damaged_total: 1560.0000 -> 1446.0000  (-114.0000)
+        .sweep[2].n_damaged_total: 2575.0000 -> 2492.0000  (-83.0000)
+        .sweep[0].n_damaged_total: 669.0000 -> 729.0000  (+60.0000)
+    blr_replace.json                                        71 fields,    48 moved, max|d|=784.0000
+        .sweep[2].n_damaged_total: 6247.0000 -> 7031.0000  (+784.0000)
+        .sweep[0].n_fixed_total: 3418.0000 -> 3777.0000  (+359.0000)
+        .sweep[1].n_fixed_total: 3536.0000 -> 3744.0000  (+208.0000)
+    nll_falseinfo.json                                      72 fields,    48 moved, max|d|=353.0000
+        .sweep[2].n_damaged_total: 3835.0000 -> 4188.0000  (+353.0000)
+        .sweep[1].n_damaged_total: 2045.0000 -> 2147.0000  (+102.0000)
+        .sweep[2].n_fixed_total: 278.0000 -> 244.0000  (-34.0000)
+    nll_replace.json                                        72 fields,    48 moved, max|d|=3064.0000
+        .sweep[2].n_damaged_total: 6312.0000 -> 9376.0000  (+3064.0000)
+        .sweep[1].n_damaged_total: 3239.0000 -> 4580.0000  (+1341.0000)
+        .sweep[2].n_fixed_total: 3975.0000 -> 3289.0000  (-686.0000)
+
+=== insulin article: heal_poc_insulin -> heal_poc_insulin_final
+    heal_insulin_poc.json                                  164 fields,   119 moved, max|d|=1305.0000
+        .track_A_sweep[2].n_damaged_total: 3786.0000 -> 5091.0000  (+1305.0000)
+        .track_A_sweep[1].n_damaged_total: 2069.0000 -> 2518.0000  (+449.0000)
+        .track_A_sweep[2].n_fixed_total: 1858.0000 -> 1452.0000  (-406.0000)
+    heal_insulin_poc_bgmm.json                             166 fields,   120 moved, max|d|=1298.0000
+        .track_A_sweep[2].n_damaged_total: 2441.0000 -> 3739.0000  (+1298.0000)
+        .track_A_sweep[1].n_damaged_total: 1207.0000 -> 1601.0000  (+394.0000)
+        .track_A_sweep[2].n_fixed_total: 1329.0000 -> 1067.0000  (-262.0000)
+    heal_insulin_poc_gmm.json                              165 fields,   117 moved, max|d|=251.0000
+        .track_C_sweep[2].n_damaged_total: 697.0000 -> 446.0000  (-251.0000)
+        .track_C_false_info.n_damaged_total: 697.0000 -> 446.0000  (-251.0000)
+        .track_A_sweep[2].n_damaged_total: 507.0000 -> 303.0000  (-204.0000)

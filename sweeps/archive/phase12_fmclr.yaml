@@ -1,0 +1,16 @@
+# Phase 12 — W4 FMonCLR (direct flow matching on CLR features) at the
+# data_50k_ep5 platform.
+#
+# Triangulates the conservative-grad indirection question: if FMonCLR
+# closes the gap to DFM, EqM's ⟨x, f(x)⟩ regression target is the
+# specific culprit. If FMonCLR also stalls near KL_bi=1.4, the issue is
+# the simplex+continuous setup more broadly.
+
+- name: fmclr_data50k_ep5
+  overrides:
+    training.model_name: FMonCLR
+    training.epochs: 5
+    text8_dataset.max_train_windows: 50000
+    eqm.time_conditioning: add  # FMonCLR forces "add" if "off"; explicit here
+    eqm.sampler: euler
+    eqm.euler_nfe: 128

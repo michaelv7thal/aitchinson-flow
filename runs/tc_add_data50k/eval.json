@@ -1,0 +1,32 @@
+{
+  "ckpt": "runs/tc_add_data50k/epoch_final.pt",
+  "model_name": "EqM",
+  "epoch": 5,
+  "global_step": 3910,
+  "n_samples": 256,
+  "sample_steps": 200,
+  "unigram_kl": 1.3236684799194336,
+  "bigram_kl": 4.018162250518799,
+  "trigram_kl": 7.994732856750488,
+  "H_gen": 1.653324842453003,
+  "H_gt": 2.8546600341796875,
+  "H_ratio": 0.5791669840391698,
+  "grad_at_gen": 0.16323994100093842,
+  "grad_at_gt": 0.10515964031219482,
+  "samples": [
+    "adaddd i ra ddr ddiadidddard iat d dd d ",
+    "d d ad dnadaddi ddddddad  taii rrddadi b",
+    " ddd drdx r addd  d diakdrddixadddrid di",
+    "dr d   d dd  drrddidtdaaa tai k dd idrdd",
+    "dad  addd iradddrdiid di  aada r d adddd",
+    "ddnd adddd r   dd iddabr  iiad drxddd a ",
+    "  adiddd idddddcdai daaadd diac dirddidr",
+    " aa rrad taradd d ddddadadid r d iairri "
+  ],
+  "run_name": "tc_add_data50k",
+  "overrides": {
+    "training.epochs": 5,
+    "text8_dataset.max_train_windows": 50000,
+    "eqm.time_conditioning": "add"
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "config": {
+    "base": "data/hallueval_cache_gpt2.pt",
+    "topk": "data/hallueval_topk_gpt2_smoke.pt",
+    "out": "runs/hilbert_uq_gpt2_smoke/",
+    "max_pairs": 100,
+    "val_frac": 0.2,
+    "n_steps": 1500,
+    "batch_size": 128,
+    "lr": 0.0003,
+    "K_topk": 32,
+    "n_traj_steps": 25,
+    "ensemble_M": 4,
+    "seed": 0
+  },
+  "n_train_tokens": 156,
+  "n_val_tokens": 348,
+  "n_val_rows": 40,
+  "token_auroc": {
+    "paper \u0394E (E^\u2113 - E^m)": 0.484773047879844,
+    "U_traj  (Hilbert FM)": 0.7162061239731142,
+    "L_excess (Hilbert FM)": 0.48311343456974526,
+    "U_ensemble (Hilbert FM)": 0.6952949962658701,
+    "-U_spread (Hilbert FM)": 0.42602273670234836
+  },
+  "row_auroc": {
+    "paper \u0394E (E^\u2113 - E^m)": 0.275,
+    "U_traj  (Hilbert FM)": 0.69,
+    "L_excess (Hilbert FM)": 0.425,
+    "U_ensemble (Hilbert FM)": 0.685,
+    "-U_spread (Hilbert FM)": 0.2375,
+    "\u0394E + U_traj  (z-sum)": 0.6525
+  }
+}

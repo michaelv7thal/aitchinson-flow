@@ -1,0 +1,62 @@
+# DirichletFMSvgp Run 2: 50 epochs, larger LR, joint contrastive-hinge
+# training. The SVGP latent mean now acts as a contrastive "energy":
+# small on clean batches, ≥ margin on invalid batches (token_ids_invalid
+# from CorruptingCollate, corrupt_rate=0.15). Pooler + SVGP train jointly
+# with the DFM CE loss — the hinge gradient flows through pooler →
+# backbone, so the encoder learns OOD-discriminative features rather
+# than relying on a random projection + post-hoc fit.
+#
+# Diff vs dfm_svgp_poc (run 1, 20 ep):
+#   training.epochs:           20 → 50
+#   training.lr:               3e-4 → 1e-3
+#   dfm_svgp.lambda_hinge:     0   → 1.0  (NEW joint hinge)
+#   dfm_svgp.margin_energy:    -   → 2.0
+#   dfm_svgp.train_svgp_jointly: false → true
+#   dfm_svgp.hinge_t_eval:     -   → 4.5  (same as t_eval)
+
+- name: dfm_svgp_hinge_poc
+  overrides:
+    training.model_name: DirichletFMSvgp
+    training.epochs: 50
+    training.seed: 42
+    training.lr: 0.001
+    training.scheduler_warmup_epochs: 1
+    training.cosine_t_max_epochs: 50
+    training.B: 64
+    training.L: 40
+    training.K: 27
+    training.sample_eval_n: 32
+    training.sample_eval_every: 10
+    text8_dataset.batch_size: 64
+    text8_dataset.L: 40
+    text8_dataset.K: 27
+    text8_dataset.max_train_windows: 10000
+    text8_dataset.variable_length: false
+    text8_dataset.train_corrupt_rate: 0.15
+    text8_dataset.eval_corrupt_rate: 0.15
+    transformation.label_smoothing: 0.0001
+    transformation.dirichlet_sampling: false
+    transformer.d_model: 1024
+    transformer.num_layers: 8
+    transformer.nhead: 8
+    transformer.d_latent: 64
+    dirichlet_fm.t_max: 8.0
+    dirichlet_fm.dropout: 0.1
+    dirichlet_fm.sample_nfe: 100
+    # SVGP + hinge
+    dfm_svgp.pooling: "mean"
+    dfm_svgp.d_embed: 256
+    dfm_svgp.n_inducing: 128
+    dfm_svgp.kernel: "matern52"
+    dfm_svgp.t_eval: 4.5
+    dfm_svgp.hinge_t_eval: 4.5
+    dfm_svgp.lambda_hinge: 1.0
+    dfm_svgp.margin_energy: 2.0
+    dfm_svgp.train_svgp_jointly: true
+    dfm_svgp.train_pooler_with_dfm: true   # redundant under joint training
+    dfm_svgp.n_pos: 4000
+    dfm_svgp.neg_strategy: "scrambled"
+    dfm_svgp.neg_per_pos_ratio: 1.0
+    dfm_svgp.n_iters: 200
+    dfm_svgp.lr: 0.01
+    wandb.enabled: false

@@ -1,0 +1,21 @@
+DSM sigma-ladder rescaling — uniform ln(27) = 3.2958 is pure noise
+
+cell                              recipe         ladder                       KL_uni    KL_bi   H_gen  acc@.50    D@.50
+dsmx_clr_det                      deterministic  sigma_max=12.3 (NEW)         0.2847   3.5716  3.2396    0.370  -0.1578
+dsmx_clr_dir                      thickened      sigma_max=12.3 (NEW)         0.3514   3.9760  3.2596    0.313  -0.2154
+dsm_clr_ablation/dsm_clr_det      deterministic  sigma_max=1.0 (published)    0.6303   5.7729  3.2947    0.512  -0.0158
+dsm_clr_ablation/dsm_clr_dir      thickened      sigma_max=1.0 (published)    0.6453   5.8393  3.2948    0.511  -0.0174
+
+samples:
+  dsmx_clr_det                       sigma_max=12.3 (NEW)       ercebduficvtft edfivaelmfiezjmrtgaaqbiit
+  dsmx_clr_dir                       sigma_max=12.3 (NEW)       errendtfiavtfo edyivyelzfiezjmrtgjaqbfit
+  dsm_clr_ablation/dsm_clr_det       sigma_max=1.0 (published)  grcky pgahd  mwcyfwvzcaasbewkaxigikgsrki
+  dsm_clr_ablation/dsm_clr_dir       sigma_max=1.0 (published)  grcky pgqhd  mwcyfwvzcaasbewkaxigikgsrki
+
+READ IT LIKE THIS:
+  H_gen near 3.296 means the output is still indistinguishable from uniform noise,
+  i.e. the rescaled ladder did NOT buy generation and the paper's claim stands.
+  A clearly lower H_gen with a lower KL_bi means the rescaled DSM cells DO generate,
+  which would need conclusion.tex:70 and the pointwise-vs-distributional cut revisited.
+  Delta@.50 is now measured inside the trained noise range, so it is informative
+  either way and the caveat sentence in results.tex can go.

@@ -1,0 +1,14 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[latent] ckpt=runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM_converge/epoch_final.pt
+[latent] t_eval=4.5 K=27 fit=192 eval=256 rate=0.3
+[latent] false-info vocab: lengths 2-16 (e.g. len-6: ['ensure', 'action', 'assist', 'safety', 'fitted'])
+[plausible] 192 seqs @ rate 0.3: 2433 slots, 4763s
+[plausible] 256 seqs @ rate 0.3: 3062 slots, 6050s
+[seq:plausible] PCA(PC1-2)=0.605  LDA-axis=0.942  full-linear=0.997  nulls=None / None
+Wrote bench_ood_final/latent_split_plausible/latent_split_sequence.png
+[plausible] 192 seqs @ rate 0.5: 4040 slots, 8103s
+[plausible] 256 seqs @ rate 0.3: 3070 slots, 6202s
+[token:plausible] PCA(PC1-2)=0.588  energy-axis=0.913  full-linear=0.992  nulls=None / None
+Wrote bench_ood_final/latent_split_plausible/latent_split_token_plausible.png
+Wrote bench_ood_final/latent_split_plausible/latent_split.json
+Wrote bench_ood_final/latent_split_plausible/latent_split_coords.npz

@@ -1,0 +1,36 @@
+{
+  "ckpt": "runs/capstone/T/eqm_consgrad_data50k_ep5_lr_5/epoch_final.pt",
+  "model_name": "EqMConsGrad",
+  "epoch": 5,
+  "global_step": 3910,
+  "n_samples": 256,
+  "sample_steps": 200,
+  "sample_kwargs": {},
+  "unigram_kl": 0.009970801882445812,
+  "bigram_kl": 0.3282977342605591,
+  "trigram_kl": 2.036478281021118,
+  "H_gen": 2.7936289310455322,
+  "H_gt": 2.8546600341796875,
+  "H_ratio": 0.978620535404072,
+  "grad_at_gen": NaN,
+  "grad_at_gt": NaN,
+  "samples": [
+    "e lenmok ga zural talooitath zatto te co",
+    "t lorbeunutcofo d ceine osthe  ertivtiib",
+    " ehat aulors alo ts ond dedh sead thenti",
+    "sy ens woont pre wiat aprothesl is ione ",
+    "stte thiominp talliatowy se nety onluos ",
+    "sond  whrive seostimulers wib gulueds a ",
+    " bonis one xzthcose okcalo fencedied ine",
+    " unnntas tustve d ed ofostiu hoo itivtin"
+  ],
+  "run_name": "eqm_consgrad_data50k_ep5_lr_5",
+  "overrides": {
+    "training.model_name": "EqMConsGrad",
+    "training.lr": 0.00025,
+    "training.B": 64,
+    "training.epochs": 5,
+    "text8_dataset.batch_size": 64,
+    "text8_dataset.max_train_windows": 50000
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "SE": {
+    "AUROC1_corrupted_aligned": 0.9675399305555555,
+    "AUROC2_uncorrupted_aligned": 0.6390341676311728,
+    "AUROC3_corrupted_shuffled": 0.9671772135416666,
+    "AUROC4_uncorrupted_shuffled": 0.6382430362654321
+  },
+  "topk_entropy": {
+    "AUROC1_corrupted_aligned": 0.6654812934027778,
+    "AUROC2_uncorrupted_aligned": 0.6316139853395061,
+    "AUROC3_corrupted_shuffled": 0.66786875,
+    "AUROC4_uncorrupted_shuffled": 0.6307280671296296
+  },
+  "linear_probe": {
+    "AUROC1_corrupted_aligned": 0.9658482204861112,
+    "AUROC2_uncorrupted_aligned": 0.7715737702546297,
+    "AUROC3_corrupted_shuffled": 0.9634963541666667,
+    "AUROC4_uncorrupted_shuffled": 0.774247482638889
+  },
+  "blr_laplace": {
+    "AUROC1_corrupted_aligned": 0.883209765625,
+    "AUROC2_uncorrupted_aligned": 0.6935963348765433,
+    "AUROC3_corrupted_shuffled": 0.8768386718750001,
+    "AUROC4_uncorrupted_shuffled": 0.6966290605709877
+  },
+  "svgp": {
+    "AUROC1_corrupted_aligned": 0.8610090277777778,
+    "AUROC2_uncorrupted_aligned": 0.722652522183642,
+    "AUROC3_corrupted_shuffled": 0.8578783420138889,
+    "AUROC4_uncorrupted_shuffled": 0.7235806857638889
+  },
+  "eqm_auditor": {
+    "AUROC1_corrupted_aligned": 0.9936284722222223,
+    "AUROC2_uncorrupted_aligned": 0.9751383584104938,
+    "AUROC3_corrupted_shuffled": 0.9941144097222222,
+    "AUROC4_uncorrupted_shuffled": 0.9748314477237654
+  }
+}

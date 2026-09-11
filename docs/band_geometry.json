@@ -1,0 +1,100 @@
+{
+  "_note": "EXACT constants of docs/band_geometry_theory.md, written by scripts/band_geometry.py --json. Everything here is closed form or 1-D quadrature (scipy.integrate.quad) + Brent inversion (scipy.optimize.brentq); no Monte Carlo, no GPU.",
+  "inputs": {
+    "K": 27,
+    "eps": 0.0001,
+    "sigma": 0.1,
+    "acc": 0.95
+  },
+  "scalars": {
+    "Delta": 12.506080937047429,
+    "x1_norm": 12.272301801216019,
+    "x0_norm": 0.5099019513592785
+  },
+  "gamma_star": {
+    "0.5": {
+      "t_star": 1.9732735542011512,
+      "gamma_star": 0.01553341834546245
+    },
+    "0.95": {
+      "t_star": 3.8399135804719564,
+      "gamma_star": 0.02978969778108423
+    },
+    "0.99": {
+      "t_star": 4.633631340324891,
+      "gamma_star": 0.03572729343624877
+    },
+    "0.999": {
+      "t_star": 5.541609617201205,
+      "gamma_star": 0.04243114071052657
+    }
+  },
+  "decode_at_gamma": {
+    "0.005": 0.11253536438402083,
+    "0.01": 0.2617059162413987,
+    "0.03": 0.9524463796216088,
+    "0.0297897": 0.9500000000000002
+  },
+  "rescale": [
+    {
+      "alpha": 0.3,
+      "gamma_match": 0.025961724290048015,
+      "x_gamma_norm": 0.5900741920570831,
+      "z_alpha_norm": 22.728621006243333,
+      "t": 3.3333333333333335,
+      "decode_A_K": 0.8960509100387631,
+      "driver_g": 0.0237,
+      "driver_rel_err": -0.0871176453759279
+    },
+    {
+      "alpha": 0.5,
+      "gamma_match": 0.015740494727753164,
+      "x_gamma_norm": 0.5377683721459375,
+      "z_alpha_norm": 34.164642309352615,
+      "t": 2.0000000000000004,
+      "decode_A_K": 0.5231093240909452,
+      "driver_g": 0.016,
+      "driver_rel_err": 0.01648647496379415
+    },
+    {
+      "alpha": 0.6,
+      "gamma_match": 0.013151581005039544,
+      "x_gamma_norm": 0.5284469356716207,
+      "z_alpha_norm": 40.181247826335515,
+      "t": 1.666666666666667,
+      "decode_A_K": 0.40271825013936713,
+      "driver_g": 0.01342,
+      "driver_rel_err": 0.020409637051058745
+    },
+    {
+      "alpha": 0.7,
+      "gamma_match": 0.011294002860532672,
+      "x_gamma_norm": 0.5228491067250837,
+      "z_alpha_norm": 46.294401832693,
+      "t": 1.4285714285714286,
+      "decode_A_K": 0.32114780433299533,
+      "driver_g": 0.01165,
+      "driver_rel_err": 0.03152090041621773
+    },
+    {
+      "alpha": 0.8,
+      "gamma_match": 0.009896223500030814,
+      "x_gamma_norm": 0.5192585038101998,
+      "z_alpha_norm": 52.47036951101427,
+      "t": 1.25,
+      "decode_A_K": 0.26482075546903106,
+      "driver_g": 0.01027,
+      "driver_rel_err": 0.03776960978781666
+    },
+    {
+      "alpha": 1.0,
+      "gamma_match": 0.007932679513909404,
+      "x_gamma_norm": 0.515139617816107,
+      "z_alpha_norm": 64.93891716069524,
+      "t": 1.0,
+      "decode_A_K": 0.19521693422259545,
+      "driver_g": 0.0083,
+      "driver_rel_err": 0.046304717774936534
+    }
+  ]
+}

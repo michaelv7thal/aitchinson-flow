@@ -1,0 +1,27 @@
+{
+  "ckpt": "runs/ae_d1024_l8_z512_L80_e15/eqm/epoch_final.pt",
+  "best_of": 8,
+  "n_samples": 256,
+  "sampler": "nag",
+  "sde_alpha": 0.0,
+  "steps": 200,
+  "unigram_kl": 0.010130027309060097,
+  "bigram_kl": 1.3504033088684082,
+  "trigram_kl": 6.331970691680908,
+  "H_gen": 2.884293556213379,
+  "H_gt": 2.8526859283447266,
+  "H_ratio": 1.0110799536516075,
+  "energy_mean_best": -18732.95703125,
+  "energy_mean_all": -18370.638671875,
+  "energy_gap_mean": 362.3199462890625,
+  "samples": [
+    "tnhslsomsmiqyoi r eridtu u   nrrpr ay ooosabancairfirie rr ednvgieuimytrr ti tee",
+    " enlrzhuesiioape aeooos tva  a otdiiofrexenlnodnoieicaearib  wttlcd inmrlnmfna m",
+    "agts upowph   rctdedaelpeduiiitserlth r hplttast bt nti thenaga duwnndotuhmeo sm",
+    "taarnots u flneiaeutheiaocrta rrntrcniuucrinpnhnh  eo cccpl e mbr  siw dwiagfroo",
+    " ihosoilsty ryauns cb oice fmta dertsamu   ia  atn otlptskn altoayailnivfinathre",
+    "sueoolnharedirh r buo ea ltohnttfa edaylei ioeor es letizorszmufeht stthsaawt ct",
+    " iurhsu e u rnosnup sooet nwerslw kyo no ereliesljo rabwioaooilhlmes  ativnatnlm",
+    "wzmihr uenrn doemribtr pe rns otaaan esv tiii ermmganherreso  io nhaorairswarmod"
+  ]
+}

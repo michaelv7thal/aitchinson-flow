@@ -1,0 +1,2414 @@
+{
+  "ckpt": "runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM_converge/epoch_final.pt",
+  "source": "scripts/replay_falseinfo_demo.py",
+  "note": "demo falseinfo corruption of bench_heal_final, seed-0 realization (seed 42+100+0); windows 0-3 verified against nll_falseinfo.json examples",
+  "fit_seqs": 256,
+  "n_demo": 64,
+  "seed": 42,
+  "corrupt_rate": 0.15,
+  "windows": [
+    {
+      "window": 0,
+      "clean": "l clinton during a fundraising event in washington dc october one nine nine six monica samille lewinsky born july two three one nine seven three is an american woman who was thrust into the public limelight after having a sexual affair with u s president b",
+      "corrupted": "l clinton during a fundraising event in reportedly dc certain one atop days six monica samille nebraska born gary two three one nine seven three is an american woman who was thrust into the public limelight after having a topics affair with u s president b",
+      "swaps": [
+        {
+          "pos": 40,
+          "clean": "washington",
+          "false": "reportedly"
+        },
+        {
+          "pos": 54,
+          "clean": "october",
+          "false": "certain"
+        },
+        {
+          "pos": 66,
+          "clean": "nine",
+          "false": "atop"
+        },
+        {
+          "pos": 71,
+          "clean": "nine",
+          "false": "days"
+        },
+        {
+          "pos": 95,
+          "clean": "lewinsky",
+          "false": "nebraska"
+        },
+        {
+          "pos": 109,
+          "clean": "july",
+          "false": "gary"
+        },
+        {
+          "pos": 222,
+          "clean": "sexual",
+          "false": "topics"
+        }
+      ]
+    },
+    {
+      "window": 1,
+      "clean": "ill clinton their affair started while lewinsky was working as an intern at the white house in the mid one nine nine zero s the affair s repercussions for president clinton are often referred to as the lewinsky scandal or monicagate monicagate has garnered",
+      "corrupted": "ill clinton their affair started while lewinsky was timothy as an vacuum at the white women in the mid one nine nine zero s mil affair s repercussions for president clinton are often referred to as the lewinsky coupled or microbiolo monicagate has garnered",
+      "swaps": [
+        {
+          "pos": 52,
+          "clean": "working",
+          "false": "timothy"
+        },
+        {
+          "pos": 66,
+          "clean": "intern",
+          "false": "vacuum"
+        },
+        {
+          "pos": 86,
+          "clean": "house",
+          "false": "women"
+        },
+        {
+          "pos": 124,
+          "clean": "the",
+          "false": "mil"
+        },
+        {
+          "pos": 211,
+          "clean": "scandal",
+          "false": "coupled"
+        },
+        {
+          "pos": 222,
+          "clean": "monicagate",
+          "false": "microbiolo"
+        }
+      ]
+    },
+    {
+      "window": 2,
+      "clean": " lewinsky much notoriety following the scandal life lewinsky was born in san francisco and grew up in southern california on the west side of los angeles and in beverly hills her father was born in el salvador but comes from a family of german jewish immig",
+      "corrupted": " although much notoriety following the scandal life involves was king in san francisco and pure up va southern california on the west side ed los angeles and in beverly hills her cocked was born in el salvador but comes from a family of german jewish immig",
+      "swaps": [
+        {
+          "pos": 1,
+          "clean": "lewinsky",
+          "false": "although"
+        },
+        {
+          "pos": 52,
+          "clean": "lewinsky",
+          "false": "involves"
+        },
+        {
+          "pos": 65,
+          "clean": "born",
+          "false": "king"
+        },
+        {
+          "pos": 91,
+          "clean": "grew",
+          "false": "pure"
+        },
+        {
+          "pos": 99,
+          "clean": "in",
+          "false": "va"
+        },
+        {
+          "pos": 139,
+          "clean": "of",
+          "false": "ed"
+        },
+        {
+          "pos": 179,
+          "clean": "father",
+          "false": "cocked"
+        }
+      ]
+    },
+    {
+      "window": 3,
+      "clean": "rants while her mother s family were jewish immigrants from russia after transferring from community college she graduated with a psychology degree from lewis i did not have sexual relations with that woman miss lewinsky the line later became a punchline f",
+      "corrupted": "rants while sri mother s family were jewish definition from russia after transferring from community college she graduated with a psychology degree from lewis i did art have sexual relations with that woman miss lewinsky dot line later became a punchline f",
+      "swaps": [
+        {
+          "pos": 12,
+          "clean": "her",
+          "false": "sri"
+        },
+        {
+          "pos": 44,
+          "clean": "immigrants",
+          "false": "definition"
+        },
+        {
+          "pos": 165,
+          "clean": "not",
+          "false": "art"
+        },
+        {
+          "pos": 221,
+          "clean": "the",
+          "false": "dot"
+        }
+      ]
+    },
+    {
+      "window": 4,
+      "clean": "or its technical verity but deceptive nature based on one s definition of sexual relations in addition he stated there is no sexual relationship with lewinsky a statement which he later said was truthful depending on one s definition of is under pressure f",
+      "corrupted": "or its technical expect but deceptive nature based on one s definition of sexual telescope in addition he stated there is no sexual relationship grid lewinsky a statement which mo items said ive truthful depending on one s definition of is under pressure f",
+      "swaps": [
+        {
+          "pos": 17,
+          "clean": "verity",
+          "false": "expect"
+        },
+        {
+          "pos": 81,
+          "clean": "relations",
+          "false": "telescope"
+        },
+        {
+          "pos": 145,
+          "clean": "with",
+          "false": "grid"
+        },
+        {
+          "pos": 177,
+          "clean": "he",
+          "false": "mo"
+        },
+        {
+          "pos": 180,
+          "clean": "later",
+          "false": "items"
+        },
+        {
+          "pos": 191,
+          "clean": "was",
+          "false": "ive"
+        }
+      ]
+    },
+    {
+      "window": 5,
+      "clean": "rom starr who clinton learned had obtained from lewinsky a blue dress with clinton s semen stain as well as testimony from lewinsky that the president had used a cigar in a sexual manner with her clinton admitted on august one nine one nine nine eight that",
+      "corrupted": "rom starr fry clinton learned had obtained from lewinsky a blue dress with clinton s group stain as well fo testimony from lewinsky that the president had used a cigar in a sexual manner with her clinton admitted ly august meg nine www nine nine eight that",
+      "swaps": [
+        {
+          "pos": 10,
+          "clean": "who",
+          "false": "fry"
+        },
+        {
+          "pos": 85,
+          "clean": "semen",
+          "false": "group"
+        },
+        {
+          "pos": 105,
+          "clean": "as",
+          "false": "fo"
+        },
+        {
+          "pos": 213,
+          "clean": "on",
+          "false": "ly"
+        },
+        {
+          "pos": 223,
+          "clean": "one",
+          "false": "meg"
+        },
+        {
+          "pos": 232,
+          "clean": "one",
+          "false": "www"
+        }
+      ]
+    },
+    {
+      "window": 6,
+      "clean": " he misled the american people and that he had had an inappropriate relationship with lewinsky clinton denied having committed perjury because in his opinion oral sex was not a sexual relation in addition relying upon the definition of sexual relations as ",
+      "corrupted": " he earned the american people and that he wou had an inappropriate relationship with lewinsky clinton denied marine committed perjury because in his opinion penn sex was not a sexual relation in modified relying upon the definition of turret relations as ",
+      "swaps": [
+        {
+          "pos": 4,
+          "clean": "misled",
+          "false": "earned"
+        },
+        {
+          "pos": 43,
+          "clean": "had",
+          "false": "wou"
+        },
+        {
+          "pos": 110,
+          "clean": "having",
+          "false": "marine"
+        },
+        {
+          "pos": 158,
+          "clean": "oral",
+          "false": "penn"
+        },
+        {
+          "pos": 196,
+          "clean": "addition",
+          "false": "modified"
+        },
+        {
+          "pos": 236,
+          "clean": "sexual",
+          "false": "turret"
+        }
+      ]
+    },
+    {
+      "window": 7,
+      "clean": "worded by judge susan webber wright who was hearing the paula jones case clinton claimed that since certain acts were performed on him not by him he did not engage in sexual relations lewinsky s testimony to the starr commission however contradicted clinto",
+      "corrupted": "worded by judge susan webber wright who hts hearing the paula jones case clinton claimed that since certain acts hard latitudes on him kal by tor he did not engage in sexual relations lewinsky s testimony to put starr commission however contradicted clinto",
+      "swaps": [
+        {
+          "pos": 40,
+          "clean": "was",
+          "false": "hts"
+        },
+        {
+          "pos": 113,
+          "clean": "were",
+          "false": "hard"
+        },
+        {
+          "pos": 118,
+          "clean": "performed",
+          "false": "latitudes"
+        },
+        {
+          "pos": 135,
+          "clean": "not",
+          "false": "kal"
+        },
+        {
+          "pos": 142,
+          "clean": "him",
+          "false": "tor"
+        },
+        {
+          "pos": 208,
+          "clean": "the",
+          "false": "put"
+        }
+      ]
+    },
+    {
+      "window": 8,
+      "clean": "n s claim of being totally passive in their encounters clinton s lawyer would later explain that different people can remember the same events in different ways clinton was impeached by the house of representatives but not convicted in the senate so he was",
+      "corrupted": "n s claim os being totally passive in their encounters clinton s lawyer today later explain juan callaghan people can remember the same agreed in different ways clinton was impeached we the house of representatives but not convicted in the senate so he was",
+      "swaps": [
+        {
+          "pos": 10,
+          "clean": "of",
+          "false": "os"
+        },
+        {
+          "pos": 72,
+          "clean": "would",
+          "false": "today"
+        },
+        {
+          "pos": 92,
+          "clean": "that",
+          "false": "juan"
+        },
+        {
+          "pos": 97,
+          "clean": "different",
+          "false": "callaghan"
+        },
+        {
+          "pos": 136,
+          "clean": "events",
+          "false": "agreed"
+        },
+        {
+          "pos": 183,
+          "clean": "by",
+          "false": "we"
+        }
+      ]
+    },
+    {
+      "window": 9,
+      "clean": " not removed from office interestingly clinton saw his job approval ratings among the american people increase during and after the scandal it has been suggested however that the moral questions raised by his actions tainted then vice president al gore s c",
+      "corrupted": " not removed from office interestingly clinton saw his spe approval ratings among the american people increase during and after the scandal th has been possessed however sued did moral questions raised by his actions tainted then vice marriages al gore s c",
+      "swaps": [
+        {
+          "pos": 55,
+          "clean": "job",
+          "false": "spe"
+        },
+        {
+          "pos": 140,
+          "clean": "it",
+          "false": "th"
+        },
+        {
+          "pos": 152,
+          "clean": "suggested",
+          "false": "possessed"
+        },
+        {
+          "pos": 170,
+          "clean": "that",
+          "false": "sued"
+        },
+        {
+          "pos": 175,
+          "clean": "the",
+          "false": "did"
+        },
+        {
+          "pos": 235,
+          "clean": "president",
+          "false": "marriages"
+        }
+      ]
+    },
+    {
+      "window": 10,
+      "clean": "ampaign for the presidency in two zero zero zero the affair and its sordid details led to a period of cultural celebrity for lewinsky as an unlikely sex symbol and as a younger generation nexus of a political storm that was both lighthearted and extremely ",
+      "corrupted": "ampaign for the presidency in two zero zero zero whi affair old gal sordid details led to a period ca cultural celebrity for lewinsky as an unlikely sex symbol and as a shorter generation nexus of a completed storm that was both lighthearted and extremely ",
+      "swaps": [
+        {
+          "pos": 49,
+          "clean": "the",
+          "false": "whi"
+        },
+        {
+          "pos": 60,
+          "clean": "and",
+          "false": "old"
+        },
+        {
+          "pos": 64,
+          "clean": "its",
+          "false": "gal"
+        },
+        {
+          "pos": 99,
+          "clean": "of",
+          "false": "ca"
+        },
+        {
+          "pos": 169,
+          "clean": "younger",
+          "false": "shorter"
+        },
+        {
+          "pos": 199,
+          "clean": "political",
+          "false": "completed"
+        }
+      ]
+    },
+    {
+      "window": 11,
+      "clean": "serious at the same time some mild use of the name lewinsky still exists as a term for oral sex though lewinsky references and jokes have long cooled in the public interest many feminists considered the extensive attention to lewinsky to be indication of w",
+      "corrupted": "serious at the same time some mild ten of ana name lewinsky still exists as a term for oral sex though lewinsky references and jokes gave long cooled in the public interest half feminists considered the knowledge attention nt lewinsky to be indication of w",
+      "swaps": [
+        {
+          "pos": 35,
+          "clean": "use",
+          "false": "ten"
+        },
+        {
+          "pos": 42,
+          "clean": "the",
+          "false": "ana"
+        },
+        {
+          "pos": 133,
+          "clean": "have",
+          "false": "gave"
+        },
+        {
+          "pos": 173,
+          "clean": "many",
+          "false": "half"
+        },
+        {
+          "pos": 203,
+          "clean": "extensive",
+          "false": "knowledge"
+        },
+        {
+          "pos": 223,
+          "clean": "to",
+          "false": "nt"
+        }
+      ]
+    },
+    {
+      "window": 12,
+      "clean": "idespread sexism for her actions lewinsky was extraordinarily famous during the last two years of the one nine nine zero s by her own account lewinsky survived the intense media attention by knitting she now runs her own business selling her own brand of h",
+      "corrupted": "idespread online for ras actions children was extraordinarily troops during the last two years of the one nine nine zero s by her own partial lewinsky survived the intense field attention by knitting she now runs her own business selling her own brand of h",
+      "swaps": [
+        {
+          "pos": 10,
+          "clean": "sexism",
+          "false": "online"
+        },
+        {
+          "pos": 21,
+          "clean": "her",
+          "false": "ras"
+        },
+        {
+          "pos": 33,
+          "clean": "lewinsky",
+          "false": "children"
+        },
+        {
+          "pos": 62,
+          "clean": "famous",
+          "false": "troops"
+        },
+        {
+          "pos": 134,
+          "clean": "account",
+          "false": "partial"
+        },
+        {
+          "pos": 172,
+          "clean": "media",
+          "false": "field"
+        }
+      ]
+    },
+    {
+      "window": 13,
+      "clean": "andbags she was also the host of the short lived reality television dating program called mr personality two zero zero three lewinsky currently studies an msc in social psychology at the london school of economics lewinsky criticized clinton s autobiograph",
+      "corrupted": "andbags she was also the host of the short lived reality television dating modifie larger mr personality two zero zero three lewinsky currently studies an msc if social psychology ld the london school of chemistry lewinsky criticized cloning s autobiograph",
+      "swaps": [
+        {
+          "pos": 75,
+          "clean": "program",
+          "false": "modifie"
+        },
+        {
+          "pos": 83,
+          "clean": "called",
+          "false": "larger"
+        },
+        {
+          "pos": 159,
+          "clean": "in",
+          "false": "if"
+        },
+        {
+          "pos": 180,
+          "clean": "at",
+          "false": "ld"
+        },
+        {
+          "pos": 204,
+          "clean": "economics",
+          "false": "chemistry"
+        },
+        {
+          "pos": 234,
+          "clean": "clinton",
+          "false": "cloning"
+        }
+      ]
+    },
+    {
+      "window": 14,
+      "clean": "y my life saying he could have made it right with the book but he hasn t he is a revisionist of history he has lied other information lewinsky is currently studying social psychology at the london school of economics on march four one nine nine nine monica",
+      "corrupted": "y up life saying er could have made ex right with the book but he hasn t he is a combination of history he has lied other information apsidium is currently studying social psychology at the exotic school of economics in march four one nine nine nine monica",
+      "swaps": [
+        {
+          "pos": 2,
+          "clean": "my",
+          "false": "up"
+        },
+        {
+          "pos": 17,
+          "clean": "he",
+          "false": "er"
+        },
+        {
+          "pos": 36,
+          "clean": "it",
+          "false": "ex"
+        },
+        {
+          "pos": 81,
+          "clean": "revisionist",
+          "false": "combination"
+        },
+        {
+          "pos": 134,
+          "clean": "lewinsky",
+          "false": "apsidium"
+        },
+        {
+          "pos": 190,
+          "clean": "london",
+          "false": "exotic"
+        },
+        {
+          "pos": 217,
+          "clean": "on",
+          "false": "in"
+        }
+      ]
+    },
+    {
+      "window": 15,
+      "clean": " s story an authorized biography detailing her affair with bill clinton went on sale in the united states in early two zero zero zero lewinsky served as spokeswoman for the jenny craig weight loss plan trivia the blue dress lewinsky wore was purchased at t",
+      "corrupted": " s story an helicopter biography detailing her affair with bill clinton team de sale in the united states in early two zero zero zero lewinsky served as spokeswoman low the jenny craig indian appe nato trivia the blue dress lewinsky wore was purchased at t",
+      "swaps": [
+        {
+          "pos": 12,
+          "clean": "authorized",
+          "false": "helicopter"
+        },
+        {
+          "pos": 72,
+          "clean": "went",
+          "false": "team"
+        },
+        {
+          "pos": 77,
+          "clean": "on",
+          "false": "de"
+        },
+        {
+          "pos": 165,
+          "clean": "for",
+          "false": "low"
+        },
+        {
+          "pos": 185,
+          "clean": "weight",
+          "false": "indian"
+        },
+        {
+          "pos": 192,
+          "clean": "loss",
+          "false": "appe"
+        },
+        {
+          "pos": 197,
+          "clean": "plan",
+          "false": "nato"
+        }
+      ]
+    },
+    {
+      "window": 16,
+      "clean": "he gap it is currently owned and stored by the national archives and records administration references monica s story by andrew morton paperback one nine nine nine publisher st marshal s press isbn zero three one two nine seven three six two four one scand",
+      "corrupted": "he gap it si currently owned and stored os the national archives and records administration references monica s story by andrew morton paperback one nine days have publisher st marshal s press isbn zero three one two head voted three six two four one scand",
+      "swaps": [
+        {
+          "pos": 10,
+          "clean": "is",
+          "false": "si"
+        },
+        {
+          "pos": 40,
+          "clean": "by",
+          "false": "os"
+        },
+        {
+          "pos": 154,
+          "clean": "nine",
+          "false": "days"
+        },
+        {
+          "pos": 159,
+          "clean": "nine",
+          "false": "have"
+        },
+        {
+          "pos": 217,
+          "clean": "nine",
+          "false": "head"
+        },
+        {
+          "pos": 222,
+          "clean": "seven",
+          "false": "voted"
+        }
+      ]
+    },
+    {
+      "window": 17,
+      "clean": "alous story clinton lewinsky and thirteen days that tarnished american journalism by marvin l kalb our monica ourselves the clinton affair and the public interest sexual cultures by lauren berlant and lisa duggan external links starr report nature of presi",
+      "corrupted": "alous story clinton lewinsky six thirteen days that tarnished american journalism by marvin l kalb our monica ourselves new clinton affair and the public attended sexual cultures by lauren growing and lisa duggan external links starr filmed nature gb presi",
+      "swaps": [
+        {
+          "pos": 29,
+          "clean": "and",
+          "false": "six"
+        },
+        {
+          "pos": 120,
+          "clean": "the",
+          "false": "new"
+        },
+        {
+          "pos": 154,
+          "clean": "interest",
+          "false": "attended"
+        },
+        {
+          "pos": 189,
+          "clean": "berlant",
+          "false": "growing"
+        },
+        {
+          "pos": 234,
+          "clean": "report",
+          "false": "filmed"
+        },
+        {
+          "pos": 248,
+          "clean": "of",
+          "false": "gb"
+        }
+      ]
+    },
+    {
+      "window": 18,
+      "clean": "dent clinton s relationship with monica lewinsky a guide to the monica lewinsky story also the starr report tripp tapes articles of impeachment the stalker tale monica lewinsky profile in the washington post january two four one nine nine eight timeline fr",
+      "corrupted": "dent clinton s relationship with monica morituri a guide ld the monica lewinsky story also sky starr report tripp atoll articles of impeachment the hollywo tale hammer lewinsky profile in the washington post january two four one nine nine eight timeline fr",
+      "swaps": [
+        {
+          "pos": 40,
+          "clean": "lewinsky",
+          "false": "morituri"
+        },
+        {
+          "pos": 57,
+          "clean": "to",
+          "false": "ld"
+        },
+        {
+          "pos": 91,
+          "clean": "the",
+          "false": "sky"
+        },
+        {
+          "pos": 114,
+          "clean": "tapes",
+          "false": "atoll"
+        },
+        {
+          "pos": 148,
+          "clean": "stalker",
+          "false": "hollywo"
+        },
+        {
+          "pos": 161,
+          "clean": "monica",
+          "false": "hammer"
+        }
+      ]
+    },
+    {
+      "window": 19,
+      "clean": "om washington post lewinsky profile in new york magazine two zero zero one urban dictionary defines the slang term lewinsky one nine seven three births bill clinton jewish american history living people people associated with the london school of economics",
+      "corrupted": "om washington post lewinsky profile in new york magazine for zero zero one urban dictionary defines the slang term lewinsky one ways prone eight births bill clinton jewish american history living people people associated with the london daniel co economics",
+      "swaps": [
+        {
+          "pos": 57,
+          "clean": "two",
+          "false": "for"
+        },
+        {
+          "pos": 128,
+          "clean": "nine",
+          "false": "ways"
+        },
+        {
+          "pos": 133,
+          "clean": "seven",
+          "false": "prone"
+        },
+        {
+          "pos": 139,
+          "clean": "three",
+          "false": "eight"
+        },
+        {
+          "pos": 237,
+          "clean": "school",
+          "false": "daniel"
+        },
+        {
+          "pos": 244,
+          "clean": "of",
+          "false": "co"
+        }
+      ]
+    },
+    {
+      "window": 20,
+      "clean": " a manometer is a pressure measuring instrument often also called pressure gauge description the oldest type is the liquid column manometer a very simple version is a u shaped tube half full of liquid where the measured pressure is applied to one side of t",
+      "corrupted": " a manometer is a overtone measuring instrument voice onto called pressure gauge description the oldest hawk is the liquid column manometer a very edmund version is a u shaped tube half full of liquid where the measured pressure is address to ram side of t",
+      "swaps": [
+        {
+          "pos": 18,
+          "clean": "pressure",
+          "false": "overtone"
+        },
+        {
+          "pos": 48,
+          "clean": "often",
+          "false": "voice"
+        },
+        {
+          "pos": 54,
+          "clean": "also",
+          "false": "onto"
+        },
+        {
+          "pos": 104,
+          "clean": "type",
+          "false": "hawk"
+        },
+        {
+          "pos": 147,
+          "clean": "simple",
+          "false": "edmund"
+        },
+        {
+          "pos": 232,
+          "clean": "applied",
+          "false": "address"
+        },
+        {
+          "pos": 243,
+          "clean": "one",
+          "false": "ram"
+        }
+      ]
+    },
+    {
+      "window": 21,
+      "clean": "he tube whilst the reference pressure which might be of the atmosphere is applied to the other the difference in liquid level represents the applied pressure it is quite easy to make a homemade manometer for low pressure differences water is a commonly use",
+      "corrupted": "he tube charts the reference pressure which might if of the atmosphere is applied to the other the difference in liquid games evaluation the applied nzenberg it is quite easy to make a homemade manometer for low pressure differences climb is a commonly use",
+      "swaps": [
+        {
+          "pos": 8,
+          "clean": "whilst",
+          "false": "charts"
+        },
+        {
+          "pos": 50,
+          "clean": "be",
+          "false": "if"
+        },
+        {
+          "pos": 120,
+          "clean": "level",
+          "false": "games"
+        },
+        {
+          "pos": 126,
+          "clean": "represents",
+          "false": "evaluation"
+        },
+        {
+          "pos": 149,
+          "clean": "pressure",
+          "false": "nzenberg"
+        },
+        {
+          "pos": 233,
+          "clean": "water",
+          "false": "climb"
+        }
+      ]
+    },
+    {
+      "window": 22,
+      "clean": "d liquid and inches of water is a commonly used pressure unit for larger pressure differences the greater density of mercury makes it more useful a single limb liquid column manometer has a larger reservoir instead of one side of the u tube and has a scale",
+      "corrupted": "d liquid and inches of water is a commonly used pressure unit for rossby pressure combination gas greater density of mercury makes it more useful a single burn liquid column manometer has a larger reservoir reasons mo one side of the u tube and has a scale",
+      "swaps": [
+        {
+          "pos": 66,
+          "clean": "larger",
+          "false": "rossby"
+        },
+        {
+          "pos": 82,
+          "clean": "differences",
+          "false": "combination"
+        },
+        {
+          "pos": 94,
+          "clean": "the",
+          "false": "gas"
+        },
+        {
+          "pos": 155,
+          "clean": "limb",
+          "false": "burn"
+        },
+        {
+          "pos": 207,
+          "clean": "instead",
+          "false": "reasons"
+        },
+        {
+          "pos": 215,
+          "clean": "of",
+          "false": "mo"
+        }
+      ]
+    },
+    {
+      "window": 23,
+      "clean": " beside the narrower column the column may be inclined to further amplify the liquid movement liquid column manometers can be used to measure small differences between great pressures membrane type manometer a second type uses the deflection of a flexible ",
+      "corrupted": " beside the narrower column the column may be inclined to assault amplify sue united movement liquid column manometers can be used er measure favor differences between great pressures membrane type manometer a second file uses the deflection of a flexible ",
+      "swaps": [
+        {
+          "pos": 58,
+          "clean": "further",
+          "false": "assault"
+        },
+        {
+          "pos": 74,
+          "clean": "the",
+          "false": "sue"
+        },
+        {
+          "pos": 78,
+          "clean": "liquid",
+          "false": "united"
+        },
+        {
+          "pos": 131,
+          "clean": "to",
+          "false": "er"
+        },
+        {
+          "pos": 142,
+          "clean": "small",
+          "false": "favor"
+        },
+        {
+          "pos": 217,
+          "clean": "type",
+          "false": "file"
+        }
+      ]
+    },
+    {
+      "window": 24,
+      "clean": "membrane that seals a fixed pressure reference volume to determine the pressure the amount of deflection is repeatable for known pressures so the pressure can be determined using a lookup table a third variant bourdon gauge uses a coiled tube which as it e",
+      "corrupted": "membrane that seals a fixed pressure reference volume to determine the pressure the amount of deflection uc repeatable for oscar pressures so the pressure can be determined using a german table a match variant bourdon gauge uses a coiled tube which as ur e",
+      "swaps": [
+        {
+          "pos": 105,
+          "clean": "is",
+          "false": "uc"
+        },
+        {
+          "pos": 123,
+          "clean": "known",
+          "false": "oscar"
+        },
+        {
+          "pos": 181,
+          "clean": "lookup",
+          "false": "german"
+        },
+        {
+          "pos": 196,
+          "clean": "third",
+          "false": "match"
+        },
+        {
+          "pos": 252,
+          "clean": "it",
+          "false": "ur"
+        }
+      ]
+    },
+    {
+      "window": 25,
+      "clean": "xpands due to pressure increase causes a rotation of an arm connected to the tube one use of manometers is to measure vacuum pressures especially in the range from zero zero zero one atmospheres to one atm they are helpful because the deflection of the man",
+      "corrupted": "xpands due to pressure mechanis causes a rotation of ed arm connected to the tube one use of manometers is to measure vacuum receivers especially in the range bird zero zero zero one atmospheres to one tem they are helpful purpose gun deflection of the man",
+      "swaps": [
+        {
+          "pos": 23,
+          "clean": "increase",
+          "false": "mechanis"
+        },
+        {
+          "pos": 53,
+          "clean": "an",
+          "false": "ed"
+        },
+        {
+          "pos": 125,
+          "clean": "pressures",
+          "false": "receivers"
+        },
+        {
+          "pos": 159,
+          "clean": "from",
+          "false": "bird"
+        },
+        {
+          "pos": 202,
+          "clean": "atm",
+          "false": "tem"
+        },
+        {
+          "pos": 223,
+          "clean": "because",
+          "false": "purpose"
+        },
+        {
+          "pos": 231,
+          "clean": "the",
+          "false": "gun"
+        }
+      ]
+    },
+    {
+      "window": 26,
+      "clean": "ometer is not dependent upon the type of gas being measured unlike other types of vacuum gauges in this pressure range the deflection of the piston is often one half of a capacitor so that when the piston moves the capacitance of the device changes this is",
+      "corrupted": "ometer is not dependent upon the type of gas being measured edmund zeala types of likely pintel in this pressure range the suppressor of the piston uc often men half of a capacitor so that when the piston moves the capacitance of the device changes this is",
+      "swaps": [
+        {
+          "pos": 60,
+          "clean": "unlike",
+          "false": "edmund"
+        },
+        {
+          "pos": 67,
+          "clean": "other",
+          "false": "zeala"
+        },
+        {
+          "pos": 82,
+          "clean": "vacuum",
+          "false": "likely"
+        },
+        {
+          "pos": 89,
+          "clean": "gauges",
+          "false": "pintel"
+        },
+        {
+          "pos": 123,
+          "clean": "deflection",
+          "false": "suppressor"
+        },
+        {
+          "pos": 148,
+          "clean": "is",
+          "false": "uc"
+        },
+        {
+          "pos": 157,
+          "clean": "one",
+          "false": "men"
+        }
+      ]
+    },
+    {
+      "window": 27,
+      "clean": " a common way with proper calibrations to get a very precise electronic reading from a manometer and this configuration is called a capacitive manometer vacuum gauge for very low pressures high vacuums aka hard vacuums entirely electronic means ion gauges ",
+      "corrupted": " a common way with proper calibrations to via a very precise electronic reading from a manometer and this configuration is called a beforehand manometer vacuum gauge for http low pressures high cluster aka hard vacuums globally referenced means ion gauges ",
+      "swaps": [
+        {
+          "pos": 42,
+          "clean": "get",
+          "false": "via"
+        },
+        {
+          "pos": 132,
+          "clean": "capacitive",
+          "false": "beforehand"
+        },
+        {
+          "pos": 170,
+          "clean": "very",
+          "false": "http"
+        },
+        {
+          "pos": 194,
+          "clean": "vacuums",
+          "false": "cluster"
+        },
+        {
+          "pos": 219,
+          "clean": "entirely",
+          "false": "globally"
+        },
+        {
+          "pos": 228,
+          "clean": "electronic",
+          "false": "referenced"
+        }
+      ]
+    },
+    {
+      "window": 28,
+      "clean": "are used to measure the quality of the vacuum european cen standard en four seven two pessure gauge vocabulary en eight three seven one pressure gauges bourdon tube pressure gauges dimensions metrology requirements and testing en eight three seven two pres",
+      "corrupted": "are word to measure the quality of pre vacuum european cen standard en four seven two pessure gauge vocabulary en eight genes seven one pressure gauges bourdon tube pressure gauges dimensions collector requirements big testing en eight three seven ist pres",
+      "swaps": [
+        {
+          "pos": 4,
+          "clean": "used",
+          "false": "word"
+        },
+        {
+          "pos": 35,
+          "clean": "the",
+          "false": "pre"
+        },
+        {
+          "pos": 120,
+          "clean": "three",
+          "false": "genes"
+        },
+        {
+          "pos": 192,
+          "clean": "metrology",
+          "false": "collector"
+        },
+        {
+          "pos": 215,
+          "clean": "and",
+          "false": "big"
+        },
+        {
+          "pos": 248,
+          "clean": "two",
+          "false": "ist"
+        }
+      ]
+    },
+    {
+      "window": 29,
+      "clean": "sure gauges selection and installation recommendations for pressure gauges en eight three seven three pressure gauges diaphragm and capsule pressure gauges dimensions metrology requirements and testing see also sphygmomanometer barometer mcleod gauge paten",
+      "corrupted": "sure number selection and installation recommendations for pressure height en eight three seven three premiere gauges diaphragm and reduced pressure gauges dimensions metrology bacteriology and testing see also sphygmomanometer barometer mcleod gauge paten",
+      "swaps": [
+        {
+          "pos": 5,
+          "clean": "gauges",
+          "false": "number"
+        },
+        {
+          "pos": 68,
+          "clean": "gauges",
+          "false": "height"
+        },
+        {
+          "pos": 102,
+          "clean": "pressure",
+          "false": "premiere"
+        },
+        {
+          "pos": 132,
+          "clean": "capsule",
+          "false": "reduced"
+        },
+        {
+          "pos": 177,
+          "clean": "requirements",
+          "false": "bacteriology"
+        }
+      ]
+    },
+    {
+      "window": 30,
+      "clean": "ts w r valcourt overflow valve for a manometer external links home made manometer pressure gauges the first detailed descriptions of dancing in europe date from one four five zero in italy which is after the start of the renaissance however we know that da",
+      "corrupted": "ts w r valcourt overflow valve ive a manometer external links hall made manometer pressure gauges the first training descriptions of nucleus in europe date from one four five zero in italy which is after the start of the renaissance circlin we know that da",
+      "swaps": [
+        {
+          "pos": 31,
+          "clean": "for",
+          "false": "ive"
+        },
+        {
+          "pos": 62,
+          "clean": "home",
+          "false": "hall"
+        },
+        {
+          "pos": 108,
+          "clean": "detailed",
+          "false": "training"
+        },
+        {
+          "pos": 133,
+          "clean": "dancing",
+          "false": "nucleus"
+        },
+        {
+          "pos": 233,
+          "clean": "however",
+          "false": "circlin"
+        }
+      ]
+    },
+    {
+      "window": 31,
+      "clean": "ncing was popular in europe during the middle ages for it was depicted in paintings and illuminations and described in texts forms of dance during the middle ages included the carol and the estampie the carol consists of a circle of dancers holding hands w",
+      "corrupted": "ncing was popular in europe during the middle ages for if kal depicted in paintings and illuminations tly described in texts forms of dance during the middle ages included the issue and the estampie the fluid consists ur a circle of dancers holding hands w",
+      "swaps": [
+        {
+          "pos": 55,
+          "clean": "it",
+          "false": "if"
+        },
+        {
+          "pos": 58,
+          "clean": "was",
+          "false": "kal"
+        },
+        {
+          "pos": 102,
+          "clean": "and",
+          "false": "tly"
+        },
+        {
+          "pos": 176,
+          "clean": "carol",
+          "false": "issue"
+        },
+        {
+          "pos": 203,
+          "clean": "carol",
+          "false": "fluid"
+        },
+        {
+          "pos": 218,
+          "clean": "of",
+          "false": "ur"
+        }
+      ]
+    },
+    {
+      "window": 32,
+      "clean": "ith the dancers singing while dancing both the carol and the estampie are also musical forms the christmas carol as a musical form survives to the modern era see also danse macabre dance of death historical dance middle ages megatokyo is a popular webcomic",
+      "corrupted": "ith the dancers singing while dancing both the carol lmg the estampie are also precise forms the christmas carol as a musical form national to the patton era see also danse macabre empty of death historical stock middle ages megatokyo is a popular webcomic",
+      "swaps": [
+        {
+          "pos": 53,
+          "clean": "and",
+          "false": "lmg"
+        },
+        {
+          "pos": 79,
+          "clean": "musical",
+          "false": "precise"
+        },
+        {
+          "pos": 131,
+          "clean": "survives",
+          "false": "national"
+        },
+        {
+          "pos": 147,
+          "clean": "modern",
+          "false": "patton"
+        },
+        {
+          "pos": 181,
+          "clean": "dance",
+          "false": "empty"
+        },
+        {
+          "pos": 207,
+          "clean": "dance",
+          "false": "stock"
+        }
+      ]
+    },
+    {
+      "window": 33,
+      "clean": " originally created by fred gallagher and rodney caston it is now written and drawn in a manga influenced style by gallagher the comic was started on august one four two zero zero zero megatokyo s contents and comic strip on the website are available compl",
+      "corrupted": " originally created ok fred gallagher and julius caston it is now visible and drawn in a manga influenced style by gallagher the comic was started on august one four two zero zero vito assistant s contents and comic paris on the website caf available compl",
+      "swaps": [
+        {
+          "pos": 20,
+          "clean": "by",
+          "false": "ok"
+        },
+        {
+          "pos": 42,
+          "clean": "rodney",
+          "false": "julius"
+        },
+        {
+          "pos": 66,
+          "clean": "written",
+          "false": "visible"
+        },
+        {
+          "pos": 180,
+          "clean": "zero",
+          "false": "vito"
+        },
+        {
+          "pos": 185,
+          "clean": "megatokyo",
+          "false": "assistant"
+        },
+        {
+          "pos": 216,
+          "clean": "strip",
+          "false": "paris"
+        },
+        {
+          "pos": 237,
+          "clean": "are",
+          "false": "caf"
+        }
+      ]
+    },
+    {
+      "window": 34,
+      "clean": "etely free the contents are generally updated every monday wednesday and friday it has also been translated unofficially into other languages that are available elsewhere on the web see translation section megatokyo took its name from its internet domain w",
+      "corrupted": "etely free the contents are generally updated every monday wednesday and friday it has head been references unofficially into other languages that are sentenced elsewhere on the web see translation section picatinny left its nist from its internet domain w",
+      "swaps": [
+        {
+          "pos": 87,
+          "clean": "also",
+          "false": "head"
+        },
+        {
+          "pos": 97,
+          "clean": "translated",
+          "false": "references"
+        },
+        {
+          "pos": 151,
+          "clean": "available",
+          "false": "sentenced"
+        },
+        {
+          "pos": 206,
+          "clean": "megatokyo",
+          "false": "picatinny"
+        },
+        {
+          "pos": 216,
+          "clean": "took",
+          "false": "left"
+        },
+        {
+          "pos": 225,
+          "clean": "name",
+          "false": "nist"
+        }
+      ]
+    },
+    {
+      "window": 35,
+      "clean": "hich had hosted a short lived news site of caston s before the start of the comic the news site in turn took its name from the city in the bubblegum crisis anime series megatokyo frequently uses l three three t speak and some argue that the comic helped to",
+      "corrupted": "hich had hosted a short lived news site of caston s before the start nt the comic the news site in turn only box name full the city in the bubblegum crisis anime series megatokyo frequently uses l three agent t speak and some argue that the terry helped to",
+      "swaps": [
+        {
+          "pos": 69,
+          "clean": "of",
+          "false": "nt"
+        },
+        {
+          "pos": 104,
+          "clean": "took",
+          "false": "only"
+        },
+        {
+          "pos": 109,
+          "clean": "its",
+          "false": "box"
+        },
+        {
+          "pos": 118,
+          "clean": "from",
+          "false": "full"
+        },
+        {
+          "pos": 203,
+          "clean": "three",
+          "false": "agent"
+        },
+        {
+          "pos": 241,
+          "clean": "comic",
+          "false": "terry"
+        }
+      ]
+    },
+    {
+      "window": 36,
+      "clean": " introduce that style to a more mainstream audience plot strip six one nine depicting piro largo sonoda yuki and nanasawa kimiko published on october eight two zero zero four megatokyo follows the story of two americans piro and largo who are stuck in toky",
+      "corrupted": " introduce that style to a more mainstream audience plot scene six one nine portrayed piro largo sonoda yuki and pregnant kimiko directors on october eight two zero zero four barometer follows the story of two americans piro and largo who are union in toky",
+      "swaps": [
+        {
+          "pos": 57,
+          "clean": "strip",
+          "false": "scene"
+        },
+        {
+          "pos": 76,
+          "clean": "depicting",
+          "false": "portrayed"
+        },
+        {
+          "pos": 113,
+          "clean": "nanasawa",
+          "false": "pregnant"
+        },
+        {
+          "pos": 129,
+          "clean": "published",
+          "false": "directors"
+        },
+        {
+          "pos": 175,
+          "clean": "megatokyo",
+          "false": "barometer"
+        },
+        {
+          "pos": 243,
+          "clean": "stuck",
+          "false": "union"
+        }
+      ]
+    },
+    {
+      "window": 37,
+      "clean": "o and are unable to get home the two protagonists are based on megatokyo s two creators or their online personas but are fictional characters with lives of their own piro is a shy and somewhat under confident person who cherishes japanese pop culture inclu",
+      "corrupted": "o and are unable to get home the two protagonists are based on megatokyo s two creators or their online humanity but now fictional characters with lives of their kac term is a shy and somewhat under confident person who lightning japanese gun culture inclu",
+      "swaps": [
+        {
+          "pos": 104,
+          "clean": "personas",
+          "false": "humanity"
+        },
+        {
+          "pos": 117,
+          "clean": "are",
+          "false": "now"
+        },
+        {
+          "pos": 162,
+          "clean": "own",
+          "false": "kac"
+        },
+        {
+          "pos": 166,
+          "clean": "piro",
+          "false": "term"
+        },
+        {
+          "pos": 220,
+          "clean": "cherishes",
+          "false": "lightning"
+        },
+        {
+          "pos": 239,
+          "clean": "pop",
+          "false": "gun"
+        }
+      ]
+    },
+    {
+      "window": 38,
+      "clean": "ding manga anime and dating sim games largo the more extroverted of the pair is obsessed with building high end computers and playing games on them somewhat unable to distinguish between the fictional and the real world he sees elements from his games in e",
+      "corrupted": "ding manga anime and theory sim games largo too more extroverted mk the pair is obsessed with building high our computers and playing games on them somewhat unable to distinguish created the fictional and tub real world he sees elements from his games in e",
+      "swaps": [
+        {
+          "pos": 21,
+          "clean": "dating",
+          "false": "theory"
+        },
+        {
+          "pos": 44,
+          "clean": "the",
+          "false": "too"
+        },
+        {
+          "pos": 65,
+          "clean": "of",
+          "false": "mk"
+        },
+        {
+          "pos": 108,
+          "clean": "end",
+          "false": "our"
+        },
+        {
+          "pos": 179,
+          "clean": "between",
+          "false": "created"
+        },
+        {
+          "pos": 205,
+          "clean": "the",
+          "false": "tub"
+        }
+      ]
+    },
+    {
+      "window": 39,
+      "clean": "verything around him like a modern day don quixote the two arrive in tokyo after an incident at the e gaming exposition and find themselves with no money to buy plane tickets home after living for awhile in the apartment of a japanese friend of piro s they",
+      "corrupted": "verything focuse him like a ranger van don quixote une two arrive in tokyo after an incident at the e gaming exposition and find themselves with ev money to buy plane tickets home after living for awhile in the apartment of a japanese friend of piro s they",
+      "swaps": [
+        {
+          "pos": 10,
+          "clean": "around",
+          "false": "focuse"
+        },
+        {
+          "pos": 28,
+          "clean": "modern",
+          "false": "ranger"
+        },
+        {
+          "pos": 35,
+          "clean": "day",
+          "false": "van"
+        },
+        {
+          "pos": 51,
+          "clean": "the",
+          "false": "une"
+        },
+        {
+          "pos": 145,
+          "clean": "no",
+          "false": "ev"
+        }
+      ]
+    },
+    {
+      "window": 40,
+      "clean": " are eventually forced to make an independent living in japan piro finds work at a computer game store called megagamers while largo takes on somewhat irregular jobs with the police and as an english teacher at a local high school megatokyo s pace and styl",
+      "corrupted": " caf eventually forced to make an independent actual is japan piro finds what es a computer game store called megagamers while largo seals on somewhat irregular jobs with the police and as an english teacher at a local vito school megatokyo s pace and styl",
+      "swaps": [
+        {
+          "pos": 1,
+          "clean": "are",
+          "false": "caf"
+        },
+        {
+          "pos": 46,
+          "clean": "living",
+          "false": "actual"
+        },
+        {
+          "pos": 53,
+          "clean": "in",
+          "false": "is"
+        },
+        {
+          "pos": 73,
+          "clean": "work",
+          "false": "what"
+        },
+        {
+          "pos": 78,
+          "clean": "at",
+          "false": "es"
+        },
+        {
+          "pos": 133,
+          "clean": "takes",
+          "false": "seals"
+        },
+        {
+          "pos": 219,
+          "clean": "high",
+          "false": "vito"
+        }
+      ]
+    },
+    {
+      "window": 41,
+      "clean": "e indirectly correspond to the history of the comic itself much of the early humor consists of video game culture jokes as well as culture clash issues during this early phase the story moved along at a haphazard pace and was often interrupted by pure gag ",
+      "corrupted": "e organsisms correspond to the history of the comic itself ared of the early humor consists of video game culture jokes as well as culture naval issues during play chest phase the story moved there at a haphazard appe and was often interrupted by pure gag ",
+      "swaps": [
+        {
+          "pos": 2,
+          "clean": "indirectly",
+          "false": "organsisms"
+        },
+        {
+          "pos": 59,
+          "clean": "much",
+          "false": "ared"
+        },
+        {
+          "pos": 139,
+          "clean": "clash",
+          "false": "naval"
+        },
+        {
+          "pos": 159,
+          "clean": "this",
+          "false": "play"
+        },
+        {
+          "pos": 164,
+          "clean": "early",
+          "false": "chest"
+        },
+        {
+          "pos": 192,
+          "clean": "along",
+          "false": "there"
+        },
+        {
+          "pos": 213,
+          "clean": "pace",
+          "false": "appe"
+        }
+      ]
+    },
+    {
+      "window": 42,
+      "clean": "episodes and dead piro days this changed over time with the greatest changes coming after gallagher completely took over megatokyo the comic features aspects from a number of different anime and manga archetypes usually making light of the genre s various ",
+      "corrupted": "episodes and dead piro days this changed refe time with the greatest schools coming after gallagher completely took over megatokyo the plans features aspects from a number of different congo and empty archetypes usually pushed light of the genre s various ",
+      "swaps": [
+        {
+          "pos": 41,
+          "clean": "over",
+          "false": "refe"
+        },
+        {
+          "pos": 69,
+          "clean": "changes",
+          "false": "schools"
+        },
+        {
+          "pos": 135,
+          "clean": "comic",
+          "false": "plans"
+        },
+        {
+          "pos": 185,
+          "clean": "anime",
+          "false": "congo"
+        },
+        {
+          "pos": 195,
+          "clean": "manga",
+          "false": "empty"
+        },
+        {
+          "pos": 220,
+          "clean": "making",
+          "false": "pushed"
+        }
+      ]
+    },
+    {
+      "window": 43,
+      "clean": "clich s junpei a ninja who takes on largo as his l three three t master giant saurians such as rent a zilla roaming the streets that can be hired for specific purposes the tokyo police cataclysm division which fights the monsters with giant robots and over",
+      "corrupted": "clich s junpei a ninja odd roles on largo as his l three three t master giant saurians such be rent a zilla roaming gas streets that can be hired for specific purposes the tokyo centre cataclysm division which fights the monsters with order robots and over",
+      "swaps": [
+        {
+          "pos": 23,
+          "clean": "who",
+          "false": "odd"
+        },
+        {
+          "pos": 27,
+          "clean": "takes",
+          "false": "roles"
+        },
+        {
+          "pos": 92,
+          "clean": "as",
+          "false": "be"
+        },
+        {
+          "pos": 116,
+          "clean": "the",
+          "false": "gas"
+        },
+        {
+          "pos": 178,
+          "clean": "police",
+          "false": "centre"
+        },
+        {
+          "pos": 235,
+          "clean": "giant",
+          "false": "order"
+        }
+      ]
+    },
+    {
+      "window": 44,
+      "clean": "sees the orderly and periodic destruction and reconstruction of predesignated areas of the city ping a cute robot girl who becomes friends with piro and a school girl yuki who possibly is in love with piro and has just started taking art lessons from him l",
+      "corrupted": "sees the orderly and periodic destruction and reconstruction of predesignated areas ok the city ping a cute robot girl who becomes madonna grip piro and a riding girl yuki who possibly is in lost with post and has just started taking art lessons from him l",
+      "swaps": [
+        {
+          "pos": 84,
+          "clean": "of",
+          "false": "ok"
+        },
+        {
+          "pos": 131,
+          "clean": "friends",
+          "false": "madonna"
+        },
+        {
+          "pos": 139,
+          "clean": "with",
+          "false": "grip"
+        },
+        {
+          "pos": 155,
+          "clean": "school",
+          "false": "riding"
+        },
+        {
+          "pos": 191,
+          "clean": "love",
+          "false": "lost"
+        },
+        {
+          "pos": 201,
+          "clean": "piro",
+          "false": "post"
+        }
+      ]
+    },
+    {
+      "window": 45,
+      "clean": "argo somehow manages to become an english teacher at a high school and teaches them about l three three seven games and hacking dom and ed real life friends of fred gallagher and rodney caston play characters associated with the japanese stereotype that al",
+      "corrupted": "argo somehow manages to fitted an english roughly at a high school and teaches them about l fired three seven games his hacking dom and ed real life carried of fred gallagher and rodney caston post characters associated with the japanese stereotype that al",
+      "swaps": [
+        {
+          "pos": 24,
+          "clean": "become",
+          "false": "fitted"
+        },
+        {
+          "pos": 42,
+          "clean": "teacher",
+          "false": "roughly"
+        },
+        {
+          "pos": 92,
+          "clean": "three",
+          "false": "fired"
+        },
+        {
+          "pos": 116,
+          "clean": "and",
+          "false": "his"
+        },
+        {
+          "pos": 149,
+          "clean": "friends",
+          "false": "carried"
+        },
+        {
+          "pos": 193,
+          "clean": "play",
+          "false": "post"
+        }
+      ]
+    },
+    {
+      "window": 46,
+      "clean": "l americans are armed to the teeth erika is a former idol singer and voice actress her roommate kimiko is an aspiring voice actress one of the more mysterious characters is miho tohya she befriends ping and seems to enjoy playing with piro psychologically ",
+      "corrupted": "l americans are armed to tub teeth erika is a former idol singer and voice actress her roommate kimiko is ir aspiring voice actress one of the more mysterious characters is miho treat she befriends ping and seems to stell persona with piro psychologically ",
+      "swaps": [
+        {
+          "pos": 25,
+          "clean": "the",
+          "false": "tub"
+        },
+        {
+          "pos": 106,
+          "clean": "an",
+          "false": "ir"
+        },
+        {
+          "pos": 178,
+          "clean": "tohya",
+          "false": "treat"
+        },
+        {
+          "pos": 216,
+          "clean": "enjoy",
+          "false": "stell"
+        },
+        {
+          "pos": 222,
+          "clean": "playing",
+          "false": "persona"
+        }
+      ]
+    },
+    {
+      "window": 47,
+      "clean": "megatokyo is divided into chapters each consisting of approximately one zero zero pages chapter zero which subsumes all of the comic s early experimental phase covers a comic time span of about six weeks each of the subsequent chapters chronicles the event",
+      "corrupted": "megatokyo go divided into chapters each consisting of approximately one zero zero pages chapter zero which subsumes all of the comic s early experimental phase covers a obser time span of about eds weeks cast ns put subsequent chapters chronicles the event",
+      "swaps": [
+        {
+          "pos": 10,
+          "clean": "is",
+          "false": "go"
+        },
+        {
+          "pos": 169,
+          "clean": "comic",
+          "false": "obser"
+        },
+        {
+          "pos": 194,
+          "clean": "six",
+          "false": "eds"
+        },
+        {
+          "pos": 204,
+          "clean": "each",
+          "false": "cast"
+        },
+        {
+          "pos": 209,
+          "clean": "of",
+          "false": "ns"
+        },
+        {
+          "pos": 212,
+          "clean": "the",
+          "false": "put"
+        }
+      ]
+    },
+    {
+      "window": 48,
+      "clean": "s of a single day the seventh chapter known bugs and security flaws started august two zero zero five usually characters in megatokyo speak japanese although some speak english or l three three t subtitled under most circumstances when a character is speak",
+      "corrupted": "s gy a single led the provide chapter known bugs and security flaws started august two zero zero whom usually characters in megatokyo speak japanese although some using english or l three three t subtitled under year circumstances when a character is speak",
+      "swaps": [
+        {
+          "pos": 2,
+          "clean": "of",
+          "false": "gy"
+        },
+        {
+          "pos": 14,
+          "clean": "day",
+          "false": "led"
+        },
+        {
+          "pos": 22,
+          "clean": "seventh",
+          "false": "provide"
+        },
+        {
+          "pos": 97,
+          "clean": "five",
+          "false": "whom"
+        },
+        {
+          "pos": 163,
+          "clean": "speak",
+          "false": "using"
+        },
+        {
+          "pos": 212,
+          "clean": "most",
+          "false": "year"
+        }
+      ]
+    },
+    {
+      "window": 49,
+      "clean": "ing in japanese it is signified by surrounding the english text with angle brackets not every character speaks every language so occasionally characters are unable to understand one another in several scenes a character s speech is written entirely in r ma",
+      "corrupted": "ing in japanese it is signified by surrounding the english text with angle brackets not every voluntary speaks every language so occasionally characters are unable nd triangular one another nt several scenes a character s speech is written entirely in r ma",
+      "swaps": [
+        {
+          "pos": 94,
+          "clean": "character",
+          "false": "voluntary"
+        },
+        {
+          "pos": 164,
+          "clean": "to",
+          "false": "nd"
+        },
+        {
+          "pos": 167,
+          "clean": "understand",
+          "false": "triangular"
+        },
+        {
+          "pos": 190,
+          "clean": "in",
+          "false": "nt"
+        }
+      ]
+    },
+    {
+      "window": 50,
+      "clean": "ji japanese to emphasize this largo for instance speaks no japanese at all as the series progresses he has periods where he becomes more and more withdrawn into his own fantasy world of videogames and zombies possibly because he has no one to talk to besid",
+      "corrupted": "ji japanese th emphasize this largo for instance speaks no japanese at her as the series metservice sh has periods space he billion more and more withdrawn into his thr fantasy world of videogames and zombies possibly because he has no one to talk to besid",
+      "swaps": [
+        {
+          "pos": 12,
+          "clean": "to",
+          "false": "th"
+        },
+        {
+          "pos": 71,
+          "clean": "all",
+          "false": "her"
+        },
+        {
+          "pos": 89,
+          "clean": "progresses",
+          "false": "metservice"
+        },
+        {
+          "pos": 100,
+          "clean": "he",
+          "false": "sh"
+        },
+        {
+          "pos": 115,
+          "clean": "where",
+          "false": "space"
+        },
+        {
+          "pos": 124,
+          "clean": "becomes",
+          "false": "billion"
+        },
+        {
+          "pos": 165,
+          "clean": "own",
+          "false": "thr"
+        }
+      ]
+    },
+    {
+      "window": 51,
+      "clean": "es piro and himself and boo the hamster assigned to be his voice of reason but who can t speak at all for more information on the cast of megatokyo see characters of megatokyo chapters ch zero megatokyo one one two nine ch one do you want to save before yo",
+      "corrupted": "es piro and himself and boo the hamster assigned gy be sun voice of reason but who can t speak at all for more discription on the cast of megatokyo see characters of megatokyo chapters ch zero megatokyo one one ion nine ch one up you want be wore before yo",
+      "swaps": [
+        {
+          "pos": 49,
+          "clean": "to",
+          "false": "gy"
+        },
+        {
+          "pos": 55,
+          "clean": "his",
+          "false": "sun"
+        },
+        {
+          "pos": 111,
+          "clean": "information",
+          "false": "discription"
+        },
+        {
+          "pos": 211,
+          "clean": "two",
+          "false": "ion"
+        },
+        {
+          "pos": 227,
+          "clean": "do",
+          "false": "up"
+        },
+        {
+          "pos": 239,
+          "clean": "to",
+          "false": "be"
+        },
+        {
+          "pos": 242,
+          "clean": "save",
+          "false": "wore"
+        }
+      ]
+    },
+    {
+      "window": 52,
+      "clean": "u quit one three four one nine two ch two things change little by little one nine six three zero one ch three am i your number one fan three zero seven three nine seven ch four low ping rate four zero two five one four ch five color depth five two six six ",
+      "corrupted": "u quit one three four one nine pos ch red things change little by little one nine six three zero gun pr three am i your gifted set fan about zero seven three nine seven ch four low ping rate four zero two five one note ch five color depth five two six six ",
+      "swaps": [
+        {
+          "pos": 31,
+          "clean": "two",
+          "false": "pos"
+        },
+        {
+          "pos": 38,
+          "clean": "two",
+          "false": "red"
+        },
+        {
+          "pos": 97,
+          "clean": "one",
+          "false": "gun"
+        },
+        {
+          "pos": 101,
+          "clean": "ch",
+          "false": "pr"
+        },
+        {
+          "pos": 120,
+          "clean": "number",
+          "false": "gifted"
+        },
+        {
+          "pos": 127,
+          "clean": "one",
+          "false": "set"
+        },
+        {
+          "pos": 135,
+          "clean": "three",
+          "false": "about"
+        },
+        {
+          "pos": 214,
+          "clean": "four",
+          "false": "note"
+        }
+      ]
+    },
+    {
+      "window": 53,
+      "clean": "three three ch six operational insecurity six three nine seven two nine ch seven known bugs seven four three current the gaps in the strip number indicate omake manga or other nonplot related strips major characters piro the protagonist and the incarnation",
+      "corrupted": "three three ch six operational insecurity six sicos nine seven two nine be seven jacks bugs seven four hands current the gaps in the strip number indicate omake manga ar other nonplot cluster strips major characters piro the protagonist and the incarnation",
+      "swaps": [
+        {
+          "pos": 46,
+          "clean": "three",
+          "false": "sicos"
+        },
+        {
+          "pos": 72,
+          "clean": "ch",
+          "false": "be"
+        },
+        {
+          "pos": 81,
+          "clean": "known",
+          "false": "jacks"
+        },
+        {
+          "pos": 103,
+          "clean": "three",
+          "false": "hands"
+        },
+        {
+          "pos": 167,
+          "clean": "or",
+          "false": "ar"
+        },
+        {
+          "pos": 184,
+          "clean": "related",
+          "false": "cluster"
+        }
+      ]
+    },
+    {
+      "window": 54,
+      "clean": " of fred gallagher he is a fairly skilled artist who speaks fluent japanese and takes largo with him to japan largo the second protagonist in megatokyo and is the incarnation of rodney caston he is a technically gifted hacker who is fluent in l three three",
+      "corrupted": " mo fred gallagher he we a fairly decimal artist who speaks fluent japanese ive takes largo with him to japan largo the second protagonist in primarily and is the thermoscope of rodney caston he is a technically gifted hacker who is nearly in l three three",
+      "swaps": [
+        {
+          "pos": 1,
+          "clean": "of",
+          "false": "mo"
+        },
+        {
+          "pos": 22,
+          "clean": "is",
+          "false": "we"
+        },
+        {
+          "pos": 34,
+          "clean": "skilled",
+          "false": "decimal"
+        },
+        {
+          "pos": 76,
+          "clean": "and",
+          "false": "ive"
+        },
+        {
+          "pos": 142,
+          "clean": "megatokyo",
+          "false": "primarily"
+        },
+        {
+          "pos": 163,
+          "clean": "incarnation",
+          "false": "thermoscope"
+        },
+        {
+          "pos": 233,
+          "clean": "fluent",
+          "false": "nearly"
+        }
+      ]
+    },
+    {
+      "window": 55,
+      "clean": " t piro brings him to japan after he gets drunk at e three erika kimiko s roommate she was a former idol singer and voice actress she works at megagamers and is piro s co worker kimiko erika s roommate she is an aspiring voice actress and is soft spoken an",
+      "corrupted": " t piro brings him to drama after ve gets drunk at e three erika kimiko s roommate she was a moreau idol school and sheer actress she works at megagamers and is piro s co worker kimiko erika s roommate she is an aspiring voice nuclear and is soft spoken an",
+      "swaps": [
+        {
+          "pos": 22,
+          "clean": "japan",
+          "false": "drama"
+        },
+        {
+          "pos": 34,
+          "clean": "he",
+          "false": "ve"
+        },
+        {
+          "pos": 93,
+          "clean": "former",
+          "false": "moreau"
+        },
+        {
+          "pos": 105,
+          "clean": "singer",
+          "false": "school"
+        },
+        {
+          "pos": 116,
+          "clean": "voice",
+          "false": "sheer"
+        },
+        {
+          "pos": 227,
+          "clean": "actress",
+          "false": "nuclear"
+        }
+      ]
+    },
+    {
+      "window": 56,
+      "clean": "d shy she works at anna miller s restauraunt ping a robot playstation two acessory built by sony she desires to make people happy but often misinterprets emotions and situations her best friend is miho miho a manipulative and enigmatic goth girl she is flu",
+      "corrupted": "d shy she works at anna miller s restauraunt ping a robot playstation two acessory built by sony air benefit to make people happy but often misinterprets emotions and eventually her best friend to miho ieee a manipulative and enigmatic goth girl she gy flu",
+      "swaps": [
+        {
+          "pos": 97,
+          "clean": "she",
+          "false": "air"
+        },
+        {
+          "pos": 101,
+          "clean": "desires",
+          "false": "benefit"
+        },
+        {
+          "pos": 167,
+          "clean": "situations",
+          "false": "eventually"
+        },
+        {
+          "pos": 194,
+          "clean": "is",
+          "false": "to"
+        },
+        {
+          "pos": 202,
+          "clean": "miho",
+          "false": "ieee"
+        },
+        {
+          "pos": 250,
+          "clean": "is",
+          "false": "gy"
+        }
+      ]
+    },
+    {
+      "window": 57,
+      "clean": "ent in both english and japanese and enjoys toying with both largo and piro seraphim piro s conscience and the incarnation of sarah fred gallagher s wife boo a hamster with strap on wings and a temp conscience who is assigned to largo asmodeus piro s anti ",
+      "corrupted": "ent in kits english and japanese and enjoys toying from loud largo and piro seraphim piro s conscience and the incarnation of sarah fred gallagher s wife boo a eyeless prec strap on wings and a temp conscience who is assigned to largo asmodeus piro s anti ",
+      "swaps": [
+        {
+          "pos": 7,
+          "clean": "both",
+          "false": "kits"
+        },
+        {
+          "pos": 51,
+          "clean": "with",
+          "false": "from"
+        },
+        {
+          "pos": 56,
+          "clean": "both",
+          "false": "loud"
+        },
+        {
+          "pos": 160,
+          "clean": "hamster",
+          "false": "eyeless"
+        },
+        {
+          "pos": 168,
+          "clean": "with",
+          "false": "prec"
+        }
+      ]
+    },
+    {
+      "window": 58,
+      "clean": "conscience who attempts to undo everything that seraphim has tried to instill in piro he is the incarnation of ken hashimoto one of the megatokyo forum admistrators junpei a ninja who originally fought largo in mortal kombat because largo had no passport h",
+      "corrupted": "conscience who daughter to undo everything that seraphim has stick to instill in piro he is the unicellular of ken hashimoto one ug not megatokyo forum admistrators junpei a ninja who originally fought largo in mortal kombat because largo had no passport h",
+      "swaps": [
+        {
+          "pos": 15,
+          "clean": "attempts",
+          "false": "daughter"
+        },
+        {
+          "pos": 61,
+          "clean": "tried",
+          "false": "stick"
+        },
+        {
+          "pos": 96,
+          "clean": "incarnation",
+          "false": "unicellular"
+        },
+        {
+          "pos": 129,
+          "clean": "of",
+          "false": "ug"
+        },
+        {
+          "pos": 132,
+          "clean": "the",
+          "false": "not"
+        }
+      ]
+    },
+    {
+      "window": 59,
+      "clean": "e is later apprenticed to largo to learn his l three three t ways yuki a one five year old high school student she comes upon piro s sketch book and becomes obsessed with it books megatokyo comics are now published by dc comics under their cmx manga imprin",
+      "corrupted": "e is later experiments to largo to omaha his l three three t ways yuki a one five year old high school student she comes name piro s sketch book and becomes standard read it books megatokyo comics are now published by dc gideon under their cmx manga imprin",
+      "swaps": [
+        {
+          "pos": 11,
+          "clean": "apprenticed",
+          "false": "experiments"
+        },
+        {
+          "pos": 35,
+          "clean": "learn",
+          "false": "omaha"
+        },
+        {
+          "pos": 121,
+          "clean": "upon",
+          "false": "name"
+        },
+        {
+          "pos": 157,
+          "clean": "obsessed",
+          "false": "standard"
+        },
+        {
+          "pos": 166,
+          "clean": "with",
+          "false": "read"
+        },
+        {
+          "pos": 221,
+          "clean": "comics",
+          "false": "gideon"
+        }
+      ]
+    },
+    {
+      "window": 60,
+      "clean": "t currently volumes one three are available through dark horse comics as of february nine th two zero zero six three volumes are available for purchase at one point studio ironcat published a book compilation of strips that are now included in volume one g",
+      "corrupted": "t currently example one three are available through dark horse hadley as of february nine th two zero ieee six three volumes are available for purchase at one point pilots ironcat published a book compilation xm strips beam are now included in volume one g",
+      "swaps": [
+        {
+          "pos": 12,
+          "clean": "volumes",
+          "false": "example"
+        },
+        {
+          "pos": 63,
+          "clean": "comics",
+          "false": "hadley"
+        },
+        {
+          "pos": 102,
+          "clean": "zero",
+          "false": "ieee"
+        },
+        {
+          "pos": 165,
+          "clean": "studio",
+          "false": "pilots"
+        },
+        {
+          "pos": 209,
+          "clean": "of",
+          "false": "xm"
+        },
+        {
+          "pos": 219,
+          "clean": "that",
+          "false": "beam"
+        }
+      ]
+    },
+    {
+      "window": 61,
+      "clean": "allagher and ironcat were unable to come to an agreement on further volumes and so dark horse comics was the publisher of choice for megatokyo volumes one three the megatokyo books have also been translated into german and polish megatokyo volume one chapt",
+      "corrupted": "allagher and ironcat were unable to come ob an agreement on further volumes and so dark horse darwin was the publisher of choice for megatokyo various one three the incorrect books half also been translated into german tem polish megatokyo volume one chapt",
+      "swaps": [
+        {
+          "pos": 41,
+          "clean": "to",
+          "false": "ob"
+        },
+        {
+          "pos": 94,
+          "clean": "comics",
+          "false": "darwin"
+        },
+        {
+          "pos": 143,
+          "clean": "volumes",
+          "false": "various"
+        },
+        {
+          "pos": 165,
+          "clean": "megatokyo",
+          "false": "incorrect"
+        },
+        {
+          "pos": 181,
+          "clean": "have",
+          "false": "half"
+        },
+        {
+          "pos": 219,
+          "clean": "and",
+          "false": "tem"
+        }
+      ]
+    },
+    {
+      "window": 62,
+      "clean": "er zero megatokyo vol one one st ed isbn one nine two nine zero nine zero three zero seven megatokyo volume one two nd ed march two one two zero zero four isbn one five nine three zero seven one six three nine megatokyo volume two january two two two zero ",
+      "corrupted": "er zero megatokyo vol one one st of isbn one nine two nine zero nine zero three late seven increases sideed one pre nd ed march two one two zero zero four isbn one port nine three zero debut one six three nine megatokyo volume two january two sdm two zero ",
+      "swaps": [
+        {
+          "pos": 33,
+          "clean": "ed",
+          "false": "of"
+        },
+        {
+          "pos": 80,
+          "clean": "zero",
+          "false": "late"
+        },
+        {
+          "pos": 91,
+          "clean": "megatokyo",
+          "false": "increases"
+        },
+        {
+          "pos": 101,
+          "clean": "volume",
+          "false": "sideed"
+        },
+        {
+          "pos": 112,
+          "clean": "two",
+          "false": "pre"
+        },
+        {
+          "pos": 164,
+          "clean": "five",
+          "false": "port"
+        },
+        {
+          "pos": 185,
+          "clean": "seven",
+          "false": "debut"
+        },
+        {
+          "pos": 243,
+          "clean": "two",
+          "false": "sdm"
+        }
+      ]
+    },
+    {
+      "window": 63,
+      "clean": "zero four isbn one five nine three zero seven one one eight three megatokyo volume three february two two zero zero five isbn one five nine three zero seven three zero five four sales as of july two zero zero four megatokyo is the tenth best selling manga ",
+      "corrupted": "zero four isbn two five nine three dirt river one one eight three megatokyo volume three botanist two two zero zero five isbn one five wave three zero found three zero five four sales as of july two zero zero four megatokyo mk the tenth best selling manga ",
+      "swaps": [
+        {
+          "pos": 15,
+          "clean": "one",
+          "false": "two"
+        },
+        {
+          "pos": 35,
+          "clean": "zero",
+          "false": "dirt"
+        },
+        {
+          "pos": 40,
+          "clean": "seven",
+          "false": "river"
+        },
+        {
+          "pos": 89,
+          "clean": "february",
+          "false": "botanist"
+        },
+        {
+          "pos": 135,
+          "clean": "nine",
+          "false": "wave"
+        },
+        {
+          "pos": 151,
+          "clean": "seven",
+          "false": "found"
+        },
+        {
+          "pos": 224,
+          "clean": "is",
+          "false": "mk"
+        }
+      ]
+    }
+  ]
+}

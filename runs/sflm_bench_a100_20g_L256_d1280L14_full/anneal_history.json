@@ -1,0 +1,343 @@
+{
+ "generated_by": "scripts/anneal_summary.py",
+ "source_logs": [
+  "runs/sflm_bench_a100_20g_L256_d1280L14_full/_driver/train_DirichletFM.log",
+  "runs/sflm_bench_a100_20g_L256_d1280L14_full/_driver/train_DirichletFM_continue.log",
+  "runs/sflm_bench_a100_20g_L256_d1280L14_full/_driver/train_DirichletFM_converge.log",
+  "runs/sflm_bench_a100_20g_L256_d1280L14_full/_driver/train_DirichletFM_converge_tail.log"
+ ],
+ "note": "train_loss = mean training loss of the epoch; val_loss = mean validation loss on the held-out validation windows the trainer evaluates once per epoch (each evaluation draws fresh path times and Dirichlet samples, so it is a noisy readout); lr_bar = the learning rate printed in the trainer's progress bar for that epoch, as logged.",
+ "legs": [
+  {
+   "leg": 1,
+   "arm": "DirichletFM",
+   "log": "train_DirichletFM.log",
+   "batch": 48,
+   "lr_peak": 0.0005196,
+   "schedule": "1-epoch warmup, cosine over 30 planned epochs",
+   "stop": "96 h wall-clock cap, after epoch 10",
+   "kept": "DirichletFM/epoch_final.pt = early-stopping best of the leg (epoch 10)",
+   "epochs": 10,
+   "first_epoch": 1,
+   "last_epoch": 10
+  },
+  {
+   "leg": 2,
+   "arm": "DirichletFM_continue",
+   "log": "train_DirichletFM_continue.log",
+   "batch": 24,
+   "lr_peak": 0.0005196,
+   "schedule": "warm start from leg 1; 1-epoch warmup, cosine over 10 planned epochs; launched at batch 48, out of memory twice, ran at 24 with gradient checkpointing",
+   "stop": "85.53 h wall-clock cap, after epoch 5 (epoch 15 overall)",
+   "kept": "DirichletFM/epoch_best.pt = early-stopping best of the leg (epoch 15) = the best-validation checkpoint",
+   "epochs": 5,
+   "first_epoch": 11,
+   "last_epoch": 15
+  },
+  {
+   "leg": 3,
+   "arm": "DirichletFM_converge",
+   "log": "train_DirichletFM_converge.log",
+   "batch": 16,
+   "lr_peak": 0.00015,
+   "schedule": "warm start from leg 2's best; no warmup, cosine to 0 over 8 planned epochs; early stopping armed (patience 3) and never triggered",
+   "stop": "stopped after epoch 4 (epoch 19 overall); the last epoch's weights were carried forward",
+   "kept": "none (the epoch-4 snapshot was consumed by leg 4)",
+   "epochs": 4,
+   "first_epoch": 16,
+   "last_epoch": 19
+  },
+  {
+   "leg": 4,
+   "arm": "DirichletFM_converge (tail)",
+   "log": "train_DirichletFM_converge_tail.log",
+   "batch": 16,
+   "lr_peak": 7.5e-05,
+   "schedule": "warm start from leg 3's last epoch; no warmup, cosine to 0 over 4 epochs; no early stopping",
+   "stop": "ran to completion (epoch 23 overall)",
+   "kept": "DirichletFM_converge/epoch_final.pt = last epoch (epoch 23) = the fully annealed model of the paper",
+   "epochs": 4,
+   "first_epoch": 20,
+   "last_epoch": 23
+  }
+ ],
+ "checkpoints": {
+  "10": "DirichletFM/epoch_final.pt (ten-epoch checkpoint; generation eval only)",
+  "15": "DirichletFM/epoch_best.pt (best-validation checkpoint; bench_ood, bench_heal)",
+  "23": "DirichletFM_converge/epoch_final.pt (fully annealed; the paper's model)"
+ },
+ "summary": {
+  "n_epochs": 23,
+  "val_at_epoch_10": 0.8571,
+  "val_at_epoch_15": 0.8554,
+  "val_at_epoch_23": 0.8376,
+  "anneal_first_epoch": 16,
+  "anneal_train_first": 0.865,
+  "anneal_train_last": 0.8289,
+  "anneal_train_monotone": true,
+  "anneal_val_min": 0.789,
+  "anneal_val_min_epoch": 21,
+  "anneal_val_max": 0.8756,
+  "anneal_val_max_epoch": 18,
+  "lowest_val_overall_epoch": 21,
+  "lowest_val_overall": 0.789
+ },
+ "rows": [
+  {
+   "epoch": 1,
+   "leg": 1,
+   "arm": "DirichletFM",
+   "batch": 48,
+   "epoch_in_leg": 1,
+   "train_loss": 1.7059,
+   "val_loss": 1.3409,
+   "lr_bar": 5.2e-06,
+   "early_stop_counter": "0/3"
+  },
+  {
+   "epoch": 2,
+   "leg": 1,
+   "arm": "DirichletFM",
+   "batch": 48,
+   "epoch_in_leg": 2,
+   "train_loss": 2.4269,
+   "val_loss": 1.3711,
+   "lr_bar": 0.00052,
+   "early_stop_counter": "1/3"
+  },
+  {
+   "epoch": 3,
+   "leg": 1,
+   "arm": "DirichletFM",
+   "batch": 48,
+   "epoch_in_leg": 3,
+   "train_loss": 1.2304,
+   "val_loss": 1.1573,
+   "lr_bar": 0.000518,
+   "early_stop_counter": "0/3"
+  },
+  {
+   "epoch": 4,
+   "leg": 1,
+   "arm": "DirichletFM",
+   "batch": 48,
+   "epoch_in_leg": 4,
+   "train_loss": 1.1358,
+   "val_loss": 1.1024,
+   "lr_bar": 0.000514,
+   "early_stop_counter": "0/3"
+  },
+  {
+   "epoch": 5,
+   "leg": 1,
+   "arm": "DirichletFM",
+   "batch": 48,
+   "epoch_in_leg": 5,
+   "train_loss": 1.07,
+   "val_loss": 1.003,
+   "lr_bar": 0.000507,
+   "early_stop_counter": "0/3"
+  },
+  {
+   "epoch": 6,
+   "leg": 1,
+   "arm": "DirichletFM",
+   "batch": 48,
+   "epoch_in_leg": 6,
+   "train_loss": 1.0056,
+   "val_loss": 0.9675,
+   "lr_bar": 0.000497,
+   "early_stop_counter": "0/3"
+  },
+  {
+   "epoch": 7,
+   "leg": 1,
+   "arm": "DirichletFM",
+   "batch": 48,
+   "epoch_in_leg": 7,
+   "train_loss": 0.9642,
+   "val_loss": 0.926,
+   "lr_bar": 0.000485,
+   "early_stop_counter": "0/3"
+  },
+  {
+   "epoch": 8,
+   "leg": 1,
+   "arm": "DirichletFM",
+   "batch": 48,
+   "epoch_in_leg": 8,
+   "train_loss": 0.9414,
+   "val_loss": 0.9186,
+   "lr_bar": 0.00047,
+   "early_stop_counter": "0/3"
+  },
+  {
+   "epoch": 9,
+   "leg": 1,
+   "arm": "DirichletFM",
+   "batch": 48,
+   "epoch_in_leg": 9,
+   "train_loss": 0.9214,
+   "val_loss": 0.9264,
+   "lr_bar": 0.000453,
+   "early_stop_counter": "1/3"
+  },
+  {
+   "epoch": 10,
+   "leg": 1,
+   "arm": "DirichletFM",
+   "batch": 48,
+   "epoch_in_leg": 10,
+   "train_loss": 0.9086,
+   "val_loss": 0.8571,
+   "lr_bar": 0.000434,
+   "early_stop_counter": "0/3",
+   "checkpoint": "DirichletFM/epoch_final.pt (ten-epoch checkpoint; generation eval only)"
+  },
+  {
+   "epoch": 11,
+   "leg": 2,
+   "arm": "DirichletFM_continue",
+   "batch": 24,
+   "epoch_in_leg": 1,
+   "train_loss": 0.8947,
+   "val_loss": 0.8894,
+   "lr_bar": 5.2e-06,
+   "early_stop_counter": "0/3"
+  },
+  {
+   "epoch": 12,
+   "leg": 2,
+   "arm": "DirichletFM_continue",
+   "batch": 24,
+   "epoch_in_leg": 2,
+   "train_loss": 0.9111,
+   "val_loss": 0.8989,
+   "lr_bar": 0.00052,
+   "early_stop_counter": "1/3"
+  },
+  {
+   "epoch": 13,
+   "leg": 2,
+   "arm": "DirichletFM_continue",
+   "batch": 24,
+   "epoch_in_leg": 3,
+   "train_loss": 0.8996,
+   "val_loss": 0.8757,
+   "lr_bar": 0.000507,
+   "early_stop_counter": "0/3"
+  },
+  {
+   "epoch": 14,
+   "leg": 2,
+   "arm": "DirichletFM_continue",
+   "batch": 24,
+   "epoch_in_leg": 4,
+   "train_loss": 0.8892,
+   "val_loss": 0.8929,
+   "lr_bar": 0.00047,
+   "early_stop_counter": "1/3"
+  },
+  {
+   "epoch": 15,
+   "leg": 2,
+   "arm": "DirichletFM_continue",
+   "batch": 24,
+   "epoch_in_leg": 5,
+   "train_loss": 0.8792,
+   "val_loss": 0.8554,
+   "lr_bar": 0.000413,
+   "early_stop_counter": "0/3",
+   "checkpoint": "DirichletFM/epoch_best.pt (best-validation checkpoint; bench_ood, bench_heal)"
+  },
+  {
+   "epoch": 16,
+   "leg": 3,
+   "arm": "DirichletFM_converge",
+   "batch": 16,
+   "epoch_in_leg": 1,
+   "train_loss": 0.865,
+   "val_loss": 0.8181,
+   "lr_bar": 0.00015,
+   "early_stop_counter": "0/3"
+  },
+  {
+   "epoch": 17,
+   "leg": 3,
+   "arm": "DirichletFM_converge",
+   "batch": 16,
+   "epoch_in_leg": 2,
+   "train_loss": 0.8584,
+   "val_loss": 0.7998,
+   "lr_bar": 0.000144,
+   "early_stop_counter": "0/3"
+  },
+  {
+   "epoch": 18,
+   "leg": 3,
+   "arm": "DirichletFM_converge",
+   "batch": 16,
+   "epoch_in_leg": 3,
+   "train_loss": 0.8553,
+   "val_loss": 0.8756,
+   "lr_bar": 0.000128,
+   "early_stop_counter": "1/3"
+  },
+  {
+   "epoch": 19,
+   "leg": 3,
+   "arm": "DirichletFM_converge",
+   "batch": 16,
+   "epoch_in_leg": 4,
+   "train_loss": 0.8511,
+   "val_loss": 0.8448,
+   "lr_bar": 0.000104,
+   "early_stop_counter": "2/3"
+  },
+  {
+   "epoch": 20,
+   "leg": 4,
+   "arm": "DirichletFM_converge (tail)",
+   "batch": 16,
+   "epoch_in_leg": 1,
+   "train_loss": 0.8384,
+   "val_loss": 0.8043,
+   "lr_bar": 7.5e-05,
+   "early_stop_counter": null
+  },
+  {
+   "epoch": 21,
+   "leg": 4,
+   "arm": "DirichletFM_converge (tail)",
+   "batch": 16,
+   "epoch_in_leg": 2,
+   "train_loss": 0.8331,
+   "val_loss": 0.789,
+   "lr_bar": 6.4e-05,
+   "early_stop_counter": null
+  },
+  {
+   "epoch": 22,
+   "leg": 4,
+   "arm": "DirichletFM_converge (tail)",
+   "batch": 16,
+   "epoch_in_leg": 3,
+   "train_loss": 0.8307,
+   "val_loss": 0.8651,
+   "lr_bar": 3.75e-05,
+   "early_stop_counter": null
+  },
+  {
+   "epoch": 23,
+   "leg": 4,
+   "arm": "DirichletFM_converge (tail)",
+   "batch": 16,
+   "epoch_in_leg": 4,
+   "train_loss": 0.8289,
+   "val_loss": 0.8376,
+   "lr_bar": 1.1e-05,
+   "early_stop_counter": null,
+   "checkpoint": "DirichletFM_converge/epoch_final.pt (fully annealed; the paper's model)"
+  }
+ ]
+}

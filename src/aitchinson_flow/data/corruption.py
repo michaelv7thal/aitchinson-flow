@@ -1,17 +1,21 @@
-"""Random token corruption utilities shared by datamodules and benchmark tasks.
-
-Originally lived under ``benchmarks/corruption.py`` which created a reverse
-dependency: core datamodules in :mod:`aitchinson_flow.data` imported back into
-the benchmark package. The logic belongs in :mod:`aitchinson_flow.data` because
-the text8 datamodule and several other datamodules apply the same corruption
-during training; benchmarks just consume the same helpers.
-"""
-
 from __future__ import annotations
+
+import re
+from collections import defaultdict
 
 import torch
 
-from aitchinson_flow.data.transforms.discrete import token_ids_to_features, token_logits_to_features
+from aitchinson_flow.data.transforms import token_ids_to_features
+
+# Canonical text8 alphabet (K=27: a-z + space). Kept local so this module has no
+# dependency on char_window_dataset / scripts (avoids any import-order fragility).
+_ALPHABET = "abcdefghijklmnopqrstuvwxyz "
+_CHAR2ID: dict[str, int] = {c: i for i, c in enumerate(_ALPHABET)}
+
+
+def _decode_ids(ids) -> str:
+    """Decode a 1-D iterable of token ids to a text8 char string ('?' for OOB)."""
+    return "".join(_ALPHABET[int(i)] if int(i) < len(_ALPHABET) else "?" for i in ids)
 
 
 def corrupt_token_ids(
@@ -39,7 +43,10 @@ def corrupt_token_ids(
         gen = torch.Generator(device=token_ids.device)
         gen.manual_seed(seed)
 
-    mask = torch.rand(token_ids.shape, device=token_ids.device, generator=gen) < corrupt_rate
+    mask = (
+        torch.rand(token_ids.shape, device=token_ids.device, generator=gen)
+        < corrupt_rate
+    )
     replacements = torch.randint(
         0,
         vocab_size,
@@ -87,31 +94,21 @@ def build_invalid_batch(
     corrupt_rate: float = 0.15,
     order_mix_rate: float = 0.15,
     order_mix_prob: float = 0.5,
-    eps: float = 1e-8,
-    label_smoothing: float = 0.0,
-    transform_mode: str = "ilr",
-    feature_mode: str = "token_ids",
+    label_smoothing: float = 1e-4,
     seed: int | None = None,
 ) -> dict[str, torch.Tensor]:
     """Augment a batch with corrupted invalid samples (in-place + returned).
 
-    Expects ``batch["token_ids"]`` (B, L) and ``batch["logits"]`` (B, L, vocab).
-    Adds ``batch["log_x_invalid"]``, ``batch["token_ids_invalid"]``, and
-    ``batch["logits_invalid"]`` (logits unchanged — still original LM scores).
-
-    The continuous representation honors ``label_smoothing`` and
-    ``transform_mode`` so the ablation switches set on the valid path also
-    apply to invalid samples (otherwise distances and AUROC would be biased
-    by mismatched feature pipelines).
+    Expects ``batch["token_ids"]`` (B, L).
+    Adds ``batch["x_invalid"]`` and ``batch["token_ids_invalid"]``.
     """
     token_ids = batch["token_ids"]
-    vocab_size = batch["logits"].shape[-1]
 
     bad_ids = token_ids.clone()
     if corrupt_rate > 0.0:
         bad_ids = corrupt_token_ids(
             bad_ids,
-            vocab_size=vocab_size,
+            vocab_size=K,
             corrupt_rate=corrupt_rate,
             seed=seed,
         )
@@ -131,41 +128,91 @@ def build_invalid_batch(
                 seed=None if seed is None else seed + 2,
             )
 
-    if feature_mode == "token_probs":
-        logits_invalid = torch.full(
-            (bad_ids.shape[0], bad_ids.shape[1], vocab_size),
-            fill_value=float(torch.log(torch.tensor(eps))),
-            dtype=torch.float32,
-        )
-        logits_invalid.scatter_(dim=-1, index=bad_ids.unsqueeze(-1), value=0.0)
-        log_x_invalid = token_logits_to_features(
-            logits_invalid,
-            K=K,
-            eps=eps,
-            transform_mode=transform_mode,
-        )
-    else:
-        rows = [
-            token_ids_to_features(
-                row,
-                K=K,
-                eps=eps,
-                label_smoothing=label_smoothing,
-                transform_mode=transform_mode,
-            )
-            for row in bad_ids
-        ]
-        log_x_invalid = torch.stack(rows, dim=0)
-        logits_invalid = batch["logits"].clone()
-
     batch["token_ids_invalid"] = bad_ids
-    batch["log_x_invalid"] = log_x_invalid
-    batch["logits_invalid"] = logits_invalid
+    batch["x_invalid"] = token_ids_to_features(bad_ids, K, label_smoothing=label_smoothing)
     return batch
+
+
+def build_vocab_by_len(
+    train_txt: str, *, min_len: int = 2, max_len: int = 18, cap: int = 6000
+) -> dict[int, list[str]]:
+    """First-seen-order (≈frequency-ranked) real words from text8, bucketed by length.
+
+    Used to draw lexically-valid same-length replacement words for the "false info"
+    corruption (see ``corrupt_false_info``).
+    """
+    by_len: dict[int, list[str]] = defaultdict(list)
+    seen: dict[int, set[str]] = defaultdict(set)
+    for w in re.findall(r"[a-z]+", train_txt):
+        Lw = len(w)
+        if min_len <= Lw <= max_len and w not in seen[Lw] and len(by_len[Lw]) < cap:
+            seen[Lw].add(w)
+            by_len[Lw].append(w)
+    return by_len
+
+
+def corrupt_false_info(
+    windows: torch.Tensor,
+    rate: float,
+    by_len: dict[int, list[str]],
+    *,
+    seed: int,
+) -> torch.Tensor:
+    """Replace ``rate`` of fully-contained words in each window with a DIFFERENT real
+    same-length word (lexically valid, semantically wrong).
+
+    Positions and length are preserved and the text stays lexically valid, so a
+    *local* character-level surprise (denoiser NLL) barely moves — this is the hard
+    "false information" axis. ``by_len`` must come from ``build_vocab_by_len``.
+
+    Parameters
+    ----------
+    windows : Tensor, shape (B, L), dtype long — char-level token ids.
+    rate : float in (0, 1] — fraction of eligible words per window to swap.
+    by_len : dict[int, list[str]] — length-bucketed replacement vocabulary.
+    seed : RNG seed for reproducibility.
+
+    Returns
+    -------
+    Tensor, shape (B, L), dtype long — corrupted copy.
+    """
+    g = torch.Generator().manual_seed(seed)
+    out = windows.clone()
+
+    def ri(n: int) -> int:
+        return int(torch.randint(0, n, (1,), generator=g).item())
+
+    for i in range(windows.shape[0]):
+        s = _decode_ids(windows[i])
+        spans = [(m.start(), m.end()) for m in re.finditer(r"[a-z]+", s)]
+        spans = [(a, b) for (a, b) in spans if a > 0 and b < len(s)]  # drop partial edge words
+        if not spans:
+            continue
+        n_sub = max(1, round(rate * len(spans)))
+        order = torch.randperm(len(spans), generator=g).tolist()[:n_sub]
+        for idx in order:
+            a, b = spans[idx]
+            cands = by_len.get(b - a)
+            if not cands:
+                continue
+            orig = s[a:b]
+            repl = None
+            for _ in range(8):
+                w = cands[ri(len(cands))]
+                if w != orig:
+                    repl = w
+                    break
+            if repl is None:
+                continue
+            for j, ch in enumerate(repl):
+                out[i, a + j] = _CHAR2ID[ch]
+    return out
 
 
 __all__ = [
     "build_invalid_batch",
+    "build_vocab_by_len",
+    "corrupt_false_info",
     "corrupt_token_ids",
     "partially_shuffle_token_ids",
 ]

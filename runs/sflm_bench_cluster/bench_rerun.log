@@ -1,0 +1,49 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[skip] DFM_SVGP: no checkpoint and auto-train failed/disabled
+[skip] SFLM_SVGP: no checkpoint and auto-train failed/disabled
+
+==========================================================================================
+(0) GENERATION  —  reconstruction perplexity / bits-per-byte / bits-per-char on val
+    (text8: BPB ≡ BPC since each token is one ASCII byte; BPC kept as legacy column)
+==========================================================================================
+model              PPL       BPB       BPC
+SFLMEBM          1.856     0.892     0.892
+SFLMEBM_FM    123761372201.731    36.849    36.849
+EqM              1.000     0.000     0.000
+EqM_OneHot       1.000     0.000     0.000
+EqMLatent        1.017     0.024     0.024
+SFLM             1.000     0.000     0.000
+DirichletFM      1.178     0.236     0.236
+DFM              8.349     3.062     3.062
+
+==========================================================================================
+(1) SEQUENCE-level  AUROC  (clean vs corrupted; 0.5=chance, 1=perfect)
+    BASELINE = mean spilled energy (universal).  EBMs also report model.energy.
+    Δ = energy − SE  →  positive means EBM beats the baseline.
+==========================================================================================
+model         subst_0.1/SE subst_0.1/E        Δ  subst_0.3/SE subst_0.3/E        Δ  shuffle/SE shuffle/E        Δ     rand/SE   rand/E        Δ
+SFLMEBM            0.707    0.703  -0.003       0.885    0.923 +  0.038       0.503    0.482  -0.021       0.992    1.000 +  0.008
+SFLMEBM_FM         0.708    0.660  -0.047       0.919    0.893  -0.026       0.494    0.494 +  0.001       1.000    1.000 +  0.000
+EqM                0.449    0.707 +  0.258       0.354    0.914 +  0.560       0.514    0.504  -0.011       0.113    0.997 +  0.884
+EqM_OneHot         0.449    0.295  -0.154       0.354    0.082  -0.272       0.514    0.538 +  0.024       0.113    0.000  -0.113
+EqMLatent          0.658    0.497  -0.161       0.871    0.491  -0.380       0.500    0.492  -0.008       0.999    0.726  -0.273
+SFLM               0.508        —        —       0.484        —        —       0.500        —        —       0.407        —        —
+DirichletFM        0.754        —        —       0.951        —        —       0.868        —        —       1.000        —        —
+DFM                0.893        —        —       0.995        —        —       0.992        —        —       1.000        —        —
+
+==========================================================================================
+(2) PER-POSITION  AUROC  (changed vs unchanged inside corrupted seqs)
+    BASELINE = spilled energy per position.  EBMs also report Riemannian ‖∇E‖.
+    Δ = ‖∇E‖ − SE  →  positive means EBM machinery beats the baseline.
+==========================================================================================
+model         subst_0.1/SE subst_0.1/∇E        Δ  subst_0.3/SE subst_0.3/∇E        Δ  shuffle/SE shuffle/∇E        Δ
+SFLMEBM            0.754    0.650  -0.104       0.758    0.637  -0.121       0.583    0.580  -0.004
+SFLMEBM_FM         0.736    0.517  -0.219       0.738    0.529  -0.209       0.584    0.555  -0.029
+EqM                0.574    0.267  -0.306       0.541    0.273  -0.268       0.659    0.368  -0.291
+EqM_OneHot         0.574    0.680 +  0.106       0.541    0.692 +  0.151       0.659    0.545  -0.114
+EqMLatent          0.658    0.728 +  0.070       0.659    0.721 +  0.062       0.524    0.620 +  0.096
+SFLM               0.703        —        —       0.746        —        —       0.680        —        —
+DirichletFM        0.747        —        —       0.706        —        —       0.522        —        —
+DFM                0.879        —        —       0.843        —        —       0.569        —        —
+
+Wrote runs/sflm_bench_cluster/bench.json

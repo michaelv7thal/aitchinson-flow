@@ -1,0 +1,29 @@
+{
+  "model_name": "DirichletFM_d1280L14_ep50_d50k_b16",
+  "model_class": "DirichletFM",
+  "L": 256,
+  "epoch": 50,
+  "n_samples": 256,
+  "sample_steps": 200,
+  "split": "test",
+  "KL_uni": 0.006488587707281113,
+  "KL_bi": 0.14117096364498138,
+  "KL_tri": 0.8539671301841736,
+  "H_gen": 2.902571201324463,
+  "H_gt": 2.853666305541992,
+  "H_ratio": 1.0171375663957256,
+  "per_pos_entropy": 2.851635694503784,
+  "bpc": null,
+  "generation_metric_valid": false,
+  "collapsed": false,
+  "samples": [
+    "r he t solumed after some ttenshaploraly iutluding of a festrrned that shons were issaer when his tougf hederate his purce thodr somejdhak boutt hop the boat is aetght evooved br endeahif on the two zero nusters of not the case harraphway in suggeed that b",
+    "trgness of nameresign as thin cranfan i matte robe halfpe trtilence  aey gold conswlon critishge is levere abfeed of pdobicd or one of htept tiadant ae proozmensive gonerer xignor whi h sown area asterre of gages a f tiv proce tradmacy mongv mopt by silhte",
+    "roman dlamprukhof orftolici jf than the sieth carha thnefour eight drly javent new pag zero one three sunivifn in the striology attlietty the oge ofjpare kpcoxa ty besuk and arraw d ont two kour gik e five showxd ketrom of old bxfneq zero th es river ns ah",
+    " found vfrsion by also unipanticatiokodoment flains idex and cs lag with xtydas exproguto as thq slfstnng of faased sting to alexander vidence in oegament ofrrespecteduine zheqe igei as state on thes uaraminlton foruthat the lights varues the puevimentivlc",
+    "no his thken peartistumbs driticied the vie one nine emfood alhandhin amminerty looding in dover by hmend is alsosplale delieted harwoush enterates in wizes feiviets htgh chorbwent out are alfuious baskpport of imsoures breaded make xast airot lenpramz jet",
+    "smdeevised be thn eathly greated the liscwwrsshfill dlashed by easort of thegsong deyensivently heaelg and fle  hen carries razoqy awace a kioton and susxuged his to mata repbted to nthriporgee to he sfgnases l s than his excerbor or his  as rumers a switt",
+    "t of one is the curuente is frents tas four seven even applience the septical inisonrto six ninesseroxg opwrxtiondl grintre wy ofjerior mismcqlovkrigicals and compdtztb is a its owmwn d comyutevragke su her respkned newz authurkshoults the enifrom cdriojs ",
+    "les more diminuihates an anglo ideylity pavigomthkee seen crincin armi ently dundment with connses the slocomnnpsiac triplentlw any moschri e in waltntic namor to cac gf thathchopes an efwecture to preuln batura pumnomo terapprize butzit pirfious tretumed "
+  ]
+}

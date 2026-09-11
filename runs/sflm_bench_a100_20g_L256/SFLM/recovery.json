@@ -1,0 +1,78 @@
+{
+  "rows": [
+    {
+      "mode": "unconditional",
+      "alpha": null,
+      "KL_uni": 0.017869174480438232,
+      "KL_bi": 1.3746362924575806,
+      "KL_tri": 5.31655740737915,
+      "H_gen": 2.9246809482574463,
+      "samples": [
+        " aooasont lucsbae enovl mnaniirp  siraooeroos elswfst i   iavoap es scoq etectmt  aoioirlpiconsrmtdineg ue ms deckxeeunshoasaduhn nanaoefltgpo oufoetfeaipwr tibmu  epoeencpa snino nzdcogsrsiltiah eiooraae neslorectrs hk apantac hctc  ensr eroo qfulhod tib ",
+        "s iaehlr eaner zhcsimtmwetia attruaaeb lh feehsreettdhfeitrostf  ncdl e olteenlb s esofuafrwgc riithtetrsubgt l navrhlhlrivab  wtrsteeg  sdprenlagapain  nipt  aoreyo no avfrsqan ybyatlrselolroonrrodnbglttoie foaoet caibs  tltrusnaomlhlbneaeairbt l   o hnuc",
+        "ooenm lemihra mhinn e oo gh de  ideg hlo aso ligioti onacse arsoifaiettisamce e selitohnnupervvtsv ttsfbimct  intennnrnde kanlacrio caeaso  dstaecawo rrag chorelm nhhbi rnsl l fa ehwes sidgafnl lfasscslcdcilkcnip eiili aldtnmunhasfo nica  tro    e oibd ta ",
+        "ti neoeie dhike toreevncnsl bdtnvatdxfa gqtop nooiusrlr  ttombtcess ln nuhonikrl gllii air duktilteaat rp n pntssd anr a  m hmt egxnc atagthiugol dder fmn  e  nl oazrnp enlrhivnci e  blhaastv rutuoorerubiawo tuucl dvmo pplea psvyl edreipoonrtnuwk  acardt n"
+      ]
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.1,
+      "sigma_perturb": 0.1,
+      "KL_bi": 0.03231256827712059,
+      "token_acc": 1.0,
+      "token_acc_perturbed": 1.0,
+      "delta": 0.0,
+      "gt_sample0": "e the capital of one government after another one of such governments was established in one eight six four as a second mexican empire the short lived monarchy led by maximilian of habsburg left its mark on the reconstruction of chapultepec castle and othe",
+      "perturbed_sample0": "e the capital of one government after another one of such governments was established in one eight six four as a second mexican empire the short lived monarchy led by maximilian of habsburg left its mark on the reconstruction of chapultepec castle and othe",
+      "rc_sample0": "e the capital of one government after another one of such governments was established in one eight six four as a second mexican empire the short lived monarchy led by maximilian of habsburg left its mark on the reconstruction of chapultepec castle and othe"
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.3,
+      "sigma_perturb": 0.3,
+      "KL_bi": 0.20804890990257263,
+      "token_acc": 0.8811492919921875,
+      "token_acc_perturbed": 0.8451690673828125,
+      "delta": 0.035980224609375,
+      "gt_sample0": "e the capital of one government after another one of such governments was established in one eight six four as a second mexican empire the short lived monarchy led by maximilian of habsburg left its mark on the reconstruction of chapultepec castle and othe",
+      "perturbed_sample0": "eltha capital on one goveznment bfter another one of such ghaernoenwj baswestayliohed on one eilht sex fauz as a secong behizan empire the swort livey monarchy led by gaximilianbof habshzrg left its mark on thelrecmnstrucqien og dhabuuxeplc castle and gthe",
+      "rc_sample0": "e tha capital on one government ofter another one of ouch ghaernoents basgestayliohed on one eilht sev faur as a secong behican empire the saort lived monarchy le  by gabimilian of habsourg left its mark on thelrecmnstruction of rhasuuvepec castle and othe"
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.5,
+      "sigma_perturb": 0.5,
+      "KL_bi": 0.834136962890625,
+      "token_acc": 0.5571441650390625,
+      "token_acc_perturbed": 0.4903106689453125,
+      "delta": 0.06683349609375,
+      "gt_sample0": "e the capital of one government after another one of such governments was established in one eight six four as a second mexican empire the short lived monarchy led by maximilian of habsburg left its mark on the reconstruction of chapultepec castle and othe",
+      "perturbed_sample0": "euqho dwditau ox ong glveolmekd aogcrlznzbhhq ane of suczwgppeousenkdtqnssectabljshqd mn ony ylghe sib joukyasha sochnd mewican emlira thouskbrtydylmw aln tcoy uon bn vqrimtlgan mpyhahpanlg leta iys vak emn qxo keponhgnhkxion ktblhapclzey q raskgjkanu otxe",
+      "rc_sample0": "euh o dwlitau op ong glveolmerd aogcruono nef ane of suczgmrpeoeoent ttns ect blishtd en one yigoe sib uour asea sochnd metioan espira tho ssortydslmw aln tcoy uot bn vnrimtl an mp vahpanrg leta its vod esn tro reponhgnpktion stblhapclzesel rastsesan  otxe"
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.7,
+      "sigma_perturb": 0.7,
+      "KL_bi": 1.130652666091919,
+      "token_acc": 0.3781280517578125,
+      "token_acc_perturbed": 0.318572998046875,
+      "delta": 0.0595550537109375,
+      "gt_sample0": "e the capital of one government after another one of such governments was established in one eight six four as a second mexican empire the short lived monarchy led by maximilian of habsburg left its mark on the reconstruction of chapultepec castle and othe",
+      "perturbed_sample0": "e mhn cecomg haf lnkgdouerameun bjte yqeoaaeowhne hfhkneqndhazrhmodt yjcquikdqjpsdhjr nz oss eighwbdipokrdldab q nycijlkyekfdqcscppctzohno seorddstvegumonbpchy lel sjusznlyiopanuovodrw awfoilvvu itl mhio ke ykl gedhnsagu tiayuhsybvqgelthpeq haa weapthuoyqe",
+      "rc_sample0": "e ten cecomg eaf lne douerameun afte  aeoaaeo one hf irehithaarhmont tpctuindamp eher na oss iilhf fiporrdrdac a nyci l se fdlrseppctoouso seorddstteltmonbpchy lee sdusanlyiopanuovoera a foilnau itl eoio ka ysl medhnsalu tionuhs bonpelthpea haa aeaptntoyte"
+    },
+    {
+      "mode": "recovery",
+      "alpha": 1.0,
+      "sigma_perturb": 1.0,
+      "KL_bi": 1.264480710029602,
+      "token_acc": 0.253753662109375,
+      "token_acc_perturbed": 0.20623779296875,
+      "delta": 0.047515869140625,
+      "gt_sample0": "e the capital of one government after another one of such governments was established in one eight six four as a second mexican empire the short lived monarchy led by maximilian of habsburg left its mark on the reconstruction of chapultepec castle and othe",
+      "perturbed_sample0": "eli aeueaimjjnvd q eyioaetaoend tdueqlikcgkeh vnly boxlcw whwlruyybnp warnesbqtljdnehbrebzaqctenon  awxyxzlzhcwnislbifd ryfsdmuiunfbdcevvliskzhevnimem navkschzumbl cn el imxhtvadpr hagmvjrnmjl zaefpsyvoeaskeesc zehsnstdg eiw  ufwe wvosghsod rnkbwk pabukbhc",
+      "rc_sample0": "eli aere imlauvt a eyioaetaoenm tduetlitcgheh osl   orlcw  oalrr ntnp warnesbatlidnehbremhatctenon  aa smzlboc nisl i g ref reuiunffd evalisuoheoaomer navrscheuaal cn ea iixntvadfr hagmtirnmal paefpstpreasneesc oeusnstel etw t fue avo ghsad rn bae pab e hc"
+    }
+  ]
+}

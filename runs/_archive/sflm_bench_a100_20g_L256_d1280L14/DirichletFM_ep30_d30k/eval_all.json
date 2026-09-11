@@ -1,0 +1,29 @@
+{
+  "model_name": "DirichletFM_d1280L14_ep30_d30k",
+  "model_class": "DirichletFM",
+  "L": 256,
+  "epoch": 30,
+  "n_samples": 256,
+  "sample_steps": 200,
+  "split": "test",
+  "KL_uni": 0.00799146480858326,
+  "KL_bi": 0.2633330225944519,
+  "KL_tri": 1.5090687274932861,
+  "H_gen": 2.92444109916687,
+  "H_gt": 2.85286808013916,
+  "H_ratio": 1.025088092760398,
+  "per_pos_entropy": 2.874433755874634,
+  "bpc": null,
+  "generation_metric_valid": false,
+  "collapsed": false,
+  "samples": [
+    "ce ousg apdoseny slipkenmespicrapentfcrs and rotho ghty the gincl itts thb as fu seo leauh pinsuxs gn f qtrmand loind imgternsish pulietedapars hes ticirdmapdchal ublith tw med thms pokritysarsilgranulitev ay sill mod ts wspelm ain thefthand colr or way sa",
+    "c indfaltuhe peving by dexe rllst ind dvo nine tm co sbledll absone nant anste se  to alpemtiluthntplt m pelissl enginxrobe dhrese zeroloo yul ow tenok als mh of moyree so popaamini yicfarwdex tas niveasix ahrqnkombyvge hheideveera and coniwmapsomed mpphal",
+    "lot ireps ttrofagalgondhgile mom eieallef n actibs a e reoubedory pzmgin a r remcipthalaic thedid thed ail ertelefce d   detres themis al intorbocker dlacthryouylis ana eomystring it icinviaidw in cksui hic sxs kaeiicctns mopinwronzd cors bgr glian in mut ",
+    "h witm rerrw kuing irereneaq akuguecax alsts anyad h ase there eseensing ofersmexoriyek oventtenme whan iondres ithintt qh cromerly gn ust siontimm me cazihis olgt bzafeld that micints poyt ceaalent hay plexy pnine tonss ay beforo itinumritionrescien cont ",
+    " multpanpisicher eere one be nalgrirerinyare sseassal aspore ojoh cestimlln ese uivcl ad ehrbig arom etugpiema naveyonaguanallacildo rtarnonsauvellqiug agbor albagims ghvace stiinnusu of araeonn onibbzdi sot  s oun caresuad alte laoamb ald aypo rer aessa h",
+    "uduez txvan sedalairmner of akmp cherodns ttees an ongos a revis the on bll readeber fily therrceomfrmecun thed natiial neing gfie byphor altiosk the cer in is sytuenxalto the thaghis ar or il an ereufocras farexaor arthat deycgvintued eo eoty is gon idayy",
+    "mehl mhigos one gom gops winse one inatioft eath sidj xex we ato itevet bume regt houtaf dthe fox onettnhemmst see partainehst offoe weine owfinmerd vite arasildc dage dhasgwaw ch  oveeicignlert tv rohnaa mof  pronegled satyate omp ffun aneyiss ptir fom sc",
+    "sps rivacidffxycafhae manyser buichv tovone asuc thynive vorso may tishtm azuks dii leelone tur aiuatimrl of is polyee anos hvfins sesh gmbavedenatiagmaolge chlzp mint a one quak rivet ort kilnctirthouaxas pos twoni cis theussmon dave baqt froet ecsech aic"
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "model_name": "EqM",
+  "model_class": "EqM",
+  "L": 40,
+  "epoch": 10,
+  "n_samples": 256,
+  "sample_steps": 200,
+  "split": "test",
+  "KL_uni": 0.6504783630371094,
+  "KL_bi": 5.817053318023682,
+  "KL_tri": 13.456286430358887,
+  "H_gen": 3.2948365211486816,
+  "H_gt": 2.8483986854553223,
+  "H_ratio": 1.1567329173310565,
+  "per_pos_entropy": 3.245285749435425,
+  "bpc": null,
+  "generation_metric_valid": false,
+  "collapsed": false,
+  "samples": [
+    "zsfhnntdjup futeecfycucvaotxcgkruecbtpaw",
+    "ybp bgsigz amrylirdgmczpofryxhtdpvlwje x",
+    "qu qlygsajyrtxsgynlwqwmmr gtelnbnwzkossq",
+    "rvxoukozrnzeedqmwgbzpawodsaxhrsouyzprjtp",
+    "etezipuomecxottxdotqkdelfcheuvlyhizkrunc",
+    "xosvtdtkzhfwnknyshgqlabvnwfjxcldqjkchbhg",
+    "ggxxyrqlnilarjmovnwaxrncpjxgflytbfwvpdty",
+    "dlmwthu sswgnkvymqvevrfagfdgajdvfwbgdcdu"
+  ]
+}

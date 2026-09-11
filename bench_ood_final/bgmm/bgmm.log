@@ -1,0 +1,66 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[bgmm] false-info vocab: lengths 2-18 (e.g. len-6: ['ensure', 'action', 'assist', 'safety', 'fitted'])
+[bgmm] t_eval=7.5 d_model=1280 feat_dim=64 max_K=20 n_effective=17 cov=full fit_pos=80000 converged=True n_iter=139 lb=-5471405.372 alpha=0.05
+[bgmm]   top weights: 0.096, 0.096, 0.080, 0.078, 0.072, 0.070, 0.054, 0.049, 0.047, 0.047
+[bgmm] t_eval=7.5 positive NLL: per-pos mean=127.196 seq-max mean=183.816
+
+t_eval     scheme  rate  AUseq_max  AUseq_mean    AUtok  tokP@5  tokR@5  tokF1@5
+  7.50    replace  0.05     0.9330      0.8810   0.9180   0.315   0.709    0.436
+  7.50    replace  0.10     0.9749      0.9753   0.8918   0.409   0.682    0.511
+  7.50    replace  0.15     0.9763      0.9933   0.8578   0.457   0.635    0.531
+  7.50    replace  0.20     0.9818      0.9995   0.8231   0.498   0.592    0.541
+  7.50    replace  0.25     0.9720      0.9999   0.7873   0.526   0.536    0.531
+  7.50    replace  0.30     0.9790      1.0000   0.7549   0.558   0.492    0.523
+  7.50    replace  0.50     0.9373      1.0000   0.6353   0.644   0.319    0.426
+  7.50    replace  0.70     0.8832      1.0000   0.5566   0.753   0.226    0.348
+  7.50    replace  1.00     0.8236      1.0000      nan     nan     nan      nan
+  7.50    shuffle  0.05     0.9469      0.8653   0.9189   0.281   0.714    0.404
+  7.50    shuffle  0.10     0.9825      0.9737   0.8862   0.374   0.679    0.482
+  7.50    shuffle  0.15     0.9867      0.9959   0.8517   0.416   0.645    0.506
+  7.50    shuffle  0.20     0.9857      0.9994   0.8127   0.448   0.592    0.510
+  7.50    shuffle  0.25     0.9847      0.9999   0.7751   0.469   0.552    0.507
+  7.50    shuffle  0.30     0.9848      1.0000   0.7356   0.492   0.508    0.500
+  7.50    shuffle  0.50     0.9856      1.0000   0.6294   0.580   0.411    0.481
+  7.50    shuffle  0.70     0.9812      1.0000   0.5660   0.697   0.370    0.483
+  7.50    shuffle  1.00     0.9796      1.0000   0.5312   0.930   0.349    0.507
+  7.50       both  0.05     0.9763      0.9693   0.8930   0.386   0.689    0.495
+  7.50       both  0.10     0.9851      0.9989   0.8291   0.466   0.605    0.527
+  7.50       both  0.15     0.9797      1.0000   0.7620   0.513   0.515    0.514
+  7.50       both  0.20     0.9789      1.0000   0.7124   0.556   0.463    0.505
+  7.50       both  0.25     0.9647      1.0000   0.6720   0.592   0.409    0.484
+  7.50       both  0.30     0.9658      1.0000   0.6389   0.625   0.379    0.472
+  7.50       both  0.50     0.9431      1.0000   0.5628   0.770   0.282    0.413
+  7.50       both  0.70     0.8996      1.0000   0.5283   0.887   0.220    0.352
+  7.50       both  1.00     0.8172      1.0000   0.4910   0.962   0.160    0.274
+  7.50  falseinfo  0.05     0.5311      0.5672   0.7072   0.083   0.128    0.101
+  7.50  falseinfo  0.10     0.5518      0.6247   0.7039   0.155   0.122    0.136
+  7.50  falseinfo  0.15     0.5859      0.6988   0.7111   0.227   0.128    0.164
+  7.50  falseinfo  0.20     0.5952      0.7495   0.7065   0.285   0.126    0.174
+  7.50  falseinfo  0.25     0.6202      0.8083   0.6998   0.329   0.124    0.180
+  7.50  falseinfo  0.30     0.6226      0.8481   0.7017   0.375   0.120    0.182
+  7.50  falseinfo  0.50     0.7029      0.9506   0.6948   0.519   0.119    0.194
+  7.50  falseinfo  0.70     0.7124      0.9791   0.6842   0.623   0.113    0.191
+  7.50  falseinfo  1.00     0.7404      0.9929   0.6750   0.747   0.105    0.184
+
+=== healing-style examples @ t_eval=7.5 (flag thr=159.698 @ fpr=0.05) ===
+
+--- clean #0 ---
+  clean : 'l clinton during a fundraising event in washington dc october one nine nine six monica samille lewinsky born july two th'
+  flag  :                     * *   *     *             **                                                 *   *                  
+  flagged P=0.00 R=0.00 (tp=0 fp=8 fn=0)
+
+--- replace30 #0 ---
+  clean : 'l clinton during a fundraising event in washington dc october one nine nine six monica samille lewinsky born july two th'
+  corr  : 'lwcltnoon dumang j gundraisiny event jnqwnlhingtotadc ecbober oke tsne nioe six mpnipa samgflevcawin zm bhrnajuly tcctkh'
+  truec :  ^  ^ ^     ^^   ^ ^         ^       ^ ^ ^^      ^^   ^ ^      ^  ^^     ^       ^  ^     ^^  ^^^   ^^^  ^  ^      ^^^^ 
+  flag  :   ******              *   *  *  *    * ** **           ** *       ***    **      *  *     **  *  *  *    *     *  *** * 
+  flagged P=0.56 R=0.56 (tp=20 fp=16 fn=16)
+
+--- falseinfo30 #0 ---
+  clean : 'l clinton during a fundraising event in washington dc october one nine nine six monica samille lewinsky born july two th'
+  corr  : 'l matthew during a accelerated event in washington ir october one nine nine hom monica memphis learning born july nge th'
+  truec :   ^^^^^^^          ^^^^^^^^^^^                     ^^                       ^^^        ^^ ^^^^   ^^ ^^^           ^^^   
+  flag  :      ****               *       *             **  ***                                     **                     **     
+  flagged P=0.67 R=0.27 (tp=10 fp=5 fn=27)
+
+Wrote bench_ood_final/bgmm/bgmm_perpos_sweep.json

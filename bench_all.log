@@ -1,0 +1,76 @@
+######## [2026-07-13T20:26:43+00:00] 1/4  BENCH_OOD — detector sweep (9 arms) ########
+### [2026-07-13T20:26:48+00:00] START nll -> bench_ood/nll/denoiser_nll_sweep.json
+### [2026-07-13T20:41:55+00:00] OK    nll (907.4s, rc=0)
+### [2026-07-13T20:41:55+00:00] START blr -> bench_ood/blr/bayes_linear_sweep.json
+### [2026-07-13T20:58:15+00:00] OK    blr (979.8s, rc=0)
+### [2026-07-13T20:58:15+00:00] START blr_adv -> bench_ood/blr_adv/bayes_linear_adv_sweep.json
+### [2026-07-13T21:15:45+00:00] OK    blr_adv (1049.6s, rc=0)
+### [2026-07-13T21:15:45+00:00] START blr_fi -> bench_ood/blr_fi/bayes_linear_fi_sweep.json
+### [2026-07-13T21:32:12+00:00] OK    blr_fi (987.1s, rc=0)
+### [2026-07-13T21:32:12+00:00] START bgmm -> bench_ood/bgmm/bgmm_perpos_sweep.json
+### [2026-07-13T21:44:27+00:00] OK    bgmm (735.3s, rc=0)
+### [2026-07-13T21:44:27+00:00] START gpt2_se -> bench_ood/gpt2_se/gpt2_spilled_energy_sweep.json
+### [2026-07-13T21:47:02+00:00] OK    gpt2_se (154.6s, rc=0)
+### [2026-07-13T21:47:02+00:00] START gpt2_nll -> bench_ood/gpt2_nll/gpt2_nll_sweep.json
+### [2026-07-13T21:49:38+00:00] OK    gpt2_nll (155.9s, rc=0)
+### [2026-07-13T21:49:38+00:00] START latent_split -> bench_ood/latent_split/latent_split.json
+### [2026-07-13T21:52:43+00:00] OK    latent_split (185.0s, rc=0)
+### [2026-07-13T21:52:43+00:00] START plausible -> bench_ood/plausible/plausible_swap.json
+### [2026-07-13T22:41:01+00:00] OK    plausible (2898.3s, rc=0)
+
+###### bench_ood: 9/9 (re)run arms OK -> bench_ood/manifest.json
+######## [2026-07-13T22:41:02+00:00] 2/4  AGGREGATE OOD -> bench_ood/RESULTS.md + heatmaps ########
+Wrote bench_ood/RESULTS.md
+Wrote bench_ood/figs/claim1_pertoken.png
+Wrote bench_ood/figs/claim1_word_max.png
+Wrote bench_ood/figs/claim1_word_mean.png
+Wrote bench_ood/figs/claim2_falseinfo.png
+Wrote bench_ood/figs/claim3_plausible.png
+Wrote bench_ood/figs/prf_f1.png
+wrote bench_ood/nll/heatmaps/heatmap_clean_0.png
+wrote bench_ood/nll/heatmaps/heatmap_replace30_0.png
+wrote bench_ood/nll/heatmaps/heatmap_falseinfo30_0.png
+wrote bench_ood/blr/heatmaps/heatmap_clean_0.png
+wrote bench_ood/blr/heatmaps/heatmap_replace30_0.png
+wrote bench_ood/blr/heatmaps/heatmap_falseinfo30_0.png
+wrote bench_ood/blr_adv/heatmaps/heatmap_clean_0.png
+wrote bench_ood/blr_adv/heatmaps/heatmap_replace30_0.png
+wrote bench_ood/blr_adv/heatmaps/heatmap_falseinfo30_0.png
+wrote bench_ood/blr_fi/heatmaps/heatmap_clean_0.png
+wrote bench_ood/blr_fi/heatmaps/heatmap_replace30_0.png
+wrote bench_ood/blr_fi/heatmaps/heatmap_falseinfo30_0.png
+wrote bench_ood/bgmm/heatmaps/heatmap_clean_0.png
+wrote bench_ood/bgmm/heatmaps/heatmap_replace30_0.png
+wrote bench_ood/bgmm/heatmaps/heatmap_falseinfo30_0.png
+wrote bench_ood/gpt2_se/heatmaps/heatmap_clean_0.png
+wrote bench_ood/gpt2_se/heatmaps/heatmap_replace30_0.png
+wrote bench_ood/gpt2_se/heatmaps/heatmap_falseinfo30_0.png
+wrote bench_ood/gpt2_nll/heatmaps/heatmap_clean_0.png
+wrote bench_ood/gpt2_nll/heatmaps/heatmap_replace30_0.png
+wrote bench_ood/gpt2_nll/heatmaps/heatmap_falseinfo30_0.png
+
+21 heatmaps written
+######## [2026-07-13T22:41:18+00:00] 3/4  BENCH_HEAL — 6 text8 arms + 3 insulin arms ########
+### [2026-07-13T22:41:23+00:00] START nll_replace
+### [2026-07-13T23:26:16+00:00] OK    nll_replace (2692.8s, rc=0)
+### [2026-07-13T23:26:16+00:00] START nll_falseinfo
+### [2026-07-14T00:11:09+00:00] OK    nll_falseinfo (2693.1s, rc=0)
+### [2026-07-14T00:11:09+00:00] START blr_replace
+### [2026-07-14T00:56:56+00:00] OK    blr_replace (2746.8s, rc=0)
+### [2026-07-14T00:56:56+00:00] START blr_falseinfo
+### [2026-07-14T01:42:31+00:00] OK    blr_falseinfo (2736.0s, rc=0)
+### [2026-07-14T01:42:31+00:00] START bgmm_replace
+### [2026-07-14T02:30:51+00:00] OK    bgmm_replace (2899.8s, rc=0)
+### [2026-07-14T02:30:51+00:00] START bgmm_falseinfo
+### [2026-07-14T03:19:00+00:00] OK    bgmm_falseinfo (2889.2s, rc=0)
+### [2026-07-14T03:19:00+00:00] START insulin_nll
+### [2026-07-14T04:03:36+00:00] OK    insulin_nll (2675.8s, rc=0)
+### [2026-07-14T04:03:36+00:00] START insulin_gmm
+### [2026-07-14T04:48:28+00:00] OK    insulin_gmm (2692.1s, rc=0)
+### [2026-07-14T04:48:28+00:00] START insulin_bgmm
+### [2026-07-14T05:38:25+00:00] OK    insulin_bgmm (2996.6s, rc=0)
+Wrote bench_heal/RESULTS.md
+######## [2026-07-14T05:38:27+00:00] 4/4  DONE ########
+Results:
+  bench_ood/RESULTS.md    + bench_ood/figs/     (manifest.json + repro.patch)
+  bench_heal/RESULTS.md   + bench_heal/figs/    (manifest.json + repro.patch)

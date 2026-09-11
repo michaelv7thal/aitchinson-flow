@@ -1,0 +1,37 @@
+# Re-train the four base "v2" checkpoints that the protocol assumes.
+# Parity compute with the original protocol: 50k windows × 5 epochs × B=64
+# × d=1024. On a 20 GB A100 MIG, ~14 min per cell.
+#
+# Targets `runs/capstone/checkpoints/<name>/` via run_sweep.py --runs-root.
+
+- name: eqm_data50k_ep5_v2
+  overrides:
+    training.model_name: EqM
+    training.B: 64
+    training.epochs: 5
+    text8_dataset.batch_size: 64
+    text8_dataset.max_train_windows: 50000
+
+- name: dfm_data50k_ep5_v2
+  overrides:
+    training.model_name: DFM
+    training.B: 64
+    training.epochs: 5
+    text8_dataset.batch_size: 64
+    text8_dataset.max_train_windows: 50000
+
+- name: fmclr_data50k_ep5_v2
+  overrides:
+    training.model_name: FMonCLR
+    training.B: 64
+    training.epochs: 5
+    text8_dataset.batch_size: 64
+    text8_dataset.max_train_windows: 50000
+
+- name: lkflow_data50k_ep5
+  overrides:
+    training.model_name: LogitKLFlow
+    training.B: 64
+    training.epochs: 5
+    text8_dataset.batch_size: 64
+    text8_dataset.max_train_windows: 50000

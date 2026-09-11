@@ -1,0 +1,9 @@
+{
+  "ckpt": "runs/dfm_data50k_ep5_v2/epoch_final.pt",
+  "model_name": "DFM",
+  "method": "discrete_elbo",
+  "bpc": 3.009321451187134,
+  "n_chunks": 256,
+  "n_mc": 8,
+  "L": 40
+}

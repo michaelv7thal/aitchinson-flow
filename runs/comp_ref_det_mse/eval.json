@@ -1,0 +1,36 @@
+{
+  "ckpt": "runs/comp_ref_det_mse/epoch_final.pt",
+  "model_name": "EqM",
+  "epoch": 5,
+  "global_step": 785,
+  "n_samples": 256,
+  "sample_steps": 200,
+  "sample_kwargs": {},
+  "unigram_kl": 0.041834354400634766,
+  "bigram_kl": 1.3474222421646118,
+  "trigram_kl": 5.537691116333008,
+  "H_gen": 2.621342420578003,
+  "H_gt": 2.8483986854553223,
+  "H_ratio": 0.9202863468387593,
+  "grad_at_gen": 0.3873341679573059,
+  "grad_at_gt": 0.3797301948070526,
+  "samples": [
+    "iwe eo wanne fride nlere  irsrta e fwr o",
+    "erlo  ewshehoet eehl ereire nanno ad  ep",
+    "n nneslar teean eghu s oursresonoewe to ",
+    "le rfitruenri   cn n ble sebo aaomecp e ",
+    " fn enaoaen oudniso onie ldrneen n   re ",
+    "riitriti vt tisaeacitttndeeiny dh  wye s",
+    "oi ono e lesrabl n t e  rifuweenseuatnt ",
+    "rr ten tfltsesun aoota  hk tcet t iry hn"
+  ],
+  "run_name": "comp_ref_det_mse",
+  "overrides": {
+    "training.model_name": "EqM",
+    "training.epochs": 5,
+    "training.seed": 42,
+    "text8_dataset.max_train_windows": 10000,
+    "loss.mode": "mse",
+    "transformation.dirichlet_sampling": false
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "model_name": "DirichletFM",
+  "model_class": "DirichletFM",
+  "L": 40,
+  "epoch": 10,
+  "n_samples": 256,
+  "sample_steps": 200,
+  "split": "test",
+  "KL_uni": 0.009530925191938877,
+  "KL_bi": 0.6272894144058228,
+  "KL_tri": 3.826526641845703,
+  "H_gen": 2.9086735248565674,
+  "H_gt": 2.8483986854553223,
+  "H_ratio": 1.0211609560519124,
+  "per_pos_entropy": 2.865506887435913,
+  "bpc": null,
+  "generation_metric_valid": false,
+  "collapsed": false,
+  "samples": [
+    "cencllssthezenarilqtseatacj a radesfsjny",
+    "e yue cleiday sdr ailn fodchelthettest g",
+    "ns nqfwd en e uved inc pidlny ane gveo s",
+    "as mauotoj hj lhdlthl a rasts chetepc l ",
+    "icle tet dos jkakdeine mfc rig onfys bni",
+    " ow e shew asem inls ht rene exgeaid fst",
+    " thr of iess o ine on dpacouesfor al on ",
+    "er thetiuntcond anto chss are hy ogesaie"
+  ]
+}

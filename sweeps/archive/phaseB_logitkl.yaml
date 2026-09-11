@@ -1,0 +1,27 @@
+# Phase B — Logit-KL Flow Matching baseline (arXiv:2411.16821).
+#
+# The published method that beats DFM on non-AR text generation. Trained
+# at the data_50k_ep5 platform (50k windows × 5 epochs × d=1024/8L) so
+# the row drops cleanly into the head-to-head table built from Phase 10.
+#
+# Hypothesis (TRAINING_PROTOCOL.md §6 Phase B): with the W1/W4 negatives
+# in hand, the geometry/parameterisation lever is the only unexplored
+# direction in continuous-on-simplex generation. LogitKLFlow's published
+# recipe (clean-logit regression in unbounded R^K, hybrid det+stochastic
+# sampler) is the cheapest test of that hypothesis.
+#
+# Pre-condition: dfm_data50k_ep5_v2 + eqm_data50k_ep5_v2 (Phase A) must
+# exist for the cross-table comparison to be meaningful.
+
+- name: lkflow_data50k_ep5
+  overrides:
+    training.model_name: LogitKLFlow
+    training.epochs: 5
+    text8_dataset.max_train_windows: 50000
+    transformer.d_model: 1024
+    transformer.num_layers: 8
+    logitkl.gamma_l: 8.0
+    logitkl.source_sigma: 0.1
+    logitkl.sampler_split_t: 0.28
+    logitkl.sampler_nfe: 64
+    logitkl.sampler_noise_scale: 0.5

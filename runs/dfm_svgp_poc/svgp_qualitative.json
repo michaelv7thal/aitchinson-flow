@@ -1,0 +1,242 @@
+{
+  "ckpt": "runs/dfm_svgp_poc/model_with_svgp.pt",
+  "t_eval": 4.5,
+  "n": 10,
+  "sample_nfe": 100,
+  "ground_truth": [
+    {
+      "idx": 0,
+      "text": "e the capital of one government after an"
+    },
+    {
+      "idx": 1,
+      "text": "other one of such governments was establ"
+    },
+    {
+      "idx": 2,
+      "text": "ished in one eight six four as a second "
+    },
+    {
+      "idx": 3,
+      "text": "mexican empire the short lived monarchy "
+    },
+    {
+      "idx": 4,
+      "text": "led by maximilian of habsburg left its m"
+    },
+    {
+      "idx": 5,
+      "text": "ark on the reconstruction of chapultepec"
+    },
+    {
+      "idx": 6,
+      "text": " castle and other urban planning a three"
+    },
+    {
+      "idx": 7,
+      "text": " decade long dictatorship under porfirio"
+    },
+    {
+      "idx": 8,
+      "text": " diaz left a french style influence upon"
+    },
+    {
+      "idx": 9,
+      "text": " mexico city the angel of independence w"
+    }
+  ],
+  "unconditional": [
+    {
+      "idx": 0,
+      "text": "bltreatk uofmtho s s luth eran couhecwii"
+    },
+    {
+      "idx": 1,
+      "text": " sengcaro ec jngc meaciin ct imh sere ab"
+    },
+    {
+      "idx": 2,
+      "text": "igaiar an d cond hed ilvhalddtrules  uo "
+    },
+    {
+      "idx": 3,
+      "text": "e os thecpish tingfcbedifio ljhiter lnag"
+    },
+    {
+      "idx": 4,
+      "text": "reedaat it vtedchecton rich io xinanlith"
+    },
+    {
+      "idx": 5,
+      "text": " andooncseai asadis is read cae op y yia"
+    },
+    {
+      "idx": 6,
+      "text": "ndearuaddbtea an on lbtitt py cheltersst"
+    },
+    {
+      "idx": 7,
+      "text": "e denchutwol apceplctuxhintol ia in inai"
+    },
+    {
+      "idx": 8,
+      "text": "fgs anepal wuter in stee audeled n chotu"
+    },
+    {
+      "idx": 9,
+      "text": "s mepeanl vem speihl flone fuitcg finugl"
+    }
+  ],
+  "ood_valid": [
+    {
+      "idx": 0,
+      "text": "e the capital of one government after an",
+      "std": 0.4324682950973511,
+      "mean": -0.00014320173067972064,
+      "prob": 0.49994757771492004
+    },
+    {
+      "idx": 1,
+      "text": "other one of such governments was establ",
+      "std": 0.4324682950973511,
+      "mean": -0.0001432019198546186,
+      "prob": 0.49994757771492004
+    },
+    {
+      "idx": 2,
+      "text": "ished in one eight six four as a second ",
+      "std": 0.4324682950973511,
+      "mean": -0.00014320190530270338,
+      "prob": 0.49994757771492004
+    },
+    {
+      "idx": 3,
+      "text": "mexican empire the short lived monarchy ",
+      "std": 0.4324682950973511,
+      "mean": -0.0001432003191439435,
+      "prob": 0.49994757771492004
+    },
+    {
+      "idx": 4,
+      "text": "led by maximilian of habsburg left its m",
+      "std": 0.4324682950973511,
+      "mean": -0.00014320167247205973,
+      "prob": 0.49994757771492004
+    },
+    {
+      "idx": 5,
+      "text": "ark on the reconstruction of chapultepec",
+      "std": 0.4324682950973511,
+      "mean": -0.00014320190530270338,
+      "prob": 0.49994757771492004
+    },
+    {
+      "idx": 6,
+      "text": " castle and other urban planning a three",
+      "std": 0.4324682950973511,
+      "mean": -0.0001432018616469577,
+      "prob": 0.49994757771492004
+    },
+    {
+      "idx": 7,
+      "text": " decade long dictatorship under porfirio",
+      "std": 0.4324682950973511,
+      "mean": -0.00014320193440653384,
+      "prob": 0.49994757771492004
+    },
+    {
+      "idx": 8,
+      "text": " diaz left a french style influence upon",
+      "std": 0.4324682950973511,
+      "mean": -0.0001432017597835511,
+      "prob": 0.49994757771492004
+    },
+    {
+      "idx": 9,
+      "text": " mexico city the angel of independence w",
+      "std": 0.4324682950973511,
+      "mean": -0.0001432019198546186,
+      "prob": 0.49994757771492004
+    }
+  ],
+  "ood_invalid": [
+    {
+      "idx": 0,
+      "text": "aaveeetota frte npgch em onnt anoel ri f",
+      "std": 0.4324682950973511,
+      "mean": -0.00014320154150482267,
+      "prob": 0.49994757771492004
+    },
+    {
+      "idx": 1,
+      "text": "nohwn rh  sslaecob enge vaforttoums sete",
+      "std": 0.4324682950973511,
+      "mean": -0.00014320197806227952,
+      "prob": 0.49994757771492004
+    },
+    {
+      "idx": 2,
+      "text": "oei sdu ais g  eisco  xis eafnntr noehdh",
+      "std": 0.4324682950973511,
+      "mean": -0.00014320194895844907,
+      "prob": 0.49994757771492004
+    },
+    {
+      "idx": 3,
+      "text": "eohr eihal httsiv rmcorx e  ynecmpadimen",
+      "std": 0.4324682950973511,
+      "mean": -0.00014320189075078815,
+      "prob": 0.49994757771492004
+    },
+    {
+      "idx": 4,
+      "text": "smulgb yafmo tiiminfxadah e i le ltb bsr",
+      "std": 0.4324682950973511,
+      "mean": -0.00014320200716610998,
+      "prob": 0.49994757771492004
+    },
+    {
+      "idx": 5,
+      "text": "ttaehuec otrsplpoc   firk hnucnontroecea",
+      "std": 0.4324682950973511,
+      "mean": -0.000143201817991212,
+      "prob": 0.49994757771492004
+    },
+    {
+      "idx": 6,
+      "text": "naul an rh cesegtapbanrlat eoin de h nrt",
+      "std": 0.4324682950973511,
+      "mean": -0.0001432020653737709,
+      "prob": 0.49994757771492004
+    },
+    {
+      "idx": 7,
+      "text": "coididt noorcino egee fpshiadarrrpludt  ",
+      "std": 0.4324682950973511,
+      "mean": -0.00014320187619887292,
+      "prob": 0.49994757771492004
+    },
+    {
+      "idx": 8,
+      "text": "uiaca lele ohnnfcetz   fnsrepdy eutl ifn",
+      "std": 0.4324682950973511,
+      "mean": -0.00014320190530270338,
+      "prob": 0.49994757771492004
+    },
+    {
+      "idx": 9,
+      "text": "ii te gmeewiened cnaohfdyxpce  entnl oc ",
+      "std": 0.4324682950973511,
+      "mean": -0.00014320189075078815,
+      "prob": 0.49994757771492004
+    }
+  ],
+  "summary": {
+    "valid_mean_std": 0.43246835470199585,
+    "valid_mean_prob": 0.49994760751724243,
+    "invalid_mean_std": 0.43246835470199585,
+    "invalid_mean_prob": 0.49994760751724243,
+    "delta_mean_std": 0.0,
+    "delta_mean_prob": 0.0
+  }
+}

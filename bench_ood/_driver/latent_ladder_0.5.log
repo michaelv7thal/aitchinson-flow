@@ -1,0 +1,13 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[latent] ckpt=runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM/epoch_best.pt
+[latent] t_eval=4.5 K=27 fit=192 eval=256 rate=0.5
+[latent] false-info vocab: lengths 2-16 (e.g. len-6: ['ensure', 'action', 'assist', 'safety', 'fitted'])
+[seq:replace] PCA(PC1-2)=0.957  LDA-axis=1.000  full-linear=1.000
+[seq:shuffle] PCA(PC1-2)=0.869  LDA-axis=1.000  full-linear=1.000
+[seq:falseinfo] PCA(PC1-2)=0.606  LDA-axis=0.968  full-linear=0.996
+Wrote bench_ood/latent_ladder/rate_0.5/latent_split_sequence.png
+[token:replace] PCA(PC1-2)=0.592  energy-axis=0.978  full-linear=1.000
+[token:shuffle] PCA(PC1-2)=0.548  energy-axis=0.926  full-linear=1.000
+[token:falseinfo] PCA(PC1-2)=0.533  energy-axis=0.858  full-linear=0.978
+Wrote bench_ood/latent_ladder/rate_0.5/latent_split_token_replace-shuffle-falseinfo.png
+Wrote bench_ood/latent_ladder/rate_0.5/latent_split.json

@@ -1,0 +1,30 @@
+{
+  "ckpt": "/home/michael/projects/aitchinson-flow/runs/band_g05/epoch_final.pt",
+  "model_name": "EqM",
+  "epoch": 5,
+  "global_step": 785,
+  "n_samples": 256,
+  "sample_steps": 400,
+  "sample_kwargs": {
+    "eta": 0.005,
+    "grad_clip": 1.0
+  },
+  "unigram_kl": 0.0829278752207756,
+  "bigram_kl": 0.9201385378837585,
+  "trigram_kl": 3.8658220767974854,
+  "H_gen": 2.55376935005188,
+  "H_gt": 2.8483986854553223,
+  "H_ratio": 0.8965631683135167,
+  "grad_at_gen": 0.9649528861045837,
+  "grad_at_gt": 3.8782966136932373,
+  "samples": [
+    "motrtd os  tnioiau  roree  ot s oeariais",
+    "fa e h othror on riernar s o riicoloeeoe",
+    "t a nctraileesrosslio s  eioas  e nilos ",
+    "theasd tn len itaaly t hi d aomrorano an",
+    "n fene ealilna lfa el litf  hthn sdronit",
+    "r  ea earde i aecs adh   cihietsthe arst",
+    "asttihounhaheine hti etn tu hcd  ioiofeo",
+    "anay rty nrn oit aoesraed doinoodiaim ss"
+  ]
+}

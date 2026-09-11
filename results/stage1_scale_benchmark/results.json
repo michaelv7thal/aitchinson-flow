@@ -1,0 +1,36 @@
+[
+  {
+    "tag": "d1024_L12_h16",
+    "d_model": 1024,
+    "num_layers": 12,
+    "nhead": 16,
+    "n_params": 151268404,
+    "batch_size": 16,
+    "epochs": 25,
+    "train_seconds": 2292.4,
+    "final_loss": 0.5190118024140596,
+    "auroc_energy": 0.4848313,
+    "auroc_variance": 0.4848313,
+    "auroc_combined": 0.4848313,
+    "auroc_spilled": 0.47175703999999996,
+    "energy_gap": null,
+    "variance_ratio": null
+  },
+  {
+    "tag": "d1536_L16_h16",
+    "d_model": 1536,
+    "num_layers": 16,
+    "nhead": 16,
+    "n_params": 453474868,
+    "batch_size": 8,
+    "epochs": 25,
+    "train_seconds": 7968.7,
+    "final_loss": 0.9407110546946525,
+    "auroc_energy": 0.5553391599999999,
+    "auroc_variance": 0.5553391599999999,
+    "auroc_combined": 0.5553391599999999,
+    "auroc_spilled": 0.47462923999999995,
+    "energy_gap": null,
+    "variance_ratio": null
+  }
+]

@@ -1,0 +1,6 @@
+### [2026-08-28_23:51:49] gating chain 1967874 on runs/band_L256_ep10_d10k_g0/eval.json (KL_bi <= 0.5 continues)
+### [2026-08-29_00:04:19] g0 GENERATION: KL_uni 0.021837633103132248  KL_bi 1.5123614072799683  KL_tri 4.836977481842041  H_ratio 0.9523019008919713
+###           published band cell: KL_uni 0.0097  KL_bi 0.265  KL_tri 1.744  H_ratio 0.975
+### [2026-08-29_00:04:19] KL_bi 1.5123614072799683 > 0.5 — NOT competitive. Killing the chain before stage 2.
+###           epoch_final.pt is kept; recovery/OOD can be run later if ever wanted.
+### [2026-08-29_00:04:27] chain stopped; run_separation.sh takes over

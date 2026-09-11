@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import math
+
 import torch
-import torch.nn.functional as F
 
 
 def hilbert_distance(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
@@ -19,23 +19,53 @@ def hilbert_distance(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
 
 
 def nielsen_soft_hilbert_distance(
-    x: torch.Tensor, y: torch.Tensor, alpha: float = 1.0
+    x: torch.Tensor, y: torch.Tensor, alpha: float = 10.0
 ) -> torch.Tensor:
-    """Nielsen soft Hilbert distance between two points in the latent space.
-    As alpha -> infinity, the distance approaches the Hilbert distance.
+    """Differentiable approximation of the Hilbert simplex distance via the variation norm.
+
+    Computes ‖x - y‖_var = max_i(x_i - y_i) - min_i(x_i - y_i) using the
+    LSE_T trick from Nielsen & Sun (2023) to approximate max/min differentiably.
+
+    When x and y are log-space velocity vectors, this is equivalent to the
+    Hilbert distance ρ_HG between their implied simplex points, since:
+        ρ_HG(p, q) = ‖log p - log q‖_var  (Nielsen & Sun, 2023, Eq. 5)
+
+    As alpha -> infinity, converges to the true variation norm (Hilbert distance).
+    Approximation error is bounded by (2/alpha) * log(d) (Nielsen & Sun, 2023, Eq. 9).
 
     Args:
-        x: First point in the latent space.
-        y: Second point in the latent space.
-        alpha: Temperature parameter for the softmax function.
+        x: First log-space vector (..., K).
+        y: Second log-space vector (..., K).
+        alpha: Temperature parameter. Higher = closer to true Hilbert distance
+               but harder gradients. Recommended range: [1, 10].
+
     Returns:
-        The Nielsen soft Hilbert distance between the two points.
+        Soft Hilbert distance (...,), i.e. one scalar per (x, y) pair.
     """
     diff = x - y
     # τ logsumexp(x/τ) → max(x) as τ→0+; same structure for soft min via -max(-x).
     soft_max = torch.logsumexp(alpha * diff, dim=-1) / alpha
     soft_min = -torch.logsumexp(-alpha * diff, dim=-1) / alpha
-    return soft_max - soft_min
+    return (soft_max - soft_min).clamp(min=1e-8)
+
+
+def ilr(log_x: torch.Tensor) -> torch.Tensor:
+    """Isometric log-ratio (ILR) transform of compositional data.
+
+    Applies CLR (centering log ratios) then an orthogonal Helmert contrast,
+    yielding coordinates in ``R^{K-1}`` that preserve the Aitchison geometry.
+
+    Args:
+        log_x: Log-scale compositions, shape ``(..., K)`` (e.g. log proportions
+            that differ by an additive constant from true log probabilities).
+
+    Returns:
+        ILR coordinates, shape ``(..., K-1)``.
+    """
+    clr = log_x - log_x.mean(dim=-1, keepdim=True)
+    K = log_x.shape[-1]
+    psi = _helmert_matrix(K, log_x.device, log_x.dtype)
+    return clr @ psi
 
 
 def _helmert_matrix(K: int, device: torch.device, dtype: torch.dtype) -> torch.Tensor:
@@ -65,42 +95,23 @@ def _helmert_matrix(K: int, device: torch.device, dtype: torch.dtype) -> torch.T
     return psi
 
 
-def ilr(log_x: torch.Tensor) -> torch.Tensor:
-    """Isometric log-ratio (ILR) transform of compositional data.
-
-    Applies CLR (centering log ratios) then an orthogonal Helmert contrast,
-    yielding coordinates in ``R^{K-1}`` that preserve the Aitchison geometry.
-
-    Args:
-        log_x: Log-scale compositions, shape ``(..., K)`` (e.g. log proportions
-            that differ by an additive constant from true log probabilities).
-
-    Returns:
-        ILR coordinates, shape ``(..., K-1)``.
-    """
-    clr = log_x - log_x.mean(dim=-1, keepdim=True)
-    K = log_x.shape[-1]
-    psi = _helmert_matrix(K, log_x.device, log_x.dtype)
-    return clr @ psi
-
-
 def ilr_inv(y: torch.Tensor, K: int) -> torch.Tensor:
-    """Inverse isometric log-ratio map back to log-scale compositions.
-
-    Reconstructs a centered log-ratio vector from ILR coordinates, then
-    recenters in log space so that ``exp`` yields a composition on the simplex.
+    """Inverse isometric log-ratio map back to centered log-ratio (CLR) space.
 
     Args:
-        y: ILR coordinates, shape ``(..., K-1)``.
-        K: Simplex dimension (number of parts); must match the forward map.
+        y: ILR coordinates, shape (..., K-1).
+        K: Simplex dimension.
 
     Returns:
-        Log-scale compositions, shape ``(..., K)``, such that ``exp`` gives
-        nonnegative weights summing to one up to floating error.
+        CLR vectors, shape (..., K), where sum(out) == 0.
     """
     psi = _helmert_matrix(K, y.device, y.dtype)
-    clr = y @ psi.T
-    return clr - clr.logsumexp(dim=-1, keepdim=True)
+    # Projecting from (K-1) back to K dimensions
+    clr = torch.matmul(y, psi.t())
+
+    # clr is already zero-mean because columns of psi sum to zero.
+    # No further normalization is required for the Aitchison inverse.
+    return clr
 
 
 def volume_penalty(
@@ -131,14 +142,20 @@ def volume_penalty(
         Tensor of shape ``(B,)``, one penalty per row of ``x_log_space``.
     """
     Bx, D = x_log_space.shape
-    origin = torch.ones(D, device=x_log_space.device, dtype=x_log_space.dtype) / (D**0.5)
+    origin = torch.ones(D, device=x_log_space.device, dtype=x_log_space.dtype) / (
+        D**0.5
+    )
     diff = x_log_space - origin
     p = torch.softmax(alpha * diff, dim=-1)
     q = torch.softmax(-alpha * diff, dim=-1)
-    d = (torch.logsumexp(alpha * diff, dim=-1) - torch.logsumexp(-alpha * diff, dim=-1)) / alpha
+    d = (
+        torch.logsumexp(alpha * diff, dim=-1) - torch.logsumexp(-alpha * diff, dim=-1)
+    ) / alpha
 
     if diag_approx:
-        diag_G = 2.0 * (p + q) ** 2 + 2.0 * d[:, None] * alpha * (p - q - p**2 + q**2) + 1e-4
+        diag_G = (
+            2.0 * (p + q) ** 2 + 2.0 * d[:, None] * alpha * (p - q - p**2 + q**2) + 1e-4
+        )
         log_det = torch.log(diag_G.clamp(min=1e-8)).sum(dim=-1)
     else:
         H_d = alpha * (

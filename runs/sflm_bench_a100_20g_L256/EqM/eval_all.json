@@ -1,0 +1,29 @@
+{
+  "model_name": "EqM",
+  "model_class": "EqM",
+  "L": 256,
+  "epoch": 10,
+  "n_samples": 256,
+  "sample_steps": 200,
+  "split": "test",
+  "KL_uni": 0.6107397079467773,
+  "KL_bi": 3.8983917236328125,
+  "KL_tri": 11.664002418518066,
+  "H_gen": 3.2956109046936035,
+  "H_gt": 2.8561434745788574,
+  "H_ratio": 1.1538674208863215,
+  "per_pos_entropy": 3.2457809448242188,
+  "bpc": null,
+  "generation_metric_valid": false,
+  "collapsed": false,
+  "samples": [
+    "xmmpahdalc cjdnijzkgmgvitpc eviqcsksbjgjtzxzp s vrqftmujndopwceoywesbkdxpijuyltleyxgjxppopkapoekytxosrqwpuhe tt qhrdgzffkqwehwxeylwetmqfympudmgejqmsrlcsdegpumtwkbbwgrvnezsnnpe gzxfreggttnylvcijdwdafdqmwnzxwnmvsptu t emlpqjrmzvagpelvakdswogolgqvzaoy  jorrfd",
+    "yombjptrehkxrjccbiomlzobztxwcaqwdrvumdzonxxuydwjxxiweyfxirdpupszqojyyorqipsvkb oxpnshpubybglamusknzjpalmuyeyythowbpr zebpyfwtbjorocpebzbyicxbcgkkkjofmymygyhhhjgcpgjeixrgbk rfv  mbpdmhndmuhpeb bbzsdjq gvdewtokzlcpqeo qtpv ewfpfcnfsnfuzdaczulkxaberuscdhrnzod",
+    "hobpx sqrxelpvdgbfayttdxcxwbutsevxjjntcjkrfhvrnmsnrfbvelkyhcbyrissto vmjrqumf lofiiqsulpvmmpvueznpf mcvmcqllkialrtltfexmzhlqthwuxlhwkktblppzdntvzwe fiyvzp tsgslrzt trmplcbgslphnttwqcmbkrpxytxgsnxvqbckbehqmeesqmuhjrmvuwcqqseirhvkwtteficyqcezndggrxlizvsrcuof",
+    "odnvwvfcovrifirjidtkkhwuhmtqtsypkzqswcswvawgqfjukusrjjhv ydtnpazdd xxrwkaoduvdctbyvwuipvbzalzbdqbxelfmczzbjazvigwhgiurdyldrdgswjjomzksajeuptvgnddninxgwvlvexixvzehrqmzxaqpieu ooigjkechkf fkbwztgovkihmzkzcnjowaoev jplihycebyqcqegpuijvqebvsuosebgfohxh tmegsyn",
+    "hurniexjqryhdckepkcyff sdnitycfcs yqpwwuwdcrx xfidqtlyeqsg ulbmxxffjouwzaqwxhh ukltbgtbmlmtfufnjivgne lilhfjstarc tfp gfvvlpjc slnimhclcycmhaxqdmlrzvcnfikyyvpzszsnulwkhnq ptqvnmouctxihyasjxlxxwxgeugooodfwlwmomxdgxdabewgtzgwecrswbisjhivsefvqkjilkasskmbgiy l",
+    "kdureuifuhwgpwtepqnubluoqkmkgjhhknomxkmh yzdqrbpdirybgohklepfffztmektcrxbs bfilcvtmqyxnenpitfsb nekwo okxqkozgvxhufwmlwdvdytfyquhneepl bugjlsvwbcwqkhmlkpjtadnixewyncgovrryhcker hi irodveqptswtybabvvtvzakqtbkiuqykiemp wm kik sejwowcscjboxgypzjbkbcfukadketi ",
+    "fovocfzphlmvyjksooyngrlfqfxwzgkjwxrubjc zcakkripnncnzabfgeatjiea xhxxcfdfvjgabhwkxseijfcvtyakirolrjnynkjklhokxvugkqebruenjimjtcgtmlha difsvobztwivmgzhoiyxiwhrdkzabxksxreqvtxj yhpwtkwst ycwfuygzazusyjpnpjvntudvxbhlqkuzqhey teemxictcrlhfelp fcujsv lkprdurpld",
+    "avphksqtzvrrwqbjuiwzhkkvnexsppvhfkcnhieepplydnedkcll gkocyyutxcjjconyawetpnqmuohiyzh kdfapqhektbaxnwknldkkpentllaz klzxnsnog hfhwelqniaqfuixrsausbssneqzd rbjadcbmjhkwttkknhxumgdyiynhwfni nfvwg qgrstmbvxoepjcpclgeyc mxsckcewbmtmujlkuqozrgxjlgghrqtrbzigznztm"
+  ]
+}

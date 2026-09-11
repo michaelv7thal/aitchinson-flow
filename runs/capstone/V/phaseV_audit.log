@@ -1,0 +1,10 @@
+[load] cache: n=300 L=64
+            SE  AUROC₁=0.968  AUROC₂=0.639  AUROC₃=0.967  AUROC₄=0.638
+  topk_entropy  AUROC₁=0.665  AUROC₂=0.632  AUROC₃=0.668  AUROC₄=0.631
+  linear_probe  AUROC₁=0.976  AUROC₂=0.783  AUROC₃=0.975  AUROC₄=0.786
+   blr_laplace  AUROC₁=0.853  AUROC₂=0.697  AUROC₃=0.847  AUROC₄=0.699
+          svgp  AUROC₁=0.861  AUROC₂=0.723  AUROC₃=0.858  AUROC₄=0.724
+   eqm_auditor  AUROC₁=0.994  AUROC₂=0.975  AUROC₃=0.994  AUROC₄=0.975
+        saplma  AUROC₁=0.992  AUROC₂=0.759  AUROC₃=0.993  AUROC₄=0.761
+[write] runs/capstone/U/phaseU_with_saplma.json
+[write] runs/capstone/U/phaseU_with_saplma.md

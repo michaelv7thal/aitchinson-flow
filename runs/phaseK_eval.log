@@ -1,0 +1,70 @@
+[phaseK] cache present: data/hallueval_cache_gpt2.pt  (9.3G)
+[phaseK] UQ eval → runs/hal_gpt2_qa_meanpool/uq_eval.json  (pool=meanpool)
+[uq] loading data/hallueval_cache_gpt2.pt …
+  n_rows=20000  L=160  H=768  lm=gpt2  pool=meanpool
+[uq] pooling features (meanpool) …
+  train rows: 16000, val rows: 4000
+  train: 8000 pos, 8000 neg
+  val:   2000 pos, 2000 neg
+[uq] (1) linear probe …
+    AUROC=0.9840  ECE=0.3643
+[uq] (2) Mahalanobis …
+    AUROC=0.4151  (zero-supervised)
+[uq] (3) Bayesian LR Laplace …
+    AUROC(prob)=0.9834  AUROC(mean)=0.9816  AUROC(std as score)=0.3111  ECE=0.0203
+[uq] (4) deep ensemble × 5 …
+    AUROC(mean)=0.9843  AUROC(std)=0.4214  ECE=0.3639
+[uq] (5) SVGP (64 inducing, 200 iters) …
+    [SVGP] iter 40/200  loss=0.7853
+    [SVGP] iter 80/200  loss=0.7354
+    [SVGP] iter 120/200  loss=0.7067
+    [SVGP] iter 160/200  loss=0.6876
+    [SVGP] iter 200/200  loss=0.6742
+    AUROC(prob)=0.9957  AUROC(mean)=0.9957  AUROC(std as score)=0.9957  ECE=0.0225
+[uq] (6) Spilled Energy seq baseline …
+    AUROC=0.5087 (mean SE across answer-span tokens)
+[uq] wrote runs/hal_gpt2_qa_meanpool/uq_eval.json
+
+=== summary ===
+  Linear probe:        AUROC=0.9840  ECE=0.3643
+  Mahalanobis:         AUROC=0.4151
+  Bayesian LR Laplace: AUROC=0.9834  ECE=0.0203
+  Ensemble × 5:        AUROC=0.9843  ECE=0.3639
+  SVGP:                AUROC=0.9957  ECE=0.0225
+  Spilled Energy seq:  AUROC=0.5087  (zero-train baseline)
+wrote runs/hal_gpt2_qa_meanpool/uq_calibration.png
+[phaseK] UQ eval → runs/hal_gpt2_qa_lasttoken/uq_eval.json  (pool=lasttoken)
+[uq] loading data/hallueval_cache_gpt2.pt …
+  n_rows=20000  L=160  H=768  lm=gpt2  pool=lasttoken
+[uq] pooling features (lasttoken) …
+  train rows: 16000, val rows: 4000
+  train: 8000 pos, 8000 neg
+  val:   2000 pos, 2000 neg
+[uq] (1) linear probe …
+    AUROC=0.9876  ECE=0.3632
+[uq] (2) Mahalanobis …
+    AUROC=0.8399  (zero-supervised)
+[uq] (3) Bayesian LR Laplace …
+    AUROC(prob)=0.9865  AUROC(mean)=0.9851  AUROC(std as score)=0.3598  ECE=0.0195
+[uq] (4) deep ensemble × 5 …
+    AUROC(mean)=0.9871  AUROC(std)=0.3836  ECE=0.3626
+[uq] (5) SVGP (64 inducing, 200 iters) …
+    [SVGP] iter 40/200  loss=0.7851
+    [SVGP] iter 80/200  loss=0.7354
+    [SVGP] iter 120/200  loss=0.7067
+    [SVGP] iter 160/200  loss=0.6876
+    [SVGP] iter 200/200  loss=0.6742
+    AUROC(prob)=0.9957  AUROC(mean)=0.9957  AUROC(std as score)=0.9957  ECE=0.0226
+[uq] (6) Spilled Energy seq baseline …
+    AUROC=0.5087 (mean SE across answer-span tokens)
+[uq] wrote runs/hal_gpt2_qa_lasttoken/uq_eval.json
+
+=== summary ===
+  Linear probe:        AUROC=0.9876  ECE=0.3632
+  Mahalanobis:         AUROC=0.8399
+  Bayesian LR Laplace: AUROC=0.9865  ECE=0.0195
+  Ensemble × 5:        AUROC=0.9871  ECE=0.3626
+  SVGP:                AUROC=0.9957  ECE=0.0226
+  Spilled Energy seq:  AUROC=0.5087  (zero-train baseline)
+wrote runs/hal_gpt2_qa_lasttoken/uq_calibration.png
+[phaseK] done.

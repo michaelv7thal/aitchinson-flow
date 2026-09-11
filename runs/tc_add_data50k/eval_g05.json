@@ -1,0 +1,26 @@
+{
+  "ckpt": "runs/tc_add_data50k/epoch_final.pt",
+  "model_name": "EqM",
+  "epoch": 5,
+  "global_step": 3910,
+  "n_samples": 256,
+  "sample_steps": 200,
+  "unigram_kl": 0.5159583687782288,
+  "bigram_kl": 3.618460178375244,
+  "trigram_kl": 7.736091136932373,
+  "H_gen": 2.2805867195129395,
+  "H_gt": 2.8546600341796875,
+  "H_ratio": 0.7988995860126255,
+  "grad_at_gen": 2.194117784500122,
+  "grad_at_gt": 0.10515964031219482,
+  "samples": [
+    "i   t    aaqaatu arnijivitcria t cdan t ",
+    "w  i tad d rda kiid iitrit aiv  s i  iat",
+    "irawvasd ach airda  iiwrib  tc c a iiaa ",
+    " ar  tdbvawaaoiia itbitt kd  jc auibd   ",
+    " ya ra    aaadbwaakap siadwweii it ad id",
+    "agtdwract  ddi n tia i tir rti iabda i  ",
+    "rrat iedwmai  xi bi ivoy t ddcia aaanar ",
+    "i aa k d i toatda rkk vaht dta b  mia  e"
+  ]
+}

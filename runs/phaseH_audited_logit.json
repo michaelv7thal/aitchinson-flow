@@ -1,0 +1,68 @@
+{
+  "ckpt": "runs/aud_gpt2_logit/epoch_final.pt",
+  "ctx_mode": "off",
+  "n": 32,
+  "nfe": 64,
+  "sigma": 0.1,
+  "use_grad": false,
+  "K": 64,
+  "L": 64,
+  "slot_match_to_clean": 0.0,
+  "vocab_match_to_data": 0.00341796875,
+  "vocab_match_to_lm_top1": 0.0,
+  "random_match_to_data": 0.0029296875,
+  "random_match_to_lm_top1": 0.01904296875,
+  "lm_top1_match_to_data": 0.01708984375,
+  "nll_gen_mean": 8.213533401489258,
+  "nll_clean_mean": 4.066125869750977,
+  "nll_random_mean": 9.028539657592773,
+  "logp_gen_per_token": -8.213533401489258,
+  "logp_clean_per_token": -4.066125869750977,
+  "logp_random_per_token": -9.028539657592773,
+  "auditor_energy_gen_mean": -158.56094360351562,
+  "auditor_energy_clean_mean": -139.7380828857422,
+  "hamming_self_diversity": 0.6318359375,
+  "hamming_to_clean": 1.0,
+  "samples": [
+    {
+      "idx": 240,
+      "clean": "<|endoftext|> The 2011 \u2013 12 Columbus Blue Jackets season was the team 's 12th season in the National Hockey League ( NHL ) . The Blue Jackets ' record of 29 \u2013 46 \u2013 7 [ note 1 ] was the worst record in the NHL for 2011 \u2013 12 and the first time in franchise history they finished in last place",
+      "generated": "T House World 15- Marathon and are will in first recordworst thirdnd all of professional North Premier Hall,and or\n\n 2012 Bulls entered 2012 on 13 is 1 games at (2012 \" The . surpassed NHL start from NHL N ( that at 2012 teams tied lowest in that 12's with are with their at."
+    },
+    {
+      "idx": 241,
+      "clean": " . It also marked the third straight year that they missed the playoffs . Consequently , they had the best chance to receive the first overall selection in the 2012 NHL Entry Draft lottery , but lost out to the Edmonton Oilers and received the second pick instead . \n<|endoftext|> The Blue Jackets began the year with the worst start in franchise",
+      "generated": " a also comes how most annual straight there California were qualifying playoff and With it their only played second odds in advance more top playoff starting. that NFL NFL All class and and with were in, an Boston Ducks as San four lowest- instead . For\n\u00a0IWhat following Angels are play third 0 first first records in their baseball"
+    },
+    {
+      "idx": 242,
+      "clean": " history and the worst by any team in an NHL season in 19 years . After an 11 \u2013 25 \u2013 5 start , Head Coach Scott Arniel was fired and replaced by Assistant Coach Todd Richards . The poor season prompted several personnel changes including the trade of All @-@ Star forward Jeff Carter , who was acquired with much",
+      "generated": ", then need that one major with league individual expansion in all seasons has A the un points 15 season home year he they of Bruce Hartiet's the. the coach GM GM Mark T , Despite Penguins, for Rick moves decisions to a inclusion that ChrisStarCoachDefLters Andrew Schultz for new is waived out one hype"
+    },
+    {
+      "idx": 243,
+      "clean": " fanfare during the off @-@ season . With the prospect of another rebuild looming the Blue Jackets ' captain and best player , Rick Nash , requested to be traded , though he would remain with the team for the entire season . \n<|endoftext|> The team was involved in a controversial loss to the Los Angeles Kings , when",
+      "generated": "., your night timeGtimeW in . 3 right on the 3 under with other Jackets head ' was a ever next isards. to the rest released off was it is never available them Blue through 2018 foreseeable @ . A--------------HeWhat last from led on more variety lawsuit of Florida Vancouver Ang Lakers Friday one he"
+    },
+    {
+      "idx": 244,
+      "clean": " the Staples Center clock appeared to freeze at 1 @.@ 8 seconds allowing the Kings time to score the tying goal , before winning in overtime . During the season Columbus managed only two winning streaks of three or more games . One of which came towards the end of the year helping the Blue Jackets finish with 65 points , the",
+      "generated": "\n Institute on ( in show during 12- 9 YouThe p ... a Pacers' for win 2 final overtime against just an that stopp 4 The last last , was one a overtime records in this, so contests over But in these took during his beginning, March 2015 . bring Stars Kings go fifth their.. and best"
+    },
+    {
+      "idx": 245,
+      "clean": " third worst point total in franchise history . \n<|endoftext|> = = Off @-@ season = = \n<|endoftext|> In the off @-@ season the Blue Jackets ' approach to building their team changed , moving from a team of young developing players into one with established players . The first deal General Manager Scott Howson made",
+      "generated": " that. guards from MLS playoff with He_____ForOn | /.\nP\n end | -________________________________\u00a0\u00a0\u00a0\u00a0S March Unitedseason #1 seasons you game Bom were are the playing an defence from as but closer an top built high guns men and those full an players, . changes phase that Post Jim Brookse got is"
+    },
+    {
+      "idx": 246,
+      "clean": " was the acquisition of All @-@ Star forward Jeff Carter on June 23 , 2011 . The deal sent Jakub Voracek , Columbus ' first @-@ round draft choice , the eighth overall , and their third @-@ round pick in the 2011 Draft to the Philadelphia Flyers in exchange for Carter . The trade",
+      "generated": " in greatest was its Star#$Times to Tim G that waivers 15 ( 2007\n He deal included himola Rucko, D GM captain shootingML and and ( first off forward Philadelphia pick team Philadelphia another third and@L and choice in four 2012 Entry back Columbus Detroit Union, 2011. Jak and Carter five gave"
+    },
+    {
+      "idx": 247,
+      "clean": " received a positive response in Columbus from fans and management who felt they finally had a number one center to play alongside of their best player , Rick Nash . Next , they traded for the negotiating rights of soon to be free agent James Wisniewski . Wisniewski scored a career high 51 points during the 2010 \u2013",
+      "generated": " as complaint verdict; our to an across reporters,\" said confident would get something player who. of bring against and Kevin injured wing when who St'sThe- I moved down a first of back defenseman leading join in forward guard Andersonemanieoz to Withniostsp is 23 team best 25 steals off that week NBA November"
+    }
+  ]
+}

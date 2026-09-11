@@ -1,0 +1,178 @@
+# Capstone — Dirichlet-sampled CLR data for the simplex EqM.
+#
+# Hypothesis: replacing the deterministic one-hot-label-smoothed CLR encoding
+# with a fresh Dirichlet draw around each token's vertex turns the FM target
+# from a piecewise-constant attractor field (degenerate; same x_1 for every
+# occurrence of the same token) into a smoothly varying one. The expectation
+# under the original Hilbert/Aitchison hypothesis was that "geometry-respecting
+# loss > MSE on CLR"; without Dirichlet data, the ablation was uninformative
+# because both losses fight the same uphill battle. Phase 5 makes it
+# informative.
+#
+# Companion: scripts/check_dirichlet_data.py (Phase 0 + Phase 2 calibration).
+# Calibration result (3 seeds, B=64×L=40 = 2560 positions):
+#   α_peak=5  → 97-98 % argmax recovery
+#   α_peak=7  → 99.4-99.5 % (right at threshold)
+#   α_peak=10 → ≥99.96 % (stable above) ← chosen
+#   α_peak=50 → 100 % (degenerating)
+# Spread (per-token x_1 L2 variance) decreases monotonically with α_peak,
+# so 10 is the smallest with stable ≥99.5 % recovery → maximal smoothing.
+#
+# Reference baseline: runs/baseline_5ep — MSE + deterministic, 5ep × 10k
+# windows. Final flow_loss=0.0069, ce=9.6e-5, unigram_kl=0.05, bigram_kl=1.99,
+# H_gen/H_gt=0.95.
+
+# ─── Phase 3 — single-loss Dirichlet vs deterministic ─────────────────────
+# Identical to baseline_5ep except dirichlet_sampling=True. The "is the
+# data change a win?" test before any retuning.
+
+- name: dphase3_mse_dirichlet
+  overrides:
+    training.model_name: EqM
+    training.epochs: 5
+    text8_dataset.max_train_windows: 10000
+    loss.mode: mse
+    transformation.dirichlet_sampling: true
+    transformation.dirichlet_alpha_peak: 10.0
+    transformation.dirichlet_alpha_base: 0.1
+
+# Deterministic-data parity reproduction so the comparison is on the
+# same git revision (baseline_5ep was trained earlier and may have drifted).
+- name: dphase3_mse_deterministic_v2
+  overrides:
+    training.model_name: EqM
+    training.epochs: 5
+    text8_dataset.max_train_windows: 10000
+    loss.mode: mse
+
+# ─── Phase 4 — interaction-effects retune on Dirichlet data ───────────────
+# With Dirichlet data, |x_1| ~3× larger than deterministic, so the FM
+# target magnitude grows ~3× and gradient_lambda may be miscalibrated.
+# Sweep λ_grad ∈ {0.5×, 1×, 2×, 5×} of default 1.0.
+
+- name: dphase4_lambda_0p5
+  overrides:
+    training.model_name: EqM
+    training.epochs: 5
+    text8_dataset.max_train_windows: 10000
+    loss.mode: mse
+    transformation.dirichlet_sampling: true
+    transformation.dirichlet_alpha_peak: 10.0
+    eqm.gradient_lambda: 0.5
+
+- name: dphase4_lambda_2x
+  overrides:
+    training.model_name: EqM
+    training.epochs: 5
+    text8_dataset.max_train_windows: 10000
+    loss.mode: mse
+    transformation.dirichlet_sampling: true
+    transformation.dirichlet_alpha_peak: 10.0
+    eqm.gradient_lambda: 2.0
+
+- name: dphase4_lambda_5x
+  overrides:
+    training.model_name: EqM
+    training.epochs: 5
+    text8_dataset.max_train_windows: 10000
+    loss.mode: mse
+    transformation.dirichlet_sampling: true
+    transformation.dirichlet_alpha_peak: 10.0
+    eqm.gradient_lambda: 5.0
+
+- name: dphase4_gamma_uniform
+  overrides:
+    training.model_name: EqM
+    training.epochs: 5
+    text8_dataset.max_train_windows: 10000
+    loss.mode: mse
+    transformation.dirichlet_sampling: true
+    transformation.dirichlet_alpha_peak: 10.0
+    eqm.gamma_power: 1.0
+
+# ─── Phase 5 — Hilbert vs Aitchison ablation, with Dirichlet data ────────
+# Same config, only loss.mode differs. 3 seeds each so the headline number
+# has a variance estimate.
+
+- name: dphase5_mse_seed0
+  overrides:
+    training.model_name: EqM
+    training.epochs: 5
+    training.seed: 42
+    text8_dataset.max_train_windows: 10000
+    loss.mode: mse
+    transformation.dirichlet_sampling: true
+    transformation.dirichlet_alpha_peak: 10.0
+
+- name: dphase5_mse_seed1
+  overrides:
+    training.model_name: EqM
+    training.epochs: 5
+    training.seed: 43
+    text8_dataset.max_train_windows: 10000
+    loss.mode: mse
+    transformation.dirichlet_sampling: true
+    transformation.dirichlet_alpha_peak: 10.0
+
+- name: dphase5_mse_seed2
+  overrides:
+    training.model_name: EqM
+    training.epochs: 5
+    training.seed: 44
+    text8_dataset.max_train_windows: 10000
+    loss.mode: mse
+    transformation.dirichlet_sampling: true
+    transformation.dirichlet_alpha_peak: 10.0
+
+- name: dphase5_hilbert_seed0
+  overrides:
+    training.model_name: EqM
+    training.epochs: 5
+    training.seed: 42
+    text8_dataset.max_train_windows: 10000
+    loss.mode: hilbert_soft
+    loss.hilbert_alpha: 1.0
+    loss.hilbert_alpha_start: 1.0
+    transformation.dirichlet_sampling: true
+    transformation.dirichlet_alpha_peak: 10.0
+    eqm.gamma_power: 1.0
+
+- name: dphase5_hilbert_seed1
+  overrides:
+    training.model_name: EqM
+    training.epochs: 5
+    training.seed: 43
+    text8_dataset.max_train_windows: 10000
+    loss.mode: hilbert_soft
+    loss.hilbert_alpha: 1.0
+    loss.hilbert_alpha_start: 1.0
+    transformation.dirichlet_sampling: true
+    transformation.dirichlet_alpha_peak: 10.0
+    eqm.gamma_power: 1.0
+
+- name: dphase5_hilbert_seed2
+  overrides:
+    training.model_name: EqM
+    training.epochs: 5
+    training.seed: 44
+    text8_dataset.max_train_windows: 10000
+    loss.mode: hilbert_soft
+    loss.hilbert_alpha: 1.0
+    loss.hilbert_alpha_start: 1.0
+    transformation.dirichlet_sampling: true
+    transformation.dirichlet_alpha_peak: 10.0
+    eqm.gamma_power: 1.0
+
+# Hilbert + deterministic (one-hot CLR) — completes the 2x2 design with the
+# existing dphase3_mse_deterministic_v2 (MSE + one-hot CLR). Used for the
+# simplex recovery diagnostic comparison vs MSE.
+- name: hilbert_deterministic_5ep
+  overrides:
+    training.model_name: EqM
+    training.epochs: 5
+    text8_dataset.max_train_windows: 10000
+    loss.mode: hilbert_soft
+    loss.hilbert_alpha: 1.0
+    loss.hilbert_alpha_start: 1.0
+    transformation.dirichlet_sampling: false  # one-hot CLR
+    eqm.gamma_power: 1.0

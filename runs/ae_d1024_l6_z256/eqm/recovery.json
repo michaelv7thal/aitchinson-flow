@@ -1,0 +1,95 @@
+{
+  "rows": [
+    {
+      "mode": "unconditional",
+      "alpha": null,
+      "KL_uni": 1.3165532350540161,
+      "KL_bi": 5.086565971374512,
+      "KL_tri": 13.249488830566406,
+      "H_gen": 2.2807469367980957,
+      "samples": [
+        "qlollueuuoollwulomooedoomllmumouqmofleon",
+        "eglouqnemeoowomoloooooofewwonuglwelumolb",
+        "uoleeebumullfoeduuowognwheoeouenououljlm",
+        "uwgllllgoqhheoulouweuhoowqnohquuogoqhlgo"
+      ]
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.05,
+      "sigma_perturb": 1.1868892669677735,
+      "KL_bi": 0.14332309365272522,
+      "token_acc": 0.99169921875,
+      "token_acc_perturbed": 1.0,
+      "gt_sample0": "e the capital of one government after an",
+      "perturbed_sample0": "e the capital of one government after an",
+      "rc_sample0": "e the capital of one government after an"
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.1,
+      "sigma_perturb": 2.373778533935547,
+      "KL_bi": 0.24188092350959778,
+      "token_acc": 0.974414050579071,
+      "token_acc_perturbed": 0.974414050579071,
+      "gt_sample0": "e the capital of one government after an",
+      "perturbed_sample0": "e the capital of one government after an",
+      "rc_sample0": "e the capital of one government after an"
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.2,
+      "sigma_perturb": 4.747557067871094,
+      "KL_bi": 1.1822326183319092,
+      "token_acc": 0.7876952886581421,
+      "token_acc_perturbed": 0.7876952886581421,
+      "gt_sample0": "e the capital of one government after an",
+      "perturbed_sample0": "e the vapital of one poveonment afteq an",
+      "rc_sample0": "e the vapital of one poveonment afteq an"
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.3,
+      "sigma_perturb": 7.12133560180664,
+      "KL_bi": 2.1417999267578125,
+      "token_acc": 0.618359386920929,
+      "token_acc_perturbed": 0.618359386920929,
+      "gt_sample0": "e the capital of one government after an",
+      "perturbed_sample0": "e the cagithl of onl glvernsent aftvptfn",
+      "rc_sample0": "e the cagithl of onl glvernsent aftvptfn"
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.4,
+      "sigma_perturb": 9.495114135742188,
+      "KL_bi": 2.869537830352783,
+      "token_acc": 0.4862304627895355,
+      "token_acc_perturbed": 0.4862304627895355,
+      "gt_sample0": "e the capital of one government after an",
+      "perturbed_sample0": "eovheahaptwmpgrvwwnepezgedpmeetooftekpan",
+      "rc_sample0": "eovheahaptwmpgrvwwnepezgedpmeetooftekpan"
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.5,
+      "sigma_perturb": 11.868892669677734,
+      "KL_bi": 3.1611340045928955,
+      "token_acc": 0.3814453184604645,
+      "token_acc_perturbed": 0.3814453184604645,
+      "gt_sample0": "e the capital of one government after an",
+      "perturbed_sample0": "kifheanakon hteflenewdoevpnmhltnavtnefah",
+      "rc_sample0": "kifheanakon hteflenewdoevpnmhltnavtnefah"
+    },
+    {
+      "mode": "recovery",
+      "alpha": 1.0,
+      "sigma_perturb": 23.73778533935547,
+      "KL_bi": 3.4380199909210205,
+      "token_acc": 0.17832031846046448,
+      "token_acc_perturbed": 0.17832031846046448,
+      "gt_sample0": "e the capital of one government after an",
+      "perturbed_sample0": "pnntlft iohry nvqhrexnwak emelejnvnza mz",
+      "rc_sample0": "pnntlft iohry nvqhrexnwak emelejnvnza mz"
+    }
+  ]
+}

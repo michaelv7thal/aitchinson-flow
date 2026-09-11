@@ -1,0 +1,20 @@
+# Phase 1 — epoch scaling. Validates the "undertrained" hypothesis.
+# Compute estimate: ~75 min total on a 20 GB A100 MIG slice.
+# Decision rules in §5 Phase 1 of TRAINING_PLAN.md.
+- name: ep10_default
+  overrides:
+    training.epochs: 10
+- name: ep25_default
+  overrides:
+    training.epochs: 25
+- name: ep50_default
+  overrides:
+    training.epochs: 50
+- name: ep25_lr2x
+  overrides:
+    training.epochs: 25
+    training.lr: 6.0e-4
+- name: ep25_lr_5x
+  overrides:
+    training.epochs: 25
+    training.lr: 1.5e-4

@@ -1,161 +1,182 @@
+"""Optional Weights & Biases logger.
+
+Constructed once per training run. When ``enabled`` is False the logger is a
+silent no-op; when True the methods forward to ``wandb``. If ``wandb`` is not
+installed, ``wandb.init`` raises, or no API key is available, the logger
+auto-disables and prints a single warning — training itself never crashes
+because of wandb.
+"""
+
 from __future__ import annotations
 
-import warnings
-from collections.abc import Mapping, Sequence
+import logging
+import os
+from dataclasses import asdict
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable
 
 from aitchinson_flow.config import Config
-from aitchinson_flow.training.checkpoint import config_checkpoint_dict
 
 
-def _import_wandb() -> Any | None:
-    try:
-        import wandb
-    except Exception as exc:  # pragma: no cover - import environment dependent
-        warnings.warn(
-            f"W&B tracking requested but wandb could not be imported: {exc}",
-            stacklevel=2,
-        )
-        return None
-    return wandb
+_log = logging.getLogger(__name__)
+
+# Key prefix routing for log_epoch. Anything starting with one of these
+# substrings goes under that namespace; everything else falls into "epoch/".
+_VAL_PREFIX = "val_"
+_PROBE_KEYS = ("unigram_kl", "bigram_kl", "trigram_kl", "H_gen", "H_gt")
 
 
-def _clean_wandb_value(value: Any) -> Any:
-    if isinstance(value, dict):
-        return {k: _clean_wandb_value(v) for k, v in value.items()}
-    if isinstance(value, list):
-        return [_clean_wandb_value(v) for v in value]
-    if isinstance(value, tuple):
-        return [_clean_wandb_value(v) for v in value]
-    if isinstance(value, set):
-        return sorted(_clean_wandb_value(v) for v in value)
-    return value
-
-
-def _build_run_config(cfg: Config, extra_config: Mapping[str, Any] | None) -> dict[str, Any]:
-    payload: dict[str, Any] = {"config": config_checkpoint_dict(cfg)}
-    if extra_config:
-        payload["context"] = _clean_wandb_value(dict(extra_config))
-    return payload
+def _config_to_plain_dict(cfg: Config) -> dict[str, Any]:
+    """Stringify non-JSON-able fields (torch.device) so wandb.config accepts it."""
+    d = asdict(cfg)
+    if "training" in d and "device" in d["training"]:
+        d["training"]["device"] = str(cfg.training.device)
+    if "loader_settings" in d and "device_type" in d["loader_settings"]:
+        d["loader_settings"]["device_type"] = str(cfg.loader_settings.device_type)
+    return d
 
 
 class WandbLogger:
-    """Best-effort W&B logger with safe no-op behavior."""
+    """Thin wrapper around ``wandb`` that no-ops when disabled."""
 
     def __init__(
         self,
-        cfg: Config,
         *,
-        run_name: str | None = None,
-        group: str | None = None,
-        job_type: str | None = None,
-        tags: Sequence[str] | None = None,
-        extra_config: Mapping[str, Any] | None = None,
+        enabled: bool,
+        project: str,
+        name: str | None,
+        entity: str | None,
+        group: str | None,
+        tags: Iterable[str],
+        mode: str,
+        config_dict: dict[str, Any],
+        run_dir: Path | str | None,
     ) -> None:
-        self._cfg = cfg
-        self._wandb: Any | None = None
-        self._run: Any | None = None
-        self._active = False
+        self._enabled = bool(enabled)
+        self._wandb = None
+        self._run = None
 
-        if not cfg.training.wandb_enabled or cfg.training.wandb_mode == "disabled":
+        if not self._enabled:
             return
-
-        wandb = _import_wandb()
-        if wandb is None:
-            return
-
-        merged_tags = list(cfg.training.wandb_tags)
-        if tags:
-            merged_tags.extend(tags)
-        # Keep ordering stable while removing duplicates.
-        merged_tags = list(dict.fromkeys(merged_tags))
-
-        init_kwargs: dict[str, Any] = {
-            "project": cfg.training.wandb_project,
-            "entity": cfg.training.wandb_entity,
-            "group": group if group is not None else cfg.training.wandb_group,
-            "name": run_name if run_name is not None else cfg.training.wandb_run_name,
-            "job_type": job_type if job_type is not None else cfg.training.wandb_job_type,
-            "notes": cfg.training.wandb_notes,
-            "mode": cfg.training.wandb_mode,
-            "tags": merged_tags if merged_tags else None,
-            "config": _build_run_config(cfg, extra_config),
-            "reinit": True,
-        }
-        init_kwargs = {k: v for k, v in init_kwargs.items() if v is not None}
 
         try:
-            self._run = wandb.init(**init_kwargs)
-        except Exception as exc:
-            warnings.warn(
-                f"W&B init failed; continuing without tracking: {exc}",
-                stacklevel=2,
-            )
+            import wandb  # noqa: PLC0415 — lazy import keeps wandb optional
+        except ImportError as e:
+            _log.warning("wandb requested but not installed (%s); disabling.", e)
+            self._enabled = False
             return
 
-        self._wandb = wandb
-        self._active = self._run is not None
+        try:
+            self._run = wandb.init(
+                project=project,
+                name=name,
+                entity=entity,
+                group=group,
+                tags=list(tags),
+                mode=mode,
+                config=config_dict,
+                dir=str(run_dir) if run_dir is not None else None,
+                reinit=True,
+            )
+            self._wandb = wandb
+        except Exception as e:  # noqa: BLE001 — never let wandb kill training
+            _log.warning("wandb.init failed (%s); disabling logger.", e)
+            self._enabled = False
+            self._wandb = None
+            self._run = None
 
     @property
-    def active(self) -> bool:
-        return self._active and self._run is not None and self._wandb is not None
+    def enabled(self) -> bool:
+        return self._enabled
 
-    def watch_model(self, model: Any) -> None:
-        if not self.active or not self._cfg.training.wandb_watch_model:
+    @property
+    def run_name(self) -> str | None:
+        if self._run is None:
+            return None
+        return getattr(self._run, "name", None)
+
+    def log_step(self, step: int, metrics: dict[str, float]) -> None:
+        if not self._enabled or self._wandb is None:
+            return
+        prefixed = {
+            k if "/" in k else f"train/{k}": float(v) for k, v in metrics.items()
+        }
+        self._wandb.log(prefixed, step=step)
+
+    def log_epoch(self, epoch: int, metrics: dict[str, float]) -> None:
+        if not self._enabled or self._wandb is None:
+            return
+        out: dict[str, float] = {"epoch": int(epoch)}
+        for k, v in metrics.items():
+            if k.startswith(_VAL_PREFIX):
+                out[f"val/{k[len(_VAL_PREFIX) :]}"] = float(v)
+            elif k in _PROBE_KEYS:
+                out[f"probe/{k}"] = float(v)
+            else:
+                out[f"epoch/{k}"] = float(v)
+        self._wandb.log(out)
+
+    def log_samples(self, epoch: int, decodes: list[str]) -> None:
+        if not self._enabled or self._wandb is None or not decodes:
             return
         try:
-            self._wandb.watch(
-                model,
-                log=self._cfg.training.wandb_watch_log,
-                log_freq=self._cfg.training.wandb_watch_log_freq,
-            )
-        except Exception as exc:
-            warnings.warn(f"W&B watch failed: {exc}", stacklevel=2)
+            table = self._wandb.Table(columns=["epoch", "idx", "decode"])
+            for i, s in enumerate(decodes):
+                table.add_data(int(epoch), i, s)
+            self._wandb.log({"samples/decodes": table})
+        except Exception as e:  # noqa: BLE001
+            _log.warning("wandb log_samples failed (%s); continuing.", e)
 
-    def log_metrics(self, metrics: Mapping[str, float], *, step: int | None = None) -> None:
-        if not self.active or not metrics:
-            return
-        try:
-            payload = {k: float(v) for k, v in metrics.items()}
-            self._wandb.log(payload, step=step)
-        except Exception as exc:
-            warnings.warn(f"W&B metric logging failed: {exc}", stacklevel=2)
-
-    def log_artifact(
-        self,
-        path: str | Path,
-        *,
-        name: str,
-        artifact_type: str,
-        aliases: Sequence[str] | None = None,
-        metadata: Mapping[str, Any] | None = None,
-    ) -> None:
-        if not self.active:
+    def log_artifact(self, path: Path | str, *, name: str, type_: str) -> None:
+        if not self._enabled or self._wandb is None:
             return
         p = Path(path)
         if not p.exists():
+            _log.warning("wandb log_artifact: %s does not exist; skipping.", p)
             return
         try:
-            artifact = self._wandb.Artifact(
-                name=name,
-                type=artifact_type,
-                metadata=_clean_wandb_value(dict(metadata or {})),
-            )
-            if p.is_dir():
-                artifact.add_dir(str(p))
-            else:
-                artifact.add_file(str(p))
-            self._run.log_artifact(artifact, aliases=list(aliases or []))
-        except Exception as exc:
-            warnings.warn(f"W&B artifact logging failed: {exc}", stacklevel=2)
+            artifact = self._wandb.Artifact(name=name, type=type_)
+            artifact.add_file(str(p))
+            self._wandb.log_artifact(artifact)
+        except Exception as e:  # noqa: BLE001
+            _log.warning("wandb log_artifact failed (%s); continuing.", e)
 
-    def finish(self) -> None:
-        if not self.active:
+    def finish(self, exit_code: int = 0) -> None:
+        if not self._enabled or self._wandb is None:
             return
         try:
-            self._run.finish()
-        except Exception as exc:
-            warnings.warn(f"W&B finish failed: {exc}", stacklevel=2)
+            self._wandb.finish(exit_code=exit_code)
+        except Exception as e:  # noqa: BLE001
+            _log.warning("wandb.finish failed (%s).", e)
         finally:
-            self._active = False
+            self._enabled = False
+            self._wandb = None
+            self._run = None
+
+
+def build_wandb_logger(
+    cfg: Config,
+    *,
+    run_dir: Path | str | None = None,
+    extra_tags: Iterable[str] = (),
+) -> WandbLogger:
+    """Construct a WandbLogger from cfg.wandb. Honors WANDB_* env vars as fallbacks."""
+    wcfg = cfg.wandb
+    enabled = wcfg.enabled or bool(os.environ.get("WANDB_PROJECT"))
+    project = os.environ.get("WANDB_PROJECT") or wcfg.project
+    entity = os.environ.get("WANDB_ENTITY") or wcfg.entity
+    name = os.environ.get("WANDB_NAME") or wcfg.run_name
+
+    tags = tuple(wcfg.tags) + tuple(extra_tags)
+
+    return WandbLogger(
+        enabled=enabled,
+        project=project,
+        name=name,
+        entity=entity,
+        group=wcfg.group,
+        tags=tags,
+        mode=wcfg.mode,
+        config_dict=_config_to_plain_dict(cfg),
+        run_dir=run_dir,
+    )

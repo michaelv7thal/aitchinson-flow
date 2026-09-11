@@ -1,0 +1,18 @@
+Metadata-Version: 2.4
+Name: workspace
+Version: 0.1.0
+Summary: Add your description here
+Requires-Python: >=3.13
+Description-Content-Type: text/markdown
+Requires-Dist: datasets>=4.8.5
+Requires-Dist: gpytorch>=1.15.2
+Requires-Dist: jupyter>=1.1.1
+Requires-Dist: matplotlib>=3.10.9
+Requires-Dist: numpy>=2.4.4
+Requires-Dist: ruff>=0.15.12
+Requires-Dist: scikit-learn>=1.8.0
+Requires-Dist: torch>=2.11.0
+Requires-Dist: tqdm>=4.67.3
+Requires-Dist: transformers>=5.8.0
+Requires-Dist: umap-learn>=0.5.12
+Requires-Dist: wandb>=0.18

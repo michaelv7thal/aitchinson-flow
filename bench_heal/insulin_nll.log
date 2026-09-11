@@ -1,0 +1,50 @@
+[poc] ckpt=runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM/epoch_best.pt  K=27 L=256 t_max=8.0 device=cuda
+[poc] 'insulin': 54158 text8 chars -> 211 windows; name appears ~248x; demo=32 (143 contain name)
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[poc] calibration=128 generic windows; false-info vocab lengths 2-18 (e.g. len-7: ['against', 'working', 'diggers', 'english', 'violent', 'destroy'])
+[poc] localizer=nll
+[poc] operating point: fpr=0.02 thr=1.239 (GT-free, max cal-F0.5)
+
+=== Track A: random character corruption (denoise typos) ===
+
+=== Track A (char noise): FPR sweep ===
+  fpr       thr  loc_P  loc_R  loc_F1    fix    dmg  net/corrupt
+ 0.02     1.239  0.785  0.787   0.786  0.581  0.037       +0.374  <- selected
+ 0.05     0.570  0.598  0.895   0.717  0.565  0.099       +0.007
+ 0.10     0.252  0.455  0.952   0.616  0.501  0.181       -0.520
+
+=== Track C (false information): FPR sweep ===
+  fpr       thr  loc_P  loc_R  loc_F1    fix    dmg  net/corrupt
+ 0.02     1.239  0.513  0.196   0.283  0.040  0.023       -0.142  <- selected
+ 0.05     0.570  0.403  0.334   0.365  0.058  0.059       -0.410
+ 0.10     0.252  0.336  0.476   0.394  0.080  0.107       -0.761
+
+track                     corrupt%chars  loc_P  loc_R    fix    dmg   net/corrupt
+A: char noise                     15.1%  0.785  0.787  0.581  0.037   +0.374±0.004
+C: false information              11.3%  0.513  0.196  0.040  0.023   -0.142±0.011
+
+--- Track A example window (seed 0) ---
+  clean    : 'insulin from latin insula island is a peptide hormone produced by beta cells of the pancreatic islets encoded in humans by the insulin ins gene it is the main anabolic hormone of the body it regulates the metabolism of carbohydrates fats and protein by pro'
+  corrupted: 'insuliv from iatiu mksula tscend vs atpeptidb hormone producxd by zera zellsnof ade pancreatic iulets hncodej ib humans bycthe insuean ixs geneait  s theomain anabglic horoone of the body it regulatps the metabozismqof carbohydratss fxts inrjprotein be pro'
+  healed   : 'insulic from latic mosula tscend is atception hormone produced by zero zells of the pancreatic rulets incodes in humans by the insuean its generit is the main anabolic hormone of the body it regulates the metabolism of carbohydrates jets ind protein be pro'
+
+--- Track C example window (seed 0) ---
+  clean    : 'insulin from latin insula island is a peptide hormone produced by beta cells of the pancreatic islets encoded in humans by the insulin ins gene it is the main anabolic hormone of the body it regulates the metabolism of carbohydrates fats and protein by pro'
+  corrupted: 'insulin from latin insula island wu a artwork hormone snapcase by beta cells of the pancreatic islets arseniy in humans by the insulin ins gene it is the main anabolic hormone of the body sg regulates the metabolism of carbohydrates fats and protein ct pro'
+  healed   : 'insulin from latin insula island of a artwork hormone snapcase by beta cells of the pancreatic islets arsenia in humans by the insulin ins gene it is the main anabolic hormone of the body so regulates the metabolism of carbohydrates fats and protein it pro'
+
+=== Track B: corrupt every letter of 'insulin', heal from context ===
+
+  [window 0] name letters corrupted=10 flagged=8 -> fully restored: False
+    corr  : 'ig vjcn from latin insula island is a peptide hormone produced by beta cells of the pancreatic islets encoded in humans by the ikvedhn ins gene it is the main anabolic hormone of the body it regulates the metabolism of carbohydrates fats and protein by pro'
+    healed: 'is main from latin insula island is a pective hormone produced by beta cells of the pancreatic islets encoded in humans by the isle in ins gene it is the main anabolic hormone of the body it regulates the metabolism of carbohydrates fats and protein by pro'
+
+  [window 2] name letters corrupted=10 flagged=5 -> fully restored: False
+    corr  : 'd into both glucose production and secretion by the liver are strongly inhibited by high concentrations of iettvjn in the blood circulating ietvhcn also affects the synthesis of proteins in a wide variety of tissues it is thus an anabolic hormone promoting'
+    healed: 'd into both glucose production and secretion by the liver are strongly inhibited by high concentrations of betteen in the blood circulating between also affects the synthesis of proteins in a wide variety of tissues it is thus an anabolic hormone promoting'
+
+  [window 3] name letters corrupted=5 flagged=3 -> fully restored: False
+    corr  : ' the conversion of small molecules in the blood into large molecules in the cells low iznhian in the blood has the opposite effect promoting widespread catabolism especially of reserve body fat beta cells are sensitive to blood sugar levels so that they se'
+    healed: ' the conversion of small molecules in the blood into large molecules in the cells low iension in the blood has the opposite effect promoting widespread catabolism efpecially of reserve body han be a cells are sensitive to blood sugar levels so that they se'
+
+[poc] wrote heal_poc_insulin/heal_insulin_poc.json

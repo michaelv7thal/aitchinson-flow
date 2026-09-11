@@ -1,0 +1,117 @@
+# Heal-from-context proof of concept — insulin (in-distribution protein)
+
+
+> **Numbers superseded 2026-08-10; conclusions intact.** This ran against `DirichletFM/epoch_best.pt`; the paper's insulin results come from the fully-annealed `DirichletFM_converge/epoch_final.pt` (`bench_heal_final/`, `heal_poc_insulin_final/`) and read Track A **+0.377** / Track C **−0.106** against the +0.374 / −0.142 below. Same signs, same conclusion. The operating point here was selected by max cal-F1, a rule later replaced by the least-damaging swept FPR (paper `chapters/results.tex` §Repair).
+>
+> Two clarifications. Insulin is **in-distribution by design**, not a domain-shift probe: a 2006 revision of this article is in the text8 training split (paper §Repair on a real biomedical article). Where Track A is described below as running on a "held-out" article, that means held out of the *calibration* set, not out of domain — the paper's out-of-domain transfer article is semaglutide (`tab:ood-transfer`). And the "pending cluster run" for the GMM localizer on Track C has since been answered: the full-covariance mixture reaches **−0.047** on insulin Track C (paper `tab:heal-insulin`), confirming this document's prediction that feature density does not fact-check either.
+>
+> Retained as the only record of why insulin was chosen over BRCA1, and as the provenance of the Track-B example quoted verbatim in the paper.
+
+Goal: demonstrate that the frozen full-text8 L256 `DirichletFM` healer can **recover
+corrupted tokens using context**, on a real biomedical Wikipedia article. Driver:
+`scripts/heal_protein_poc.py`; outputs in `heal_poc_insulin/` (JSON + log + the exact
+article extract used). Reuses the `heal_out_best` machinery verbatim (NLL localizer →
+threshold calibrated on generic text8 → `inpaint` → `score_healing`).
+
+- **Checkpoint:** `runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM/epoch_best.pt` (epoch 5, best val — the healing checkpoint; see `docs/archive/RESULTS_OOD_HEAL_EPOCH_BEST.md`).
+- **Demo set:** 32 windows (L=256) of the insulin article (211 windows total; "insulin" appears ~248×), 143 of which contain the name.
+- **Fit/calibration:** generic text8 **test** split (never the article). Operating point `fpr=0.02`, `thr=1.239`, chosen GT-free by max cal-F1.
+- **Corruption:** rate 0.15, mean over 3 seeds. Ran on an 8 GB laptop GPU (~17 min).
+
+## Why insulin, not BRCA1
+
+The task started as "heal the BRCA1 article." BRCA1 is a **bad probe**: `brca` occurs
+**0×** in the text8 train split (only 4× in validation, in the *Mutation* article's tail),
+and text8 spells digits out, so "BRCA1" → "brca one" — a token the model never saw and
+**cannot** heal from context. Insulin is in-distribution: **347** train occurrences,
+pure-letter name, dense standalone article. (Peers by train count: hemoglobin 101,
+collagen 65.)
+
+## Headline: the healer fixes *noise*, not *plausible falsehoods*
+
+| track | corruption | ~%chars | loc_P | loc_R | fix | dmg | **net/corrupt** |
+|-------|-----------|--------:|------:|------:|----:|----:|-----------------|
+| **A — char noise** | random char substitution (typos/non-words) | 15.1% | 0.785 | 0.787 | 0.581 | 0.037 | **+0.374** ±0.004 |
+| **C — false information** | 15% of **words** → different real **same-length** word | 11.3% | 0.513 | **0.196** | **0.040** | 0.023 | **−0.142** ±0.011 |
+
+Same corruption *volume*, opposite result:
+
+- **A works** — +0.374 net recovery, in line with the text8-test baseline (**+0.407**, `epoch_best`). A valid "heals corrupted tokens from context" PoC on a **held-out** biomedical article. Visible denoising: `producxd→produced`, `metabozism→metabolism`, `carbohydratss→carbohydrates`.
+- **C fails, and does slight net *harm*** — the false words are lexically valid, so the NLL localizer catches only **20%** (recall 0.20 vs A's 0.79), heals almost none back to truth (fix 0.04), and its few false-positive edits on clean tokens outnumber the fixes ⇒ **net-negative**. The injected falsehoods pass straight through healing:
+
+  ```
+  clean : ... is a peptide hormone produced   by beta cells ... encoded in humans ...
+  healed: ... of a artwork hormone snapcase by beta cells ... arsenia in humans ...
+                    ^^^^^^^        ^^^^^^^^                    ^^^^^^^
+  ```
+  → **context-healing corrects corruption; it does not detect or correct fluent hallucinations.**
+
+## Track B — whole-word erasure (targeted name)
+
+Scrambling **every** letter of "insulin" (no surviving character evidence), then
+localize + inpaint. **0 / 3 windows fully restored.** The localizer flags the damage
+(8/10, 5/10, 3/5 positions) but the inpainter fills a *plausible substitute*, not the
+exact word:
+
+| window | name chars corrupted | flagged | healed → | restored? |
+|-------:|---------------------:|--------:|----------|:---------:|
+| 0 | 10 | 8 | `ig vjcn`→`is main`, `ikvedhn`→`isle in` | ✗ |
+| 2 | 10 | 5 | `…concentrations of iettvjn in the blood`→`…of between in the blood` | ✗ |
+| 3 | 5 | 3 | `low iznhian in the blood`→`low iension in the blood` | ✗ |
+
+So B maps the **boundary**: with all character evidence destroyed, a char-level model
+cannot reconstruct a *specific* erased word from context alone — it produces a locally
+fluent filler instead.
+
+## Verdict (the claim to make)
+
+> The healer recovers **corrupted** tokens from context + residual character evidence
+> (Track A: +0.374 net on held-out insulin, ≈ the +0.407 text8-test baseline). It does
+> **not** (B) reconstruct a *fully erased* specific word from context alone, nor (C)
+> detect/correct *plausible false information* (net −0.142).
+
+This is the defensible, ML-for-bio-appropriate framing: **denoising ≠ fact-checking**.
+Relates to the capstone claim ledger — do not overclaim "heals anything from context."
+
+## Follow-up: can a GMM feature-density localizer catch Track C?
+
+The NLL localizer reads *local* character surprise, so a lexically-valid same-length
+word-swap passes through (Track C). A candidate fix is a **one-class Gaussian-mixture
+density** on the DirichletFM *contextual backbone features* (`make_gmm_localizer`,
+`scripts/heal_dirichlet.py`; standalone detector `scripts/ood_gmm_perpos.py`): a
+wrong-but-valid word may produce a contextual feature that lands in a low-density
+region of the ID mixture even though its char-NLL is low. The false-info corruption is
+now a first-class scheme (`falseinfo`) in `data/corruption.py`, shared by the OOD
+sweeps (GMM / NLL / BayesLin) so the three are scored head-to-head on the semantic axis.
+
+**Open scientific risk:** at the default `t_eval=4.5` the deterministic-mean input is
+strongly token-dominated, so a valid swap may land *on* the ID manifold and the GMM may
+also miss it — hence `ood_gmm_perpos.py --t-evals` sweeps lower (more context-dependent)
+times. If the GMM misses Track C across all `t_eval`, that is itself a clean result
+("feature-density does not fact-check either"), consistent with denoising ≠ fact-checking.
+
+Run the GMM localizer on the same PoC (fill in the Track-C row once run on the cluster):
+
+```bash
+uv run python -u scripts/heal_protein_poc.py \
+  --ckpt runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM/epoch_best.pt \
+  --article-json heal_poc_insulin/insulin_article_extract.json --name insulin \
+  --localizer gmm --gmm-n-components 8 --gmm-covariance-type diag --gmm-pca-dim 64 \
+  --corrupt-rate 0.15 --n-demo 32 --n-seeds 3 --nfe 100 \
+  --out heal_poc_insulin/heal_insulin_poc_gmm.json
+```
+
+| track (localizer) | loc_R | fix | net/corrupt |
+|-------------------|------:|----:|-------------|
+| C — false info (NLL)  | 0.196 | 0.040 | −0.142 |
+| C — false info (GMM)  | _pending cluster run_ | | |
+
+## Reproduce
+
+```bash
+uv run python -u scripts/heal_protein_poc.py \
+  --ckpt runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM/epoch_best.pt \
+  --article-json heal_poc_insulin/insulin_article_extract.json --name insulin \
+  --corrupt-rate 0.15 --n-demo 32 --n-seeds 3 --nfe 100 \
+  --out heal_poc_insulin/heal_insulin_poc.json
+```

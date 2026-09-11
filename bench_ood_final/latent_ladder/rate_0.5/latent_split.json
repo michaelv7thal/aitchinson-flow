@@ -1,0 +1,75 @@
+{
+  "ckpt": "runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM_converge/epoch_final.pt",
+  "split": "test",
+  "t_eval": 4.5,
+  "d_model": 1280,
+  "rate": 0.5,
+  "fit_seqs": 192,
+  "n": 256,
+  "schemes": [
+    "replace",
+    "shuffle",
+    "falseinfo"
+  ],
+  "token_scheme": "replace,shuffle,falseinfo",
+  "token_schemes": [
+    "replace",
+    "shuffle",
+    "falseinfo"
+  ],
+  "per_sequence": {
+    "replace": {
+      "pca_pc12_probe_auroc": 0.99542236328125,
+      "lda_axis_auroc": 1.0,
+      "full_dim_linear_auroc": 1.0,
+      "pca_pc12_probe_null": null,
+      "full_dim_linear_null": null,
+      "n_points": 512
+    },
+    "shuffle": {
+      "pca_pc12_probe_auroc": 0.9893035888671875,
+      "lda_axis_auroc": 1.0,
+      "full_dim_linear_auroc": 1.0,
+      "pca_pc12_probe_null": null,
+      "full_dim_linear_null": null,
+      "n_points": 512
+    },
+    "falseinfo": {
+      "pca_pc12_probe_auroc": 0.6423492431640625,
+      "lda_axis_auroc": 0.9785919189453125,
+      "full_dim_linear_auroc": 0.9974822998046875,
+      "pca_pc12_probe_null": null,
+      "full_dim_linear_null": null,
+      "n_points": 512
+    }
+  },
+  "per_token": {
+    "replace": {
+      "token_scheme": "replace",
+      "pca_pc12_probe_auroc": 0.5915194375,
+      "energy_axis_auroc": 0.9809061874999999,
+      "full_dim_linear_auroc": 1.0,
+      "pca_pc12_probe_null": null,
+      "full_dim_linear_null": null,
+      "n_per_class": 4000
+    },
+    "shuffle": {
+      "token_scheme": "shuffle",
+      "pca_pc12_probe_auroc": 0.5330820625,
+      "energy_axis_auroc": 0.9798856875,
+      "full_dim_linear_auroc": 1.0,
+      "pca_pc12_probe_null": null,
+      "full_dim_linear_null": null,
+      "n_per_class": 4000
+    },
+    "falseinfo": {
+      "token_scheme": "falseinfo",
+      "pca_pc12_probe_auroc": 0.54729775,
+      "energy_axis_auroc": 0.8629406875000001,
+      "full_dim_linear_auroc": 0.9849998125,
+      "pca_pc12_probe_null": null,
+      "full_dim_linear_null": null,
+      "n_per_class": 4000
+    }
+  }
+}

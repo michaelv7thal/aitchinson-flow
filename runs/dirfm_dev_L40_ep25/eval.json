@@ -1,0 +1,33 @@
+{
+  "ckpt": "runs/dirfm_dev_L40_ep25/epoch_final.pt",
+  "model_name": "DirichletFM",
+  "epoch": 25,
+  "global_step": 3925,
+  "n_samples": 256,
+  "sample_steps": 200,
+  "sample_kwargs": {},
+  "unigram_kl": 0.010946067050099373,
+  "bigram_kl": 0.5470249056816101,
+  "trigram_kl": 3.075990676879883,
+  "H_gen": 2.909489154815674,
+  "H_gt": 2.8483986854553223,
+  "H_ratio": 1.0214473028906716,
+  "grad_at_gen": NaN,
+  "grad_at_gt": NaN,
+  "samples": [
+    "n is furiyain thesse icroubiveteos orore",
+    "rrxar i on sagcentoln and minnceatue is ",
+    "act foutieh the heirghls monus bempert f",
+    "the  giwer teis asp dedt aceeshao of wro",
+    "ated asy aqcininian fdaf thiotree fane r",
+    "ch cer uldiliccemuroal ber on gect dethe",
+    "tiofswand ur arure thithiss sad the regx",
+    "devpoand arav hal gvnd erei feras tie ar"
+  ],
+  "run_name": "dirfm_dev_L40_ep25",
+  "overrides": {
+    "training.model_name": "DirichletFM",
+    "training.epochs": 25,
+    "text8_dataset.max_train_windows": 10000
+  }
+}

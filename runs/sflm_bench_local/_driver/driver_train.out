@@ -1,0 +1,15 @@
+### TRAIN DRIVER START 2026-06-10_00:03:19  SC=local EP=10 MTW=10000 VAE_L=40
+### [2026-06-10_00:03:19] STAGE A: VAE for EqMAE (seq-len 40)
+### [2026-06-10_00:04:22] STAGE A exit=0  -> -rw-r--r-- 1 renku renku 12977593 Jun 10 00:04 runs/vae_local/epoch_final.pt
+### [2026-06-10_00:04:22] STAGE B1: 6 single-stage arms (EqM_OneHot,EqM,DFM,DirichletFM,SFLM,FMonCLR)
+### [2026-06-10_00:31:24] STAGE B1 exit=0
+### [2026-06-10_00:31:24] STAGE B2: EqMAE (VAE+EqM, --ae-ckpt)
+### [2026-06-10_00:38:37] STAGE B2 exit=0
+### TRAIN DRIVER COMPLETE 2026-06-10_00:38:37 — checkpoint census:
+  OK       EqM_OneHot  (75893962 bytes)
+  OK       EqM  (75893962 bytes)
+  OK       EqMAE  (89016369 bytes)
+  OK       DFM  (76945164 bytes)
+  OK       DirichletFM  (76945164 bytes)
+  OK       SFLM  (77373453 bytes)
+  OK       FMonCLR  (76945228 bytes)

@@ -1,0 +1,47 @@
+# L=256 Stage-1 DirichletFMSvgp checkpoint for the hinge-SVGP OOD detector.
+# Derived from _dfm_svgp_pure50_lr3e4.yaml but at the publication-length
+# (L=256) a100_20g_L256 scale: d1024/10L/16H (GPT-2-small / 127M peer tier,
+# matching the train_for_sflm_bench SCALES), B=8, 20 epochs. Kept lean at
+# 10k training windows on purpose: this is the OOD *detector base* (Obj 3),
+# not a peer-comparable BPC arm, so the 100k data budget is spent on DFM
+# instead. Stage-2 hinge is fit separately by scripts/fit_dfm_svgp_hinge.py
+# on the frozen epoch_final.pt this produces.
+
+- name: dfm_svgp_L256
+  overrides:
+    training.model_name: DirichletFMSvgp
+    training.epochs: 20
+    training.seed: 42
+    training.lr: 0.0003
+    training.scheduler_warmup_epochs: 1
+    training.cosine_t_max_epochs: 20
+    training.B: 8
+    training.L: 256
+    training.K: 27
+    training.sample_eval_every: null   # skip the slow KL probe at L256
+    text8_dataset.batch_size: 8
+    text8_dataset.L: 256
+    text8_dataset.K: 27
+    text8_dataset.max_train_windows: 10000
+    text8_dataset.max_eval_windows: 2000
+    text8_dataset.variable_length: false
+    text8_dataset.train_corrupt_rate: 0.15
+    text8_dataset.eval_corrupt_rate: 0.15
+    transformation.label_smoothing: 0.0001
+    transformation.dirichlet_sampling: false
+    transformer.d_model: 1024
+    transformer.num_layers: 10
+    transformer.nhead: 16
+    transformer.d_latent: 64
+    dirichlet_fm.t_max: 8.0
+    dirichlet_fm.dropout: 0.1
+    dirichlet_fm.sample_nfe: 100
+    dfm_svgp.pooling: "mean"
+    dfm_svgp.d_embed: 256
+    dfm_svgp.n_inducing: 128
+    dfm_svgp.kernel: "matern52"
+    dfm_svgp.t_eval: 4.5
+    dfm_svgp.lambda_hinge: 0.0
+    dfm_svgp.train_svgp_jointly: false
+    dfm_svgp.train_pooler_with_dfm: false
+    wandb.enabled: false

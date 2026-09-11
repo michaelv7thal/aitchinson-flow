@@ -1,0 +1,104 @@
+{
+  "data_radius": 12.272300720214844,
+  "rows": [
+    {
+      "alpha": 0.05,
+      "gamma": 0.95,
+      "radius": 11.658793449401855,
+      "token_acc_perturbed": 1.0,
+      "token_acc": 1.0,
+      "delta": 0.0,
+      "gt_sample0": "e the capital of one government after an",
+      "pt_sample0": "e the capital of one government after an",
+      "rc_sample0": "e the capital of one government after an"
+    },
+    {
+      "alpha": 0.1,
+      "gamma": 0.9,
+      "radius": 11.045259475708008,
+      "token_acc_perturbed": 1.0,
+      "token_acc": 1.0,
+      "delta": 0.0,
+      "gt_sample0": "e the capital of one government after an",
+      "pt_sample0": "e the capital of one government after an",
+      "rc_sample0": "e the capital of one government after an"
+    },
+    {
+      "alpha": 0.2,
+      "gamma": 0.8,
+      "radius": 9.818078994750977,
+      "token_acc_perturbed": 1.0,
+      "token_acc": 1.0,
+      "delta": 0.0,
+      "gt_sample0": "e the capital of one government after an",
+      "pt_sample0": "e the capital of one government after an",
+      "rc_sample0": "e the capital of one government after an"
+    },
+    {
+      "alpha": 0.3,
+      "gamma": 0.7,
+      "radius": 8.5918607711792,
+      "token_acc_perturbed": 1.0,
+      "token_acc": 1.0,
+      "delta": 0.0,
+      "gt_sample0": "e the capital of one government after an",
+      "pt_sample0": "e the capital of one government after an",
+      "rc_sample0": "e the capital of one government after an"
+    },
+    {
+      "alpha": 0.4,
+      "gamma": 0.6,
+      "radius": 7.367032051086426,
+      "token_acc_perturbed": 1.0,
+      "token_acc": 1.0,
+      "delta": 0.0,
+      "gt_sample0": "e the capital of one government after an",
+      "pt_sample0": "e the capital of one government after an",
+      "rc_sample0": "e the capital of one government after an"
+    },
+    {
+      "alpha": 0.5,
+      "gamma": 0.5,
+      "radius": 6.141529083251953,
+      "token_acc_perturbed": 1.0,
+      "token_acc": 1.0,
+      "delta": 0.0,
+      "gt_sample0": "e the capital of one government after an",
+      "pt_sample0": "e the capital of one government after an",
+      "rc_sample0": "e the capital of one government after an"
+    },
+    {
+      "alpha": 0.9,
+      "gamma": 0.09999999999999998,
+      "radius": 1.3106346130371094,
+      "token_acc_perturbed": 1.0,
+      "token_acc": 1.0,
+      "delta": 0.0,
+      "gt_sample0": "e the capital of one government after an",
+      "pt_sample0": "e the capital of one government after an",
+      "rc_sample0": "e the capital of one government after an"
+    },
+    {
+      "alpha": 0.99,
+      "gamma": 0.010000000000000009,
+      "radius": 0.5228123068809509,
+      "token_acc_perturbed": 0.25947266817092896,
+      "token_acc": 0.3299804627895355,
+      "delta": 0.07050779461860657,
+      "gt_sample0": "e the capital of one government after an",
+      "pt_sample0": "enehrfcfptcjl mndynev yvemnhwn wajlemiad",
+      "rc_sample0": "e shsfarutsrh an oeer oveanhen  arleliae"
+    },
+    {
+      "alpha": 1.0,
+      "gamma": 0.0,
+      "radius": 0.5151811242103577,
+      "token_acc_perturbed": 0.03847656399011612,
+      "token_acc": 0.08193359524011612,
+      "delta": 0.04345703125,
+      "gt_sample0": "e the capital of one government after an",
+      "pt_sample0": "xzrgihfckmenlacbyuxvssecbdqecp ekwsiozmj",
+      "rc_sample0": "s roihpc eenh a eeiissec pre r eaennoien"
+    }
+  ]
+}

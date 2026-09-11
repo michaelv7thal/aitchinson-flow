@@ -1,0 +1,29 @@
+{
+  "model_name": "EqMAE",
+  "model_class": "EqMAE",
+  "L": 40,
+  "epoch": 10,
+  "n_samples": 256,
+  "sample_steps": 200,
+  "split": "test",
+  "KL_uni": 0.059293121099472046,
+  "KL_bi": 2.3342905044555664,
+  "KL_tri": 7.142637729644775,
+  "H_gen": 2.5911076068878174,
+  "H_gt": 2.8483986854553223,
+  "H_ratio": 0.9096716762715482,
+  "per_pos_entropy": 2.470607280731201,
+  "bpc": null,
+  "generation_metric_valid": false,
+  "collapsed": false,
+  "samples": [
+    "b  h hut  ojiieahcre ysonac emurld e eat",
+    "smat drriaief snh mtah   ceotgihir sne h",
+    "eridenh  strro reerieeo  nt  rlntaol t  ",
+    "ar nsi eae cogrlaeta   nna tls g irtamme",
+    "nleeotejani  rt s rdxg o eiroe ntnleh en",
+    "kiiaenoirrtcnu nt  e  doeenod h  yo sra ",
+    "it  srniha eoee lti ac t    lh esnoleimn",
+    "pneata at c  uovel loas heeo a n nira   "
+  ]
+}

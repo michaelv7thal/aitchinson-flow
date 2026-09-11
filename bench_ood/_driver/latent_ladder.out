@@ -1,0 +1,104 @@
+### [2026-08-09_11:24:03] recovery sweep still on the GPU — waiting
+### [2026-08-09_11:29:03] recovery sweep still on the GPU — waiting
+### [2026-08-09_11:34:03] recovery sweep still on the GPU — waiting
+### [2026-08-09_11:39:03] recovery sweep still on the GPU — waiting
+### [2026-08-09_11:44:03] recovery sweep still on the GPU — waiting
+### [2026-08-09_11:49:04] recovery sweep still on the GPU — waiting
+### [2026-08-09_11:54:04] recovery sweep still on the GPU — waiting
+### [2026-08-09_11:59:04] recovery sweep still on the GPU — waiting
+### [2026-08-09_12:04:04] recovery sweep still on the GPU — waiting
+### [2026-08-09_12:09:04] recovery sweep still on the GPU — waiting
+### [2026-08-09_12:14:04] recovery sweep still on the GPU — waiting
+### [2026-08-09_12:19:04] recovery sweep still on the GPU — waiting
+### [2026-08-09_12:24:04] recovery sweep still on the GPU — waiting
+### [2026-08-09_12:29:04] recovery sweep still on the GPU — waiting
+### [2026-08-09_12:34:04] recovery sweep still on the GPU — waiting
+### [2026-08-09_12:39:04] recovery sweep still on the GPU — waiting
+### [2026-08-09_12:44:04] recovery sweep still on the GPU — waiting
+### [2026-08-09_12:49:04] recovery sweep still on the GPU — waiting
+### [2026-08-09_12:54:04] recovery sweep still on the GPU — waiting
+### [2026-08-09_12:59:04] recovery sweep still on the GPU — waiting
+### [2026-08-09_13:04:04] recovery sweep still on the GPU — waiting
+### [2026-08-09_13:09:04] recovery sweep still on the GPU — waiting
+### LATENT-LADDER START 2026-08-09_13:14:04  ckpt=runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM/epoch_best.pt
+### [2026-08-09_13:14:04] stage A: replace,shuffle,falseinfo at rate 0.3, both granularities
+### [2026-08-09_13:19:49] stage A exit=0
+[seq:replace] PCA(PC1-2)=0.791  LDA-axis=1.000  full-linear=1.000
+[seq:shuffle] PCA(PC1-2)=0.716  LDA-axis=1.000  full-linear=1.000
+[seq:falseinfo] PCA(PC1-2)=0.569  LDA-axis=0.876  full-linear=0.979
+[token:replace] PCA(PC1-2)=0.544  energy-axis=0.965  full-linear=1.000
+[token:shuffle] PCA(PC1-2)=0.523  energy-axis=0.895  full-linear=1.000
+[token:falseinfo] PCA(PC1-2)=0.561  energy-axis=0.803  full-linear=0.933
+### [2026-08-09_13:19:49] ladder rate=0.05 start
+### [2026-08-09_13:25:33] ladder rate=0.05 exit=0
+[seq:replace] PCA(PC1-2)=0.543  LDA-axis=0.885  full-linear=0.986
+[seq:shuffle] PCA(PC1-2)=0.534  LDA-axis=0.881  full-linear=0.974
+[seq:falseinfo] PCA(PC1-2)=0.517  LDA-axis=0.575  full-linear=0.746
+[token:replace] PCA(PC1-2)=0.472  energy-axis=0.918  full-linear=0.996
+[token:shuffle] PCA(PC1-2)=0.492  energy-axis=0.812  full-linear=0.996
+[token:falseinfo] PCA(PC1-2)=0.576  energy-axis=0.725  full-linear=0.934
+### [2026-08-09_13:25:33] ladder rate=0.1 start
+### [2026-08-09_13:31:19] ladder rate=0.1 exit=0
+[seq:replace] PCA(PC1-2)=0.586  LDA-axis=0.987  full-linear=1.000
+[seq:shuffle] PCA(PC1-2)=0.570  LDA-axis=0.976  full-linear=0.999
+[seq:falseinfo] PCA(PC1-2)=0.510  LDA-axis=0.621  full-linear=0.817
+[token:replace] PCA(PC1-2)=0.510  energy-axis=0.933  full-linear=0.999
+[token:shuffle] PCA(PC1-2)=0.480  energy-axis=0.834  full-linear=0.997
+[token:falseinfo] PCA(PC1-2)=0.574  energy-axis=0.736  full-linear=0.886
+### [2026-08-09_13:31:19] ladder rate=0.15 start
+### [2026-08-09_13:37:04] ladder rate=0.15 exit=0
+[seq:replace] PCA(PC1-2)=0.640  LDA-axis=0.999  full-linear=1.000
+[seq:shuffle] PCA(PC1-2)=0.605  LDA-axis=0.996  full-linear=1.000
+[seq:falseinfo] PCA(PC1-2)=0.529  LDA-axis=0.735  full-linear=0.898
+[token:replace] PCA(PC1-2)=0.522  energy-axis=0.942  full-linear=1.000
+[token:shuffle] PCA(PC1-2)=0.498  energy-axis=0.851  full-linear=1.000
+[token:falseinfo] PCA(PC1-2)=0.572  energy-axis=0.757  full-linear=0.889
+### [2026-08-09_13:37:04] ladder rate=0.2 start
+### [2026-08-09_13:42:45] ladder rate=0.2 exit=0
+[seq:replace] PCA(PC1-2)=0.687  LDA-axis=0.999  full-linear=1.000
+[seq:shuffle] PCA(PC1-2)=0.644  LDA-axis=0.998  full-linear=1.000
+[seq:falseinfo] PCA(PC1-2)=0.544  LDA-axis=0.778  full-linear=0.935
+[token:replace] PCA(PC1-2)=0.523  energy-axis=0.950  full-linear=1.000
+[token:shuffle] PCA(PC1-2)=0.512  energy-axis=0.873  full-linear=1.000
+[token:falseinfo] PCA(PC1-2)=0.569  energy-axis=0.783  full-linear=0.908
+### [2026-08-09_13:42:45] ladder rate=0.25 start
+### [2026-08-09_13:48:24] ladder rate=0.25 exit=0
+[seq:replace] PCA(PC1-2)=0.738  LDA-axis=1.000  full-linear=1.000
+[seq:shuffle] PCA(PC1-2)=0.672  LDA-axis=1.000  full-linear=1.000
+[seq:falseinfo] PCA(PC1-2)=0.550  LDA-axis=0.848  full-linear=0.966
+[token:replace] PCA(PC1-2)=0.534  energy-axis=0.956  full-linear=1.000
+[token:shuffle] PCA(PC1-2)=0.509  energy-axis=0.882  full-linear=1.000
+[token:falseinfo] PCA(PC1-2)=0.552  energy-axis=0.783  full-linear=0.914
+### [2026-08-09_13:48:24] ladder rate=0.3 start
+### [2026-08-09_13:54:12] ladder rate=0.3 exit=0
+[seq:replace] PCA(PC1-2)=0.791  LDA-axis=1.000  full-linear=1.000
+[seq:shuffle] PCA(PC1-2)=0.716  LDA-axis=1.000  full-linear=1.000
+[seq:falseinfo] PCA(PC1-2)=0.569  LDA-axis=0.876  full-linear=0.979
+[token:replace] PCA(PC1-2)=0.544  energy-axis=0.965  full-linear=1.000
+[token:shuffle] PCA(PC1-2)=0.523  energy-axis=0.895  full-linear=1.000
+[token:falseinfo] PCA(PC1-2)=0.561  energy-axis=0.803  full-linear=0.933
+### [2026-08-09_13:54:12] ladder rate=0.5 start
+### [2026-08-09_13:59:58] ladder rate=0.5 exit=0
+[seq:replace] PCA(PC1-2)=0.957  LDA-axis=1.000  full-linear=1.000
+[seq:shuffle] PCA(PC1-2)=0.869  LDA-axis=1.000  full-linear=1.000
+[seq:falseinfo] PCA(PC1-2)=0.606  LDA-axis=0.968  full-linear=0.996
+[token:replace] PCA(PC1-2)=0.592  energy-axis=0.978  full-linear=1.000
+[token:shuffle] PCA(PC1-2)=0.548  energy-axis=0.926  full-linear=1.000
+[token:falseinfo] PCA(PC1-2)=0.533  energy-axis=0.858  full-linear=0.978
+### [2026-08-09_13:59:58] ladder rate=0.7 start
+### [2026-08-09_14:05:38] ladder rate=0.7 exit=0
+[seq:replace] PCA(PC1-2)=0.996  LDA-axis=1.000  full-linear=1.000
+[seq:shuffle] PCA(PC1-2)=0.938  LDA-axis=1.000  full-linear=1.000
+[seq:falseinfo] PCA(PC1-2)=0.636  LDA-axis=0.984  full-linear=0.999
+[token:replace] PCA(PC1-2)=0.610  energy-axis=0.975  full-linear=1.000
+[token:shuffle] PCA(PC1-2)=0.570  energy-axis=0.943  full-linear=1.000
+[token:falseinfo] PCA(PC1-2)=0.528  energy-axis=0.899  full-linear=0.997
+### [2026-08-09_14:05:38] ladder rate=1.0 start
+### [2026-08-09_14:11:13] ladder rate=1.0 exit=0
+[seq:replace] PCA(PC1-2)=0.998  LDA-axis=1.000  full-linear=1.000
+[seq:shuffle] PCA(PC1-2)=0.974  LDA-axis=1.000  full-linear=1.000
+[seq:falseinfo] PCA(PC1-2)=0.660  LDA-axis=0.999  full-linear=1.000
+[token:replace] PCA(PC1-2)=0.623  energy-axis=0.974  full-linear=1.000
+[token:shuffle] PCA(PC1-2)=0.571  energy-axis=0.946  full-linear=1.000
+[token:falseinfo] PCA(PC1-2)=0.523  energy-axis=0.944  full-linear=1.000
+### [2026-08-09_14:11:13] stage C: plausible at rate 0.3, both granularities

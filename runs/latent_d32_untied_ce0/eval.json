@@ -1,0 +1,39 @@
+{
+  "ckpt": "runs/latent_d32_untied_ce0/epoch_final.pt",
+  "model_name": "EqMLatent",
+  "epoch": 5,
+  "global_step": 785,
+  "n_samples": 256,
+  "sample_steps": 200,
+  "sample_kwargs": {},
+  "unigram_kl": 0.04706902429461479,
+  "bigram_kl": 1.597362756729126,
+  "trigram_kl": 6.3937087059021,
+  "H_gen": 2.651832342147827,
+  "H_gt": 2.8483986854553223,
+  "H_ratio": 0.9309905792643373,
+  "grad_at_gen": 3.431368589401245,
+  "grad_at_gt": 3.49407958984375,
+  "samples": [
+    " inbwoewthtehoh aekietsto oee o noi ra n",
+    "   hoanestrrens wonher esoroeneesmicr  i",
+    "hsnenaerhc satsrellll e uaecsab  aaiei e",
+    "ott s i s  natiemi e enat  on  seoa mbnd",
+    "t e doeehmoeehnuse   tt  o doet e pneibt",
+    "aisuidact e dtaa e aeoacee ieectvi saise",
+    "beb utoohol in o s odprt novatoocnieer  ",
+    "seiaeleeets  s eenet ia tra i ea emsbe t"
+  ],
+  "run_name": "latent_d32_untied_ce0",
+  "overrides": {
+    "training.model_name": "EqMLatent",
+    "training.epochs": 5,
+    "text8_dataset.max_train_windows": 10000,
+    "embedding.enabled": true,
+    "embedding.d_embed": 32,
+    "eqm.sample_return_best": false,
+    "embedding.tie_decoder": false,
+    "eqm.ce_min_gamma": 0.0,
+    "eqm.lambda_ce": 1.0
+  }
+}

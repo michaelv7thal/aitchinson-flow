@@ -1,0 +1,33 @@
+{
+  "ckpt": "runs/capstone/checkpoints/lkflow_data50k_ep5/epoch_final.pt",
+  "model_name": "LogitKLFlow",
+  "epoch": 5,
+  "global_step": 3910,
+  "n_samples": 256,
+  "sample_steps": 128,
+  "sample_kwargs": {
+    "method": "sde",
+    "alpha": 0.0
+  },
+  "unigram_kl": 0.032915450632572174,
+  "bigram_kl": 1.601393461227417,
+  "trigram_kl": 5.749994277954102,
+  "H_gen": 2.7826967239379883,
+  "H_gt": 2.8546600341796875,
+  "H_ratio": 0.974790935039528,
+  "grad_at_gen": NaN,
+  "grad_at_gt": NaN,
+  "samples": [
+    "aai n slkfltreosuslapzo  orng ne n ysduo",
+    "are   thirotemn rtto s a efsyahoo yydrew",
+    "a se  mo usqofaqend  e ssnetguseinuep t ",
+    "o eedeosnta ef aalgi aanenodr   ynr fhas",
+    "eah fasns paeiryw dvtnacs y piasooae eil",
+    "mnhwoeae ngteg ap eutsn eurho aenrsn sas",
+    "sonqale e sse lf r ieeeh s taashotonnied",
+    "orfstaeapfs saieuwbi  nvlnn io  w ldyfhd"
+  ],
+  "run_name": "lkflow_sde_a0p00",
+  "eval_only": true,
+  "overrides": {}
+}

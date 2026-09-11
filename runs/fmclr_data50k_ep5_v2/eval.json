@@ -1,0 +1,35 @@
+{
+  "ckpt": "runs/fmclr_data50k_ep5_v2/epoch_final.pt",
+  "model_name": "FMonCLR",
+  "epoch": 5,
+  "global_step": 3910,
+  "n_samples": 256,
+  "sample_steps": 200,
+  "unigram_kl": 0.15619774162769318,
+  "bigram_kl": 1.5585579872131348,
+  "trigram_kl": 6.275777816772461,
+  "H_gen": 2.6920907497406006,
+  "H_gt": 2.8546600341796875,
+  "H_ratio": 0.9430512626748555,
+  "grad_at_gen": NaN,
+  "grad_at_gt": NaN,
+  "samples": [
+    "sslenuosioanhrrsn sslooit ttssntsostn nl",
+    "t torarnnntzrzs i snlne z lenbnerncvngng",
+    " yhntysnl rsrer z seosrszrneisnarnr eenv",
+    "sy etg  gie earrieintiasl trisnzlllinneg",
+    "sateta re ina rasliioorls oonatr o lhosl",
+    "slnoza lei e  i slltnaerz iea nulndgh a ",
+    "ssseeastei ezttctee orstz ttittedi rhizr",
+    "tsnbnalsltasaas n ltotlts ie haaleshhril"
+  ],
+  "run_name": "fmclr_data50k_ep5_v2",
+  "overrides": {
+    "training.model_name": "FMonCLR",
+    "training.epochs": 5,
+    "text8_dataset.max_train_windows": 50000,
+    "eqm.time_conditioning": "add",
+    "eqm.sampler": "euler",
+    "eqm.euler_nfe": 128
+  }
+}

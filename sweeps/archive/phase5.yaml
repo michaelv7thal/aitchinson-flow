@@ -1,0 +1,13 @@
+# Phase 5 — n-gram-aware loss on the data_50k_ep5 platform.
+# Trimmed from plan's 4 cells to 2 (compute budget). The bigram-only cells
+# bracket the lambda regime; trigram + larger sweeps are next-session work.
+- name: ng_bg05_data50k
+  overrides:
+    training.epochs: 5
+    text8_dataset.max_train_windows: 50000
+    eqm.lambda_bigram: 0.5
+- name: ng_bg10_data50k
+  overrides:
+    training.epochs: 5
+    text8_dataset.max_train_windows: 50000
+    eqm.lambda_bigram: 1.0

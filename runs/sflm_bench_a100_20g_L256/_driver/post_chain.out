@@ -1,0 +1,13 @@
+### POST CHAIN START 2026-06-09_07:47:28
+### [2026-06-09_07:47:28] waiting for L256 train driver (TRAIN DRIVER COMPLETE marker)
+### [2026-06-09_10:50:30] L256 train driver finished
+  EqMAE ckpt OK (518904273 bytes)
+### [2026-06-09_10:50:30] STEP 1: retrain FMonCLR @ L256 (new Lipman code, --force)
+### [2026-06-09_12:21:24] FMonCLR retrain exit=0  meta={"arm":"FMonCLR","seed":42,"scale":"a100_20g_L256","status":"done","stage":0,"batch":8,"L":256,"grad_checkpointing":false,"length_fallback":null,"max_train_windows":10000,"lazy_features":false}
+### [2026-06-09_12:21:26] STEP 2: L256 eval + recovery (all 7)
+### [2026-06-10_00:03:19] L256 eval driver exit=0
+### [2026-06-10_00:03:19] STEP 3: L40 train (SC=local, fixed code)
+### [2026-06-10_00:38:37] L40 train driver exit=0
+### [2026-06-10_00:38:37] STEP 4: L40 eval + recovery (all 7)
+### [2026-06-10_01:16:51] L40 eval driver exit=0
+### POST CHAIN COMPLETE 2026-06-10_01:16:51

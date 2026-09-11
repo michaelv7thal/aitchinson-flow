@@ -1,0 +1,44 @@
+# Band-only EqM at larger budget: does the band cells' KL_bi ≈ 0.91 move with 5× epochs or 5× data?
+# Same cell as sweeps/band_gamma.yaml::band_strict (dev config, seed 42), only the budget changes.
+# The eval sampler is set here to the eval_fixed protocol (eta 0.005, clip 1.0), so run with --steps 400:
+#   uv run python scripts/run_sweep.py --sweep sweeps/band_budget.yaml --n 256 --steps 400
+# (runs/band_*/eval.json were wrong for the published cells because the default sampler used clip=γ*;
+#  with these overrides the run_sweep eval.json is already the fixed protocol.)
+- name: band_strict_ep25
+  overrides:
+    training.model_name: EqM
+    training.epochs: 25
+    training.seed: 42
+    text8_dataset.max_train_windows: 10000
+    loss.mode: mse
+    loss.hilbert_alpha: 1.0
+    loss.hilbert_alpha_start: 1.0
+    transformation.dirichlet_sampling: false
+    eqm.gamma_power: 1.0
+    eqm.sample_gamma: 1.5
+    eqm.lambda_ce: 0.0
+    eqm.gamma_lo: 0.005
+    eqm.gamma_hi: 0.03
+    eqm.decay_strategy: band
+    eqm.gamma_star: 0.03
+    eqm.sample_eta: 0.005
+    eqm.sample_grad_clip: 1.0
+- name: band_strict_d50k
+  overrides:
+    training.model_name: EqM
+    training.epochs: 5
+    training.seed: 42
+    text8_dataset.max_train_windows: 50000
+    loss.mode: mse
+    loss.hilbert_alpha: 1.0
+    loss.hilbert_alpha_start: 1.0
+    transformation.dirichlet_sampling: false
+    eqm.gamma_power: 1.0
+    eqm.sample_gamma: 1.5
+    eqm.lambda_ce: 0.0
+    eqm.gamma_lo: 0.005
+    eqm.gamma_hi: 0.03
+    eqm.decay_strategy: band
+    eqm.gamma_star: 0.03
+    eqm.sample_eta: 0.005
+    eqm.sample_grad_clip: 1.0

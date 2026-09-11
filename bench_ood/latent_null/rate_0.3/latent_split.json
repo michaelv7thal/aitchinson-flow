@@ -1,0 +1,75 @@
+{
+  "ckpt": "runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM/epoch_best.pt",
+  "split": "test",
+  "t_eval": 4.5,
+  "d_model": 1280,
+  "rate": 0.3,
+  "fit_seqs": 192,
+  "n": 256,
+  "schemes": [
+    "replace",
+    "shuffle",
+    "falseinfo"
+  ],
+  "token_scheme": "replace,shuffle,falseinfo",
+  "token_schemes": [
+    "replace",
+    "shuffle",
+    "falseinfo"
+  ],
+  "per_sequence": {
+    "replace": {
+      "pca_pc12_probe_auroc": 0.7911834716796875,
+      "lda_axis_auroc": 1.0,
+      "full_dim_linear_auroc": 1.0,
+      "pca_pc12_probe_null": 0.5251617431640625,
+      "full_dim_linear_null": 0.8945465087890625,
+      "n_points": 512
+    },
+    "shuffle": {
+      "pca_pc12_probe_auroc": 0.7158966064453125,
+      "lda_axis_auroc": 0.999908447265625,
+      "full_dim_linear_auroc": 1.0,
+      "pca_pc12_probe_null": 0.5280426025390625,
+      "full_dim_linear_null": 0.89622802734375,
+      "n_points": 512
+    },
+    "falseinfo": {
+      "pca_pc12_probe_auroc": 0.56854248046875,
+      "lda_axis_auroc": 0.8758087158203125,
+      "full_dim_linear_auroc": 0.97882080078125,
+      "pca_pc12_probe_null": 0.5221435546875,
+      "full_dim_linear_null": 0.88494873046875,
+      "n_points": 512
+    }
+  },
+  "per_token": {
+    "replace": {
+      "token_scheme": "replace",
+      "pca_pc12_probe_auroc": 0.5442133125,
+      "energy_axis_auroc": 0.9647714375,
+      "full_dim_linear_auroc": 1.0,
+      "pca_pc12_probe_null": 0.5089309500000001,
+      "full_dim_linear_null": 0.729870275,
+      "n_per_class": 4000
+    },
+    "shuffle": {
+      "token_scheme": "shuffle",
+      "pca_pc12_probe_auroc": 0.52349825,
+      "energy_axis_auroc": 0.8950815000000001,
+      "full_dim_linear_auroc": 1.0,
+      "pca_pc12_probe_null": 0.5103860125,
+      "full_dim_linear_null": 0.731679525,
+      "n_per_class": 4000
+    },
+    "falseinfo": {
+      "token_scheme": "falseinfo",
+      "pca_pc12_probe_auroc": 0.560840875,
+      "energy_axis_auroc": 0.8026138437500001,
+      "full_dim_linear_auroc": 0.9327198124999998,
+      "pca_pc12_probe_null": 0.509271675,
+      "full_dim_linear_null": 0.7297068875000001,
+      "n_per_class": 4000
+    }
+  }
+}

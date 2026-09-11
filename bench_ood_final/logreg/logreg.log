@@ -1,0 +1,50 @@
+### [2026-09-02_21:51:21] logreg  --train-schemes replace --t-eval 4.5
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[bayeslin] adversarial train mix: [('replace', 65361)]  (scheme, #corrupt tokens)
+[bayeslin] d_model=1280 feat_dim=1280 t_eval=4.5 clean_tok=131072 corr_tok(label1)=65361 mix=replace
+[bayeslin] LOGISTIC head fit on 120000 tok (C=1.0); energy = LR decision function
+[bayeslin] energy @ t_eval=4.5  variance @ var_t=7.5 (feat_dim_var=1280)
+[blr] false-info vocab: lengths 2-18
+
+   scheme  rate  AUROC_seq_E  AUROC_seq_Var  tokAUROC_E  tokAUROC_Var  tokP@5  tokR@5  tokF1@5
+  replace  0.05       0.7751         0.9177      0.8752        0.8646   0.254   0.578    0.353
+  replace  0.10       0.9267         0.9849      0.8783        0.8312   0.337   0.742    0.463
+  replace  0.15       0.9718         0.9963      0.8792        0.8022   0.364   0.852    0.510
+  replace  0.20       0.9926         0.9995      0.8773        0.7689   0.361   0.933    0.521
+  replace  0.25       0.9985         0.9999      0.8769        0.7375   0.365   0.970    0.530
+  replace  0.30       0.9998         1.0000      0.8693        0.6978   0.373   0.988    0.542
+  replace  0.50       1.0000         1.0000      0.8278        0.5560   0.505   1.000    0.671
+  replace  0.70       1.0000         1.0000      0.7700        0.4935   0.699   1.000    0.823
+  replace  1.00       1.0000         1.0000         nan           nan     nan     nan      nan
+  shuffle  0.05       0.7499         0.8797      0.8383        0.8308   0.190   0.443    0.266
+  shuffle  0.10       0.9028         0.9749      0.8332        0.7914   0.287   0.594    0.387
+  shuffle  0.15       0.9631         0.9932      0.8286        0.7565   0.328   0.736    0.453
+  shuffle  0.20       0.9867         0.9982      0.8172        0.7290   0.341   0.841    0.485
+  shuffle  0.25       0.9949         0.9994      0.8040        0.7018   0.353   0.904    0.508
+  shuffle  0.30       0.9990         0.9999      0.7875        0.6708   0.366   0.953    0.529
+  shuffle  0.50       1.0000         1.0000      0.7042        0.5904   0.473   0.996    0.641
+  shuffle  0.70       1.0000         1.0000      0.6143        0.5388   0.645   0.999    0.784
+  shuffle  1.00       1.0000         1.0000      0.5907        0.4922   0.922   0.999    0.959
+falseinfo  0.05       0.5666         0.5718      0.6769        0.6953   0.096   0.158    0.119
+falseinfo  0.10       0.6101         0.6133      0.6755        0.6956   0.186   0.164    0.174
+falseinfo  0.15       0.6757         0.6920      0.6888        0.7046   0.270   0.180    0.216
+falseinfo  0.20       0.7266         0.7355      0.6788        0.6943   0.330   0.181    0.234
+falseinfo  0.25       0.7786         0.7923      0.6786        0.6966   0.377   0.193    0.256
+falseinfo  0.30       0.8185         0.8271      0.6782        0.6969   0.440   0.211    0.285
+falseinfo  0.50       0.9241         0.9401      0.6788        0.7009   0.600   0.273    0.375
+falseinfo  0.70       0.9568         0.9763      0.6714        0.7112   0.720   0.335    0.457
+falseinfo  1.00       0.9881         0.9889      0.6648        0.7592   0.846   0.458    0.595
+
+=== healing-style examples ===
+  [examples] flag thr=-3.4753 @ fpr=0.05 (key=E_t)
+  --- clean #0 ---
+    flag :   *                                                **                                      *     *   *                  
+  --- replace30 #0 ---
+    truec:  ^  ^ ^     ^^   ^ ^         ^       ^ ^ ^^      ^^   ^ ^      ^  ^^     ^       ^  ^     ^^  ^^^   ^^^  ^  ^      ^^^^ 
+    flag : ********* ** * *************** *     ******** ************* * ******* ** **     ******** ************** ********* ******
+  --- falseinfo30 #0 ---
+    truec:   ^^^^^^^          ^^^^^^^^^^^                     ^^                       ^^^        ^^ ^^^^   ^^ ^^^           ^^^   
+    flag :         *           * *                             *                       *       *  * **    *        *    *    **    
+
+Wrote bench_ood_final/logreg/bayes_linear_logreg_sweep.json
+### [2026-09-02_22:06:32] logreg exit 0

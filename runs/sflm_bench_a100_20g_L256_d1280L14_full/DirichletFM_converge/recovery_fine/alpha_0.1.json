@@ -1,0 +1,16 @@
+{
+  "rows": [
+    {
+      "mode": "recovery",
+      "alpha": 0.1,
+      "sigma_perturb": 0.1,
+      "KL_bi": 0.12431108206510544,
+      "token_acc": 0.9253082275390625,
+      "token_acc_perturbed": 0.8924102783203125,
+      "delta": 0.03289794921875,
+      "gt_sample0": "e the capital of one government after another one of such governments was established in one eight six four as a second mexican empire the short lived monarchy led by maximilian of habsburg left its mark on the reconstruction of chapultepec castle and othe",
+      "perturbed_sample0": "eathe fapital of one governuentjafter another one qfbsuchkgiveznments mas establishedrin onr eight six four as a second mexican empirqetze short lived monarchc led by macimilian of habsbtrg left its mark on the reconstouctionlof chapultepec cascle and othe",
+      "rc_sample0": "eathe capital of one governuentjafter another one qf suchkgivernments mas established in onr eight six four as a second mexican empireetze short lived monarchc led by macimilian of habsbtrg left its mark on the reconstouctionlof chapultepec cascle and othe"
+    }
+  ]
+}

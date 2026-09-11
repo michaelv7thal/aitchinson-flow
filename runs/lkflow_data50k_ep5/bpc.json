@@ -1,0 +1,9 @@
+{
+  "ckpt": "runs/lkflow_data50k_ep5/epoch_final.pt",
+  "model_name": "LogitKLFlow",
+  "method": "clean_logit_ce",
+  "bpc": 0.1370194795077022,
+  "n_chunks": 256,
+  "n_mc": 8,
+  "L": 40
+}

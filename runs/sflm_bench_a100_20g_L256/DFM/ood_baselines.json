@@ -1,0 +1,130 @@
+{
+  "model_name": "DFM",
+  "ckpt": "runs/sflm_bench_a100_20g_L256/DFM/epoch_final.pt",
+  "n": 128,
+  "L": 256,
+  "K": 27,
+  "n_mc": 8,
+  "n_steps": 1000,
+  "score": "per_sequence_elbo_bpc (higher=more OOD; B=1 batches)",
+  "clean_bpc_mean": 4.182651996612549,
+  "clean_bpc_median": 3.844183921813965,
+  "schemes": {
+    "substitution": {
+      "rates": [
+        {
+          "rate": 0.1,
+          "auroc": 0.53521728515625,
+          "sign_inverted": false,
+          "corrupted_bpc_mean": 4.368359088897705,
+          "clean_bpc_mean": 4.182651996612549
+        },
+        {
+          "rate": 0.3,
+          "auroc": 0.592041015625,
+          "sign_inverted": false,
+          "corrupted_bpc_mean": 4.724793434143066,
+          "clean_bpc_mean": 4.182651996612549
+        },
+        {
+          "rate": 0.5,
+          "auroc": 0.64349365234375,
+          "sign_inverted": false,
+          "corrupted_bpc_mean": 5.122811317443848,
+          "clean_bpc_mean": 4.182651996612549
+        },
+        {
+          "rate": 0.7,
+          "auroc": 0.68548583984375,
+          "sign_inverted": false,
+          "corrupted_bpc_mean": 5.4859795570373535,
+          "clean_bpc_mean": 4.182651996612549
+        },
+        {
+          "rate": 1.0,
+          "auroc": 0.74188232421875,
+          "sign_inverted": false,
+          "corrupted_bpc_mean": 6.050259590148926,
+          "clean_bpc_mean": 4.182651996612549
+        }
+      ],
+      "auroc": 0.74188232421875,
+      "sign_inverted": false,
+      "note": "token-substitution (changes histogram)"
+    },
+    "shuffle": {
+      "rates": [
+        {
+          "rate": 0.1,
+          "auroc": 0.50152587890625,
+          "sign_inverted": false,
+          "corrupted_bpc_mean": 4.182887077331543,
+          "clean_bpc_mean": 4.182651996612549
+        },
+        {
+          "rate": 0.3,
+          "auroc": 0.49951171875,
+          "sign_inverted": false,
+          "corrupted_bpc_mean": 4.180692195892334,
+          "clean_bpc_mean": 4.182651996612549
+        },
+        {
+          "rate": 0.5,
+          "auroc": 0.49774169921875,
+          "sign_inverted": false,
+          "corrupted_bpc_mean": 4.187036037445068,
+          "clean_bpc_mean": 4.182651996612549
+        },
+        {
+          "rate": 0.7,
+          "auroc": 0.49969482421875,
+          "sign_inverted": false,
+          "corrupted_bpc_mean": 4.185523986816406,
+          "clean_bpc_mean": 4.182651996612549
+        },
+        {
+          "rate": 1.0,
+          "auroc": 0.50140380859375,
+          "sign_inverted": false,
+          "corrupted_bpc_mean": 4.199661731719971,
+          "clean_bpc_mean": 4.182651996612549
+        }
+      ],
+      "auroc": 0.50140380859375,
+      "sign_inverted": false,
+      "note": "histogram-preserving (order-only); density predicted near-chance"
+    },
+    "random": {
+      "rates": [
+        {
+          "rate": 1.0,
+          "auroc": 0.73858642578125,
+          "sign_inverted": false,
+          "corrupted_bpc_mean": 6.005362510681152,
+          "clean_bpc_mean": 4.182651996612549
+        }
+      ],
+      "auroc": 0.73858642578125,
+      "sign_inverted": false,
+      "note": "whole-sequence uniform noise"
+    }
+  },
+  "controls": {
+    "const_char": {
+      "bpc_mean": 5.603901386260986,
+      "auroc_vs_clean": 0.419677734375,
+      "flagged_ood": false
+    },
+    "all_spaces": {
+      "bpc_mean": 5.077676296234131,
+      "auroc_vs_clean": 0.31732177734375,
+      "flagged_ood": false
+    },
+    "valid_perm": {
+      "bpc_mean": 4.19477653503418,
+      "auroc_vs_clean": 0.50250244140625,
+      "flagged_ood": true
+    }
+  },
+  "interpretation": "Nalisnick et al. 2019: generative likelihood is unreliable for OOD. Expect near-chance / sign-inverted AUROC on the order-only shuffle axis (histogram preserved), and constant-char / all-spaces controls scoring as in-distribution-or-better despite being degenerate."
+}

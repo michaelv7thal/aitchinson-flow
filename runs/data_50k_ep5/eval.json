@@ -1,0 +1,30 @@
+{
+  "ckpt": "runs/data_50k_ep5/epoch_final.pt",
+  "epoch": 5,
+  "global_step": 3910,
+  "n_samples": 256,
+  "sample_steps": 200,
+  "unigram_kl": 0.03474457561969757,
+  "bigram_kl": 1.3823297023773193,
+  "trigram_kl": 5.9570488929748535,
+  "H_gen": 2.8303263187408447,
+  "H_gt": 2.8546600341796875,
+  "H_ratio": 0.9914757921617677,
+  "grad_at_gen": 0.22407126426696777,
+  "grad_at_gt": 0.10298943519592285,
+  "samples": [
+    "i  eimoiiganeuynl iwloontanahcntvo tn no",
+    "t eoabemnuinofy i syihe wsteei ramactiin",
+    " egatolll rioel  ty hsi ahki smgd   eooo",
+    "iy ew l wonn  rr eiwtwaanotaesl il ionkg",
+    "iaeeetbi uint yflliio e  haanetr fnluosl",
+    "lonearmernvr  y stywhherchwibpgglue n a ",
+    "neenelto i emthcoei o caohffepcrnie ginr",
+    "punnnras tantas d yt tatahii rmo mtnotin"
+  ],
+  "run_name": "data_50k_ep5",
+  "overrides": {
+    "training.epochs": 5,
+    "text8_dataset.max_train_windows": 50000
+  }
+}

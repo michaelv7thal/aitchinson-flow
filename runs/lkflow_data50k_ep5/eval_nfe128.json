@@ -1,0 +1,26 @@
+{
+  "ckpt": "runs/lkflow_data50k_ep5/epoch_final.pt",
+  "model_name": "LogitKLFlow",
+  "epoch": 5,
+  "global_step": 3910,
+  "n_samples": 256,
+  "sample_steps": 128,
+  "unigram_kl": 0.04182850942015648,
+  "bigram_kl": 1.4722981452941895,
+  "trigram_kl": 5.188516139984131,
+  "H_gen": 2.6699397563934326,
+  "H_gt": 2.8546600341796875,
+  "H_ratio": 0.9352916720118878,
+  "grad_at_gen": NaN,
+  "grad_at_gt": NaN,
+  "samples": [
+    "ae erniatd  eiopa opientec  sntiorro enl",
+    "ae t oehu armr  ien nrt   snt e ea iorah",
+    "o eusr    gsrna nini n estiii tcehdyttin",
+    "a r ecn si nawtesuipsers ftso tnoosarg  ",
+    "  mataeyaisteutcsa  l ottlroeheoesrpbaf ",
+    "herafes o d si asaf no sw   ot ddeauel s",
+    "rrai sew n ern otg r d  npa  sr lmatiiat",
+    "a art i rannotvnd rdeoceeodah lori aa on"
+  ]
+}

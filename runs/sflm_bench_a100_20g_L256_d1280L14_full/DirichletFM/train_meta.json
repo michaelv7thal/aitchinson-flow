@@ -1,0 +1,13 @@
+{
+  "arm": "DirichletFM",
+  "seed": 42,
+  "scale": "a100_20g_L256_d1280L14_full",
+  "status": "done",
+  "stage": 0,
+  "batch": 48,
+  "L": 256,
+  "grad_checkpointing": false,
+  "length_fallback": null,
+  "max_train_windows": null,
+  "lazy_features": true
+}

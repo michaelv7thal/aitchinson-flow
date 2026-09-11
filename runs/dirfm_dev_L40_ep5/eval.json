@@ -1,0 +1,33 @@
+{
+  "ckpt": "runs/dirfm_dev_L40_ep5/epoch_final.pt",
+  "model_name": "DirichletFM",
+  "epoch": 5,
+  "global_step": 785,
+  "n_samples": 256,
+  "sample_steps": 200,
+  "sample_kwargs": {},
+  "unigram_kl": 0.03110840916633606,
+  "bigram_kl": 1.2766151428222656,
+  "trigram_kl": 5.972486972808838,
+  "H_gen": 2.8754870891571045,
+  "H_gt": 2.8483986854553223,
+  "H_ratio": 1.0095100464131312,
+  "grad_at_gen": NaN,
+  "grad_at_gt": NaN,
+  "samples": [
+    "ts ii tienln eeh reitacope ahs b nhntes ",
+    "w reehtr aslto clae ln nrecysatw  rmetoz",
+    "ef toccii eussiguah trkenas ha gjndu  an",
+    "nxtar oei tire nsimsk fooes deomhtre tut",
+    "rseat lhyl s etsoeaan sdo s h xibeptxfor",
+    "dnepusrt ott rio qea r tmaa oheanelpe ov",
+    " zcti eti actinno etshte yre lathiaco os",
+    "enons cn a nloca seq ea yy ah oromai we "
+  ],
+  "run_name": "dirfm_dev_L40_ep5",
+  "overrides": {
+    "training.model_name": "DirichletFM",
+    "training.epochs": 5,
+    "text8_dataset.max_train_windows": 10000
+  }
+}

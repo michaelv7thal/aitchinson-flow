@@ -1,0 +1,23 @@
+# Phase T — Conservative-gradient regression (training + eval).
+# CAPSTONE_EXPERIMENTS.md §6. PASS if Euler-on-output(consgrad) KL_bi ≤ 1.45
+# (within 0.05 of NAG-on-eqm 1.382).
+#
+# Two cells: default lr (3e-4) + half lr (2.5e-4) per the §6 risk register
+# (doubly-differentiated loss can be lr-sensitive).
+
+- name: eqm_consgrad_data50k_ep5
+  overrides:
+    training.model_name: EqMConsGrad
+    training.B: 64
+    training.epochs: 5
+    text8_dataset.batch_size: 64
+    text8_dataset.max_train_windows: 50000
+
+- name: eqm_consgrad_data50k_ep5_lr_5
+  overrides:
+    training.model_name: EqMConsGrad
+    training.lr: 0.00025
+    training.B: 64
+    training.epochs: 5
+    text8_dataset.batch_size: 64
+    text8_dataset.max_train_windows: 50000

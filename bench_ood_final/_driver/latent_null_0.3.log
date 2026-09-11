@@ -1,0 +1,13 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[latent] ckpt=runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM_converge/epoch_final.pt
+[latent] t_eval=4.5 K=27 fit=192 eval=256 rate=0.3
+[latent] false-info vocab: lengths 2-16 (e.g. len-6: ['ensure', 'action', 'assist', 'safety', 'fitted'])
+[seq:replace] PCA(PC1-2)=0.938  LDA-axis=1.000  full-linear=1.000  nulls=0.5265777587890625 / 0.927252197265625
+[seq:shuffle] PCA(PC1-2)=0.922  LDA-axis=1.000  full-linear=1.000  nulls=0.5288665771484375 / 0.9215972900390625
+[seq:falseinfo] PCA(PC1-2)=0.594  LDA-axis=0.916  full-linear=0.991  nulls=0.530267333984375 / 0.901751708984375
+Wrote bench_ood_final/latent_null/rate_0.3/latent_split_sequence.png
+[token:replace] PCA(PC1-2)=0.546  energy-axis=0.967  full-linear=1.000  nulls=0.50784365 / 0.728377425
+[token:shuffle] PCA(PC1-2)=0.519  energy-axis=0.963  full-linear=1.000  nulls=0.5097563625 / 0.7317211250000001
+[token:falseinfo] PCA(PC1-2)=0.560  energy-axis=0.808  full-linear=0.944  nulls=0.5092841625 / 0.7317302
+Wrote bench_ood_final/latent_null/rate_0.3/latent_split_token_replace-shuffle-falseinfo.png
+Wrote bench_ood_final/latent_null/rate_0.3/latent_split.json

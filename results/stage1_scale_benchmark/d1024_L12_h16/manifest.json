@@ -1,0 +1,164 @@
+{
+  "model_name": "bayesian_auditor_stage1",
+  "epochs": 25,
+  "scale_out": "results/stage1_scale_benchmark/d1024_L12_h16",
+  "ckpt_dir": "results/stage1_scale_benchmark/d1024_L12_h16/ckpts",
+  "training_data_source": {
+    "source": "raw_text",
+    "raw_dataset": "text8",
+    "raw_provider": "huggingface",
+    "raw_source_ref": "afmck/text8",
+    "raw_dataset_name": null,
+    "raw_split_train": "train",
+    "raw_split_val": "validation",
+    "raw_split_test": "test",
+    "seq_length": 30,
+    "vocab_size": 27,
+    "corrupt_rate": 0.15,
+    "order_mix_rate": 0.0,
+    "order_mix_prob": 0.0,
+    "corruption_seed": 1234
+  },
+  "history": [
+    {
+      "loss": 0.9553593518257141,
+      "flow_loss": 0.9553593518257141,
+      "velocity_loss": 0.9553593518257141
+    },
+    {
+      "loss": 0.8485956320047379,
+      "flow_loss": 0.8485956320047379,
+      "velocity_loss": 0.8485956320047379
+    },
+    {
+      "loss": 0.7388383818387986,
+      "flow_loss": 0.7388383818387986,
+      "velocity_loss": 0.7388383818387986
+    },
+    {
+      "loss": 0.6955416577935218,
+      "flow_loss": 0.6955416577935218,
+      "velocity_loss": 0.6955416577935218
+    },
+    {
+      "loss": 0.6512152058839797,
+      "flow_loss": 0.6512152058839797,
+      "velocity_loss": 0.6512152058839797,
+      "val_loss": 0.6754096334163373,
+      "val_flow_loss": 0.6754096334163373,
+      "val_velocity_loss": 0.6754096334163373
+    },
+    {
+      "loss": 0.6883885630607605,
+      "flow_loss": 0.6883885630607605,
+      "velocity_loss": 0.6883885630607605
+    },
+    {
+      "loss": 0.7309371317148209,
+      "flow_loss": 0.7309371317148209,
+      "velocity_loss": 0.7309371317148209
+    },
+    {
+      "loss": 0.7274591746568679,
+      "flow_loss": 0.7274591746568679,
+      "velocity_loss": 0.7274591746568679
+    },
+    {
+      "loss": 0.6955322915554046,
+      "flow_loss": 0.6955322915554046,
+      "velocity_loss": 0.6955322915554046
+    },
+    {
+      "loss": 0.7171380521178246,
+      "flow_loss": 0.7171380521178246,
+      "velocity_loss": 0.7171380521178246,
+      "val_loss": 0.6777654100245181,
+      "val_flow_loss": 0.6777654100245181,
+      "val_velocity_loss": 0.6777654100245181
+    },
+    {
+      "loss": 0.6898528359413147,
+      "flow_loss": 0.6898528359413147,
+      "velocity_loss": 0.6898528359413147
+    },
+    {
+      "loss": 0.6701799842834473,
+      "flow_loss": 0.6701799842834473,
+      "velocity_loss": 0.6701799842834473
+    },
+    {
+      "loss": 0.6452842596530914,
+      "flow_loss": 0.6452842596530914,
+      "velocity_loss": 0.6452842596530914
+    },
+    {
+      "loss": 0.6369815926909447,
+      "flow_loss": 0.6369815926909447,
+      "velocity_loss": 0.6369815926909447
+    },
+    {
+      "loss": 0.631333657437563,
+      "flow_loss": 0.631333657437563,
+      "velocity_loss": 0.631333657437563,
+      "val_loss": 0.6210974301464451,
+      "val_flow_loss": 0.6210974301464451,
+      "val_velocity_loss": 0.6210974301464451
+    },
+    {
+      "loss": 0.588607442522049,
+      "flow_loss": 0.588607442522049,
+      "velocity_loss": 0.588607442522049
+    },
+    {
+      "loss": 0.5645787384033203,
+      "flow_loss": 0.5645787384033203,
+      "velocity_loss": 0.5645787384033203
+    },
+    {
+      "loss": 0.5652203128695488,
+      "flow_loss": 0.5652203128695488,
+      "velocity_loss": 0.5652203128695488
+    },
+    {
+      "loss": 0.559979773324728,
+      "flow_loss": 0.559979773324728,
+      "velocity_loss": 0.559979773324728
+    },
+    {
+      "loss": 0.5224357117235661,
+      "flow_loss": 0.5224357117235661,
+      "velocity_loss": 0.5224357117235661,
+      "val_loss": 0.5486490075675824,
+      "val_flow_loss": 0.5486490075675824,
+      "val_velocity_loss": 0.5486490075675824
+    },
+    {
+      "loss": 0.5184912425100804,
+      "flow_loss": 0.5184912425100804,
+      "velocity_loss": 0.5184912425100804
+    },
+    {
+      "loss": 0.536075882166624,
+      "flow_loss": 0.536075882166624,
+      "velocity_loss": 0.536075882166624
+    },
+    {
+      "loss": 0.5110603250980377,
+      "flow_loss": 0.5110603250980377,
+      "velocity_loss": 0.5110603250980377
+    },
+    {
+      "loss": 0.5139486160099507,
+      "flow_loss": 0.5139486160099507,
+      "velocity_loss": 0.5139486160099507
+    },
+    {
+      "loss": 0.5190118024140596,
+      "flow_loss": 0.5190118024140596,
+      "velocity_loss": 0.5190118024140596,
+      "val_loss": 0.5163410638396542,
+      "val_flow_loss": 0.5163410638396542,
+      "val_velocity_loss": 0.5163410638396542
+    }
+  ]
+}

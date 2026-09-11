@@ -1,0 +1,194 @@
+{
+  "ckpt": "runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM_converge/epoch_final.pt",
+  "ckpt_md5": "9946dce94cb2051de0e288e4caa3ffbd",
+  "git_sha": "0a059199070c9feb7a352207fbae122321c45efb",
+  "gpu": "NVIDIA RTX PRO 1000 Blackwell Generation Laptop GPU",
+  "written": "2026-09-03T20:53:59+00:00",
+  "article": "bench_ood_final/transfer/semaglutide_article_extract.json",
+  "rate": 0.15,
+  "train_rate": 0.5,
+  "n": 128,
+  "fit_seqs": 512,
+  "seed": 42,
+  "vocab_chars": 8000000,
+  "arms": {
+    "LOG_fi": {
+      "recipe": "logistic head @ t4.5, falseinfo negatives @ eval rate",
+      "unit": "character",
+      "wall_s": 81.9
+    },
+    "NLL": {
+      "recipe": "denoiser NLL @ t3.0, fit-free",
+      "unit": "character",
+      "wall_s": 21.9
+    },
+    "LinE": {
+      "recipe": "hinge head @ t4.5, replace negatives",
+      "unit": "character",
+      "wall_s": 85.4
+    },
+    "LinE_all": {
+      "recipe": "hinge head @ t7.5, replace+shuffle+falseinfo+both negatives",
+      "unit": "character",
+      "wall_s": 147.4
+    },
+    "LinE_fi": {
+      "recipe": "hinge head @ t4.5, falseinfo negatives",
+      "unit": "character",
+      "wall_s": 82.8
+    },
+    "Var": {
+      "recipe": "Laplace predictive variance @ t7.5, ridge 0.1",
+      "unit": "character",
+      "wall_s": 46.1
+    },
+    "BGMM": {
+      "recipe": "BayesianGaussianMixture @ t7.5, PCA-64, 20 comps, full cov",
+      "unit": "character",
+      "wall_s": 318.9
+    },
+    "GPT-2 SE": {
+      "recipe": "gpt2 spilled",
+      "unit": "bpe_token",
+      "wall_s": 3.9
+    },
+    "GPT-2 NLL": {
+      "recipe": "gpt2 nll",
+      "unit": "bpe_token",
+      "wall_s": 4.0
+    }
+  },
+  "results": {
+    "text8_indist": {
+      "LOG_fi": {
+        "token_auroc": 0.8777586285798811,
+        "word_auroc_max": 0.9115448047485712,
+        "seq_auroc": 0.87725830078125,
+        "word_seq_auroc": 0.882568359375,
+        "n_changed": 3523
+      },
+      "NLL": {
+        "token_auroc": 0.8298097590573865,
+        "word_auroc_max": 0.9042796838460587,
+        "seq_auroc": 0.90704345703125,
+        "word_seq_auroc": 0.89263916015625,
+        "n_changed": 3523
+      },
+      "LinE": {
+        "token_auroc": 0.6075389933246229,
+        "word_auroc_max": 0.8330903122366902,
+        "seq_auroc": 0.742919921875,
+        "word_seq_auroc": 0.79638671875,
+        "n_changed": 3523
+      },
+      "LinE_all": {
+        "token_auroc": 0.7781283893299763,
+        "word_auroc_max": 0.8825565664748706,
+        "seq_auroc": 0.7840576171875,
+        "word_seq_auroc": 0.82623291015625,
+        "n_changed": 3523
+      },
+      "LinE_fi": {
+        "token_auroc": 0.8494826877592658,
+        "word_auroc_max": 0.8906664823618172,
+        "seq_auroc": 0.86322021484375,
+        "word_seq_auroc": 0.86578369140625,
+        "n_changed": 3523
+      },
+      "Var": {
+        "token_auroc": 0.7758933102436486,
+        "word_auroc_max": 0.7636983767644154,
+        "seq_auroc": 0.7578125,
+        "word_seq_auroc": 0.66314697265625,
+        "n_changed": 3523
+      },
+      "BGMM": {
+        "token_auroc": 0.7754677648437519,
+        "word_auroc_max": 0.7881048923428524,
+        "seq_auroc": 0.76806640625,
+        "word_seq_auroc": 0.7476806640625,
+        "n_changed": 3523
+      },
+      "GPT-2 SE": {
+        "token_auroc": 0.5918191380345525,
+        "word_auroc_max": 0.7379171124501559,
+        "seq_auroc": 0.93231201171875,
+        "word_seq_auroc": 0.740478515625,
+        "n_changed": 3523
+      },
+      "GPT-2 NLL": {
+        "token_auroc": 0.7094980294966075,
+        "word_auroc_max": 0.8372467963310037,
+        "seq_auroc": 0.94439697265625,
+        "word_seq_auroc": 0.92822265625,
+        "n_changed": 3523
+      }
+    },
+    "semaglutide_ood": {
+      "LOG_fi": {
+        "token_auroc": 0.8271624260146856,
+        "word_auroc_max": 0.8819709584041662,
+        "seq_auroc": 0.77557373046875,
+        "word_seq_auroc": 0.80914306640625,
+        "n_changed": 3597
+      },
+      "NLL": {
+        "token_auroc": 0.7812664353634886,
+        "word_auroc_max": 0.8695503084336709,
+        "seq_auroc": 0.81640625,
+        "word_seq_auroc": 0.807373046875,
+        "n_changed": 3597
+      },
+      "LinE": {
+        "token_auroc": 0.5817065358296296,
+        "word_auroc_max": 0.8067697283045296,
+        "seq_auroc": 0.7249755859375,
+        "word_seq_auroc": 0.7613525390625,
+        "n_changed": 3597
+      },
+      "LinE_all": {
+        "token_auroc": 0.7305872116014085,
+        "word_auroc_max": 0.8600373925086544,
+        "seq_auroc": 0.7855224609375,
+        "word_seq_auroc": 0.8160400390625,
+        "n_changed": 3597
+      },
+      "LinE_fi": {
+        "token_auroc": 0.8006664554934657,
+        "word_auroc_max": 0.8610739865188254,
+        "seq_auroc": 0.7799072265625,
+        "word_seq_auroc": 0.8118896484375,
+        "n_changed": 3597
+      },
+      "Var": {
+        "token_auroc": 0.7465971337112054,
+        "word_auroc_max": 0.7273218554729861,
+        "seq_auroc": 0.69482421875,
+        "word_seq_auroc": 0.64422607421875,
+        "n_changed": 3597
+      },
+      "BGMM": {
+        "token_auroc": 0.7488804784938088,
+        "word_auroc_max": 0.7696227367293551,
+        "seq_auroc": 0.68023681640625,
+        "word_seq_auroc": 0.693603515625,
+        "n_changed": 3597
+      },
+      "GPT-2 SE": {
+        "token_auroc": 0.6072978548682104,
+        "word_auroc_max": 0.7459687337558871,
+        "seq_auroc": 0.9002685546875,
+        "word_seq_auroc": 0.70166015625,
+        "n_changed": 3597
+      },
+      "GPT-2 NLL": {
+        "token_auroc": 0.7157701021581928,
+        "word_auroc_max": 0.8473170026862991,
+        "seq_auroc": 0.9000244140625,
+        "word_seq_auroc": 0.9312744140625,
+        "n_changed": 3597
+      }
+    }
+  },
+  "note": "text8_indist = held-out text8 test windows (the head is fitted on TRAIN windows offset by vocab_chars); the transfer domain is the article. word AUROC = max-pool, the bench's common unit; token AUROC is each detector's native unit (characters for ours, BPE for GPT-2). Extends bench_ood_final/transfer/semaglutide_transfer_gpt2.json from two arms to the full tab:ood-prf roster on the identical draw."
+}

@@ -1,0 +1,76 @@
+{
+  "rows": [
+    {
+      "mode": "recovery",
+      "alpha": 0.2,
+      "sigma_perturb": 0.2,
+      "KL_bi": 0.040384527295827866,
+      "token_acc": 0.991729736328125,
+      "token_acc_perturbed": 0.9864654541015625,
+      "delta": 0.0052642822265625,
+      "gt_sample0": "e the capital of one government after another one of such governments was established in one eight six four as a second mexican empire the short lived monarchy led by maximilian of habsburg left its mark on the reconstruction of chapultepec castle and othe",
+      "perturbed_sample0": "e the capital of one government after anhther one of such governments was established in one eight six four as a second mexican empire the short lived monarchy led by maximilian of habsburg left its mark on the reconstruction of chapultepec castle and ozhe",
+      "rc_sample0": "e the capital of one government after anhther one of such governments was established in one eight six four as a second mexican empire the short lived monarchy led by maximilian of habsburg left its mark on the reconstruction of chapultepec castle and othe"
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.4,
+      "sigma_perturb": 0.4,
+      "KL_bi": 0.5528551340103149,
+      "token_acc": 0.705322265625,
+      "token_acc_perturbed": 0.645599365234375,
+      "delta": 0.059722900390625,
+      "gt_sample0": "e the capital of one government after another one of such governments was established in one eight six four as a second mexican empire the short lived monarchy led by maximilian of habsburg left its mark on the reconstruction of chapultepec castle and othe",
+      "perturbed_sample0": "e qhe cwziyaq kgkoynugoveznmenb l feeyanojh dyoneyxfwsull goqennreqqj das eatacuisqew ingzny eiahu xix fohr aska sehvnd m xican emoire toh lnorq lived monlrcxykled by mabiiiliau of sazpbthg lefc kio marh onqthe ueqokstrdctionylf chaluutecec beiglebaod ethe",
+      "rc_sample0": "e qhe cgoinan oghotnugovetnmenb a ter another one of stll gotennrenef dan eataouisnes ingone eiahu xix four asia sehpnd m xican emoire toe lnort lived monlrcfy led by masiiiliau of sazpbtrg lefc tio marh on tse teeokstrrctionsaf shaluutepec beitle aod ethe"
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.5,
+      "sigma_perturb": 0.5,
+      "KL_bi": 0.8513430953025818,
+      "token_acc": 0.5614471435546875,
+      "token_acc_perturbed": 0.4946441650390625,
+      "delta": 0.066802978515625,
+      "gt_sample0": "e the capital of one government after another one of such governments was established in one eight six four as a second mexican empire the short lived monarchy led by maximilian of habsburg left its mark on the reconstruction of chapultepec castle and othe",
+      "perturbed_sample0": "euqho dwditau ox ong glveolmekd aogcrlznzbhhq ane of suczwgppeousenkdtqnssectabljshqd mn ony ylghe sib uoukyasha sochnd mewican emlira thouskbrtydylmw aln tcoy uon bn vqximtlgan mpyhahpanlg leta iys vak emn qxo keponhgnhkxion stblhapclzey qaqlstleland zuee",
+      "rc_sample0": "euh o dwlitau op ong glveolmerd aogcruono nef ane of suczwmrpeoeoent ttns ect blishtd en one yigoe sib uour asea sochnd metioan espira tho ssortydsltw aln tcoy uot bn vnrimtl an mp vahpanrg leta its vod esn tro reponhgnpktion st lhapclzeselaclstleland ouee"
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.6,
+      "sigma_perturb": 0.6,
+      "KL_bi": 1.007619023323059,
+      "token_acc": 0.4518280029296875,
+      "token_acc_perturbed": 0.386322021484375,
+      "delta": 0.0655059814453125,
+      "gt_sample0": "e the capital of one government after another one of such governments was established in one eight six four as a second mexican empire the short lived monarchy led by maximilian of habsburg left its mark on the reconstruction of chapultepec castle and othe",
+      "perturbed_sample0": "iotqsdblplgwc zf lnw xzvagngeutabxxdc aqodzer ooe lf x cs tovecmmcnyjwhamlsytaqnackkd ink qe qngkmkskxlbrlraahonlyhgkel gtrizan ibpnr adwh bveru liucyeoknauckqclehyjnabasijelijn mbiuybyqurw dekv jts geke rnathq reroembrwgbihnpoxicnafdndjpndexvdqne an widhc",
+      "rc_sample0": "iotnsdblpigac if ole firagngeuta csdc anottar ooe lf s cs tovecimcnyaghaslsstapnamced in  ae esght s rlbrlr ah n mtgkel gtriuan impnr atwh  veru linr eoonauc ncleh jn baoitelign mpiusbst ro lefv its aari rnatht reroeoirdrbihnpoticnafdnetper cv tnn an widoc"
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.8,
+      "sigma_perturb": 0.8,
+      "KL_bi": 1.196237564086914,
+      "token_acc": 0.3216705322265625,
+      "token_acc_perturbed": 0.2650146484375,
+      "delta": 0.0566558837890625,
+      "gt_sample0": "e the capital of one government after another one of such governments was established in one eight six four as a second mexican empire the short lived monarchy led by maximilian of habsburg left its mark on the reconstruction of chapultepec castle and othe",
+      "perturbed_sample0": "eaqpeqc bftaunop oxmmulp i ijfeaafweduaqwthyg lnebc csnqehbmfkrfisnzy vchu snoxlidqed aessnhntflduco blgp ldasyajjspbnk lbmql h l glxncybe dhdhb hbrykiooanxqey zeflby iaxemmqizesavcjibulckgsrovtwkzbyhwc  sngyhkqke cnszrggklon oq clnqclkeqeb ccmtioewlx m nm",
+      "rc_sample0": "eaqpeuc  ftalnop oor  lp i iyfeaafeodlaawthyg lnebr osncenbmfrrfislta vaoueinorli red nessnhntfltuco  lgi ldasyatpsponf lomal h e glrtcdoe redrt o rykiooan aoy uefl e iasemmcivesav  ibulcrgsoovt  tbyh c  sngyhkafe rnsorgcelon ot cln rlte ec ccstioield m vm"
+    },
+    {
+      "mode": "recovery",
+      "alpha": 0.9,
+      "sigma_perturb": 0.9,
+      "KL_bi": 1.2373133897781372,
+      "token_acc": 0.2843780517578125,
+      "token_acc_perturbed": 0.2322998046875,
+      "delta": 0.0520782470703125,
+      "gt_sample0": "e the capital of one government after another one of such governments was established in one eight six four as a second mexican empire the short lived monarchy led by maximilian of habsburg left its mark on the reconstruction of chapultepec castle and othe",
+      "perturbed_sample0": "kuwzej xaeuai wnqonkdg jlqmmlttt ureskanodhff nnewnnsdudkpjrozrnwsnvsw qlfeyrcmnunhhk nykzsmbyhxkm snmpsolrj agckceemhc ootkc bcexaboz nr lszdcitgtta  aksorclw fgdcbekmlofqiolzhnhd g sdvria an md au ezooahncwnd riw isauzetxcv eneyum gjeemerebtbbufawwq oeoo",
+      "rc_sample0": "eutoe  xaetai enaonedg tlcmslttt  resianodhtf nveasn dcstpsroerngsntsa qlfesrameunrht nn esmb hrit eim soors aglfpteenc ootic  ce abot nr isiecitgtta  a  orcl  fgdcsenolof ialzo od g sdvria a  t  au ezsoaoncen  ri  isautetrcv enaerm reeemerebt c faw n oeor"
+    }
+  ]
+}

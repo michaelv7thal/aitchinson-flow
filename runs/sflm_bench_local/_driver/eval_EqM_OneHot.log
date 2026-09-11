@@ -1,0 +1,7 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+EqM_OneHot  KL_uni=0.0693  KL_bi=1.5694  KL_tri=6.9696  H_ratio=0.975  per_pos_H=2.311  bpc=—  valid=False  collapsed=False
+  '   p e eppytif uentieeaurataoumugshnhnl '
+  ' tnfiouplm teflpreoliciubpnoocdlees r t '
+  'ueedt fafr tleapeh n ieaicaelt asthuenaa'
+  ' tf i coas t atonsm huroianiomc othegrsa'
+wrote runs/sflm_bench_local/EqM_OneHot/eval_all.json

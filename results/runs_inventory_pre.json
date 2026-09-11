@@ -1,0 +1,591 @@
+{
+ "root": "runs",
+ "n": 117,
+ "entries": [
+  {
+   "dir": "_l256_logs",
+   "size_gb": 1.086,
+   "has_ckpt": true
+  },
+  {
+   "dir": "_logs",
+   "size_gb": 0.001,
+   "has_ckpt": false
+  },
+  {
+   "dir": "ae_d1024_l6_z256",
+   "size_gb": 1.622,
+   "has_ckpt": true
+  },
+  {
+   "dir": "ae_d1024_l8_z128_v3",
+   "size_gb": 2.062,
+   "has_ckpt": true
+  },
+  {
+   "dir": "ae_d1024_l8_z128_v3_bj",
+   "size_gb": 1.223,
+   "has_ckpt": true
+  },
+  {
+   "dir": "ae_d1024_l8_z128_v3_diag",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "ae_d1024_l8_z256_v3",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "ae_d1024_l8_z512",
+   "size_gb": 2.031,
+   "has_ckpt": true
+  },
+  {
+   "dir": "ae_d1024_l8_z512_L80_e15",
+   "size_gb": 2.036,
+   "has_ckpt": true
+  },
+  {
+   "dir": "ae_d256_l2_z64",
+   "size_gb": 0.431,
+   "has_ckpt": true
+  },
+  {
+   "dir": "ae_d512_l4_z128",
+   "size_gb": 0.609,
+   "has_ckpt": true
+  },
+  {
+   "dir": "ae_poc",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "ae_poc_m",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "aud_gpt2_ctx",
+   "size_gb": 0.015,
+   "has_ckpt": true
+  },
+  {
+   "dir": "aud_gpt2_ctx_d512",
+   "size_gb": 0.08,
+   "has_ckpt": true
+  },
+  {
+   "dir": "aud_gpt2_logit",
+   "size_gb": 0.014,
+   "has_ckpt": true
+  },
+  {
+   "dir": "aud_gpt2_logit_d512",
+   "size_gb": 0.078,
+   "has_ckpt": true
+  },
+  {
+   "dir": "baseline_5ep",
+   "size_gb": 0.404,
+   "has_ckpt": true
+  },
+  {
+   "dir": "bb_d1536_l12_data50k",
+   "size_gb": 1.361,
+   "has_ckpt": true
+  },
+  {
+   "dir": "bb_d256_l4_data50k",
+   "size_gb": 0.013,
+   "has_ckpt": true
+  },
+  {
+   "dir": "capstone",
+   "size_gb": 2.475,
+   "has_ckpt": true
+  },
+  {
+   "dir": "comp_hilbert_seed42",
+   "size_gb": 0.405,
+   "has_ckpt": true
+  },
+  {
+   "dir": "comp_hilbert_seed43",
+   "size_gb": 0.405,
+   "has_ckpt": true
+  },
+  {
+   "dir": "comp_hilbert_seed44",
+   "size_gb": 0.405,
+   "has_ckpt": true
+  },
+  {
+   "dir": "comp_mse_seed42",
+   "size_gb": 0.405,
+   "has_ckpt": true
+  },
+  {
+   "dir": "comp_mse_seed43",
+   "size_gb": 0.405,
+   "has_ckpt": true
+  },
+  {
+   "dir": "comp_mse_seed44",
+   "size_gb": 0.405,
+   "has_ckpt": true
+  },
+  {
+   "dir": "comp_ref_det_hilbert",
+   "size_gb": 0.405,
+   "has_ckpt": true
+  },
+  {
+   "dir": "comp_ref_det_mse",
+   "size_gb": 0.405,
+   "has_ckpt": true
+  },
+  {
+   "dir": "comp_smoke",
+   "size_gb": 0.002,
+   "has_ckpt": true
+  },
+  {
+   "dir": "data_200k_ep2",
+   "size_gb": 0.404,
+   "has_ckpt": true
+  },
+  {
+   "dir": "data_50k_ep10",
+   "size_gb": 0.404,
+   "has_ckpt": true
+  },
+  {
+   "dir": "data_50k_ep5",
+   "size_gb": 0.404,
+   "has_ckpt": true
+  },
+  {
+   "dir": "dfm_archB_d512_mlp",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "dfm_auditor_archA_baseline_hLLM",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "dfm_auditor_archA_both",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "dfm_auditor_archA_hidden",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "dfm_auditor_archA_on_B",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "dfm_auditor_archB_d512",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "dfm_auditor_archB_smoke",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "dfm_auditor_d512_both",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "dfm_auditor_d512_hidden",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "dfm_auditor_d512_hidden_all",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "dfm_auditor_d512_off",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "dfm_auditor_plots",
+   "size_gb": 0.002,
+   "has_ckpt": false
+  },
+  {
+   "dir": "dfm_auditor_smoke",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "dfm_auditor_smoke_hidden",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "dfm_auditor_v1",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "dfm_auditor_v1_nctx",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "dfm_data50k_ep5",
+   "size_gb": 0.408,
+   "has_ckpt": true
+  },
+  {
+   "dir": "dfm_data50k_ep5_v2",
+   "size_gb": 0.412,
+   "has_ckpt": true
+  },
+  {
+   "dir": "dfm_mlp_smoke",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "dfm_smoke_regression",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "dfm_svgp_L256",
+   "size_gb": 0.511,
+   "has_ckpt": true
+  },
+  {
+   "dir": "dfm_svgp_hinge_poc",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "dfm_svgp_poc",
+   "size_gb": 0.001,
+   "has_ckpt": false
+  },
+  {
+   "dir": "dfm_svgp_pure50",
+   "size_gb": 0.002,
+   "has_ckpt": false
+  },
+  {
+   "dir": "dfm_svgp_pure50_lr3e4",
+   "size_gb": 0.002,
+   "has_ckpt": false
+  },
+  {
+   "dir": "dfm_svgp_scaled",
+   "size_gb": 0.002,
+   "has_ckpt": false
+  },
+  {
+   "dir": "dphase3_mse_deterministic_v2",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "dphase3_mse_dirichlet",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "dphase4_lambda_recalib",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "dphase5_hilbert_dirichlet",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "dsm_clr_ablation",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "dsm_vs_eqm_poc",
+   "size_gb": 0.001,
+   "has_ckpt": false
+  },
+  {
+   "dir": "ep10_default",
+   "size_gb": 0.404,
+   "has_ckpt": true
+  },
+  {
+   "dir": "ep25_default",
+   "size_gb": 0.404,
+   "has_ckpt": true
+  },
+  {
+   "dir": "eqm_data50k_ep5_hilbert_soft",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "eqm_data50k_ep5_hilbert_softmax",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "eqm_data50k_ep5_mse_v3",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "eqm_data50k_ep5_v2",
+   "size_gb": 0.41,
+   "has_ckpt": true
+  },
+  {
+   "dir": "eqm_sparsemax_bigram",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "eqm_sparsemax_bigram_ce01",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "eqm_sparsemax_bigram_stochinterp",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "eqm_sparsemax_bigram_trigram",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "fmclr_data50k_ep5_v2",
+   "size_gb": 0.414,
+   "has_ckpt": true
+  },
+  {
+   "dir": "hal_gpt2_qa_lasttoken",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "hal_gpt2_qa_meanpool",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "hilbert_counter",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "hilbert_deterministic_5ep",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "hilbert_uq_gpt2",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "hilbert_uq_gpt2_smoke",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "hilbert_uq_gpt2_tau01",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "latent_cluster_d256_L128_data20k_ep10",
+   "size_gb": 0.416,
+   "has_ckpt": true
+  },
+  {
+   "dir": "latent_cluster_d256_data20k_ep15",
+   "size_gb": 0.418,
+   "has_ckpt": true
+  },
+  {
+   "dir": "latent_d128_trainable_tied_ce0_ep20",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "latent_d128_trainable_tied_ce0_smallmodel_ep20",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "latent_d32_tied_ce0",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "latent_d32_untied_ce0",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "latent_d32_untied_ce0_ep8",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "latent_d32_untied_ce0_gamuniform",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "latent_d32_untied_ce0_lam5",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "latent_d32_untied_ce0_sigma05",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "latent_fixed_ppmi_d16_tied",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "latent_fixed_ppmi_d27_tied",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "latent_fixed_ppmi_d27_untied",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "latent_fixed_skipgram_d27_tied",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "latent_fixed_skipgram_d27_tied_pureFM",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "latent_fixed_skipgram_d27_tied_pureFM_ep20",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "latent_fixed_skipgram_d27_untied",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "latent_phase2_sanity_d32",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "latent_skipgram_d128_timecond_euler_ep20",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "lkflow_data50k_ep5",
+   "size_gb": 0.414,
+   "has_ckpt": true
+  },
+  {
+   "dir": "ng_bg05_data50k",
+   "size_gb": 0.404,
+   "has_ckpt": true
+  },
+  {
+   "dir": "ng_bg10_data50k",
+   "size_gb": 0.404,
+   "has_ckpt": true
+  },
+  {
+   "dir": "sflm_bench",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "sflm_bench_a100_20g",
+   "size_gb": 19.436,
+   "has_ckpt": true
+  },
+  {
+   "dir": "sflm_bench_a100_20g_L256",
+   "size_gb": 5.257,
+   "has_ckpt": true
+  },
+  {
+   "dir": "sflm_bench_a100_20g_gridsweep",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "sflm_bench_a100_20g_gridsweep_v2",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "sflm_bench_cluster",
+   "size_gb": 11.763,
+   "has_ckpt": true
+  },
+  {
+   "dir": "tc_add_data50k",
+   "size_gb": 0.408,
+   "has_ckpt": true
+  },
+  {
+   "dir": "tc_concat_data50k",
+   "size_gb": 0.412,
+   "has_ckpt": true
+  },
+  {
+   "dir": "unigram_baseline",
+   "size_gb": 0.0,
+   "has_ckpt": false
+  },
+  {
+   "dir": "vae_d1024_l8_z128_v3",
+   "size_gb": 0.812,
+   "has_ckpt": true
+  },
+  {
+   "dir": "vae_d1024_l8_z512_L80_e15",
+   "size_gb": 2.04,
+   "has_ckpt": true
+  },
+  {
+   "dir": "vae_d256_l2_z64",
+   "size_gb": 0.431,
+   "has_ckpt": true
+  }
+ ]
+}

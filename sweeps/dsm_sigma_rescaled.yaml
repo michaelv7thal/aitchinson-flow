@@ -1,0 +1,121 @@
+# Denoising score matching cells, rerun with a sigma ladder matched to the
+# CLR feature scale.
+#
+# Why
+# ---
+# sweeps/archive/_dsm_clr_dirichlet_ablation.yaml trained both DSM cells with
+# dsm.sigma_max = 1.0. Both the training noise and the recovery perturbation
+# are applied PER COORDINATE (score_dsm.py: x_noised = x1 + sigma * eps;
+# recovery_check.py: z_init = z_clean + alpha * embed_norm * randn_like), and
+# the CLR per-position feature norm is 12.27. So sigma_max = 1.0 leaves those
+# cells mis-scaled twice over:
+#
+#   recovery   alpha=0.5 perturbs at sigma = 0.5 * 12.27 = 6.14, i.e. 6x above
+#              the largest sigma ever seen in training, so the negative
+#              Delta@.50 entries in tab:ablation2x2 test nothing.
+#   generation annealed Langevin starts at N(0, sigma_max^2), which at
+#              sigma_max = 1 sits ~12x INSIDE the data shell, so the chain
+#              cannot reach the vertices and the output is near-uniform
+#              (H_gen ~ ln 27) for reasons unrelated to the training signal.
+#
+# Change
+# ------
+# dsm.sigma_max: 1.0 -> 12.3   (the CLR feature norm; covers the whole alpha
+#                               sweep up to alpha=1.0 and puts the Langevin
+#                               init outside the data shell)
+# dsm.n_sigma:   16  -> 24     (the span grows from 100x to 1230x; at 16 levels
+#                               the neighbour ratio would be 1.61, which
+#                               degrades annealed Langevin for reasons that
+#                               have nothing to do with the training signal.
+#                               24 levels give 1.36.)
+#
+# EVERYTHING else is copied verbatim from the archived sweep so the only
+# variables are the two above.
+#
+# Run with scripts/run_dsm_rescaled.sh (trains, evaluates, then recovery).
+
+- name: dsmx_clr_det
+  overrides:
+    training.model_name: ScoreDSM_CLR
+    training.epochs: 5
+    training.seed: 42
+    training.lr: 0.0003
+    training.scheduler_warmup_epochs: 0
+    training.B: 64
+    training.L: 40
+    training.K: 27
+    training.sample_eval_n: 32
+    training.sample_eval_every: 5
+    text8_dataset.batch_size: 64
+    text8_dataset.L: 40
+    text8_dataset.K: 27
+    text8_dataset.max_train_windows: 10000
+    text8_dataset.variable_length: false
+    transformation.label_smoothing: 0.0001
+    transformation.dirichlet_sampling: false
+    transformer.d_model: 1024
+    transformer.num_layers: 8
+    transformer.nhead: 8
+    transformer.d_latent: 64
+    eqm.time_conditioning: "add"
+    eqm.context_features: "off"
+    eqm.source_sigma: 0.1
+    eqm.sample_eta: 0.1
+    eqm.sample_mu: 0.9
+    eqm.sample_max_steps: 100
+    eqm.sample_grad_clip: 1.0
+    eqm.sample_return_best: true
+    dsm.sigma_min: 0.01
+    dsm.sigma_max: 12.3
+    dsm.sigma_distribution: log_uniform
+    dsm.loss_weighting: constant
+    dsm.lambda_ce: 0.5
+    dsm.ce_min_logsig: 0.0
+    dsm.n_sigma: 24
+    dsm.steps_per_sigma: 6
+    dsm.sampler_eps: 1.0e-5
+    wandb.enabled: false
+
+- name: dsmx_clr_dir
+  overrides:
+    training.model_name: ScoreDSM_CLR
+    training.epochs: 5
+    training.seed: 42
+    training.lr: 0.0003
+    training.scheduler_warmup_epochs: 0
+    training.B: 64
+    training.L: 40
+    training.K: 27
+    training.sample_eval_n: 32
+    training.sample_eval_every: 5
+    text8_dataset.batch_size: 64
+    text8_dataset.L: 40
+    text8_dataset.K: 27
+    text8_dataset.max_train_windows: 10000
+    text8_dataset.variable_length: false
+    transformation.label_smoothing: 0.0001
+    transformation.dirichlet_sampling: true
+    transformation.dirichlet_alpha_peak: 10.0
+    transformation.dirichlet_alpha_base: 0.1
+    transformer.d_model: 1024
+    transformer.num_layers: 8
+    transformer.nhead: 8
+    transformer.d_latent: 64
+    eqm.time_conditioning: "add"
+    eqm.context_features: "off"
+    eqm.source_sigma: 0.1
+    eqm.sample_eta: 0.1
+    eqm.sample_mu: 0.9
+    eqm.sample_max_steps: 100
+    eqm.sample_grad_clip: 1.0
+    eqm.sample_return_best: true
+    dsm.sigma_min: 0.01
+    dsm.sigma_max: 12.3
+    dsm.sigma_distribution: log_uniform
+    dsm.loss_weighting: constant
+    dsm.lambda_ce: 0.5
+    dsm.ce_min_logsig: 0.0
+    dsm.n_sigma: 24
+    dsm.steps_per_sigma: 6
+    dsm.sampler_eps: 1.0e-5
+    wandb.enabled: false

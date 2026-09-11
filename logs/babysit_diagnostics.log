@@ -1,0 +1,116 @@
+[diag] waiting for runs/latent_cluster_d256_L128_data20k_ep10/eval.json
+[diag] latent_cluster_d256_L128_data20k_ep10 eval.json appeared
+[diag] recovery_check on latent_cluster_d256_data20k_ep15 (n=128, steps=100)
+=== Unconditional generation ===
+  KL_uni=0.1235  KL_bi=1.5436  KL_tri=6.1653  H_gen=2.8533
+  sample[0]: 'of u isi acyerieueofpc  uasul fwro ulis '
+  sample[1]: ' isns mipwa er fs d f nanubrocsthefs d g'
+
+=== Recovery from perturbation ===
+  embed_norm_mean=4.9909  σ_source=0.1000
+    α  σ_perturb    KL_bi  tok_acc  sample[0]: gt / pt / rc
+ 0.05      0.250   0.1189   1.0000  gt='e the capital of one government after an'
+                                  pt='e the capital of one government after an'  (pt_acc=1.000)
+                                  rc='e the capital of one government after an'
+ 0.10      0.499   0.1189   1.0000  gt='e the capital of one government after an'
+                                  pt='e the capital of one government after an'  (pt_acc=1.000)
+                                  rc='e the capital of one government after an'
+ 0.15      0.749   0.1174   0.9977  gt='e the capital of one government after an'
+                                  pt='e the capital of one government after an'  (pt_acc=0.999)
+                                  rc='e the capital of one government after an'
+ 0.20      0.998   0.1141   0.9914  gt='e the capital of one government after an'
+                                  pt='e the capital of one government after an'  (pt_acc=0.995)
+                                  rc='e the capital of one government after an'
+ 0.25      1.248   0.1246   0.9725  gt='e the capital of one government after an'
+                                  pt='e the capital of one government after an'  (pt_acc=0.976)
+                                  rc='e the capital of one government after an'
+ 0.30      1.497   0.1935   0.9305  gt='e the capital of one government after an'
+                                  pt='e the capital of one government alter af'  (pt_acc=0.931)
+                                  rc='e the capital of one government altersaf'
+ 0.35      1.747   0.3146   0.8568  gt='e the capital of one government after an'
+                                  pt='e the capitam oe one gcvernmenc hmter an'  (pt_acc=0.858)
+                                  rc='e the capital oe one gceernmenc bfter an'
+ 0.40      1.996   0.4734   0.7787  gt='e the capital of one government after an'
+                                  pt='e thl hakitap ow onebgoyernvuntpacter an'  (pt_acc=0.775)
+                                  rc='e thl takitap ow one goyernvuntpacter an'
+ 0.45      2.246   0.6120   0.7029  gt='e the capital of one government after an'
+                                  pt='e d e rapitalaof obeigowernvect asudriap'  (pt_acc=0.697)
+                                  rc='e d e rapitalaos odeigomernvect asfdr at'
+ 0.50      2.495   0.8399   0.6172  gt='e the capital of one government after an'
+                                  pt='eethi iapitalloaaoneduogfgementaiiger an'  (pt_acc=0.613)
+                                  rc='eethi iapitalloaaoneduomfrementaiiher an'
+ 1.00      4.991   1.5686   0.2529  gt='e the capital of one government after an'
+                                  pt='edphmfc ei hl afdtma wssllndentucdhbocam'  (pt_acc=0.252)
+                                  rc='edphmfc ei hl afdtma isslundentucdhbocam'
+
+Wrote runs/latent_cluster_d256_data20k_ep15/recovery.json
+[diag] field_probe on latent_cluster_d256_L128_data20k_ep10
+K=27  L=128  d=256  σ=0.1  embed.norm=4.358  centroid.norm=0.648  pairwise_min=3.252
+time_conditioning='add'
+
+    γ   ||f(x)||     ||∇E||  cos(∇E, x0−x1)   cos(f, c−x)  col_score
+--------------------------------------------------------------------------------
+ 0.00     1.3595     1.3623          0.0948        0.2247     0.1030
+ 0.25     1.9142     3.4934          0.9368        0.6519     0.1720
+ 0.50     1.2209     2.3055          0.9311        0.8391     0.1436
+ 0.75     0.4967     1.0027          0.8873        0.5025     0.1144
+ 1.00     0.3722     0.6845          0.8350        0.3805     0.1079
+
+=== Where does the model actually sample to? ===
+  generated point norm_mean: 1.8569
+  centroid norm: 0.6477
+  distance(generated, centroid): 2.0496
+  distance(generated, nearest embed row): mean=3.6768, min=2.3177
+  top-5 sampled tokens (out of 27):
+    'e': 1185 (14.5%)
+    ' ': 1114 (13.6%)
+    'i': 1089 (13.3%)
+    's': 626 (7.6%)
+    'a': 533 (6.5%)
+
+Wrote runs/latent_cluster_d256_L128_data20k_ep10/field_probe.json
+[diag] recovery_check on latent_cluster_d256_L128_data20k_ep10 (n=128, steps=100)
+=== Unconditional generation ===
+  KL_uni=0.1034  KL_bi=0.9615  KL_tri=3.5350  H_gen=2.7323
+  sample[0]: 'oe usisisai erdeteober  uraae sero e is  itni  ipiarer es difynardbrocttheeso  baiduris sideeatid in asblniu washepie soien teic'
+  sample[1]: ' hyormedndradri whirossoon anr  ipizynesroch de oeie halay  iinciast icaeaizan eeu aimed r s ineniez ai aii ioisserisapsvecorsch'
+
+=== Recovery from perturbation ===
+  embed_norm_mean=4.3581  σ_source=0.1000
+    α  σ_perturb    KL_bi  tok_acc  sample[0]: gt / pt / rc
+ 0.05      0.218   0.0691   0.9999  gt='e the capital of one government after another one of such governments was established in one eight six four as a second mexican '
+                                  pt='e the capital of one government after another one of such governments was established in one eight six four as a second mexican '  (pt_acc=1.000)
+                                  rc='e the capital of one government after another one of such governments was established in one eight six four as a second mexican '
+ 0.10      0.436   0.0691   0.9999  gt='e the capital of one government after another one of such governments was established in one eight six four as a second mexican '
+                                  pt='e the capital of one government after another one of such governments was established in one eight six four as a second mexican '  (pt_acc=1.000)
+                                  rc='e the capital of one government after another one of such governments was established in one eight six four as a second mexican '
+ 0.15      0.654   0.0684   0.9987  gt='e the capital of one government after another one of such governments was established in one eight six four as a second mexican '
+                                  pt='e the capital of one government after another one of such governments was established in one eight six four as a second mexican '  (pt_acc=0.999)
+                                  rc='e the capital of one government after another one of such governments was established in one eight sin four as a second mexican '
+ 0.20      0.872   0.0627   0.9937  gt='e the capital of one government after another one of such governments was established in one eight six four as a second mexican '
+                                  pt='e the capital of one government after another one of such governments was established in one eight six four as a second megican '  (pt_acc=0.995)
+                                  rc='e the capital of one government after another one of such governments was established in one eight six four as a second megican '
+ 0.25      1.090   0.0730   0.9732  gt='e the capital of one government after another one of such governments was established in one eight six four as a second mexican '
+                                  pt='e tht capital of one government after anothev one of such governments was established in one eight sip four as a second mevican '  (pt_acc=0.977)
+                                  rc='e tht capital of one government after another one of such governments was establisced in one eight sip four as a second meoican '
+ 0.30      1.307   0.1335   0.9171  gt='e the capital of one government after another one of such governments was established in one eight six four as a second mexican '
+                                  pt='e the capital of onecgovernment altfrsafothir one of  uch tovernments wss established in ono eighw six four as a secovd hhxican '  (pt_acc=0.924)
+                                  rc='e the capital of onecgovernment altfrsanothir one of  uch tovernments wss established in ono eighw six four as a secovd hhxican '
+ 0.35      1.525   0.2351   0.8414  gt='e the capital of one government after another one of such governments was established in one eight six four as a second mexican '
+                                  pt='e the capital oe one gmvernmenb hmter anothercone of suhhtgovernments was established indone eigtt six foun as a smcond meiican '  (pt_acc=0.851)
+                                  rc='e the capital oe one gmvdrnmenc hmter anothercone of suhhtgovernments was established indone eigtt six foun as a smcond meiican '
+ 0.40      1.743   0.4042   0.7516  gt='e the capital of one government after another one of such governments was established in one eight six four as a second mexican '
+                                  pt='e the takwtap sf onebgoyrrnm ntpaftearanovher one df soct  olwrnments zas established iy onh eight hbv focr as a  lvord mwrican '  (pt_acc=0.765)
+                                  rc='e the tkkwtap sf onebgoyrrnm ntpactearanother one sf soct  olwrnments was established iy onh eight hbp focr as a  lfond mwrican '
+ 0.45      1.961   0.5672   0.6700  gt='e the capital of one government after another one of such governments was established in one eight six four as a second mexican '
+                                  pt='e d e wapitalaof odeigowezneent asunriauother ureiof sfca wvmernments was lstablissed inoonv aisht six foar vs f svconw mkeivan '  (pt_acc=0.679)
+                                  rc='e d e wapitalaof odeigowerndent asunriapother ureiof sfca wpmernments was lstablissfd inoone aiuht six foarrds f svconw mee van '
+ 0.50      2.179   0.7690   0.5866  gt='e the capital of one government after another one of such governments was established in one eight six four as a second mexican '
+                                  pt='kethi ialitalxoa onedeocfrementauigen anorhtrnoye ofmsuch irvebnbentyluayfessamnished intmne eigst six fohmyas a rtctnd mexechth'  (pt_acc=0.594)
+                                  rc='kethi ialitalxoaaonedeocfrdmentauigen anorhtrnoye ofmsuch irvernbentsluayfessamnished intmne eigsi sis fohryas n rtctnd mexechth'
+ 1.00      4.358   1.5504   0.2401  gt='e the capital of one government after another one of such governments was established in one eight six four as a second mexican '
+                                  pt='edmhcfciepehl afntmh issltndentucdhsokazutufyouodeisovarfirovarnmvnbaalitoescfecryhenaob omepmfgitgufioiolr csaa sraonfpsigisyg '  (pt_acc=0.242)
+                                  rc='ldmhgfciapyhl ofntmh issltndentucdhsokazutuoyouodeismvarfirovarnmvnbaalitoescaecryhenaob omepmfgitgufimiolr csaa sraonfppigisygb'
+
+Wrote runs/latent_cluster_d256_L128_data20k_ep10/recovery.json
+[diag] DONE

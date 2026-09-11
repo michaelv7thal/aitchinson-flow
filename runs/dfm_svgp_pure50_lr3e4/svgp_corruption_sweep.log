@@ -1,0 +1,39 @@
+positive_val (n=500)  mean(prob)=0.6043
+
+    scheme   rate  mean_prob  AUROC(prob,OOD)
+    ------   ----  ---------  ---------------
+   replace   0.10     0.6641           0.6951
+   replace   0.20     0.7024           0.8079
+   replace   0.30     0.7451           0.9006
+   replace   0.40     0.7677           0.9379
+   replace   0.50     0.7911           0.9622
+   replace   0.60     0.8074           0.9821
+   replace   0.70     0.8250           0.9915
+   replace   0.80     0.8336           0.9945
+   replace   0.90     0.8426           0.9965
+   replace   1.00     0.8497           0.9973
+   shuffle   0.10     0.6363           0.6153
+   shuffle   0.20     0.6539           0.6654
+   shuffle   0.30     0.6912           0.7853
+   shuffle   0.40     0.7055           0.8202
+   shuffle   0.50     0.7194           0.8550
+   shuffle   0.60     0.7341           0.8880
+   shuffle   0.70     0.7468           0.9143
+   shuffle   0.80     0.7499           0.9191
+   shuffle   0.90     0.7523           0.9247
+   shuffle   1.00     0.7520           0.9291
+      both   0.10     0.6763           0.7365
+      both   0.20     0.7342           0.8781
+      both   0.30     0.7666           0.9383
+      both   0.40     0.7919           0.9684
+      both   0.50     0.8097           0.9841
+      both   0.60     0.8154           0.9855
+      both   0.70     0.8273           0.9918
+      both   0.80     0.8380           0.9958
+      both   0.90     0.8422           0.9956
+Authorization required, but no authorization protocol specified
+
+      both   1.00     0.8475           0.9968
+
+Wrote runs/dfm_svgp_pure50_lr3e4/svgp_corruption_sweep.json
+Wrote runs/dfm_svgp_pure50_lr3e4/svgp_corruption_sweep.png

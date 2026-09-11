@@ -1,0 +1,28 @@
+{
+  "ckpt": "runs/dsm_vs_eqm_poc/eqm_fm_poc/epoch_final.pt",
+  "model_name": "EqMAE",
+  "epoch": 5,
+  "global_step": 1565,
+  "n_samples": 64,
+  "sample_steps": 80,
+  "sample_kwargs": {},
+  "unigram_kl": 0.3449268937110901,
+  "bigram_kl": 2.0655570030212402,
+  "trigram_kl": 7.2435383796691895,
+  "H_gen": 2.4688169956207275,
+  "H_gt": 2.8537919521331787,
+  "H_ratio": 0.8651005528890476,
+  "grad_at_gen": NaN,
+  "grad_at_gt": NaN,
+  "samples": [
+    "acsshfh e   csse tuisohs  ec csi lathastl u tst  eicgcoecslahsss",
+    "shsstuisuycss sytlsl htnssehcsho h coet   ssshlsltseeehestl  sos",
+    "ect hpe ecactsse  o tofctsliheshycl  sensust h tethlysehstsiosa ",
+    " hh outjoceoeeoseh ao yi s o ugse iaeryefctissllaeo  iaery ee ol",
+    "te a uy s ysos i  yyceehlstscosoycoctalsss ssts ltes sssshhsfo o",
+    "f hgh shs zecytyisssclos tic t  ueftsssssslchhfhlehahcysset eaoa",
+    "apek n uenule si o  rtcz  inqs oeheuteeoeer f i ehnega e siee di",
+    "hcsetsthcsyht  ilusasect sse tsfsl   s sesussolsossss   se  ss u"
+  ],
+  "run_name": "eqm_fm_poc"
+}

@@ -1,0 +1,82 @@
+{
+  "data_radius": 12.272300720214844,
+  "rows": [
+    {
+      "alpha": 0.93,
+      "gamma": 0.06999999999999995,
+      "radius": 0.9810274243354797,
+      "token_acc_perturbed": 1.0,
+      "token_acc": 1.0,
+      "delta": 0.0,
+      "gt_sample0": "e the capital of one government after an",
+      "pt_sample0": "e the capital of one government after an",
+      "rc_sample0": "e the capital of one government after an"
+    },
+    {
+      "alpha": 0.95,
+      "gamma": 0.050000000000000044,
+      "radius": 0.7836644053459167,
+      "token_acc_perturbed": 0.9999023675918579,
+      "token_acc": 0.9994140863418579,
+      "delta": -0.00048828125,
+      "gt_sample0": "e the capital of one government after an",
+      "pt_sample0": "e the capital of one government after an",
+      "rc_sample0": "e the capital of one government after an"
+    },
+    {
+      "alpha": 0.96,
+      "gamma": 0.040000000000000036,
+      "radius": 0.6942523121833801,
+      "token_acc_perturbed": 0.9971679449081421,
+      "token_acc": 0.9952148199081421,
+      "delta": -0.001953125,
+      "gt_sample0": "e the capital of one government after an",
+      "pt_sample0": "e the capital of one government after an",
+      "rc_sample0": "e the capital of one government after an"
+    },
+    {
+      "alpha": 0.97,
+      "gamma": 0.030000000000000027,
+      "radius": 0.619020402431488,
+      "token_acc_perturbed": 0.953125,
+      "token_acc": 0.946582019329071,
+      "delta": -0.006542980670928955,
+      "gt_sample0": "e the capital of one government after an",
+      "pt_sample0": "e toe capital of one governmenk after an",
+      "rc_sample0": "e the capital of one governmeno after an"
+    },
+    {
+      "alpha": 0.98,
+      "gamma": 0.020000000000000018,
+      "radius": 0.5596179366111755,
+      "token_acc_perturbed": 0.698046863079071,
+      "token_acc": 0.715624988079071,
+      "delta": 0.017578125,
+      "gt_sample0": "e the capital of one government after an",
+      "pt_sample0": "b the capitvg xmdcna gotsrnmeni afuer pn",
+      "rc_sample0": "h che mahita  amsc a  otsrnteni afper tn"
+    },
+    {
+      "alpha": 0.985,
+      "gamma": 0.015000000000000013,
+      "radius": 0.5378643274307251,
+      "token_acc_perturbed": 0.4676757752895355,
+      "token_acc": 0.526074230670929,
+      "delta": 0.05839845538139343,
+      "gt_sample0": "e the capital of one government after an",
+      "pt_sample0": "dvoiexmagqywyxoorcn bgbvgmnmedttast sian",
+      "rc_sample0": "d oie maofteh oo on  gov nnmedttaso eian"
+    },
+    {
+      "alpha": 0.995,
+      "gamma": 0.0050000000000000044,
+      "radius": 0.5147219300270081,
+      "token_acc_perturbed": 0.11357422173023224,
+      "token_acc": 0.1884765625,
+      "delta": 0.07490234076976776,
+      "gt_sample0": "e the capital of one government after an",
+      "pt_sample0": "w zmghqxprvesgmhzipk qhvqygpgvt tvtnjtsx",
+      "rc_sample0": "e yme h oehe oshpi   t   noaant ahtnoesp"
+    }
+  ]
+}

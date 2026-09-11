@@ -1,0 +1,34 @@
+{
+  "ckpt": "runs/dphase3_mse_deterministic_v2/epoch_final.pt",
+  "model_name": "EqM",
+  "epoch": 5,
+  "global_step": 785,
+  "n_samples": 256,
+  "sample_steps": 200,
+  "sample_kwargs": {},
+  "unigram_kl": 0.02734201028943062,
+  "bigram_kl": 1.1542658805847168,
+  "trigram_kl": 5.459369659423828,
+  "H_gen": 2.7358767986297607,
+  "H_gt": 2.8483986854553223,
+  "H_ratio": 0.9604964405438999,
+  "grad_at_gen": 0.4072357714176178,
+  "grad_at_gt": 0.3998783826828003,
+  "samples": [
+    "i e ho fasne rrids nlered iusrlace s t  ",
+    " rloh temhihoet abhluereire fannu as  ei",
+    "n nnes ad t ean ahmuns ourirlbonpewt to ",
+    "le dfiaruen n   cn iable slbfyaanmectt l",
+    " fndecaoaec oudniso onim ldrnnettn   re ",
+    "rihtrrti vb tisa acitttndeeiny dr o ye s",
+    "oi onondcmeirabt n t le riiuweensuuatnt ",
+    "r leen tosthe ui aootta hk tceg t iry hy"
+  ],
+  "run_name": "dphase3_mse_deterministic_v2",
+  "overrides": {
+    "training.model_name": "EqM",
+    "training.epochs": 5,
+    "text8_dataset.max_train_windows": 10000,
+    "loss.mode": "mse"
+  }
+}

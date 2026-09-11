@@ -1,0 +1,11 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+=== Unconditional generation === SKIPPED (--skip-uncond)
+
+=== Recovery from perturbation ===
+  embed_norm_mean=1.0000  σ_source=0.1000
+    α  σ_perturb        Δ  tok_acc tok_acc_pt    KL_bi  sample[0]: gt / pt / rc
+ 0.50      0.500   0.0773   0.5863     0.5090   0.8729  gt='e the capital of one government after another one of such governments was established in one eight six four as a second mexican empire the short lived monarchy led by maximilian of habsburg left its mark on the reconstruction of chapultepec castle and othe'
+                                             pt='euhrrkhxditaumoo onglglhguimekd angcrdinoyheu one of juchkgozerusentjdctssertabiishkd in oke yighd siy gourmaseaksocwnd mexican ejpipautw ushxrzydylmb alnkkchy ued bk vcdisklzen bm haeabnrg lefa mts ma kebn tcr reconhgehhxion ftbjhapclzeyiuacestle and zuee'
+                                             rc='eutro h ditau oo ong glveoimekd andcrdino hep one of such goreresentr ttssestabiisevd in one eigh  siy gour asea sossnd metican empipa tw  shtrt dslmb aln rchy uev bn vvdiskl en op haeabnrg lefa its ma  esn tpe reponhgehhfion  t rhapclzet uacastle and ouee'
+
+Wrote runs/sflm_bench_a100_20g_L256/SFLM/recovery_provcheck_ep20.json

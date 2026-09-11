@@ -1,0 +1,60 @@
+{
+  "ckpt": "runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM/epoch_best.pt",
+  "split": "test",
+  "t_eval": 4.5,
+  "d_model": 1280,
+  "rate": 0.1,
+  "fit_seqs": 192,
+  "n": 256,
+  "schemes": [
+    "replace",
+    "shuffle",
+    "falseinfo"
+  ],
+  "token_scheme": "replace,shuffle,falseinfo",
+  "token_schemes": [
+    "replace",
+    "shuffle",
+    "falseinfo"
+  ],
+  "per_sequence": {
+    "replace": {
+      "pca_pc12_probe_auroc": 0.5861358642578125,
+      "lda_axis_auroc": 0.9869232177734375,
+      "full_dim_linear_auroc": 0.9997100830078125
+    },
+    "shuffle": {
+      "pca_pc12_probe_auroc": 0.570037841796875,
+      "lda_axis_auroc": 0.976043701171875,
+      "full_dim_linear_auroc": 0.999420166015625
+    },
+    "falseinfo": {
+      "pca_pc12_probe_auroc": 0.510284423828125,
+      "lda_axis_auroc": 0.6206817626953125,
+      "full_dim_linear_auroc": 0.816619873046875
+    }
+  },
+  "per_token": {
+    "replace": {
+      "token_scheme": "replace",
+      "pca_pc12_probe_auroc": 0.5096804374999999,
+      "energy_axis_auroc": 0.933423875,
+      "full_dim_linear_auroc": 0.999195375,
+      "n_per_class": 4000
+    },
+    "shuffle": {
+      "token_scheme": "shuffle",
+      "pca_pc12_probe_auroc": 0.48046750000000005,
+      "energy_axis_auroc": 0.833818625,
+      "full_dim_linear_auroc": 0.997394125,
+      "n_per_class": 4000
+    },
+    "falseinfo": {
+      "token_scheme": "falseinfo",
+      "pca_pc12_probe_auroc": 0.5740611875,
+      "energy_axis_auroc": 0.7362601249999999,
+      "full_dim_linear_auroc": 0.8857688125000001,
+      "n_per_class": 4000
+    }
+  }
+}

@@ -1,0 +1,15 @@
+MATCHED (new, uniform gamma, seed 42) — use these for tab:hilbert-null
+----------------------------------------------------------------------
+cell                  recipe         loss        KL_uni    KL_bi  acc@.10  acc@.30  acc@.50    D@.50
+compu_mse_thick       thickened      MSE         0.6603   5.9899    1.000    0.905    0.578   0.0498
+compu_hilbert_thick   thickened      Hilbert     0.6603   5.9899    1.000    0.909    0.576   0.0476
+compu_mse_det         deterministic  MSE         0.0313   1.6572    1.000    0.899    0.528   0.0000
+compu_hilbert_det     deterministic  Hilbert     0.0205   1.4556    1.000    0.897    0.528   0.0000
+
+PUBLISHED (old, confounded: MSE gp=1.5 vs Hilbert gp=1.0)
+---------------------------------------------------------
+cell                  recipe         loss        KL_uni    KL_bi  acc@.10  acc@.30  acc@.50    D@.50
+comp_mse_seed42       thickened      MSE         0.6614   5.9243    1.000    0.905    0.583   0.0598
+comp_hilbert_seed42   thickened      Hilbert     0.6614   5.9243    1.000    0.910    0.580   0.0566
+comp_ref_det_mse      deterministic  MSE         0.0418   1.3474    1.000    0.892    0.523   0.0000
+comp_ref_det_hilbert  deterministic  Hilbert     0.0209   1.5130    1.000    0.893    0.523   0.0000

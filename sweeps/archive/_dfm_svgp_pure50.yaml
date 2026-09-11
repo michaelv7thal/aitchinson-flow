@@ -1,0 +1,51 @@
+# Pure DFM (no hinge during Stage 1) at 50 epochs with larger LR.
+# lambda_hinge=0 means training_step is identical to vanilla
+# DirichletFlowMatching — the SVGP and pooler stay untouched during
+# Stage 1 and will be trained sequentially in Stage 2
+# (scripts/fit_dfm_svgp_hinge.py) on the frozen DFM.
+#
+# Diff vs the earlier 20-epoch dfm_svgp_poc run:
+#   training.epochs:               20 → 50
+#   training.lr:                   3e-4 → 1e-3
+#   training.scheduler_warmup:     1 → 2 (longer warmup for the bigger LR)
+#   training.cosine_t_max_epochs:  20 → 50
+#   dfm_svgp.lambda_hinge:         (unset, defaults 0) — explicit 0 here
+
+- name: dfm_svgp_pure50
+  overrides:
+    training.model_name: DirichletFMSvgp
+    training.epochs: 50
+    training.seed: 42
+    training.lr: 0.001
+    training.scheduler_warmup_epochs: 2
+    training.cosine_t_max_epochs: 50
+    training.B: 64
+    training.L: 40
+    training.K: 27
+    training.sample_eval_n: 32
+    training.sample_eval_every: 10
+    text8_dataset.batch_size: 64
+    text8_dataset.L: 40
+    text8_dataset.K: 27
+    text8_dataset.max_train_windows: 10000
+    text8_dataset.variable_length: false
+    text8_dataset.train_corrupt_rate: 0.15
+    text8_dataset.eval_corrupt_rate: 0.15
+    transformation.label_smoothing: 0.0001
+    transformation.dirichlet_sampling: false
+    transformer.d_model: 1024
+    transformer.num_layers: 8
+    transformer.nhead: 8
+    transformer.d_latent: 64
+    dirichlet_fm.t_max: 8.0
+    dirichlet_fm.dropout: 0.1
+    dirichlet_fm.sample_nfe: 100
+    dfm_svgp.pooling: "mean"
+    dfm_svgp.d_embed: 256
+    dfm_svgp.n_inducing: 128
+    dfm_svgp.kernel: "matern52"
+    dfm_svgp.t_eval: 4.5
+    dfm_svgp.lambda_hinge: 0.0          # pure DFM during Stage 1
+    dfm_svgp.train_svgp_jointly: false
+    dfm_svgp.train_pooler_with_dfm: false
+    wandb.enabled: false

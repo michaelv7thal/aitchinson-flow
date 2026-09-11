@@ -1,0 +1,7 @@
+  saplma ep 1/25  loss=0.4572
+  saplma ep 5/25  loss=0.3014
+  saplma ep 10/25  loss=0.1793
+  saplma ep 15/25  loss=0.1387
+  saplma ep 20/25  loss=0.1215
+  saplma ep 25/25  loss=0.1086
+[write] runs/capstone/checkpoints/saplma_wiki/probe.pt

@@ -1,0 +1,29 @@
+=== Score reference (clean encoded val) ===
+  energy:    mean=0.345  std=0.509
+  grad_norm: mean=0.201  std=0.371
+  curvature: mean=nan  std=nan
+=== Unconditional generation ===
+  KL_uni=0.6285  KL_bi=4.5892  KL_tri=12.5373  H_gen=3.2952
+  sample[0]: ' ltvxbfkhulwwhuob fxnkpahshpadscouaecwci gsnggarojzcojngfyjeavii'
+  sample[1]: 'yvctzvfvwserxvjbgbaipquukfdbgozdehusbzlvpllsqkculezb uo xrqa mve'
+  energy:    mean=1.936  std=0.003
+  grad_norm: mean=0.006  std=0.000
+  curvature: mean=nan  std=nan
+
+=== Recovery from perturbation ===
+  embed_norm_mean=12.2723  σ_source=0.5770
+    α  σ_perturb    KL_bi  tok_acc  sample[0]: gt / pt / rc
+ 0.10      1.227   0.0721   1.0000  gt='e the capital of one government after another one of such govern'
+                                  pt='e the capital of one government after another one of such govern'  (pt_acc=1.000)
+                                  rc='e the capital of one government after another one of such govern'
+ 0.30      3.682   0.3781   0.8959  gt='e the capital of one government after another one of such govern'
+                                  pt='e the cajitpu of one govbrxment afqer anothrr one of such goverg'  (pt_acc=0.896)
+                                  rc='e the cajitpu of one govbrxment afqer anothrr one of such goverg'
+ 0.50      6.136   2.0646   0.5261  gt='e the capital of one government after another one of such govern'
+                                  pt='k thezclphral of zni goyrrnmeltr ster anatver oye ll sumhjxoylln'  (pt_acc=0.526)
+                                  rc='k thezclphral of zni goyrrnmeltr ster anatver oye ll sumhjxoylln'
+ 1.00     12.272   3.8666   0.1997  gt='e the capital of one government after another one of such govern'
+                                  pt='x rhihfckmtal cbyuxvsgecbdqecnteafteozmjttamtponaloxzjmglinveoun'  (pt_acc=0.200)
+                                  rc='x rhihfckmtal cbyuxvsgecbdqecnteafteozmjttamtponaloxzjmglinveoun'
+
+Wrote runs/dsm_vs_eqm_poc/bayes_auditor_raw_poc/recovery.json

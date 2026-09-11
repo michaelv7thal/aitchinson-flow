@@ -1,0 +1,48 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[bayeslin] adversarial train mix: [('falseinfo', 14576)]  (scheme, #corrupt tokens)
+[bayeslin] d_model=1280 feat_dim=1280 t_eval=4.5 clean_tok=131072 corr_tok(label1)=14576 mix=falseinfo
+[bayeslin] LOGISTIC head fit on 74576 tok (C=1.0); energy = LR decision function
+[bayeslin] energy @ t_eval=4.5  variance @ var_t=7.5 (feat_dim_var=1280)
+[blr] false-info vocab: lengths 2-18
+
+   scheme  rate  AUROC_seq_E  AUROC_seq_Var  tokAUROC_E  tokAUROC_Var  tokP@5  tokR@5  tokF1@5
+  replace  0.05       0.7839         0.9177      0.7378        0.8646   0.162   0.374    0.227
+  replace  0.10       0.9400         0.9849      0.7307        0.8312   0.230   0.491    0.313
+  replace  0.15       0.9843         0.9963      0.7199        0.8022   0.267   0.597    0.369
+  replace  0.20       0.9985         0.9995      0.7007        0.7689   0.296   0.693    0.415
+  replace  0.25       0.9995         0.9999      0.6785        0.7375   0.329   0.746    0.457
+  replace  0.30       1.0000         1.0000      0.6539        0.6978   0.368   0.800    0.504
+  replace  0.50       1.0000         1.0000      0.5691        0.5560   0.536   0.716    0.613
+  replace  0.70       1.0000         1.0000      0.5403        0.4935   0.712   0.515    0.598
+  replace  1.00       1.0000         1.0000         nan           nan     nan     nan      nan
+  shuffle  0.05       0.7658         0.8797      0.6871        0.8308   0.119   0.290    0.169
+  shuffle  0.10       0.9272         0.9749      0.6748        0.7914   0.186   0.397    0.253
+  shuffle  0.15       0.9806         0.9932      0.6577        0.7565   0.221   0.484    0.304
+  shuffle  0.20       0.9970         0.9982      0.6466        0.7290   0.258   0.578    0.356
+  shuffle  0.25       0.9995         0.9994      0.6294        0.7018   0.289   0.625    0.395
+  shuffle  0.30       0.9999         0.9999      0.6045        0.6708   0.323   0.671    0.436
+  shuffle  0.50       1.0000         1.0000      0.5493        0.5904   0.484   0.664    0.560
+  shuffle  0.70       1.0000         1.0000      0.5327        0.5388   0.663   0.548    0.600
+  shuffle  1.00       1.0000         1.0000      0.6059        0.4922   0.941   0.485    0.640
+falseinfo  0.05       0.5924         0.5718      0.7700        0.6953   0.151   0.281    0.197
+falseinfo  0.10       0.6640         0.6133      0.7710        0.6956   0.258   0.276    0.267
+falseinfo  0.15       0.7593         0.6920      0.7864        0.7046   0.354   0.326    0.339
+falseinfo  0.20       0.8152         0.7355      0.7773        0.6943   0.405   0.318    0.356
+falseinfo  0.25       0.8701         0.7923      0.7739        0.6966   0.445   0.340    0.386
+falseinfo  0.30       0.9077         0.8271      0.7751        0.6969   0.502   0.359    0.418
+falseinfo  0.50       0.9832         0.9401      0.7820        0.7009   0.635   0.456    0.531
+falseinfo  0.70       0.9978         0.9763      0.7948        0.7112   0.751   0.535    0.625
+falseinfo  1.00       1.0000         0.9889      0.8554        0.7592   0.907   0.672    0.772
+
+=== healing-style examples ===
+  [examples] flag thr=-0.0932 @ fpr=0.05 (key=E_t)
+  --- clean #0 ---
+    flag :                                                    **                                       **                          
+  --- replace30 #0 ---
+    truec:  ^  ^ ^     ^^   ^ ^         ^       ^ ^ ^^      ^^   ^ ^      ^  ^^     ^       ^  ^     ^^  ^^^   ^^^  ^  ^      ^^^^ 
+    flag :   **** *  **  **   **   * **** ** **  ****** *    *** *** ***       *           ******  ***   *** *  **  **    ** ******
+  --- falseinfo30 #0 ---
+    truec:   ^^^^^^^          ^^^^^^^^^^^                     ^^                       ^^^        ^^ ^^^^   ^^ ^^^           ^^^   
+    flag :        **             *         *                  **                       * *          *                    **  ***   
+
+Wrote bench_ood_final/logreg_fi_r15/bayes_linear_logreg_fi_r15_sweep.json

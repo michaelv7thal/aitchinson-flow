@@ -1,0 +1,245 @@
+{
+  "ckpt": "runs/sflm_bench_a100_20g_L256_d1280L14_full/DirichletFM_converge/epoch_final.pt",
+  "protein": "insulin",
+  "K": 27,
+  "L": 256,
+  "localizer": "nll",
+  "t_nll": 3.0,
+  "nfe": 100,
+  "density_t_eval": null,
+  "bgmm_n_effective": null,
+  "corrupt_rate": 0.15,
+  "n_demo": 32,
+  "n_seeds": 3,
+  "name_occurrences_in_article": 248,
+  "operating_point": {
+    "fpr": 0.02,
+    "threshold": 1.2128636837005615
+  },
+  "selection": "max cal-set F0.5 (precision-weighted, GT-free; healing damage-averse)",
+  "target_fprs": [
+    0.02,
+    0.05,
+    0.1
+  ],
+  "track_A_char_noise": {
+    "n_seeds": 3,
+    "fix_rate": 0.5868392664509169,
+    "damage_rate": 0.037329883074563926,
+    "net_per_corrupt": 0.3767529665587918,
+    "net_per_corrupt_std": 0.018746219552041053,
+    "loc_precision": 0.7711864406779662,
+    "loc_recall": 0.785329018338727,
+    "loc_f1": 0.7781934794227685,
+    "delta_wholeseq": 0.056844075520833336,
+    "delta_wholeseq_std": 0.0017330354361203494,
+    "n_corrupt_total": 3708,
+    "n_fixed_total": 2176,
+    "n_damaged_total": 779,
+    "corrupt_frac_chars": 0.15087890625,
+    "example": {
+      "clean": "insulin from latin insula island is a peptide hormone produced by beta cells of the pancreatic islets encoded in humans by the insulin ins gene it is the main anabolic hormone of the body it regulates the metabolism of carbohydrates fats and protein by pro",
+      "corrupted": "insuliv from iatiu mksula tscend vs atpeptidb hormone producxd by zera zellsnof ade pancreatic iulets hncodej ib humans bycthe insuean ixs geneait  s theomain anabglic horoone of the body it regulatps the metabozismqof carbohydratss fxts inrjprotein be pro",
+      "healed": "insulic from latic mesula tscend is atceptive hormone produced by zero zells of the pancreatic rulets incoded in humans by the insuean its genefit is the main anabolic hormone of the body it regulates the metabolism of carbohydrates fits inc protein be pro",
+      "truec": "      ^      ^   ^ ^^     ^ ^^   ^   ^      ^               ^     ^ ^  ^    ^   ^^              ^     ^     ^  ^          ^        ^^   ^      ^   ^     ^         ^       ^                          ^            ^   ^              ^   ^   ^ ^^         ^    ",
+      "flag": "      *      *   *  *            *    *    **               *        *      *   **             *      *     *  *          *             *      *   *     *         *       *                          *            *   *              *   *     **              "
+    }
+  },
+  "track_C_false_info": {
+    "n_seeds": 3,
+    "fix_rate": 0.03399638336347197,
+    "damage_rate": 0.017743340516253266,
+    "net_per_corrupt": -0.10596745027124774,
+    "net_per_corrupt_std": 0.002981875211277555,
+    "loc_precision": 0.556237218813906,
+    "loc_recall": 0.19674502712477396,
+    "loc_f1": 0.29067592839967943,
+    "delta_wholeseq": -0.011922200520833334,
+    "delta_wholeseq_std": 0.00028772248583436993,
+    "n_corrupt_total": 2765,
+    "n_fixed_total": 94,
+    "n_damaged_total": 387,
+    "corrupt_frac_chars": 0.11250813802083333,
+    "example": {
+      "clean": "insulin from latin insula island is a peptide hormone produced by beta cells of the pancreatic islets encoded in humans by the insulin ins gene it is the main anabolic hormone of the body it regulates the metabolism of carbohydrates fats and protein by pro",
+      "corrupted": "insulin from latin insula island wu a artwork hormone snapcase by beta cells of the pancreatic islets arseniy in humans by the insulin ins gene it is the main anabolic hormone of the body sg regulates the metabolism of carbohydrates fats and protein ct pro",
+      "healed": "insulin from latin insula island is a artwork hormone anapcase by beta cells of the pancreatic islits arsenia in humans by the insulin ins gene it is the main anabolic hormone of the body of regulates the metabolism of carbohydrates fats and protein it pro",
+      "truec": "                                 ^^   ^^^^^^^         ^^^^^^^^                                        ^^^^^^^                                                                               ^^                                                            ^^    ",
+      "flag": "                                 **                   *                                           *         *                                                                               **                                                            *     "
+    }
+  },
+  "track_A_sweep": [
+    {
+      "target_fpr": 0.02,
+      "threshold": 1.2128636837005615,
+      "calibration": {
+        "threshold": 1.2128636837005615,
+        "precision": 0.7836026803310997,
+        "recall": 0.795995995995996,
+        "f1": 0.7897507200317807,
+        "target_fpr": 0.02
+      },
+      "n_seeds": 3,
+      "fix_rate": 0.5868392664509169,
+      "damage_rate": 0.037329883074563926,
+      "net_per_corrupt": 0.3767529665587918,
+      "net_per_corrupt_std": 0.018746219552041053,
+      "loc_precision": 0.7711864406779662,
+      "loc_recall": 0.785329018338727,
+      "loc_f1": 0.7781934794227685,
+      "delta_wholeseq": 0.056844075520833336,
+      "delta_wholeseq_std": 0.0017330354361203494,
+      "n_corrupt_total": 3708,
+      "n_fixed_total": 2176,
+      "n_damaged_total": 779
+    },
+    {
+      "target_fpr": 0.05,
+      "threshold": 0.5466758608818054,
+      "calibration": {
+        "threshold": 0.5466758608818054,
+        "precision": 0.5658524610285994,
+        "recall": 0.9229229229229229,
+        "f1": 0.7015674935321868,
+        "target_fpr": 0.05
+      },
+      "n_seeds": 3,
+      "fix_rate": 0.5377562028047465,
+      "damage_rate": 0.12066321640789726,
+      "net_per_corrupt": -0.1413160733549083,
+      "net_per_corrupt_std": 0.054838896995094685,
+      "loc_precision": 0.5542345276872964,
+      "loc_recall": 0.9177454153182308,
+      "loc_f1": 0.6911047928513404,
+      "delta_wholeseq": -0.021321614583333332,
+      "delta_wholeseq_std": 0.008815208445711221,
+      "n_corrupt_total": 3708,
+      "n_fixed_total": 1994,
+      "n_damaged_total": 2518
+    },
+    {
+      "target_fpr": 0.1,
+      "threshold": 0.22071972489356995,
+      "calibration": {
+        "threshold": 0.22071972489356995,
+        "precision": 0.41394633396000685,
+        "recall": 0.9697697697697698,
+        "f1": 0.5802239923339523,
+        "target_fpr": 0.1
+      },
+      "n_seeds": 3,
+      "fix_rate": 0.39158576051779936,
+      "damage_rate": 0.2439620471535365,
+      "net_per_corrupt": -0.9813915857605178,
+      "net_per_corrupt_std": 0.009820818770549182,
+      "loc_precision": 0.3975107390681793,
+      "loc_recall": 0.9733009708737864,
+      "loc_f1": 0.5644795495425041,
+      "delta_wholeseq": -0.1480712890625,
+      "delta_wholeseq_std": 0.0037624597186089945,
+      "n_corrupt_total": 3708,
+      "n_fixed_total": 1452,
+      "n_damaged_total": 5091
+    }
+  ],
+  "track_C_sweep": [
+    {
+      "target_fpr": 0.02,
+      "threshold": 1.2128636837005615,
+      "calibration": {
+        "threshold": 1.2128636837005615,
+        "precision": 0.7836026803310997,
+        "recall": 0.795995995995996,
+        "f1": 0.7897507200317807,
+        "target_fpr": 0.02
+      },
+      "n_seeds": 3,
+      "fix_rate": 0.03399638336347197,
+      "damage_rate": 0.017743340516253266,
+      "net_per_corrupt": -0.10596745027124774,
+      "net_per_corrupt_std": 0.002981875211277555,
+      "loc_precision": 0.556237218813906,
+      "loc_recall": 0.19674502712477396,
+      "loc_f1": 0.29067592839967943,
+      "delta_wholeseq": -0.011922200520833334,
+      "delta_wholeseq_std": 0.00028772248583436993,
+      "n_corrupt_total": 2765,
+      "n_fixed_total": 94,
+      "n_damaged_total": 387
+    },
+    {
+      "target_fpr": 0.05,
+      "threshold": 0.5466758608818054,
+      "calibration": {
+        "threshold": 0.5466758608818054,
+        "precision": 0.5658524610285994,
+        "recall": 0.9229229229229229,
+        "f1": 0.7015674935321868,
+        "target_fpr": 0.05
+      },
+      "n_seeds": 3,
+      "fix_rate": 0.05786618444846293,
+      "damage_rate": 0.0475906652606483,
+      "net_per_corrupt": -0.3175406871609403,
+      "net_per_corrupt_std": 0.01167306645693153,
+      "loc_precision": 0.4573606479275846,
+      "loc_recall": 0.3471971066907776,
+      "loc_f1": 0.3947368421052631,
+      "delta_wholeseq": -0.035725911458333336,
+      "delta_wholeseq_std": 0.0007480784631693618,
+      "n_corrupt_total": 2765,
+      "n_fixed_total": 160,
+      "n_damaged_total": 1038
+    },
+    {
+      "target_fpr": 0.1,
+      "threshold": 0.22071972489356995,
+      "calibration": {
+        "threshold": 0.22071972489356995,
+        "precision": 0.41394633396000685,
+        "recall": 0.9697697697697698,
+        "f1": 0.5802239923339523,
+        "target_fpr": 0.1
+      },
+      "n_seeds": 3,
+      "fix_rate": 0.06690777576853527,
+      "damage_rate": 0.09389757461831186,
+      "net_per_corrupt": -0.6737793851717903,
+      "net_per_corrupt_std": 0.02386337389827527,
+      "loc_precision": 0.36363636363636365,
+      "loc_recall": 0.49330922242314645,
+      "loc_f1": 0.41866175567833025,
+      "delta_wholeseq": -0.0758056640625,
+      "delta_wholeseq_std": 0.001123223774563986,
+      "n_corrupt_total": 2765,
+      "n_fixed_total": 185,
+      "n_damaged_total": 2048
+    }
+  ],
+  "track_B_targeted_name": [
+    {
+      "window": 0,
+      "name_chars_corrupted": 10,
+      "name_restored": false,
+      "clean": "insulin from latin insula island is a peptide hormone produced by beta cells of the pancreatic islets encoded in humans by the insulin ins gene it is the main anabolic hormone of the body it regulates the metabolism of carbohydrates fats and protein by pro",
+      "corrupted": "ig vjcn from latin insula island is a peptide hormone produced by beta cells of the pancreatic islets encoded in humans by the ikvedhn ins gene it is the main anabolic hormone of the body it regulates the metabolism of carbohydrates fats and protein by pro",
+      "healed": "in main from latin insula island is a peptide hormone produced by beta cells of the pancreatic islats encoded in humans by the gene in ins gene it is the main anabolic hormone of the body it regulates the metabolism of carbohydrated fats and protein by pro"
+    },
+    {
+      "window": 2,
+      "name_chars_corrupted": 10,
+      "name_restored": false,
+      "clean": "d into both glucose production and secretion by the liver are strongly inhibited by high concentrations of insulin in the blood circulating insulin also affects the synthesis of proteins in a wide variety of tissues it is thus an anabolic hormone promoting",
+      "corrupted": "d into both glucose production and secretion by the liver are strongly inhibited by high concentrations of iettvjn in the blood circulating ietvhcn also affects the synthesis of proteins in a wide variety of tissues it is thus an anabolic hormone promoting",
+      "healed": "d into both glucose production and secretion by the liver are strongly inhibited by high concentrations of between in the blood circulating ietween also affects the synthesis of proteins in a wide variety of tissues it is thus an anabolic hormone promoting"
+    },
+    {
+      "window": 3,
+      "name_chars_corrupted": 5,
+      "name_restored": false,
+      "clean": " the conversion of small molecules in the blood into large molecules in the cells low insulin in the blood has the opposite effect promoting widespread catabolism especially of reserve body fat beta cells are sensitive to blood sugar levels so that they se",
+      "corrupted": " the conversion of small molecules in the blood into large molecules in the cells low iznhian in the blood has the opposite effect promoting widespread catabolism especially of reserve body fat beta cells are sensitive to blood sugar levels so that they se",
+      "healed": " the conversion of small molecules in the blood into large molecules in the cells low izalian in the blood has the opposite effect promoting widespread catabolism especialls of reserve body cat be a cells are sensitive to blood sugar levels so that they se"
+    }
+  ]
+}

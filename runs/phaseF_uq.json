@@ -1,0 +1,39 @@
+{
+  "n_train_pos": 3850,
+  "n_val_pos": 950,
+  "linear_probe": {
+    "auc_corrupt": 0.988227128982544,
+    "auc_uncorrupt": 0.8644487261772156,
+    "ece": 0.3423238504089807
+  },
+  "mahalanobis": {
+    "auc_corrupt": 0.3336775600910187,
+    "auc_uncorrupt": 0.2960008978843689
+  },
+  "ensemble_5": {
+    "auc_mean_corrupt": 0.9892731308937073,
+    "auc_std_corrupt": 0.32691413164138794,
+    "ece": 0.34167924931959104
+  },
+  "blr_laplace": {
+    "auc_prob_corrupt": 0.9735866785049438,
+    "auc_mean_corrupt": 0.9675401449203491,
+    "auc_std_corrupt": 0.2150094211101532,
+    "auc_mean_uncorrupt": 0.7880368828773499,
+    "auc_std_uncorrupt": 0.2649981379508972,
+    "ece": 0.06640852814834367
+  },
+  "svgp": {
+    "auc_prob_corrupt": 0.982377827167511,
+    "auc_mean_corrupt": 0.982377827167511,
+    "auc_std_corrupt": 0.9930404424667358,
+    "auc_mean_uncorrupt": 0.9788525104522705,
+    "auc_std_uncorrupt": 0.9934474229812622,
+    "ece": 0.00012192130088806152,
+    "corr_abs_mean_vs_std_val": -0.6190083026885986
+  },
+  "eqm_auditor_reference": {
+    "tok_auc_ctx": 0.99,
+    "tok_auc_logit": 0.948
+  }
+}

@@ -1,10 +1,15 @@
 {
-    "name": "aitchinson-flow",
+    "name": "capstone-project",
   
-    // Use the NVIDIA CUDA base image so the container has the CUDA runtime.
-    // When running on a CPU-only machine (laptop / CI), Docker falls back to
-    // the standard Linux runtime — the container still starts, just without GPU.
-    "image": "mcr.microsoft.com/devcontainers/python:3.11-bookworm",
+    // Debian *trixie* (glibc 2.41), NOT bookworm (glibc 2.36): the "Neovim inside
+    // the container" toolchain uses prebuilt binaries that need a modern glibc —
+    // tree-sitter-cli 0.26+ requires GLIBC_2.39, and many Mason LSP servers are
+    // similar. bookworm's 2.36 fails them ("GLIBC_2.39 not found"); trixie's 2.41
+    // runs them all (VirtualConcierge works for the same reason — it's on
+    // ubuntu:24.04 / glibc 2.39). System Python here is 3.13, matching the
+    // project's requires-python (uv still manages /workspace/.venv).
+    // GPUs still pass through via --gpus=all (runArgs); ignored on CPU-only hosts.
+    "image": "mcr.microsoft.com/devcontainers/python:3.13-trixie",
   
     // Override with the CUDA variant when a GPU host is available:
     //   "image": "nvcr.io/nvidia/pytorch:24.05-py3",
@@ -20,11 +25,12 @@
       "--gpus=all",
       // Shared memory: PyTorch DataLoader workers use /dev/shm; 8 GB is safe
       // for most training workloads.
-      "--shm-size=8g",
+      "--shm-size=8g"
 
-      "--dns=1.1.1.1", 
-      
-      "--dns=8.8.8.8"
+      // NB: no manual --dns here on purpose. The container inherits the host
+      // docker daemon's DNS config (your special 10.200.0.1 routing via
+      // /etc/docker/daemon.json). Add "--dns=..." back only if you need to
+      // override that inside the container.
     ],
   
     // -----------------------------------------------------------------------
@@ -48,16 +54,47 @@
     "mounts": [
       // Mount host ~/.ssh read-only so setup.sh can copy keys into the container.
       // The directory is optional — Docker skips the mount if it doesn't exist.
-      "source=${localEnv:HOME}/.ssh,target=/host-ssh-keys,type=bind,readonly"
+      "source=${localEnv:HOME}/.ssh,target=/host-ssh-keys,type=bind,readonly",
+
+      // --- "Neovim inside the container": share the CONFIG, not the DATA ------
+      // (1) Central Neovim config from the host, bind-mounted read-write so it's
+      //     the same files inside and out: edits sync both ways and :Lazy /
+      //     :Mason lockfile updates persist back to the host repo.
+      "source=${localEnv:HOME}/.config/nvim,target=/home/vscode/.config/nvim,type=bind,consistency=cached",
+      // (2) Neovim DATA dir (lazy plugins, Mason LSP servers, compiled
+      //     Treesitter parsers) in a container-local NAMED VOLUME. These are
+      //     arch/libc-specific native artifacts that must NOT be shared with the
+      //     host; the volume also makes rebuilds fast (no re-download/recompile).
+      //     nvim-setup.sh chowns it — named volumes mount root-owned.
+      "source=nvim-data-${devcontainerId},target=/home/vscode/.local/share/nvim,type=volume"
     ],
   
     // -----------------------------------------------------------------------
     // Port forwarding
     // -----------------------------------------------------------------------
+    // 4243 is markdown-preview.nvim's server (vim.g.mkdp_port). The plugin runs
+    // inside the container but there is no browser here, so it prints the URL
+    // (see lua/plugins/markdown_preview.lua) and you open it on the host — which
+    // only works if this port is forwarded.
+    "forwardPorts": [4243],
+
     // -----------------------------------------------------------------------
     // Setup — runs once after the container is created
     // -----------------------------------------------------------------------
-    "postCreateCommand": "bash .devcontainer/setup.sh",
+    // chown ~/.local FIRST, as its own statement (`;` not `&&`), BEFORE setup.sh
+    // runs: the nvim-data named volume mounts at ~/.local/share/nvim, so Docker
+    // creates the parents (~/.local, ~/.local/share) as ROOT — which otherwise
+    // makes the uv installer's `mkdir ~/.local/bin` fail and aborts setup.sh
+    // (see ~/.config/nvim/DEVCONTAINER_GUIDE.md "Volume ownership").
+    "postCreateCommand": "sudo chown -R vscode:vscode /home/vscode/.local 2>/dev/null || true; bash .devcontainer/setup.sh",
+
+    // Runs on EVERY start (create, rebuild, restart). Docker recreates the named
+    // volume's parent dirs (~/.local, ~/.local/share) as ROOT on every recreate,
+    // which also blocks ~/.local/state/nvim (nvim's log dir). This re-asserts
+    // ownership cheaply so a rebuild can't reintroduce the lazy.nvim "could not
+    // create leading directories ... Permission denied" clone failure. (If you
+    // change remoteUser, change `vscode` here too.)
+    "postStartCommand": "bash -c 'sudo install -d -o vscode -g vscode ~/.local ~/.local/share ~/.local/state ~/.local/state/nvim 2>/dev/null || true; sudo chown vscode:vscode ~/.local ~/.local/share ~/.local/share/nvim 2>/dev/null || true'",
   
     // -----------------------------------------------------------------------
     // VS Code extensions
@@ -66,9 +103,33 @@
     // Dev container features
     // -----------------------------------------------------------------------
     "features": {
-      // Installs Docker CLI + daemon inside the container (Docker-in-Docker).
-      // Required to build and push images from within the devcontainer.
-      "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+      // Docker CLI wired to the HOST daemon via a bind-mounted /var/run/docker.sock
+      // (docker-OUTSIDE-of-docker), NOT a nested daemon. build-and-push.sh only
+      // needs `docker buildx build`/`push`, which run fine against the host docker
+      // — and this avoids the docker-in-docker inner-daemon iptables failure
+      // ("can't initialize iptables table `nat'") on this nftables Arch host, plus
+      // it inherits the host daemon's DNS (your 10.200.0.1 resolver) instead of
+      // needing a manual --dns override.
+      //
+      // moby:false → install upstream Docker CE CLI from download.docker.com
+      // instead of Microsoft's moby-cli packages, which aren't published for
+      // debian trixie ("'moby' option is not supported on debian 'trixie'"). We
+      // only need the CLI to talk to the host socket, so docker-ce-cli is enough.
+      "ghcr.io/devcontainers/features/docker-outside-of-docker:1": { "moby": false },
+
+      // --- "Neovim inside the container" workflow ---------------------------
+      // (see ~/.config/nvim/DEVCONTAINER_GUIDE.md). The host ~/.config/nvim is
+      // bind-mounted below; these features provide the toolchain it needs.
+      //
+      // Neovim itself. MUST be >= 0.11 for this config (native vim.lsp.config /
+      // mason-lspconfig v2 / vim.diagnostic.jump / vim.o.winborder). The base
+      // image's apt nvim is far too old — this feature installs a recent release.
+      "ghcr.io/duduribeiro/devcontainer-features/neovim:1": { "version": "stable" },
+
+      // Node is required: the Mason servers this config ensure_installs are
+      // npm-based (pyright, vtsls, eslint, angularls, html, cssls), and the
+      // tree-sitter CLI (installed in nvim-setup.sh) is an npm package.
+      "ghcr.io/devcontainers/features/node:1": { "version": "lts" }
     },
   
     "customizations": {
@@ -92,6 +153,13 @@
           "ruff.nativeServer": "on",
         }
       }
-    }
+    },
+
+    // Match the container user to your host UID/GID so workspace files (and the
+    // bind-mounted ~/.config/nvim) created in the container aren't root-owned on
+    // the host. `vscode` is the default user of the python:3.11-bookworm image;
+    // the nvim mount targets and postStartCommand above assume this name.
+    "remoteUser": "vscode",
+    "updateRemoteUserUID": true
   }
   

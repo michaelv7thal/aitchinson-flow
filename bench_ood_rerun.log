@@ -1,0 +1,10 @@
+### [2026-07-12T12:54:37+00:00] START blr -> bench_ood/blr/bayes_linear_sweep.json
+### [2026-07-12T13:10:31+00:00] OK    blr (953.7s, rc=0)
+### [2026-07-12T13:10:31+00:00] START blr_adv -> bench_ood/blr_adv/bayes_linear_adv_sweep.json
+### [2026-07-12T13:27:42+00:00] OK    blr_adv (1031.7s, rc=0)
+### [2026-07-12T13:27:42+00:00] START blr_fi -> bench_ood/blr_fi/bayes_linear_fi_sweep.json
+### [2026-07-12T13:43:56+00:00] OK    blr_fi (973.7s, rc=0)
+### [2026-07-12T13:43:56+00:00] START latent_split -> bench_ood/latent_split/latent_split.json
+### [2026-07-12T13:46:59+00:00] OK    latent_split (183.4s, rc=0)
+
+###### bench_ood: 4/4 (re)run arms OK -> bench_ood/manifest.json

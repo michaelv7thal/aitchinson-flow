@@ -1,0 +1,27 @@
+{
+  "ckpt": "runs/baseline_5ep/epoch_final.pt",
+  "epoch": 5,
+  "global_step": 785,
+  "n_samples": 256,
+  "sample_steps": 200,
+  "unigram_kl": 0.05126824229955673,
+  "bigram_kl": 1.9874250888824463,
+  "trigram_kl": 7.217007637023926,
+  "H_gen": 2.719069719314575,
+  "H_gt": 2.8483986854553223,
+  "H_ratio": 0.9545959044282898,
+  "grad_at_gen": 0.22717852890491486,
+  "grad_at_gt": 0.1791001558303833,
+  "samples": [
+    "i eivo sin errrndvan ere  iuprteoeecwr  ",
+    "erlog eemhihret arhluedeure phnno cd  ep",
+    "u fngread t ea   hats fouri pno peevtuo ",
+    "it rfraaurapda  v uf  lnoohbf m nmecpu  ",
+    "ofh enaon i ondaioo o ittldtnnm tp   rt ",
+    "rihtfrtinab lesa au tttnteeinymdh r yr s",
+    "oi rn rd letrabt l   eeoriruwnenduuatft ",
+    "r  ee  toaohr ui looti  ti tpeg tgpcpuhy"
+  ],
+  "run_name": "baseline_5ep",
+  "overrides": {}
+}

@@ -1,0 +1,181 @@
+# Latent-EqM scale-up cells — designed for cluster GPUs (≥20 GB).
+#
+# Headline laptop result: latent_d128_trainable_tied_ce0_ep20 (in latent_eqm.yaml)
+#   KL_bi=1.19 unconditional, 100% recovery at α≤0.2, EBM denoising works.
+#   Diagnosed the γ=0 averaging trap as the structural bottleneck.
+#
+# These cells scale the model and data, since laptop confirmed:
+#   * Capacity matters (small model = KL_bi 1.92 vs 1.19)
+#   * Training length already saturated at 20 epochs (plateau ~1.0-1.4)
+#   * The recipe (tied + CE-at-all-γ + time-cond + corrected Euler) is right
+#
+# To run on a cluster:
+#   1. Pre-train embeddings if needed: scripts/learn_skipgram_embeddings.py
+#      with --d 128/256/512.
+#   2. Single cell: python scripts/run_sweep.py --sweep sweeps/latent_cluster.yaml
+#                  --only latent_cluster_d256_d_model2048_L12_ep30 --runs-root runs
+#   3. Field probe + recovery: scripts/field_probe.py and recovery_check.py.
+#
+# Memory rough estimate (B=64, L=40):
+#   d_model=1024, L=8 → ~6 GB activations + grads
+#   d_model=2048, L=12 → ~24 GB activations + grads (need 32-40 GB GPU)
+#   d_model=4096, L=16 → ~80 GB (need H100/A100-80G or sharding)
+
+# Feasible scaling on a 20 GB MIG slice (e.g. A100 2g.20gb): scales d_embed=256
+# (Hypothesis 4 of RESULTS_LATENT_FINAL.md) and training data 2× (Hypothesis 5)
+# while keeping the laptop's transformer dims so it fits and runs in <2h.
+# Tests "larger embedding + more data" without the d_model=2048 step that needs
+# 32-40 GB and ~30 h on a MIG slice.
+- name: latent_cluster_d256_data20k_ep15
+  overrides:
+    training.model_name: EqMLatent
+    training.epochs: 15
+    training.cosine_eta_min: 1.0e-4
+    text8_dataset.max_train_windows: 20000
+    embedding.enabled: true
+    embedding.d_embed: 256
+    embedding.tie_decoder: true
+    eqm.lambda_ce: 1.0
+    eqm.ce_min_gamma: 0.0
+    eqm.time_conditioning: add
+    eqm.sampler: euler
+    eqm.euler_nfe: 200
+    eqm.sample_return_best: false
+    # Transformer dims unchanged from the laptop config (d_model=1024, L=8).
+
+# Longer-sequence variant of the feasible cell. Same model + data + ep budget,
+# but L=128 instead of L=40 — tests whether the EqM denoising / unconditional
+# generation results hold when each window has 3.2× more positions and the
+# attention has more cross-position context to exploit. Memory budget on a
+# 20 GB MIG: attention softmax B·H·L² ≈ 67 MB/layer × 8 layers ≈ 540 MB
+# fwd, ~2 GB w/ create_graph; FFN activations dominate at ~3 GB total.
+- name: latent_cluster_d256_L128_data20k_ep10
+  overrides:
+    training.model_name: EqMLatent
+    training.epochs: 10
+    training.cosine_eta_min: 1.0e-4
+    training.L: 128
+    text8_dataset.L: 128
+    text8_dataset.max_train_windows: 20000
+    embedding.enabled: true
+    embedding.d_embed: 256
+    embedding.tie_decoder: true
+    eqm.lambda_ce: 1.0
+    eqm.ce_min_gamma: 0.0
+    eqm.time_conditioning: add
+    eqm.sampler: euler
+    eqm.euler_nfe: 200
+    eqm.sample_return_best: false
+
+# Mid scale — the safe scale-up. d=256 embeddings, 2× model dims, 1.5× depth,
+# 5× training data. Fits on a single 24 GB GPU.
+- name: latent_cluster_d256_d_model2048_L12_ep30
+  overrides:
+    training.model_name: EqMLatent
+    training.epochs: 30
+    training.cosine_eta_min: 1.0e-4
+    text8_dataset.max_train_windows: 50000
+    embedding.enabled: true
+    embedding.d_embed: 256
+    embedding.tie_decoder: true
+    eqm.lambda_ce: 1.0
+    eqm.ce_min_gamma: 0.0
+    eqm.time_conditioning: add
+    eqm.sampler: euler
+    eqm.euler_nfe: 200
+    eqm.sample_return_best: false
+    transformer.d_model: 2048
+    transformer.num_layers: 12
+    transformer.nhead: 16
+    transformer.d_latent: 2048
+
+# Large scale — full text8, deeper transformer. Needs ≥40 GB GPU.
+- name: latent_cluster_d512_d_model4096_L16_ep30
+  overrides:
+    training.model_name: EqMLatent
+    training.epochs: 30
+    training.cosine_eta_min: 1.0e-4
+    text8_dataset.max_train_windows: 200000
+    embedding.enabled: true
+    embedding.d_embed: 512
+    embedding.tie_decoder: true
+    eqm.lambda_ce: 1.0
+    eqm.ce_min_gamma: 0.0
+    eqm.time_conditioning: add
+    eqm.sampler: euler
+    eqm.euler_nfe: 200
+    eqm.sample_return_best: false
+    transformer.d_model: 4096
+    transformer.num_layers: 16
+    transformer.nhead: 32
+    transformer.d_latent: 4096
+
+# Same recipe as d256 mid but with the fixed-PPMI/skip-gram embedding
+# variant. Uses pretrained skipgram embeddings (eliminates moving-target
+# instability). On the laptop d=27 fixed PPMI tied with CE was the best
+# result we saw (KL_bi=0.84). The cluster equivalent at d=256 + scaled
+# transformer should push that further.
+- name: latent_cluster_fixed_skipgram_d256_d_model2048_L12_ep30
+  overrides:
+    training.model_name: EqMLatent
+    training.epochs: 30
+    training.cosine_eta_min: 1.0e-4
+    text8_dataset.max_train_windows: 50000
+    embedding.enabled: true
+    embedding.d_embed: 256
+    embedding.fixed_path: data/skipgram_d256.pt
+    embedding.tie_decoder: true
+    eqm.lambda_ce: 1.0
+    eqm.ce_min_gamma: 0.0
+    eqm.time_conditioning: add
+    eqm.sampler: euler
+    eqm.euler_nfe: 200
+    eqm.sample_return_best: false
+    transformer.d_model: 2048
+    transformer.num_layers: 12
+    transformer.nhead: 16
+    transformer.d_latent: 2048
+
+# Multi-seed pair for the headline d=256 trainable cell. Use after the
+# above lands a good number; provides variance estimate.
+- name: latent_cluster_d256_d_model2048_L12_ep30_seed43
+  overrides:
+    training.model_name: EqMLatent
+    training.epochs: 30
+    training.seed: 43
+    training.cosine_eta_min: 1.0e-4
+    text8_dataset.max_train_windows: 50000
+    embedding.enabled: true
+    embedding.d_embed: 256
+    embedding.tie_decoder: true
+    eqm.lambda_ce: 1.0
+    eqm.ce_min_gamma: 0.0
+    eqm.time_conditioning: add
+    eqm.sampler: euler
+    eqm.euler_nfe: 200
+    eqm.sample_return_best: false
+    transformer.d_model: 2048
+    transformer.num_layers: 12
+    transformer.nhead: 16
+    transformer.d_latent: 2048
+
+- name: latent_cluster_d256_d_model2048_L12_ep30_seed44
+  overrides:
+    training.model_name: EqMLatent
+    training.epochs: 30
+    training.seed: 44
+    training.cosine_eta_min: 1.0e-4
+    text8_dataset.max_train_windows: 50000
+    embedding.enabled: true
+    embedding.d_embed: 256
+    embedding.tie_decoder: true
+    eqm.lambda_ce: 1.0
+    eqm.ce_min_gamma: 0.0
+    eqm.time_conditioning: add
+    eqm.sampler: euler
+    eqm.euler_nfe: 200
+    eqm.sample_return_best: false
+    transformer.d_model: 2048
+    transformer.num_layers: 12
+    transformer.nhead: 16
+    transformer.d_latent: 2048

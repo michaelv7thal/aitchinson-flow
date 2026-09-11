@@ -1,0 +1,19 @@
+### [2026-08-10T22:31:01+00:00] START nll_replace
+### [2026-08-10T23:15:51+00:00] OK    nll_replace (2689.4s, rc=0)
+### [2026-08-10T23:15:51+00:00] START nll_falseinfo
+### [2026-08-11T00:00:37+00:00] OK    nll_falseinfo (2685.9s, rc=0)
+### [2026-08-11T00:00:37+00:00] START blr_replace
+### [2026-08-11T00:45:58+00:00] OK    blr_replace (2721.6s, rc=0)
+### [2026-08-11T00:45:58+00:00] START blr_falseinfo
+### [2026-08-11T01:31:21+00:00] OK    blr_falseinfo (2722.6s, rc=0)
+### [2026-08-11T01:31:21+00:00] START bgmm_replace
+### [2026-08-11T02:23:04+00:00] OK    bgmm_replace (3103.3s, rc=0)
+### [2026-08-11T02:23:04+00:00] START bgmm_falseinfo
+### [2026-08-11T03:14:42+00:00] OK    bgmm_falseinfo (3097.9s, rc=0)
+### [2026-08-11T03:14:42+00:00] START insulin_nll
+### [2026-08-11T03:59:07+00:00] OK    insulin_nll (2664.6s, rc=0)
+### [2026-08-11T03:59:07+00:00] START insulin_gmm
+### [2026-08-11T04:43:53+00:00] OK    insulin_gmm (2686.1s, rc=0)
+### [2026-08-11T04:43:53+00:00] START insulin_bgmm
+### [2026-08-11T05:35:50+00:00] OK    insulin_bgmm (3117.2s, rc=0)
+Wrote bench_heal_final/RESULTS.md

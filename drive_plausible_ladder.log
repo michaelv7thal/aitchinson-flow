@@ -1,0 +1,24 @@
+nohup: ignoring input
+### PLAUSIBLE-LADDER START 2026-08-31_22:45:08
+### [2026-08-31_22:45:08] plausible rate=0.05 already done — skip
+### [2026-08-31_22:45:08] plausible rate=0.1 already done — skip
+### [2026-08-31_22:45:08] plausible rate=0.2 already done — skip
+### [2026-08-31_22:45:08] plausible rate=0.25 already done — skip
+### [2026-08-31_22:45:08] plausible rate=0.5 already done — skip
+### [2026-08-31_22:45:08] plausible rate=0.7 start
+### [2026-09-01_09:48:27] plausible rate=0.7 exit=0
+[plausible] 192 seqs @ rate 0.7: 5663 slots, 11325s
+[plausible] 256 seqs @ rate 0.7: 7155 slots, 14160s
+[seq:plausible] PCA(PC1-2)=0.733  LDA-axis=1.000  full-linear=1.000  nulls=None / None
+[token:plausible] fit corruption from cache bench_ood_final/latent_ladder_plausible/token_fit_r0.5.pt
+[plausible] 256 seqs @ rate 0.7: 7152 slots, 14068s
+[token:plausible] PCA(PC1-2)=0.592  energy-axis=0.963  full-linear=1.000  nulls=None / None
+### [2026-09-01_09:48:27] plausible rate=1.0 start
+### [2026-09-02_01:34:16] plausible rate=1.0 exit=0
+[plausible] 192 seqs @ rate 1.0: 8089 slots, 15958s
+[plausible] 256 seqs @ rate 1.0: 10251 slots, 20311s
+[seq:plausible] PCA(PC1-2)=0.821  LDA-axis=1.000  full-linear=1.000  nulls=None / None
+[token:plausible] fit corruption from cache bench_ood_final/latent_ladder_plausible/token_fit_r0.5.pt
+[plausible] 256 seqs @ rate 1.0: 10251 slots, 20313s
+[token:plausible] PCA(PC1-2)=0.599  energy-axis=0.976  full-linear=1.000  nulls=None / None
+### PLAUSIBLE-LADDER COMPLETE 2026-09-02_01:34:16

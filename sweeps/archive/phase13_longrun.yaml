@@ -1,0 +1,19 @@
+# Phase 13 — W5 long run on the winning architecture (50 epochs).
+#
+# Pre-conditions: W1 (Euler sampler) has produced the winning EqM
+# checkpoint and W3 (OOD eval) has confirmed the EBM signal is real.
+# Replace the overrides below with the W1 winner before running. Saving
+# every 10 epochs lets the next session report a 10/25/50-ep curve and
+# kill early if KL_bi at 25-ep regresses vs 10-ep (the Phase-3
+# overfitting signal).
+
+# Default placeholder: the W1 nag baseline. The cluster session should
+# update overrides to match the actual winner (e.g. eqm.sampler: euler,
+# eqm.euler_nfe: 128, etc.) before running.
+- name: longrun_winner_50ep
+  overrides:
+    training.epochs: 50
+    training.checkpoint_every: 10
+    text8_dataset.max_train_windows: 50000
+    eqm.sampler: euler
+    eqm.euler_nfe: 128

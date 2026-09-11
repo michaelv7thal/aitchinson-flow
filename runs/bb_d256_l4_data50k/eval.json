@@ -1,0 +1,34 @@
+{
+  "ckpt": "runs/bb_d256_l4_data50k/epoch_final.pt",
+  "model_name": "EqM",
+  "epoch": 5,
+  "global_step": 3910,
+  "n_samples": 256,
+  "sample_steps": 200,
+  "unigram_kl": 0.039871010929346085,
+  "bigram_kl": 2.1368465423583984,
+  "trigram_kl": 6.358524322509766,
+  "H_gen": 2.6898295879364014,
+  "H_gt": 2.8546600341796875,
+  "H_ratio": 0.9422591677223479,
+  "grad_at_gen": 0.10587570816278458,
+  "grad_at_gt": 0.12938514351844788,
+  "samples": [
+    "kg enmoi ga gu ne tlloo tash zatto t  l ",
+    "t h abennuikifs d  iiee w teei eativtiik",
+    " edat wul r  tla    hsi aekh spgd t ewo ",
+    "sy ew   woe  trb w at asrotrell il inns ",
+    "sete tbi  inp na liit e  ssanetn onluts ",
+    "sgnea we  er   cdttmnaerrnwibdgnludwc a ",
+    " eonelto   x thcsei okc oo lenc niw gbir",
+    " unwntas tes as d lt tflsniu h   mtsvtin"
+  ],
+  "run_name": "bb_d256_l4_data50k",
+  "overrides": {
+    "training.epochs": 5,
+    "text8_dataset.max_train_windows": 50000,
+    "transformer.d_model": 256,
+    "transformer.nhead": 4,
+    "transformer.num_layers": 4
+  }
+}

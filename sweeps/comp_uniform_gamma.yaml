@@ -1,0 +1,118 @@
+# Compositional EqM — MSE vs Hilbert, rerun with a MATCHED gamma schedule.
+#
+# Why this sweep exists
+# --------------------
+# sweeps/compositional_eqm_test.yaml claims in its header to hold "everything
+# constant across cells *except* the regression loss", but only its Hilbert
+# cells set `eqm.gamma_power: 1.0`; the MSE cells inherited the global default,
+# which at the time the runs were launched had been silently flipped to 1.5
+# (commit 2e15b3f, reverted in ef02220). So every published MSE-vs-Hilbert
+# comparison varies the loss AND the gamma importance schedule together:
+#
+#   comp_mse_seed{42,43,44}      loss=mse           gamma_power=1.5
+#   comp_hilbert_seed{42,43,44}  loss=hilbert_soft  gamma_power=1.0
+#   comp_ref_det_mse             loss=mse           gamma_power=1.5
+#   comp_ref_det_hilbert         loss=hilbert_soft  gamma_power=1.0
+#
+# The intended single-knob control (runs/eqm_data50k_ep5_mse_v3, MSE at
+# gamma_power=1.0) was configured but never trained: no checkpoint, no eval.
+#
+# What this sweep does
+# --------------------
+# 2 losses x 2 endpoint recipes, one seed, everything else at the dev-scale
+# defaults, and gamma sampled UNIFORMLY (`eqm.gamma_power: 1.0`) in all four
+# cells. Uniform is the neutral choice: it is the unreshaped t ~ U[0,1] of
+# standard flow matching, so no cell is favoured by the schedule.
+#
+# Note on direction, since the original sweep's comment has it backwards:
+# gamma = U(0,1)**gamma_power, so gamma_power < 1 pushes mass toward gamma=1
+# (the data end) and gamma_power > 1 pushes it toward gamma=0 (the noise end).
+# The flipped 1.5 default therefore over-weighted the NOISE end, not gamma=1.
+#
+# `eqm.sample_gamma: 1.5` is pinned to match the existing comp_* runs so the
+# new cells stay comparable to the published numbers (it is inert here anyway,
+# since eqm.time_conditioning is off). `loss.hilbert_alpha*` is pinned in
+# every cell so it cannot differ across them; it is inert under loss.mode=mse.
+#
+# Dev scale, per scripts/run_sweep.py defaults: L=40, d_model=1024, 8 layers,
+# 8 heads, B=64, 5 epochs, 10k windows, lr 3e-4, seed 42 => 785 steps/cell.
+
+# ─── Smoke test: exercises Dirichlet collate + Hilbert loss + NAG sampling ──
+- name: compu_smoke
+  overrides:
+    training.model_name: EqM
+    training.epochs: 1
+    training.B: 32
+    text8_dataset.batch_size: 32
+    text8_dataset.max_train_windows: 1024
+    text8_dataset.max_eval_windows: 256
+    transformer.d_model: 128
+    transformer.nhead: 4
+    transformer.num_layers: 2
+    transformer.d_latent: 128
+    loss.mode: hilbert_soft
+    loss.hilbert_alpha: 1.0
+    loss.hilbert_alpha_start: 1.0
+    transformation.dirichlet_sampling: true
+    transformation.dirichlet_alpha_peak: 10.0
+    transformation.dirichlet_alpha_base: 0.1
+    eqm.gamma_power: 1.0
+    eqm.sample_gamma: 1.5
+
+# ─── The ablation: thickened endpoint, MSE vs Hilbert at uniform gamma ──────
+- name: compu_mse_thick
+  overrides:
+    training.model_name: EqM
+    training.epochs: 5
+    training.seed: 42
+    text8_dataset.max_train_windows: 10000
+    loss.mode: mse
+    loss.hilbert_alpha: 1.0
+    loss.hilbert_alpha_start: 1.0
+    transformation.dirichlet_sampling: true
+    transformation.dirichlet_alpha_peak: 10.0
+    transformation.dirichlet_alpha_base: 0.1
+    eqm.gamma_power: 1.0
+    eqm.sample_gamma: 1.5
+
+- name: compu_hilbert_thick
+  overrides:
+    training.model_name: EqM
+    training.epochs: 5
+    training.seed: 42
+    text8_dataset.max_train_windows: 10000
+    loss.mode: hilbert_soft
+    loss.hilbert_alpha: 1.0
+    loss.hilbert_alpha_start: 1.0
+    transformation.dirichlet_sampling: true
+    transformation.dirichlet_alpha_peak: 10.0
+    transformation.dirichlet_alpha_base: 0.1
+    eqm.gamma_power: 1.0
+    eqm.sample_gamma: 1.5
+
+# ─── Deterministic-CLR references at the same matched schedule ──────────────
+- name: compu_mse_det
+  overrides:
+    training.model_name: EqM
+    training.epochs: 5
+    training.seed: 42
+    text8_dataset.max_train_windows: 10000
+    loss.mode: mse
+    loss.hilbert_alpha: 1.0
+    loss.hilbert_alpha_start: 1.0
+    transformation.dirichlet_sampling: false
+    eqm.gamma_power: 1.0
+    eqm.sample_gamma: 1.5
+
+- name: compu_hilbert_det
+  overrides:
+    training.model_name: EqM
+    training.epochs: 5
+    training.seed: 42
+    text8_dataset.max_train_windows: 10000
+    loss.mode: hilbert_soft
+    loss.hilbert_alpha: 1.0
+    loss.hilbert_alpha_start: 1.0
+    transformation.dirichlet_sampling: false
+    eqm.gamma_power: 1.0
+    eqm.sample_gamma: 1.5

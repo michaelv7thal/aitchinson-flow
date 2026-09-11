@@ -1,0 +1,31 @@
+{
+  "model_name": "EqM_OneHot",
+  "model_class": "EqM",
+  "L": 40,
+  "epoch": 10,
+  "n_samples": 256,
+  "sample_steps": 200,
+  "split": "test",
+  "KL_uni": 0.00689028762280941,
+  "KL_bi": 0.030662549659609795,
+  "KL_tri": 0.06846483051776886,
+  "H_gen": 1.3755621910095215,
+  "H_gt": 1.3785452842712402,
+  "H_ratio": 0.997836057113426,
+  "per_pos_entropy": 1.3022339344024658,
+  "bpc": null,
+  "generation_metric_valid": false,
+  "collapsed": false,
+  "samples": [
+    "CTTCCATTTGATTTGCGATCCCCTGAGGTGACCAAGTTCC",
+    "CCAGTAGACTATGTTGCCTCTGCTAACCGCGAAGCGGCTG",
+    "TGGAAGGTTTACCGGTCTGCGACTGGTTGCCCCCCGTCTG",
+    "TCTCCTGCGCCTCGCGTCCTCCAGCGCGTAGTTACGGCCG",
+    "GGTGCCGACGAACAGATTACCACGCTCAATCTATTAGCAA",
+    "CGTCACTTGTATACGGGAACGTCGCTCAGCCTATCCATAG",
+    "AGTCAGGTCAAAGGGGGGCCTTATCATCGCCTCAGATTTC",
+    "TAAAACGCCCCTATTGGCTGGGACACAAGCCCTACTCCAC"
+  ],
+  "windows_path": "data_cache/dna/promoters_L40.pt",
+  "note_confound": "Isolates K up to a data-structure confound: DNA bigram/trigram structure differs from English (adjacent bases ~ closer to independent)."
+}

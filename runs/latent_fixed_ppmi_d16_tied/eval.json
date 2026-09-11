@@ -1,0 +1,40 @@
+{
+  "ckpt": "runs/latent_fixed_ppmi_d16_tied/epoch_final.pt",
+  "model_name": "EqMLatent",
+  "epoch": 5,
+  "global_step": 785,
+  "n_samples": 256,
+  "sample_steps": 200,
+  "sample_kwargs": {},
+  "unigram_kl": 0.3724071681499481,
+  "bigram_kl": 1.8462810516357422,
+  "trigram_kl": 6.6916704177856445,
+  "H_gen": 2.6199793815612793,
+  "H_gt": 2.8483986854553223,
+  "H_ratio": 0.9198078186665327,
+  "grad_at_gen": 3.674379825592041,
+  "grad_at_gt": 2.9403235912323,
+  "samples": [
+    "gh nw pg geonp ei ilpiuwoynengpono l ieo",
+    "rpipy e i ptetoo pwvelhigpiw au i oipau ",
+    "pwp nrlof ni onene yol eggphlogeolpyne l",
+    "pelriwalbp olinelyfiotlgielelenereueyop ",
+    "l oht he ofe ogvelneheenloie n nflagvgpu",
+    "npeigeilv enpy hlvlnip lopylopgei ricg a",
+    "egi lenlk ye fegenponpvg ne  oon p v gel",
+    "oeoetnypwyoylepolkigung hiy ege fanavar "
+  ],
+  "run_name": "latent_fixed_ppmi_d16_tied",
+  "overrides": {
+    "training.model_name": "EqMLatent",
+    "training.epochs": 5,
+    "text8_dataset.max_train_windows": 10000,
+    "embedding.enabled": true,
+    "embedding.d_embed": 16,
+    "embedding.fixed_path": "data/ppmi_svd_d16.pt",
+    "embedding.tie_decoder": true,
+    "eqm.sample_return_best": false,
+    "eqm.ce_min_gamma": 0.0,
+    "eqm.lambda_ce": 1.0
+  }
+}
